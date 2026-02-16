@@ -1,0 +1,17 @@
+{
+  "name": "hackerton",
+  "version": "1.0.0",
+  "description": "A simple HTML/JS/CSS starter template",
+  "homepage": "https://Fixtr.github.io/hackerton",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "gh-pages -d ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
+}
