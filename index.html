@@ -1,67 +1,40 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TLYK2S8TDM"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-TLYK2S8TDM');
-</script>
-<script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "vitovro1nn");
-</script>
+  <title>Anchor-Based AI Travel Planner</title>
+  <!-- Modern Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
-  <div class="theme-switch-wrapper">
-    <label class="theme-switch" for="checkbox">
-      <input type="checkbox" id="checkbox" />
-      <div class="slider round"></div>
-    </label>
-  </div>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
+  <!-- App Container -->
+  <main class="app-container">
+    <header class="hero">
+      <h1>Smart Travel AI</h1>
+      <p>Optimize your itinerary around your must-attend events.</p>
+    </header>
 
-  <section id="contact">
-    <h2>Contact Us</h2>
-    <form action="https://formspree.io/f/mzdagzdn" method="POST">
-      <label>
-        Your email:
-        <input type="email" name="email">
-      </label>
-      <label>
-        Your message:
-        <textarea name="message"></textarea>
-      </label>
-      <button type="submit">Send</button>
-    </form>
-  </section>
+    <!-- Web Components will be injected here -->
+    <section class="content" id="app-content">
+      <!-- The custom travel form -->
+      <travel-form></travel-form>
 
-  <div id="disqus_thread"></div>
-<script>
-    var disqus_config = function () {
-        this.page.url = window.location.href;
-        this.page.identifier = window.location.href;
-    };
-    (function() { // DON'T EDIT BELOW THIS LINE
-    var d = document, s = d.createElement('script');
-    s.src = 'https://hackerton.disqus.com/embed.js';
-    s.setAttribute('data-timestamp', +new Date());
-    (d.head || d.body).appendChild(s);
-    })();
-</script>
-<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+      <!-- Results Section Container -->
+      <div class="results-layout" style="display: grid; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem;">
+        <map-view></map-view>
+        <itinerary-view></itinerary-view>
+      </div>
+    </section>
+  </main>
 
-  <script defer type="text/javascript" src="/main.js"></script>
+  <!-- Entry point for JS -->
+  <script type="module" src="/main.js"></script>
 </body>
+
 </html>
