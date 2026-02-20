@@ -1,66 +1,115 @@
-/**
- * This service handles communication with the "backend" (Firebase Cloud Functions) 
- * for the AI route optimization logic, and provides wrappers for Maps API interactions.
- */
-
-// import { db } from './firebase-config.js';
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
 /**
- * Mocks the AI generation process. In a real scenario, this would call
- * a Firebase Cloud Function via HTTP or Callable Function, which securely
- * holds the Gemini API Key and Maps API Key.
- * @param {Object} eventData 
- * @returns {Promise<Object>}
+ * Calls the real Gemini API to generate an optimized itinerary.
+ * Uses GEMINI_API_KEY Exposed through Vite Configuration.
  */
 export async function generateOptimizedItinerary(eventData) {
-    console.log("Calling AI Optimizer with constraints:", eventData);
+  console.log("Calling Gemini AI Optimizer with constraints:", eventData);
 
-    // Simulate network latency (2 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  const apiKey = import.meta.env.GEMINI_API_KEY;
 
-    // Mocked AI Response based on "Anchor Event"
-    return {
-        anchor: eventData,
-        days: [
-            {
-                day: 1,
-                date: eventData.date,
-                theme: "Pre-Event Vibe & Anchor Execution",
-                events: [
-                    {
-                        time: "10:00 AM",
-                        type: "attraction",
-                        title: "Explore Local Vibe",
-                        description: "A relaxed morning exploring the streets near the venue area to get a feel for the local atmosphere without exhausting yourself.",
-                        location: "Streets near " + eventData.location,
-                        duration: "2 hours"
-                    },
-                    {
-                        time: "12:30 PM",
-                        type: "dining",
-                        title: "Foreigner-Friendly Local Lunch",
-                        description: "A highly-rated authentic restaurant nearby that offers English menus and dietary accommodations.",
-                        location: "Near " + eventData.location,
-                        duration: "1.5 hours"
-                    },
-                    {
-                        time: "02:30 PM",
-                        type: "leisure",
-                        title: "Cafe & Rest",
-                        description: "Rest your legs and recharge at an aesthetic cafe before the big event.",
-                        location: "Cafe Alley near Venue",
-                        duration: "1.5 hours"
-                    },
-                    {
-                        time: "17:30 PM", // Assuming a 19:00 concert, arrive 1.5 hours early
-                        type: "anchor",
-                        title: `Arrive at: ${eventData.name}`,
-                        description: "CRITICAL: Arrive early for merchandise, finding seats, and enjoying the pre-event atmosphere. The schedule was built backwards from this exact constraint.",
-                        location: eventData.location,
-                        duration: "4+ hours"
-                    }
-                ]
+  if (!apiKey) {
+    throw new Error("Gemini API Key is missing. Please ensure GEMINI_API_KEY is defined in .env.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  // Define strict JSON schema matching our required data structure
+  const itinerarySchema = {
+    type: SchemaType.OBJECT,
+    properties: {
+      days: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            day: { type: SchemaType.INTEGER },
+            date: { type: SchemaType.STRING },
+            theme: { type: SchemaType.STRING },
+            events: {
+              type: SchemaType.ARRAY,
+              items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  time: { type: SchemaType.STRING },
+                  endTime: { type: SchemaType.STRING },
+                  type: { type: SchemaType.STRING, description: "Must be one of: 'attraction', 'dining', 'leisure', 'anchor'" },
+                  title: { type: SchemaType.STRING },
+                  description: { type: SchemaType.STRING },
+                  location: { type: SchemaType.STRING, description: "Specific real world Address or accurate Place Name in Korea" },
+                  duration: { type: SchemaType.STRING }
+                },
+                required: ["time", "endTime", "type", "title", "description", "location", "duration"]
+              }
             }
-        ]
+          },
+          required: ["day", "date", "theme", "events"]
+        }
+      }
+    },
+    required: ["days"]
+  };
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: itinerarySchema,
+    }
+  });
+
+  const anchorText = eventData.anchors && eventData.anchors.length > 0
+    ? eventData.anchors.map((a, i) => `${i + 1}. "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
+    : "No fixed anchor events provided. Free to plan the entire day.";
+
+  const anchorRule = eventData.anchors && eventData.anchors.length > 0
+    ? `1. You MUST include events with type="anchor" that exactly match the time and location of the provided Anchor Events.`
+    : `1. You may omit events of type="anchor" since none were provided.`;
+
+  const prompt = `
+You are an expert AI Travel Planner.
+Plan a 1-day itinerary for the date ${eventData.date}.
+
+PARAMETERS:
+- Start Time: ${eventData.startTime}
+- End Time: ${eventData.endTime}
+- Start Location (e.g. Hotel): "${eventData.startLocation}"
+- End Location (e.g. Hotel): "${eventData.endLocation}"
+
+ANCHOR EVENTS (Must Attend):
+${anchorText}
+
+The primary goal is to ensure the user arrives at any Anchor Events seamlessly and exactly on time.
+Fill the rest of the day prior to and after the Anchor Events with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
+The first event of the day MUST start at the Start Location near the Start Time.
+The last event of the day MUST end at the End Location near the End Time.
+
+CRITICAL RULES:
+${anchorRule}
+2. All alternative locations MUST be real places in Korea, close to the route.
+3. Obey the JSON schema exactly.
+4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    let responseText = result.response.text();
+
+    // Sometimes AI includes markdown tags around JSON
+    if (responseText.startsWith("\`\`\`json")) {
+      responseText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+    }
+
+    const parsedData = JSON.parse(responseText);
+
+    // Merge the input metadata back in for reference
+    return {
+      request: eventData,
+      days: parsedData.days
     };
+  } catch (err) {
+    console.error("Gemini API Error:", err);
+    throw new Error("Failed to generate itinerary from AI.");
+  }
 }

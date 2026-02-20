@@ -1,17 +1,17 @@
 export default class TravelForm extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-    }
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this.anchorCount = 0;
+  }
 
-    connectedCallback() {
-        this.render();
-        this.setupEventListeners();
-    }
+  connectedCallback() {
+    this.render();
+    this.setupEventListeners();
+  }
 
-    render() {
-        // Standard baseline features applied: :host, container queries, CSS variables
-        this.shadowRoot.innerHTML = `
+  render() {
+    this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: block;
@@ -23,27 +23,33 @@ export default class TravelForm extends HTMLElement {
         }
 
         h2 {
-          font-size: 1.75rem;
+          font-size: 1.5rem;
           color: var(--text-primary);
           margin-bottom: 0.5rem;
+          border-bottom: 2px solid oklch(95% 0.02 260);
+          padding-bottom: 0.5rem;
         }
 
         .subtitle {
           color: var(--text-secondary);
           margin-bottom: 2rem;
-          font-size: 1rem;
+          font-size: 0.95rem;
+        }
+
+        .form-section {
+          margin-bottom: 2.5rem;
         }
 
         .form-group {
-          margin-bottom: 1.5rem;
+          margin-bottom: 1rem;
         }
 
         label {
           display: block;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.4rem;
           font-weight: 600;
           color: var(--text-primary);
-          font-size: 0.9rem;
+          font-size: 0.85rem;
         }
 
         input {
@@ -52,10 +58,11 @@ export default class TravelForm extends HTMLElement {
           border: 1px solid oklch(90% 0.02 260);
           border-radius: 8px;
           font-family: inherit;
-          font-size: 1rem;
+          font-size: 0.95rem;
           background: var(--bg-primary);
           color: var(--text-primary);
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          box-sizing: border-box;
         }
 
         input:focus {
@@ -64,7 +71,7 @@ export default class TravelForm extends HTMLElement {
           box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
         }
 
-        button {
+        .primary-btn {
           background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280));
           color: white;
           border: none;
@@ -78,71 +85,193 @@ export default class TravelForm extends HTMLElement {
           transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        button:hover {
+        .primary-btn:hover {
           transform: translateY(-2px);
           box-shadow: var(--shadow-glow);
         }
 
+        .secondary-btn {
+          background: oklch(95% 0.02 260);
+          color: var(--text-primary);
+          border: 1px dashed oklch(80% 0.02 260);
+          padding: 0.75rem 1rem;
+          font-size: 0.95rem;
+          font-weight: 600;
+          border-radius: 8px;
+          cursor: pointer;
+          width: 100%;
+          margin-bottom: 1.5rem;
+          transition: background 0.2s;
+        }
+
+        .secondary-btn:hover {
+          background: oklch(92% 0.02 260);
+        }
+
+        .anchor-item {
+          background: oklch(98% 0.01 260);
+          border: 1px solid oklch(90% 0.02 260);
+          padding: 1.25rem;
+          border-radius: 12px;
+          margin-bottom: 1rem;
+          position: relative;
+        }
+
+        .remove-btn {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: none;
+          border: none;
+          color: oklch(60% 0.15 20); /* Reddish */
+          font-size: 1.5rem;
+          cursor: pointer;
+          line-height: 1;
+          padding: 0;
+          opacity: 0.6;
+          transition: opacity 0.2s;
+        }
+
+        .remove-btn:hover {
+          opacity: 1;
+        }
+
         @container (min-width: 500px) {
-          .row {
+          .row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+          }
+          .row-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+            gap: 1rem;
           }
         }
       </style>
 
       <form id="travel-form">
-        <h2>Enter Your Anchor Event</h2>
-        <p class="subtitle">Tell us what you MUST attend, and we'll build the trip around it.</p>
         
-        <div class="form-group">
-          <label for="event-name">Event Name (e.g., K-pop Concert, Exhibition)</label>
-          <input type="text" id="event-name" required placeholder="G-Dragon Concert">
-        </div>
-
-        <div class="row">
-          <div class="form-group">
-            <label for="event-date">Event Date</label>
-            <input type="date" id="event-date" required>
+        <div class="form-section">
+          <h2>Trip Basics</h2>
+          <div class="row-3">
+            <div class="form-group">
+              <label for="event-date">Date</label>
+              <input type="date" id="event-date" required>
+            </div>
+            <div class="form-group">
+              <label for="start-time">Start Time</label>
+              <input type="time" id="start-time" required>
+            </div>
+            <div class="form-group">
+              <label for="end-time">End Time</label>
+              <input type="time" id="end-time" required>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="event-time">Event Time</label>
-            <input type="time" id="event-time" required>
+          
+          <div class="row-2">
+            <div class="form-group">
+              <label for="start-location">Start Location (e.g., Hotel)</label>
+              <input type="text" id="start-location" placeholder="Myeongdong Lotte Hotel" required>
+            </div>
+            <div class="form-group">
+              <label for="end-location">End Location (e.g., Hotel/Airport)</label>
+              <input type="text" id="end-location" placeholder="Incheon Airport" required>
+            </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="event-location">Location (Area or Venue)</label>
-          <input type="text" id="event-location" required placeholder="KSPO Dome">
+        <div class="form-section">
+          <h2>Anchor Events <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
+          <p class="subtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
+          
+          <div id="anchors-container"></div>
+          
+          <button type="button" id="add-anchor-btn" class="secondary-btn">+ Add Anchor Event</button>
         </div>
 
-        <button type="submit">Generate AI Itinerary ✨</button>
+        <button type="submit" class="primary-btn">Generate AI Itinerary ✨</button>
       </form>
     `;
-    }
 
-    setupEventListeners() {
-        const form = this.shadowRoot.getElementById('travel-form');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const eventData = {
-                name: this.shadowRoot.getElementById('event-name').value,
-                date: this.shadowRoot.getElementById('event-date').value,
-                time: this.shadowRoot.getElementById('event-time').value,
-                location: this.shadowRoot.getElementById('event-location').value,
-            };
+    // Initialize with 1 empty anchor
+    this.addAnchor();
+  }
 
-            console.log('Dispatching generation event:', eventData);
+  addAnchor() {
+    this.anchorCount++;
+    const container = this.shadowRoot.getElementById('anchors-container');
+    const id = `anchor-${Date.now()}`;
 
-            // Dispatch custom event reaching up through the DOM
-            this.dispatchEvent(new CustomEvent('generate-itinerary', {
-                detail: eventData,
-                bubbles: true,
-                composed: true // Allows event to pass through shadow DOM boundary
-            }));
-        });
-    }
+    const template = document.createElement('div');
+    template.className = 'anchor-item';
+    template.id = id;
+    template.innerHTML = `
+      <button type="button" class="remove-btn" title="Remove Anchor">×</button>
+      <div class="form-group">
+        <label>Event Name</label>
+        <input type="text" class="anchor-name" placeholder="G-Dragon Concert" required>
+      </div>
+      <div class="row-3">
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" class="anchor-time" required>
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" class="anchor-end-time" required>
+        </div>
+        <div class="form-group">
+          <label>Location (Area or Venue)</label>
+          <input type="text" class="anchor-location" placeholder="KSPO Dome" required>
+        </div>
+      </div>
+    `;
+
+    // Setup remove logic
+    template.querySelector('.remove-btn').addEventListener('click', () => {
+      container.removeChild(template);
+    });
+
+    container.appendChild(template);
+  }
+
+  setupEventListeners() {
+    this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
+      this.addAnchor();
+    });
+
+    const form = this.shadowRoot.getElementById('travel-form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
+      const anchors = Array.from(anchorsElements).map(el => ({
+        name: el.querySelector('.anchor-name').value,
+        time: el.querySelector('.anchor-time').value,
+        endTime: el.querySelector('.anchor-end-time').value,
+        location: el.querySelector('.anchor-location').value,
+      }));
+
+      const eventData = {
+        date: this.shadowRoot.getElementById('event-date').value,
+        startTime: this.shadowRoot.getElementById('start-time').value,
+        endTime: this.shadowRoot.getElementById('end-time').value,
+        startLocation: this.shadowRoot.getElementById('start-location').value,
+        endLocation: this.shadowRoot.getElementById('end-location').value,
+        anchors: anchors
+      };
+
+      console.log('Dispatching generation event:', eventData);
+
+      // Dispatch custom event reaching up through the DOM
+      this.dispatchEvent(new CustomEvent('generate-itinerary', {
+        detail: eventData,
+        bubbles: true,
+        composed: true // Allows event to pass through shadow DOM boundary
+      }));
+    });
+  }
 }
 
 customElements.define('travel-form', TravelForm);

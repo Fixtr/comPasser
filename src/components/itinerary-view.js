@@ -6,6 +6,19 @@ export default class ItineraryView extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
+  }
+
+  renderTransitInfo(transitDetails) {
+    transitDetails.forEach(detail => {
+      const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
+      if (el) {
+        const icon = detail.mode === 'TRANSIT' ? '🚌' : '🚶‍♂️';
+        const modeText = detail.mode === 'TRANSIT' ? 'Transit' : 'Walk';
+        el.innerHTML = `<span class="transit-pill">${icon} ${modeText} • ${detail.duration} (${detail.distance})</span>`;
+        el.classList.remove('hidden');
+      }
+    });
   }
 
   render() {
@@ -91,16 +104,23 @@ export default class ItineraryView extends HTMLElement {
         
         /* Node marker */
         .event-card::before {
-          content: '';
+          content: attr(data-index);
           position: absolute;
           left: -1.5rem;
           top: 1rem;
-          width: 12px;
-          height: 12px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: var(--bg-secondary);
-          border: 3px solid var(--accent-primary);
+          border: 2px solid var(--accent-primary);
+          color: var(--accent-primary);
           transform: translateX(-50%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.8rem;
+          box-shadow: 0 0 0 4px var(--bg-primary);
         }
 
         .event-card[data-type="anchor"] {
@@ -111,7 +131,34 @@ export default class ItineraryView extends HTMLElement {
         
         .event-card[data-type="anchor"]::before {
           background: var(--accent-primary);
+          color: white;
           box-shadow: 0 0 0 4px oklch(65% 0.2 260 / 30%);
+        }
+
+        .transit-info {
+          padding-left: 80px;
+          margin-block: -0.5rem;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+        }
+
+        .transit-info.hidden {
+          display: none;
+        }
+
+        .transit-pill {
+          background: oklch(95% 0.02 260);
+          padding: 0.3rem 0.8rem;
+          border-radius: 20px;
+          border: 1px dashed oklch(85% 0.02 260);
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-weight: 500;
         }
 
         .event-title {
@@ -233,13 +280,15 @@ export default class ItineraryView extends HTMLElement {
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = ''; // Clear old
 
-    dayData.events.forEach(ev => {
+    dayData.events.forEach((ev, idx) => {
       const item = document.createElement('div');
       item.className = 'timeline-item';
 
+      const timeDisplay = ev.endTime ? `${ev.time} -<br>${ev.endTime}` : ev.time;
+
       item.innerHTML = `
-        <div class="time-badge">${ev.time}</div>
-        <div class="event-card" data-type="${ev.type}">
+        <div class="time-badge">${timeDisplay}</div>
+        <div class="event-card" data-type="${ev.type}" data-index="${idx + 1}">
           <div class="event-title">${ev.title}</div>
           <div class="event-desc">${ev.description}</div>
           <div class="event-meta">
@@ -250,6 +299,13 @@ export default class ItineraryView extends HTMLElement {
       `;
 
       container.appendChild(item);
+
+      if (idx < dayData.events.length - 1) {
+        const transit = document.createElement('div');
+        transit.className = 'transit-info hidden';
+        transit.id = `transit-info-${idx}`;
+        container.appendChild(transit);
+      }
     });
   }
 }

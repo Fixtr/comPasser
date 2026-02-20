@@ -10,6 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const travelForm = document.querySelector('travel-form');
     const itineraryView = document.querySelector('itinerary-view');
     const mapView = document.querySelector('map-view');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+
+    // Theme initialization
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    if (currentTheme === 'dark') {
+        document.body.classList.add('dark');
+        if (themeToggleBtn) themeToggleBtn.textContent = '☀️ Light Mode';
+    }
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeToggleBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+        });
+    }
 
     if (travelForm && itineraryView) {
         travelForm.addEventListener('generate-itinerary', async (e) => {
