@@ -9,8 +9,8 @@ export default class ItineraryView extends HTMLElement {
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
   }
 
-  renderTransitInfo(transitDetails) {
-    transitDetails.forEach(detail => {
+  renderTransitInfo(transitRoutes) {
+    transitRoutes.forEach(detail => {
       const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
       if (el) {
         const icon = detail.mode === 'TRANSIT' ? '🚌' : '🚶‍♂️';
@@ -86,7 +86,7 @@ export default class ItineraryView extends HTMLElement {
           padding-top: 0.2rem;
         }
 
-        .event-card {
+        .schedule-card {
           flex-grow: 1;
           background: var(--bg-primary);
           padding: 1.25rem;
@@ -96,14 +96,14 @@ export default class ItineraryView extends HTMLElement {
           transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .event-card:hover {
+        .schedule-card:hover {
           transform: translateY(-2px);
           box-shadow: var(--shadow-sm);
           border-color: var(--accent-primary);
         }
         
         /* Node marker */
-        .event-card::before {
+        .schedule-card::before {
           content: attr(data-index);
           position: absolute;
           left: -1.5rem;
@@ -123,13 +123,13 @@ export default class ItineraryView extends HTMLElement {
           box-shadow: 0 0 0 4px var(--bg-primary);
         }
 
-        .event-card[data-type="anchor"] {
+        .schedule-card[data-type="AnchorSchedule"] {
           background: linear-gradient(to right, oklch(98% 0.02 260), oklch(95% 0.05 280));
           border: 1px solid var(--accent-primary);
           box-shadow: 0 4px 12px oklch(65% 0.2 260 / 15%);
         }
         
-        .event-card[data-type="anchor"]::before {
+        .schedule-card[data-type="AnchorSchedule"]::before {
           background: var(--accent-primary);
           color: white;
           box-shadow: 0 0 0 4px oklch(65% 0.2 260 / 30%);
@@ -161,21 +161,21 @@ export default class ItineraryView extends HTMLElement {
           font-weight: 500;
         }
 
-        .event-title {
+        .schedule-title {
           font-weight: 700;
           font-size: 1.1rem;
           margin-bottom: 0.25rem;
           color: var(--text-primary);
         }
 
-        .event-desc {
+        .schedule-desc {
           color: var(--text-secondary);
           font-size: 0.95rem;
           line-height: 1.4;
           margin-bottom: 0.75rem;
         }
 
-        .event-meta {
+        .schedule-meta {
           display: flex;
           gap: 1rem;
           font-size: 0.85rem;
@@ -227,10 +227,10 @@ export default class ItineraryView extends HTMLElement {
           .timeline::before {
             left: 20px;
           }
-          .event-card {
+          .schedule-card {
             margin-left: 1.5rem;
           }
-          .event-card::before {
+          .schedule-card::before {
             left: -1.5rem;
             transform: none;
           }
@@ -271,36 +271,36 @@ export default class ItineraryView extends HTMLElement {
     container.innerHTML = `<p style="color: red;">${msg}</p>`;
   }
 
-  showResults(optimizedPlan) {
+  showResults(itineraryPlan) {
     this.setLoading(false);
 
-    const dayData = optimizedPlan.days[0]; // Currently mocking single day
+    const dayData = itineraryPlan.days[0]; // Currently mocking single day
     this.shadowRoot.getElementById('day-title').textContent = dayData.date;
 
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = ''; // Clear old
 
-    dayData.events.forEach((ev, idx) => {
+    dayData.scheduleItems.forEach((scheduleItem, idx) => {
       const item = document.createElement('div');
       item.className = 'timeline-item';
 
-      const timeDisplay = ev.endTime ? `${ev.time} -<br>${ev.endTime}` : ev.time;
+      const timeDisplay = scheduleItem.endTime ? `${scheduleItem.time} -<br>${scheduleItem.endTime}` : scheduleItem.time;
 
       item.innerHTML = `
         <div class="time-badge">${timeDisplay}</div>
-        <div class="event-card" data-type="${ev.type}" data-index="${idx + 1}">
-          <div class="event-title">${ev.title}</div>
-          <div class="event-desc">${ev.description}</div>
-          <div class="event-meta">
-            <span class="meta-item">📍 ${ev.location}</span>
-            <span class="meta-item">⏱ ${ev.duration}</span>
+        <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
+          <div class="schedule-title">${scheduleItem.title}</div>
+          <div class="schedule-desc">${scheduleItem.description}</div>
+          <div class="schedule-meta">
+            <span class="meta-item">📍 ${scheduleItem.location}</span>
+            <span class="meta-item">⏱ ${scheduleItem.duration}</span>
           </div>
         </div>
       `;
 
       container.appendChild(item);
 
-      if (idx < dayData.events.length - 1) {
+      if (idx < dayData.scheduleItems.length - 1) {
         const transit = document.createElement('div');
         transit.className = 'transit-info hidden';
         transit.id = `transit-info-${idx}`;

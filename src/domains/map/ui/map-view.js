@@ -126,7 +126,7 @@ export class MapView extends HTMLElement {
         this.fallbackPolylines = [];
     }
 
-    async renderRoute(itineraryData) {
+    async renderRoute(itineraryPlan) {
         if (!this.map) return;
 
         // Clear Transit info for UI
@@ -134,14 +134,14 @@ export class MapView extends HTMLElement {
         this.setLoading(true, "Analyzing locations...");
         this.clearMapLayers();
 
-        const day = itineraryData.days[0];
-        if (!day || !day.events) {
+        const day = itineraryPlan.days[0];
+        if (!day || !day.scheduleItems) {
             this.setLoading(false);
             return;
         }
 
         // 1. Delegate Geocoding to GeocodingService
-        const scheduleItems = day.events;
+        const scheduleItems = day.scheduleItems;
         const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
 
         if (geocodedItems.length === 0) {
@@ -150,7 +150,7 @@ export class MapView extends HTMLElement {
         }
 
         // 2. Center Map on Anchor Schedule, or first item
-        const anchorItem = geocodedItems.find(item => item.type === 'anchor');
+        const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
         const centerCoordinate = anchorItem ? anchorItem.latLng : geocodedItems[0].latLng;
         this.map.setCenter(centerCoordinate);
         this.map.setZoom(14);
@@ -171,7 +171,7 @@ export class MapView extends HTMLElement {
         const { AdvancedMarkerElement, PinElement } = await this.loader.importLibrary("marker");
 
         geocodedItems.forEach((item, index) => {
-            const isAnchor = item.type === 'anchor';
+            const isAnchor = item.type === 'AnchorSchedule';
 
             const pinView = new PinElement({
                 background: isAnchor ? "#7c3aed" : (index === 0 ? "#10b981" : "#3b82f6"),
@@ -197,7 +197,7 @@ export class MapView extends HTMLElement {
         const { SymbolPath } = await this.loader.importLibrary("core");
 
         const PATH_COLORS = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#0284c7', '#4f46e5', '#9333ea'];
-        const transitDetails = [];
+        const transitRoutes = [];
         const routePromises = [];
 
         for (let i = 0; i < geocodedItems.length - 1; i++) {
@@ -223,7 +223,7 @@ export class MapView extends HTMLElement {
 
                     const leg = response.routes[0]?.legs[0];
                     if (leg) {
-                        transitDetails.push({
+                        transitRoutes.push({
                             fromIndex: i,
                             duration: leg.duration.text,
                             distance: leg.distance.text,
@@ -247,7 +247,7 @@ export class MapView extends HTMLElement {
                     });
                     this.fallbackPolylines.push(dashedPolyline);
 
-                    transitDetails.push({
+                    transitRoutes.push({
                         fromIndex: i,
                         duration: 'Short Walk',
                         distance: 'Nearby',
@@ -260,7 +260,7 @@ export class MapView extends HTMLElement {
         await Promise.allSettled(routePromises);
 
         // Broadcast transit details back to itinerary view using the old bus channel
-        window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: transitDetails }));
+        window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: transitRoutes }));
     }
 }
 

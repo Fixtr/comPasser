@@ -4,8 +4,8 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
  * Calls the real Gemini API to generate an optimized itinerary.
  * Uses GEMINI_API_KEY Exposed through Vite Configuration.
  */
-export async function generateOptimizedItinerary(eventData) {
-  console.log("Calling Gemini AI Optimizer with constraints:", eventData);
+export async function generateOptimizedItinerary(plannerRequest) {
+  console.log("Calling Gemini AI Optimizer with constraints:", plannerRequest);
 
   const apiKey = import.meta.env.GEMINI_API_KEY;
 
@@ -27,14 +27,14 @@ export async function generateOptimizedItinerary(eventData) {
             day: { type: SchemaType.INTEGER },
             date: { type: SchemaType.STRING },
             theme: { type: SchemaType.STRING },
-            events: {
+            scheduleItems: {
               type: SchemaType.ARRAY,
               items: {
                 type: SchemaType.OBJECT,
                 properties: {
                   time: { type: SchemaType.STRING },
                   endTime: { type: SchemaType.STRING },
-                  type: { type: SchemaType.STRING, description: "Must be one of: 'attraction', 'dining', 'leisure', 'anchor'" },
+                  type: { type: SchemaType.STRING, description: "Must be one of: 'attraction', 'dining', 'leisure', 'AnchorSchedule'" },
                   title: { type: SchemaType.STRING },
                   description: { type: SchemaType.STRING },
                   location: { type: SchemaType.STRING, description: "Specific real world Address or accurate Place Name in Korea" },
@@ -44,7 +44,7 @@ export async function generateOptimizedItinerary(eventData) {
               }
             }
           },
-          required: ["day", "date", "theme", "events"]
+          required: ["day", "date", "theme", "scheduleItems"]
         }
       }
     },
@@ -59,31 +59,31 @@ export async function generateOptimizedItinerary(eventData) {
     }
   });
 
-  const anchorText = eventData.anchors && eventData.anchors.length > 0
-    ? eventData.anchors.map((a, i) => `${i + 1}. "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
-    : "No fixed anchor events provided. Free to plan the entire day.";
+  const anchorText = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
+    ? plannerRequest.anchorSchedules.map((a, i) => `${i + 1}. "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
+    : "No fixed AnchorSchedules provided. Free to plan the entire day.";
 
-  const anchorRule = eventData.anchors && eventData.anchors.length > 0
-    ? `1. You MUST include events with type="anchor" that exactly match the time and location of the provided Anchor Events.`
-    : `1. You may omit events of type="anchor" since none were provided.`;
+  const anchorRule = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
+    ? `1. You MUST include ScheduleItems with type="AnchorSchedule" that exactly match the time and location of the provided AnchorSchedules.`
+    : `1. You may omit ScheduleItems of type="AnchorSchedule" since none were provided.`;
 
   const prompt = `
 You are an expert AI Travel Planner.
-Plan a 1-day itinerary for the date ${eventData.date}.
+Plan a 1-day itinerary for the date ${plannerRequest.date}.
 
 PARAMETERS:
-- Start Time: ${eventData.startTime}
-- End Time: ${eventData.endTime}
-- Start Location (e.g. Hotel): "${eventData.startLocation}"
-- End Location (e.g. Hotel): "${eventData.endLocation}"
+- Start Time: ${plannerRequest.startTime}
+- End Time: ${plannerRequest.endTime}
+- Start Location (e.g. Hotel): "${plannerRequest.startLocation}"
+- End Location (e.g. Hotel): "${plannerRequest.endLocation}"
 
-ANCHOR EVENTS (Must Attend):
+ANCHOR SCHEDULES (Must Attend):
 ${anchorText}
 
-The primary goal is to ensure the user arrives at any Anchor Events seamlessly and exactly on time.
-Fill the rest of the day prior to and after the Anchor Events with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
-The first event of the day MUST start at the Start Location near the Start Time.
-The last event of the day MUST end at the End Location near the End Time.
+The primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.
+Fill the rest of the day prior to and after the AnchorSchedules with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
+The first ScheduleItem of the day MUST start at the Start Location near the Start Time.
+The last ScheduleItem of the day MUST end at the End Location near the End Time.
 
 CRITICAL RULES:
 ${anchorRule}
@@ -105,7 +105,7 @@ ${anchorRule}
 
     // Merge the input metadata back in for reference
     return {
-      request: eventData,
+      request: plannerRequest,
       days: parsedData.days
     };
   } catch (err) {

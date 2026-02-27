@@ -156,8 +156,8 @@ export default class TravelForm extends HTMLElement {
           <h2>Trip Basics</h2>
           <div class="row-3">
             <div class="form-group">
-              <label for="event-date">Date</label>
-              <input type="date" id="event-date" required>
+              <label for="schedule-date">Date</label>
+              <input type="date" id="schedule-date" required>
             </div>
             <div class="form-group">
               <label for="start-time">Start Time</label>
@@ -182,12 +182,12 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         <div class="form-section">
-          <h2>Anchor Events <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
+          <h2>Anchor Schedules <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
           <p class="subtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
           
           <div id="anchors-container"></div>
           
-          <button type="button" id="add-anchor-btn" class="secondary-btn">+ Add Anchor Event</button>
+          <button type="button" id="add-anchor-btn" class="secondary-btn">+ Add Anchor Schedule</button>
         </div>
 
         <button type="submit" class="primary-btn">Generate AI Itinerary ✨</button>
@@ -209,7 +209,7 @@ export default class TravelForm extends HTMLElement {
     template.innerHTML = `
       <button type="button" class="remove-btn" title="Remove Anchor">×</button>
       <div class="form-group">
-        <label>Event Name</label>
+        <label>Schedule Name</label>
         <input type="text" class="anchor-name" placeholder="G-Dragon Concert" required>
       </div>
       <div class="row-3">
@@ -253,20 +253,20 @@ export default class TravelForm extends HTMLElement {
         location: el.querySelector('.anchor-location').value,
       }));
 
-      const eventData = {
-        date: this.shadowRoot.getElementById('event-date').value,
+      const plannerRequest = {
+        date: this.shadowRoot.getElementById('schedule-date').value,
         startTime: this.shadowRoot.getElementById('start-time').value,
         endTime: this.shadowRoot.getElementById('end-time').value,
         startLocation: this.shadowRoot.getElementById('start-location').value,
         endLocation: this.shadowRoot.getElementById('end-location').value,
-        anchors: anchors
+        anchorSchedules: anchors
       };
 
-      console.log('Dispatching generation event:', eventData);
+      console.log('Dispatching generation event:', plannerRequest);
 
       // Dispatch custom event reaching up through the DOM
       this.dispatchEvent(new CustomEvent('generate-itinerary', {
-        detail: eventData,
+        detail: plannerRequest,
         bubbles: true,
         composed: true // Allows event to pass through shadow DOM boundary
       }));

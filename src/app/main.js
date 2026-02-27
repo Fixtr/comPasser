@@ -37,13 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // Call the AI Service
-                const optimizedPlan = await generateOptimizedItinerary(e.detail);
+                const itineraryPlan = await generateOptimizedItinerary(e.detail);
 
                 // Pass the generated data to the itinerary view to start rendering the timeline
-                itineraryView.showResults(optimizedPlan);
+                itineraryView.showResults(itineraryPlan);
 
                 // Map Update Map Mock
-                mapView.renderRoute(optimizedPlan);
+                mapView.renderRoute(itineraryPlan);
             } catch (error) {
                 console.error("Failed to generate itinerary:", error);
                 itineraryView.setError("Failed to generate your trip. Please try again.");
