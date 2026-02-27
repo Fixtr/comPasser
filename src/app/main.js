@@ -46,7 +46,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 mapView.renderRoute(itineraryPlan);
             } catch (error) {
                 console.error("Failed to generate itinerary:", error);
-                itineraryView.setError("Failed to generate your trip. Please try again.");
+
+                // Friendly error handling via alert for 429, or itineraryView for others
+                if (error.message.includes("429")) {
+                    alert('⏳ ' + error.message);
+                }
+
+                itineraryView.setError(error.message || "Failed to generate your trip. Please try again.");
+            } finally {
+                // Signal to form that generation is done (success or fail)
+                window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
             }
         });
     }

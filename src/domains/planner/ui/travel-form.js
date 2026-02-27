@@ -3,11 +3,24 @@ export default class TravelForm extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.anchorCount = 0;
+    this.isSubmitting = false;
   }
 
   connectedCallback() {
     this.render();
     this.setupEventListeners();
+
+    // Listen for completion to reset button state
+    window.addEventListener('itinerary-generation-complete', () => {
+      this.isSubmitting = false;
+      const btn = this.shadowRoot.querySelector('.primary-btn');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Generate AI Itinerary ✨';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+      }
+    });
   }
 
   render() {
@@ -244,6 +257,20 @@ export default class TravelForm extends HTMLElement {
     const form = this.shadowRoot.getElementById('travel-form');
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+
+      if (this.isSubmitting) {
+        console.log('Already submitting, preventing duplicate request...');
+        return;
+      }
+
+      this.isSubmitting = true;
+      const btn = this.shadowRoot.querySelector('.primary-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Planning... ⏳';
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+      }
 
       const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
       const anchors = Array.from(anchorsElements).map(el => ({

@@ -110,6 +110,9 @@ ${anchorRule}
     };
   } catch (err) {
     console.error("Gemini API Error:", err);
-    throw new Error("Failed to generate itinerary from AI.");
+    if (err.status === 429 || (err.message && err.message.includes("429"))) {
+      throw new Error("429 Too Many Requests: AI 서버에 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+    }
+    throw new Error("AI를 통한 일정 생성에 실패했습니다.");
   }
 }
