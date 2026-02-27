@@ -1,6 +1,6 @@
 // Entry point for the frontend logic
 import './src/components/travel-form.js';
-import './src/components/map-view.js';
+import './src/domains/map/ui/map-view.js';
 import './src/components/itinerary-view.js';
 import { generateOptimizedItinerary } from './src/lib/optimization-service.js';
 
