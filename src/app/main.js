@@ -1,8 +1,8 @@
 // Entry point for the frontend logic
-import './src/components/travel-form.js';
-import './src/domains/map/ui/map-view.js';
-import './src/components/itinerary-view.js';
-import { generateOptimizedItinerary } from './src/lib/optimization-service.js';
+import '../domains/planner/ui/travel-form.js';
+import '../domains/map/ui/map-view.js';
+import '../domains/itinerary/ui/itinerary-view.js';
+import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initialized. Event-based routing ready.");
