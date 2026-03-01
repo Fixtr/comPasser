@@ -36,7 +36,7 @@ export default class LoginView extends HTMLElement {
 
         p {
           color: var(--text-secondary);
-          margin-bottom: 2.5rem;
+          margin: 0 auto 2.5rem auto;
           font-size: 1.1rem;
           line-height: 1.6;
           max-width: 500px;
