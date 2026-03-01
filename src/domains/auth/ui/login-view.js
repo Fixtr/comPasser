@@ -1,18 +1,18 @@
 import { loginWithGoogle } from '../services/firebase-auth.js';
 
 export default class LoginView extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-    }
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+  }
 
-    connectedCallback() {
-        this.render();
-        this.setupListeners();
-    }
+  connectedCallback() {
+    this.render();
+    this.setupListeners();
+  }
 
-    render() {
-        this.shadowRoot.innerHTML = `
+  render() {
+    this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: flex;
@@ -40,6 +40,7 @@ export default class LoginView extends HTMLElement {
           font-size: 1.1rem;
           line-height: 1.6;
           max-width: 500px;
+          text-align: center;
         }
 
         .cta-btn {
@@ -79,25 +80,25 @@ export default class LoginView extends HTMLElement {
       </button>
       <div id="error-msg" style="color: #EA4335; margin-top: 1rem; display: none;"></div>
     `;
-    }
+  }
 
-    setupListeners() {
-        const btn = this.shadowRoot.getElementById('login-btn');
-        const errorMsg = this.shadowRoot.getElementById('error-msg');
+  setupListeners() {
+    const btn = this.shadowRoot.getElementById('login-btn');
+    const errorMsg = this.shadowRoot.getElementById('error-msg');
 
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            errorMsg.style.display = 'none';
-            try {
-                await loginWithGoogle();
-                // The auth state change event in main.js will handle UI updates
-            } catch (err) {
-                btn.disabled = false;
-                errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
-                errorMsg.style.display = 'block';
-            }
-        });
-    }
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      errorMsg.style.display = 'none';
+      try {
+        await loginWithGoogle();
+        // The auth state change event in main.js will handle UI updates
+      } catch (err) {
+        btn.disabled = false;
+        errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
+        errorMsg.style.display = 'block';
+      }
+    });
+  }
 }
 
 customElements.define('login-view', LoginView);
