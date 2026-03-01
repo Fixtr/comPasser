@@ -20,24 +20,41 @@
       <h1>Smart Travel AI</h1>
       <p>Optimize your itinerary around your must-attend events.</p>
 
-      <!-- Theme Toggle -->
-      <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
-        margin-top: 1rem;
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        border: 1px solid oklch(80% 0.02 260);
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.2s, color 0.2s;
-      ">
-        🌙 Dark Mode
-      </button>
+      <!-- Theme Toggle & Logout -->
+      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+        <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          border: 1px solid oklch(80% 0.02 260);
+          padding: 0.5rem 1rem;
+          border-radius: 20px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: background 0.2s, color 0.2s;
+        ">
+          🌙 Dark Mode
+        </button>
+        <button id="logout-btn" aria-label="Logout" style="
+          background: oklch(95% 0.02 260);
+          color: var(--text-primary);
+          border: 1px solid oklch(80% 0.02 260);
+          padding: 0.5rem 1rem;
+          border-radius: 20px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: background 0.2s, color 0.2s;
+          display: none;
+        ">
+          🚪 Logout
+        </button>
+      </div>
     </header>
 
+    <!-- Login Landing Page -->
+    <login-view id="login-view" style="display: none;"></login-view>
+
     <!-- Web Components will be injected here -->
-    <section class="content" id="app-content">
+    <section class="content" id="app-content" style="display: none;">
       <!-- The custom travel form -->
       <travel-form></travel-form>
 
