@@ -34,6 +34,19 @@
         ">
           🌙 Dark Mode
         </button>
+        <button id="my-itineraries-btn" aria-label="My Itineraries" style="
+          background: var(--accent-primary, #7c3aed);
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 20px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: transform 0.2s, box-shadow 0.2s;
+          display: none;
+        ">
+          📂 내 여행 일정 보기
+        </button>
         <button id="logout-btn" aria-label="Logout" style="
           background: oklch(95% 0.02 260);
           color: var(--text-primary);
@@ -52,6 +65,39 @@
 
     <!-- Login Landing Page -->
     <login-view id="login-view" style="display: none;"></login-view>
+
+    <!-- My Itineraries Modal -->
+    <div id="itineraries-modal" style="
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(5px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div style="
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        padding: 2rem;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-xl);
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">📂 내 여행 일정</h2>
+          <button id="close-modal-btn"
+            style="background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <div id="itineraries-list" style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- List items will be injected here -->
+        </div>
+      </div>
+    </div>
 
     <!-- Web Components will be injected here -->
     <section class="content" id="app-content" style="display: none;">

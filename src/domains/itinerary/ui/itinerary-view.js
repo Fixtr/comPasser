@@ -1,12 +1,54 @@
+import { saveItinerary } from '../services/firestore-service.js';
+import { getCurrentUser } from '../../auth/services/firebase-auth.js';
+
 export default class ItineraryView extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this.currentItinerary = null;
   }
 
   connectedCallback() {
     this.render();
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
+    this.setupSaveListener();
+  }
+
+  setupSaveListener() {
+    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const user = getCurrentUser();
+        if (!user) {
+          this.showToast("로그인이 필요합니다.", true);
+          return;
+        }
+        if (!this.currentItinerary) return;
+
+        try {
+          saveBtn.disabled = true;
+          saveBtn.textContent = '저장 중...';
+          await saveItinerary(user.uid, this.currentItinerary);
+          this.showToast("일정이 성공적으로 저장되었습니다! 🎉");
+        } catch (error) {
+          console.error("Save error:", error);
+          this.showToast("저장에 실패했습니다.", true);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = '이 일정 저장하기 💾';
+        }
+      });
+    }
+  }
+
+  showToast(message, isError = false) {
+    const toast = this.shadowRoot.getElementById('toast');
+    toast.textContent = message;
+    toast.style.background = isError ? '#ef4444' : '#10b981';
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
   }
 
   renderTransitInfo(transitRoutes) {
@@ -235,6 +277,52 @@ export default class ItineraryView extends HTMLElement {
             transform: none;
           }
         }
+
+        .save-btn {
+          margin-top: 2rem;
+          background: oklch(95% 0.02 260);
+          color: var(--accent-primary, #7c3aed);
+          border: 2px solid var(--accent-primary, #7c3aed);
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 700;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          display: none;
+        }
+
+        .save-btn:hover {
+          background: var(--accent-primary, #7c3aed);
+          color: white;
+        }
+
+        .save-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .toast {
+          position: fixed;
+          bottom: 2rem;
+          left: 50%;
+          transform: translateX(-50%) translateY(100px);
+          background: #10b981;
+          color: white;
+          padding: 1rem 2rem;
+          border-radius: 30px;
+          font-weight: 600;
+          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 1000;
+          opacity: 0;
+        }
+
+        .toast.show {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+        }
       </style>
       
       <div id="loader" class="loader">
@@ -247,7 +335,10 @@ export default class ItineraryView extends HTMLElement {
         <div class="timeline" id="timeline-container">
           <!-- Dynamically injected -->
         </div>
+        <button id="save-itinerary-btn" class="save-btn">이 일정 저장하기 💾</button>
       </div>
+
+      <div id="toast" class="toast">일정이 저장되었습니다!</div>
     `;
   }
 
@@ -272,6 +363,7 @@ export default class ItineraryView extends HTMLElement {
   }
 
   showResults(itineraryPlan) {
+    this.currentItinerary = itineraryPlan;
     this.setLoading(false);
 
     const dayData = itineraryPlan.days[0]; // Currently mocking single day
@@ -279,6 +371,9 @@ export default class ItineraryView extends HTMLElement {
 
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = ''; // Clear old
+
+    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
+    if (saveBtn) saveBtn.style.display = 'block';
 
     dayData.scheduleItems.forEach((scheduleItem, idx) => {
       const item = document.createElement('div');

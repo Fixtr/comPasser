@@ -4,7 +4,8 @@ import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
-import { subscribeToAuthChanges, logout } from '../domains/auth/services/firebase-auth.js';
+import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
+import { getUserItineraries } from '../domains/itinerary/services/firestore-service.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initialized. Event-based routing ready.");
@@ -18,6 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const logoutBtn = document.getElementById('logout-btn');
     const themeToggleBtn = document.getElementById('theme-toggle');
+    const myItinerariesBtn = document.getElementById('my-itineraries-btn');
+    const itinerariesModal = document.getElementById('itineraries-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const itinerariesList = document.getElementById('itineraries-list');
 
     // Theme initialization
     const currentTheme = localStorage.getItem('theme') || 'light';
@@ -45,6 +50,77 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            itinerariesModal.style.display = 'none';
+        });
+    }
+
+    if (myItinerariesBtn) {
+        myItinerariesBtn.addEventListener('click', async () => {
+            const user = getCurrentUser();
+            if (!user) return;
+
+            itinerariesModal.style.display = 'flex';
+            itinerariesList.innerHTML = '<p style="text-align:center;">불러오는 중...</p>';
+
+            try {
+                const itineraries = await getUserItineraries(user.uid);
+
+                if (itineraries.length === 0) {
+                    itinerariesList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">저장된 일정이 없습니다.</p>';
+                    return;
+                }
+
+                itinerariesList.innerHTML = '';
+                itineraries.forEach(item => {
+                    const card = document.createElement('div');
+                    card.style.cssText = `
+                        background: var(--bg-secondary);
+                        padding: 1.5rem;
+                        border-radius: 12px;
+                        border: 1px solid oklch(90% 0.02 260);
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    `;
+
+                    const dateObj = item.createdAt?.toDate() || new Date();
+                    const dateString = dateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                    const anchorsCount = item.itineraryPlan?.days[0]?.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0;
+
+                    card.innerHTML = `
+                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--accent-primary);">여행 일정 (${anchorsCount}개의 핵심 방문지)</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">저장일: ${dateString}</div>
+                    `;
+
+                    card.addEventListener('mouseover', () => {
+                        card.style.borderColor = 'var(--accent-primary)';
+                        card.style.transform = 'translateY(-2px)';
+                    });
+
+                    card.addEventListener('mouseout', () => {
+                        card.style.borderColor = 'oklch(90% 0.02 260)';
+                        card.style.transform = 'none';
+                    });
+
+                    card.addEventListener('click', () => {
+                        itinerariesModal.style.display = 'none';
+                        if (item.itineraryPlan) {
+                            itineraryView.showResults(item.itineraryPlan);
+                            mapView.renderRoute(item.itineraryPlan);
+                        }
+                    });
+
+                    itinerariesList.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Failed to fetch itineraries:', error);
+                itinerariesList.innerHTML = '<p style="text-align:center; color: red;">일정을 불러오는 데 실패했습니다.</p>';
+            }
+        });
+    }
+
     // Subscribe to Firebase Auth and handle routing
     subscribeToAuthChanges((user) => {
         if (user) {
@@ -52,11 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
             loginView.style.display = 'none';
             appContent.style.display = 'block';
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
+            if (myItinerariesBtn) myItinerariesBtn.style.display = 'inline-block';
         } else {
             // Not logged in
             loginView.style.display = 'block';
             appContent.style.display = 'none';
             if (logoutBtn) logoutBtn.style.display = 'none';
+            if (myItinerariesBtn) myItinerariesBtn.style.display = 'none';
         }
     });
 
