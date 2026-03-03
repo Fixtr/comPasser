@@ -19,12 +19,12 @@ export default class LoginView extends HTMLElement {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          min-height: 70vh;
-          height: auto;
+          min-height: fit-content;
+          height: auto !important;
           width: 100%;
           box-sizing: border-box;
           text-align: center;
-          padding: 3rem 2rem 5rem 2rem;
+          padding: 3rem 2rem 4rem 2rem !important;
           background: var(--bg-secondary, #fff);
           border-radius: var(--radius-lg, 16px);
           box-shadow: var(--shadow-lg, 0 10px 15px rgba(0,0,0,0.1));
@@ -110,7 +110,7 @@ export default class LoginView extends HTMLElement {
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-top: 2rem;
+          margin-top: 3rem;
         }
 
         .cta-btn {
