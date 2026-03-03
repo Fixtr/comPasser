@@ -66,9 +66,86 @@ export class MapView extends HTMLElement {
           opacity: 0;
           pointer-events: none;
         }
+
+        .empty-state-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(5px);
+          z-index: 15;
+          transition: opacity 0.5s ease-out;
+          padding: 2rem;
+          text-align: center;
+        }
+
+        .empty-state-overlay.hidden {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .empty-card {
+          background: var(--bg-primary, #fff);
+          padding: 2rem;
+          border-radius: 16px;
+          box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04));
+          border: 1px solid oklch(90% 0.02 260);
+          max-width: 450px;
+          width: 100%;
+        }
+
+        .empty-title {
+          font-size: 1.4rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin-bottom: 1.5rem;
+        }
+
+        .demo-gif {
+          max-width: 100%;
+          height: auto;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+          border: 1px solid oklch(90% 0.02 260);
+        }
+
+        .use-case {
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+          background: oklch(98% 0.02 260);
+          padding: 1rem;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+          text-align: left;
+          line-height: 1.5;
+        }
+
+        .cta-text {
+          font-weight: 600;
+          color: var(--accent-primary, #7c3aed);
+          font-size: 1.05rem;
+        }
       </style>
 
       <div id="map-container"></div>
+
+      <div class="empty-state-overlay" id="empty-state-overlay">
+        <div class="empty-card">
+          <div class="empty-title">🧭 나만의 스마트한 여행 일정을 만들어보세요!</div>
+          <!-- demo.gif placeholder, assumes it's in public/ -->
+          <img src="/demo.gif" alt="앱 사용 시연" class="demo-gif" onerror="this.style.display='none'" />
+          <div class="use-case">
+            <strong>💡 추천 시나리오:</strong><br>
+            2박 3일 빡빡한 도쿄 일정, 꼭 가야 하는 팝업스토어가 포함된 성수동 데이트
+          </div>
+          <div class="cta-text">
+            👈 좌측 창에서 출발/종료 장소와 앵커 일정을 입력하고 일정을 생성해 보세요!
+          </div>
+        </div>
+      </div>
 
       <div class="loading-overlay" id="loading-overlay">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary, #7c3aed)" stroke-width="2">
@@ -83,11 +160,24 @@ export class MapView extends HTMLElement {
     setLoading(isLoading, text = "Loading...") {
         const overlay = this.shadowRoot.getElementById('loading-overlay');
         const textEl = this.shadowRoot.getElementById('loading-text');
+
+        // When actual loading starts, hide the empty state forever
+        if (isLoading) {
+            this.hideEmptyState();
+        }
+
         if (isLoading) {
             if (textEl) textEl.textContent = text;
             overlay.classList.remove('hidden');
         } else {
             overlay.classList.add('hidden');
+        }
+    }
+
+    hideEmptyState() {
+        const emptyState = this.shadowRoot.getElementById('empty-state-overlay');
+        if (emptyState && !emptyState.classList.contains('hidden')) {
+            emptyState.classList.add('hidden');
         }
     }
 
@@ -128,6 +218,9 @@ export class MapView extends HTMLElement {
 
     async renderRoute(itineraryPlan) {
         if (!this.map) return;
+
+        // Hide empty state if it's still showing
+        this.hideEmptyState();
 
         // Clear Transit info for UI
         window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: [] }));
