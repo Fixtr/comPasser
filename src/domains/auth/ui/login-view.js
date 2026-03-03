@@ -20,6 +20,8 @@ export default class LoginView extends HTMLElement {
           align-items: center;
           justify-content: center;
           min-height: 70vh;
+          width: 100%;
+          box-sizing: border-box;
           text-align: center;
           padding: 3rem 2rem;
           background: var(--bg-secondary, #fff);
@@ -54,9 +56,10 @@ export default class LoginView extends HTMLElement {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1.5rem;
-          margin-bottom: 3.5rem;
+          margin: 0 auto 3.5rem auto; /* Added 0 auto to center the grid */
           width: 100%;
           max-width: 900px;
+          justify-content: center; /* Ensures children are centered if they don't fill the space */
         }
 
         .feature-card {
