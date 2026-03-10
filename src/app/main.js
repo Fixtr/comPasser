@@ -113,54 +113,64 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Go Back button listener (Phase 3 -> Phase 1, Simple Transition)
+    // ----------------------------------------------------
+    // [View Transition Manager] Phase 3 -> Phase 1
+    // 순수 화면 전환만 담당 (Display 변경, 세션 초기화)
+    // ----------------------------------------------------
+    function returnToPhase1() {
+        if (resultsLayout) {
+            resultsLayout.classList.add('hidden-view');
+            setTimeout(() => {
+                resultsLayout.style.display = 'none';
+                if (travelFormView) {
+                    travelFormView.style.display = 'block';
+                    void travelFormView.offsetWidth; // Reflow
+                    travelFormView.classList.remove('hidden-view');
+                    sessionStorage.setItem('currentPhase', '1');
+                    sessionStorage.removeItem('savedItineraryData'); // Clear stored layout buffer
+                }
+            }, 400);
+        }
+    }
+
+    // 1. [← 이전 화면으로] 버튼: 순수 뒤로 가기
     const goBackBtn = document.getElementById('go-back-btn');
     if (goBackBtn) {
         goBackBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[View Transition] Go Back button clicked: Phase 3 -> Phase 1 (No Auto-fill)');
-            resultsLayout.classList.add('hidden-view');
-            setTimeout(() => {
-                resultsLayout.style.display = 'none';
-                if (travelFormView) {
-                    travelFormView.style.display = 'block';
-                    void travelFormView.offsetWidth; // Reflow
-                    travelFormView.classList.remove('hidden-view');
-                    sessionStorage.setItem('currentPhase', '1');
-                    sessionStorage.removeItem('savedItineraryData'); // Clear on back
-                }
-            }, 400);
+            console.log('[Routing] "Go Back" clicked: Pure CSS transition. No data injection.');
+            // Only trigger visual transition. ZERO auto-fill manipulation.
+            returnToPhase1();
         });
     }
 
-    // Edit Itinerary button listener (Phase 3 -> Phase 1, Auto-fill data)
+    // 2. [일정 수정하기] 버튼: 데이터 불러와서 채우기(Auto-fill) 후 뒤로 가기
     const editItineraryBtn = document.getElementById('edit-itinerary-btn');
     if (editItineraryBtn) {
         editItineraryBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[View Transition] Edit Itinerary button clicked: Phase 3 -> Phase 1 with Auto-fill');
+            console.log('[Routing] "Edit Itinerary" clicked: Injecting data, then transitioning.');
             
-            // Auto-fill logic: Populate Phase 1 form with currentItinerary's original request data
-            if (travelFormView && travelFormView.populateForm && itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {
-                console.log('[Auto-fill] Populating travel form with:', itineraryView.currentItinerary.request);
-                travelFormView.populateForm(itineraryView.currentItinerary.request);
+            // 데이터 파싱
+            let requestData = null;
+            if (itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {
+                requestData = itineraryView.currentItinerary.request;
+            } else if (itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.metadata && itineraryView.currentItinerary.metadata.request) {
+                requestData = itineraryView.currentItinerary.metadata.request;
             }
 
-            resultsLayout.classList.add('hidden-view');
-            setTimeout(() => {
-                resultsLayout.style.display = 'none';
-                if (travelFormView) {
-                    travelFormView.style.display = 'block';
-                    void travelFormView.offsetWidth; // Reflow
-                    travelFormView.classList.remove('hidden-view');
-                    sessionStorage.setItem('currentPhase', '1');
-                    sessionStorage.removeItem('savedItineraryData');
-                    console.log('[View Transition] Phase 1 is now visible without DOM reset');
-                }
-            }, 400);
+            // Phase 1 폼 주입 (Auto-fill) 시작 전에 화면 전환 방지 -> 주입 완료 후 전환
+            if (travelFormView && travelFormView.populateForm && requestData) {
+                travelFormView.populateForm(requestData);
+            } else {
+                console.warn('[Auto-fill] Failed to find existing requestData to populate.');
+            }
+
+            // 주입이 끝난 후 CSS 전환 로직 실행
+            returnToPhase1();
         });
     } else {
-        console.error('[View Transition] Cannot find edit-itinerary-btn in DOM!');
+        console.error('[Routing] Cannot find edit-itinerary-btn in DOM!');
     }
 
     // Theme initialization
