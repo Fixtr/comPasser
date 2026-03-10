@@ -68,7 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Edit Itinerary button listener (Phase 3 -> Phase 1)
     const editItineraryBtn = document.getElementById('edit-itinerary-btn');
     if (editItineraryBtn) {
-        editItineraryBtn.addEventListener('click', () => {
+        editItineraryBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('[View Transition] Back button clicked: Phase 3 -> Phase 1');
             resultsLayout.classList.add('hidden-view');
             setTimeout(() => {
                 resultsLayout.style.display = 'none';
@@ -76,9 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     travelFormView.style.display = 'block';
                     void travelFormView.offsetWidth; // Reflow
                     travelFormView.classList.remove('hidden-view');
+                    console.log('[View Transition] Phase 1 is now visible without DOM reset');
                 }
             }, 400);
         });
+    } else {
+        console.error('[View Transition] Cannot find edit-itinerary-btn in DOM!');
     }
 
     // Theme initialization
@@ -290,8 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('App main received itinerary generation event:', e.detail);
 
             // 🚨 기존 데이터 클린업 (Clean-up Logic) 🚨
-            if (typeof itineraryView.clear === 'function') itineraryView.clear();
-            if (typeof mapView.clearMap === 'function') mapView.clearMap();
+            console.log('[Clean-up] Generating new itinerary, clearing map and timeline');
+            itineraryView.clear();
+            mapView.clearMap();
 
             // Phase 1 -> Phase 2 Transition
             if (travelFormView) travelFormView.classList.add('hidden-view');

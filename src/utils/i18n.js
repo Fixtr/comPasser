@@ -48,7 +48,7 @@ const dictionary = {
         busFormat: "{0}번 버스",
         subwayFormat: "{0}",
         trainFormat: "{0} 기차",
-        editItineraryBtn: "← 일정 다시 수정하기"
+        editItineraryBtn: "← 이전 화면으로"
     },
     en: {
         heroTitle: "Smart Travel AI",
@@ -99,7 +99,7 @@ const dictionary = {
         busFormat: "Bus {0}",
         subwayFormat: "Line {0}",
         trainFormat: "Train {0}",
-        editItineraryBtn: "← Edit Itinerary"
+        editItineraryBtn: "← Go Back"
     }
 };
 
