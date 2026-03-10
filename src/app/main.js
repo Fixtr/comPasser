@@ -289,6 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
         travelForm.addEventListener('generate-itinerary', async (e) => {
             console.log('App main received itinerary generation event:', e.detail);
 
+            // 🚨 기존 데이터 클린업 (Clean-up Logic) 🚨
+            if (typeof itineraryView.clear === 'function') itineraryView.clear();
+            if (typeof mapView.clearMap === 'function') mapView.clearMap();
+
             // Phase 1 -> Phase 2 Transition
             if (travelFormView) travelFormView.classList.add('hidden-view');
             if (resultsLayout) resultsLayout.classList.add('hidden-view');

@@ -394,6 +394,14 @@ export default class ItineraryView extends HTMLElement {
     container.innerHTML = `<p style="color: red;">${msg}</p>`;
   }
 
+  clear() {
+    this.currentItinerary = null;
+    const container = this.shadowRoot.getElementById('timeline-container');
+    if (container) container.innerHTML = '';
+    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
+    if (saveBtn) saveBtn.style.display = 'none';
+  }
+
   showResults(itineraryPlan) {
     this.currentItinerary = itineraryPlan;
     this.setLoading(false);

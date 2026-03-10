@@ -240,6 +240,10 @@ export class MapView extends HTMLElement {
     this.fallbackPolylines = [];
   }
 
+  clearMap() {
+    this.clearMapLayers();
+  }
+
   async renderRoute(itineraryPlan) {
     if (!this.map) return;
 
