@@ -331,6 +331,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     card.addEventListener('click', () => {
                         itinerariesModal.style.display = 'none';
                         if (item.itineraryPlan) {
+                            
+                            // 🚀 [Auto-fill Sync] 모달에서 일정을 불러오는 즉시 백그라운드 폼(Phase 1)도 완벽 동기화
+                            let requestData = null;
+                            if (item.itineraryPlan.request) {
+                                requestData = item.itineraryPlan.request;
+                            } else if (item.itineraryPlan.metadata && item.itineraryPlan.metadata.request) {
+                                requestData = item.itineraryPlan.metadata.request;
+                            }
+                            
+                            if (travelFormView && travelFormView.populateForm && requestData) {
+                                console.log('[Sync] Synchronizing loaded itinerary to background form:', requestData);
+                                travelFormView.populateForm(requestData);
+                                // 백그라운드 폼 캐시도 최신화해서 새로고침 시에도 폼 데이터 유지
+                                sessionStorage.setItem('currentFormData', JSON.stringify(requestData));
+                            }
+
                             // Phase 1 숨기기
                             if (travelFormView) {
                                 travelFormView.classList.add('hidden-view');
@@ -348,6 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             itineraryView.showResults(item.itineraryPlan);
                             mapView.renderRoute(item.itineraryPlan);
+
+                            // 현재 세션 상태 동기화 (새로고침 대비)
+                            sessionStorage.setItem('currentPhase', '3');
+                            sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
                         }
                     });
 
