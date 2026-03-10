@@ -306,6 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let initialLoadDone = false;
+
     // Subscribe to Firebase Auth and handle routing
     subscribeToAuthChanges((user) => {
         if (user) {
@@ -314,6 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
             appContent.style.display = 'block';
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
             if (myItinerariesBtn) myItinerariesBtn.style.display = 'inline-block';
+
+            if (!initialLoadDone) {
+                initialLoadDone = true;
+                restoreAppState();
+            }
         } else {
             // Not logged in
             loginView.style.display = 'block';
@@ -424,47 +431,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. 브라우저 새로고침(Refresh) 시 화면 상태(Phase) 유지 및 초기 로드 시 복구
-    const savedPhase = sessionStorage.getItem('currentPhase');
-    if (savedPhase === '3') {
-        const savedData = sessionStorage.getItem('currentItinerary');
-        if (savedData && travelFormView && resultsLayout && itineraryView && mapView) {
-            console.log('[SessionRestore] Restoring Phase 3');
-            try {
-                const parsedItinerary = JSON.parse(savedData);
-                // Phase 1 숨기기
-                travelFormView.classList.add('hidden-view');
-                travelFormView.style.display = 'none';
-                
-                // Phase 3 띄우기
-                resultsLayout.style.display = 'grid';
-                resultsLayout.classList.remove('hidden-view');
-                
-                // 렌더링 지연 복구 (의존 컴포넌트 로드 고려)
-                setTimeout(() => {
-                    itineraryView.showResults(parsedItinerary);
-                    mapView.renderRoute(parsedItinerary);
-                    window.dispatchEvent(new Event('resize'));
-                }, 100);
-            } catch (e) {
-                console.error("Failed to parse saved itinerary from session", e);
-                sessionStorage.setItem('currentPhase', '1'); // fallback
+    // 2. 브라우저 새로고침(Refresh) 시 화면 상태(Phase) 유지 및 초기 로드 시 복구 (함수화)
+    function restoreAppState() {
+        const savedPhase = sessionStorage.getItem('currentPhase');
+        if (savedPhase === '3') {
+            const savedData = sessionStorage.getItem('currentItinerary');
+            if (savedData && travelFormView && resultsLayout && itineraryView && mapView) {
+                console.log('[SessionRestore] Restoring Phase 3');
+                try {
+                    const parsedItinerary = JSON.parse(savedData);
+                    // Phase 1 숨기기
+                    travelFormView.classList.add('hidden-view');
+                    travelFormView.style.display = 'none';
+                    
+                    // Phase 3 띄우기
+                    resultsLayout.style.display = 'grid';
+                    resultsLayout.classList.remove('hidden-view');
+                    
+                    // 렌더링 지연 복구 (의존 컴포넌트 로드 고려)
+                    setTimeout(() => {
+                        itineraryView.showResults(parsedItinerary);
+                        mapView.renderRoute(parsedItinerary);
+                        window.dispatchEvent(new Event('resize'));
+                    }, 100);
+                } catch (e) {
+                    console.error("Failed to parse saved itinerary from session", e);
+                    sessionStorage.setItem('currentPhase', '1'); // fallback
+                }
             }
+        } else if (savedPhase === '2') {
+            // 로딩 중 끊김: Phase 1으로 복귀
+            console.log('[SessionRestore] Restoring Phase 1 from aborted Phase 2');
+            sessionStorage.setItem('currentPhase', '1');
+            if (loadingTransitionView) {
+                loadingTransitionView.classList.add('hidden-view');
+                loadingTransitionView.style.display = 'none';
+            }
+            if (travelFormView) {
+                travelFormView.style.display = 'block';
+                travelFormView.classList.remove('hidden-view');
+            }
+        } else {
+            // 기본 Phase 1 (1이거나 없는 경우)
+            sessionStorage.setItem('currentPhase', '1');
         }
-    } else if (savedPhase === '2') {
-        // 로딩 중 끊김: Phase 1으로 복귀
-        console.log('[SessionRestore] Restoring Phase 1 from aborted Phase 2');
-        sessionStorage.setItem('currentPhase', '1');
-        if (loadingTransitionView) {
-            loadingTransitionView.classList.add('hidden-view');
-            loadingTransitionView.style.display = 'none';
-        }
-        if (travelFormView) {
-            travelFormView.style.display = 'block';
-            travelFormView.classList.remove('hidden-view');
-        }
-    } else {
-        // 기본 Phase 1 (1이거나 없는 경우)
-        sessionStorage.setItem('currentPhase', '1');
     }
 });

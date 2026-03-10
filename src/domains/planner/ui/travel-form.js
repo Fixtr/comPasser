@@ -14,6 +14,18 @@ export default class TravelForm extends HTMLElement {
       this.addAnchor(); // Initialize first anchor safely
     }
     this.setupEventListeners();
+    this.updateTexts(); // Fix i18n flickering on load
+
+    // Restore Form Data on load if we are not locked in Phase 3
+    const savedPhase = sessionStorage.getItem('currentPhase');
+    const savedForm = sessionStorage.getItem('currentFormData');
+    if (savedPhase !== '3' && savedForm) {
+      try {
+        this.populateForm(JSON.parse(savedForm));
+      } catch (e) {
+        console.error('Form parse error', e);
+      }
+    }
 
     // Listen for completion to reset button state
     window.addEventListener('itinerary-generation-complete', () => {
@@ -315,12 +327,38 @@ export default class TravelForm extends HTMLElement {
     }
   }
 
+  getFormData() {
+    const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
+    const anchors = Array.from(anchorsElements).map(el => ({
+      name: el.querySelector('.anchor-name').value,
+      time: el.querySelector('.anchor-time').value,
+      endTime: el.querySelector('.anchor-end-time').value,
+      location: el.querySelector('.anchor-location').value,
+    }));
+
+    return {
+      date: this.shadowRoot.getElementById('schedule-date').value,
+      startTime: this.shadowRoot.getElementById('start-time').value,
+      endTime: this.shadowRoot.getElementById('end-time').value,
+      startLocation: this.shadowRoot.getElementById('start-location').value,
+      endLocation: this.shadowRoot.getElementById('end-location').value,
+      anchorSchedules: anchors
+    };
+  }
+
   setupEventListeners() {
     this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
       this.addAnchor();
+      sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
 
     const form = this.shadowRoot.getElementById('travel-form');
+    
+    // Auto-save form data on any input
+    form.addEventListener('input', () => {
+      sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+    });
+
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
@@ -338,22 +376,7 @@ export default class TravelForm extends HTMLElement {
         btn.style.cursor = 'not-allowed';
       }
 
-      const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
-      const anchors = Array.from(anchorsElements).map(el => ({
-        name: el.querySelector('.anchor-name').value,
-        time: el.querySelector('.anchor-time').value,
-        endTime: el.querySelector('.anchor-end-time').value,
-        location: el.querySelector('.anchor-location').value,
-      }));
-
-      const plannerRequest = {
-        date: this.shadowRoot.getElementById('schedule-date').value,
-        startTime: this.shadowRoot.getElementById('start-time').value,
-        endTime: this.shadowRoot.getElementById('end-time').value,
-        startLocation: this.shadowRoot.getElementById('start-location').value,
-        endLocation: this.shadowRoot.getElementById('end-location').value,
-        anchorSchedules: anchors
-      };
+      const plannerRequest = this.getFormData();
 
       console.log('Dispatching generation event:', plannerRequest);
 
