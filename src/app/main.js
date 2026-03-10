@@ -53,6 +53,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const showResultsBtn = document.getElementById('show-results-btn');
     const resultsLayout = document.getElementById('results-layout');
 
+    // 2. 초기 렌더링 시점 (Restore State) - DOMContentLoaded 직후 즉시 실행
+    const savedPhase = sessionStorage.getItem('currentPhase');
+    if (savedPhase === '3') {
+        try {
+            const rawData = sessionStorage.getItem('savedItineraryData');
+            if (!rawData) throw new Error("No savedItineraryData found.");
+            
+            const parsedItinerary = JSON.parse(rawData);
+            
+            // Phase 1 컨테이너 숨기기
+            if (travelFormView) {
+                travelFormView.style.display = 'none';
+                travelFormView.classList.add('hidden-view');
+            }
+            
+            // Phase 3 컨테이너 보이기
+            if (resultsLayout) {
+                resultsLayout.style.display = 'grid';
+                resultsLayout.classList.remove('hidden-view');
+            }
+
+            // 컴포넌트 마운트를 위한 약간의 지연 후 렌더링
+            setTimeout(() => {
+                if (mapView) mapView.renderRoute(parsedItinerary);
+                if (itineraryView) itineraryView.showResults(parsedItinerary);
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+            
+        } catch (error) {
+            console.error("[State Restore Error]", error);
+            // 3. 안전한 Fallback (조용히 청소하고 Phase 1 띄우기)
+            sessionStorage.removeItem('currentPhase');
+            sessionStorage.removeItem('savedItineraryData');
+            
+            if (travelFormView) {
+                travelFormView.style.display = 'block';
+                travelFormView.classList.remove('hidden-view');
+            }
+            if (resultsLayout) {
+                resultsLayout.style.display = 'none';
+            }
+        }
+    }
+
     // Show results button listener (Phase 2 -> Phase 3)
     if (showResultsBtn) {
         showResultsBtn.onclick = () => {
@@ -62,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsLayout.style.display = 'grid';
                 void resultsLayout.offsetWidth; // Reflow
                 resultsLayout.classList.remove('hidden-view');
-                sessionStorage.setItem('currentPhase', '3');
+                
                 // Ensure map resizes correctly
                 window.dispatchEvent(new Event('resize'));
             }, 400);
@@ -83,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     void travelFormView.offsetWidth; // Reflow
                     travelFormView.classList.remove('hidden-view');
                     sessionStorage.setItem('currentPhase', '1');
-                    sessionStorage.removeItem('currentItinerary'); // Clear on back
+                    sessionStorage.removeItem('savedItineraryData'); // Clear on back
                 }
             }, 400);
         });
@@ -110,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     void travelFormView.offsetWidth; // Reflow
                     travelFormView.classList.remove('hidden-view');
                     sessionStorage.setItem('currentPhase', '1');
-                    sessionStorage.removeItem('currentItinerary');
+                    sessionStorage.removeItem('savedItineraryData');
                     console.log('[View Transition] Phase 1 is now visible without DOM reset');
                 }
             }, 400);
@@ -306,8 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    let initialLoadDone = false;
-
     // Subscribe to Firebase Auth and handle routing
     subscribeToAuthChanges((user) => {
         if (user) {
@@ -316,11 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
             appContent.style.display = 'block';
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
             if (myItinerariesBtn) myItinerariesBtn.style.display = 'inline-block';
-
-            if (!initialLoadDone) {
-                initialLoadDone = true;
-                restoreAppState();
-            }
         } else {
             // Not logged in
             loginView.style.display = 'block';
@@ -374,8 +411,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Map Update Map Mock
                 mapView.renderRoute(itineraryPlan);
 
-                // Save to session storage for refresh persistence
-                sessionStorage.setItem('currentItinerary', JSON.stringify(itineraryPlan));
+                // 1. 데이터 저장 시점 (Save State) - 'Generate' 완료 직후
+                sessionStorage.setItem('currentPhase', '3');
+                
+                // 저장 객체가 구글 맵스 순환참조를 포함하지 않도록 주의. (gemini-optimizer 반환값은 순수 JSON 객체임)
+                sessionStorage.setItem('savedItineraryData', JSON.stringify(itineraryPlan));
 
                 // Phase 2: Complete Waiting -> Ready for Phase 3
                 loadingSpinner.style.display = 'none';
@@ -429,51 +469,5 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
             }
         });
-    }
-
-    // 2. 브라우저 새로고침(Refresh) 시 화면 상태(Phase) 유지 및 초기 로드 시 복구 (함수화)
-    function restoreAppState() {
-        const savedPhase = sessionStorage.getItem('currentPhase');
-        if (savedPhase === '3') {
-            const savedData = sessionStorage.getItem('currentItinerary');
-            if (savedData && travelFormView && resultsLayout && itineraryView && mapView) {
-                console.log('[SessionRestore] Restoring Phase 3');
-                try {
-                    const parsedItinerary = JSON.parse(savedData);
-                    // Phase 1 숨기기
-                    travelFormView.classList.add('hidden-view');
-                    travelFormView.style.display = 'none';
-                    
-                    // Phase 3 띄우기
-                    resultsLayout.style.display = 'grid';
-                    resultsLayout.classList.remove('hidden-view');
-                    
-                    // 렌더링 지연 복구 (의존 컴포넌트 로드 고려)
-                    setTimeout(() => {
-                        itineraryView.showResults(parsedItinerary);
-                        mapView.renderRoute(parsedItinerary);
-                        window.dispatchEvent(new Event('resize'));
-                    }, 100);
-                } catch (e) {
-                    console.error("Failed to parse saved itinerary from session", e);
-                    sessionStorage.setItem('currentPhase', '1'); // fallback
-                }
-            }
-        } else if (savedPhase === '2') {
-            // 로딩 중 끊김: Phase 1으로 복귀
-            console.log('[SessionRestore] Restoring Phase 1 from aborted Phase 2');
-            sessionStorage.setItem('currentPhase', '1');
-            if (loadingTransitionView) {
-                loadingTransitionView.classList.add('hidden-view');
-                loadingTransitionView.style.display = 'none';
-            }
-            if (travelFormView) {
-                travelFormView.style.display = 'block';
-                travelFormView.classList.remove('hidden-view');
-            }
-        } else {
-            // 기본 Phase 1 (1이거나 없는 경우)
-            sessionStorage.setItem('currentPhase', '1');
-        }
     }
 });
