@@ -1,4 +1,4 @@
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, deleteDoc } from "firebase/firestore";
 import { app } from "../../auth/services/firebase-auth.js";
 
 const db = getFirestore(app);
@@ -35,6 +35,17 @@ export async function getUserItineraries(userId) {
         return itineraries;
     } catch (error) {
         console.error("Error fetching user itineraries:", error);
+        throw error;
+    }
+}
+
+export async function deleteItinerary(documentId) {
+    try {
+        const docRef = doc(db, "itineraries", documentId);
+        await deleteDoc(docRef);
+        console.log(`Itinerary ${documentId} successfully deleted.`);
+    } catch (error) {
+        console.error("Error deleting itinerary: ", error);
         throw error;
     }
 }

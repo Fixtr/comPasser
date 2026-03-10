@@ -5,7 +5,7 @@ import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
-import { getUserItineraries } from '../domains/itinerary/services/firestore-service.js';
+import { getUserItineraries, deleteItinerary } from '../domains/itinerary/services/firestore-service.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initialized. Event-based routing ready.");
@@ -106,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         border: 1px solid oklch(90% 0.02 260);
                         cursor: pointer;
                         transition: all 0.2s;
+                        position: relative;
                     `;
 
                     const dateObj = item.createdAt?.toDate() || new Date();
@@ -114,9 +115,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     const anchorsCount = item.itineraryPlan?.days[0]?.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0;
 
                     card.innerHTML = `
-                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--accent-primary);">여행 일정 (${anchorsCount}개의 핵심 방문지)</div>
-                        <div style="font-size: 0.9rem; color: var(--text-secondary);">저장일: ${dateString}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--accent-primary);">여행 일정 (${anchorsCount}개의 핵심 방문지)</div>
+                                <div style="font-size: 0.9rem; color: var(--text-secondary);">저장일: ${dateString}</div>
+                            </div>
+                            <button class="delete-itinerary-btn" title="삭제" style="
+                                background: none; 
+                                border: none; 
+                                color: oklch(60% 0.15 20); 
+                                font-size: 1.2rem; 
+                                cursor: pointer; 
+                                padding: 0.5rem; 
+                                margin: -0.5rem -0.5rem 0 0;
+                                border-radius: 50%;
+                                transition: transform 0.2s, opacity 0.2s;
+                                opacity: 0.7;
+                            ">🗑️</button>
+                        </div>
                     `;
+
+                    // Delete button hover effect
+                    const deleteBtn = card.querySelector('.delete-itinerary-btn');
+                    deleteBtn.addEventListener('mouseover', () => { deleteBtn.style.opacity = '1'; deleteBtn.style.transform = 'scale(1.1)'; });
+                    deleteBtn.addEventListener('mouseout', () => { deleteBtn.style.opacity = '0.7'; deleteBtn.style.transform = 'none'; });
+
+                    // Delete action with stopPropagation
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation(); // Prevent loading the itinerary
+
+                        if (confirm("정말로 이 일정을 삭제하시겠습니까?")) {
+                            try {
+                                deleteBtn.style.pointerEvents = 'none';
+                                deleteBtn.style.opacity = '0.3';
+
+                                await deleteItinerary(item.id);
+
+                                // Remove from DOM
+                                card.remove();
+
+                                // Check if list is empty now
+                                if (itinerariesList.children.length === 0) {
+                                    itinerariesList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">저장된 일정이 없습니다.</p>';
+                                }
+
+                                // Show Toast
+                                if (itineraryView && typeof itineraryView.showToast === 'function') {
+                                    itineraryView.showToast("일정이 성공적으로 삭제되었습니다.");
+                                } else {
+                                    alert("일정이 성공적으로 삭제되었습니다.");
+                                }
+                            } catch (error) {
+                                console.error('Failed to delete itinerary:', error);
+                                alert("일정 삭제에 실패했습니다.");
+                                deleteBtn.style.pointerEvents = 'auto';
+                                deleteBtn.style.opacity = '0.7';
+                            }
+                        }
+                    });
 
                     card.addEventListener('mouseover', () => {
                         card.style.borderColor = 'var(--accent-primary)';
