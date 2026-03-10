@@ -65,12 +65,30 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Edit Itinerary button listener (Phase 3 -> Phase 1)
+    // Go Back button listener (Phase 3 -> Phase 1, Simple Transition)
+    const goBackBtn = document.getElementById('go-back-btn');
+    if (goBackBtn) {
+        goBackBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('[View Transition] Go Back button clicked: Phase 3 -> Phase 1 (No Auto-fill)');
+            resultsLayout.classList.add('hidden-view');
+            setTimeout(() => {
+                resultsLayout.style.display = 'none';
+                if (travelFormView) {
+                    travelFormView.style.display = 'block';
+                    void travelFormView.offsetWidth; // Reflow
+                    travelFormView.classList.remove('hidden-view');
+                }
+            }, 400);
+        });
+    }
+
+    // Edit Itinerary button listener (Phase 3 -> Phase 1, Auto-fill data)
     const editItineraryBtn = document.getElementById('edit-itinerary-btn');
     if (editItineraryBtn) {
         editItineraryBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[View Transition] Back button clicked: Phase 3 -> Phase 1');
+            console.log('[View Transition] Edit Itinerary button clicked: Phase 3 -> Phase 1 with Auto-fill');
             
             // Auto-fill logic: Populate Phase 1 form with currentItinerary's original request data
             if (travelFormView && travelFormView.populateForm && itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {

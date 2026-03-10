@@ -32,7 +32,7 @@ const dictionary = {
         generationComplete: "✨ 경로 설계가 완료되었습니다!",
         showResultsBtn: "✨ 경로 확인하기",
         generationFail: "❌ 일정을 생성하지 못했습니다.",
-        goBackBtn: "🔙 돌아가기",
+        goBackBtn: "← 이전 화면으로",
         saveItineraryBtn: "이 일정 저장하기 💾",
         itinerarySaveToast: "일정이 성공적으로 저장되었습니다! 🎉",
         itineraryDeleteToast: "일정이 성공적으로 삭제되었습니다.",
@@ -48,7 +48,7 @@ const dictionary = {
         busFormat: "{0}번 버스",
         subwayFormat: "{0}",
         trainFormat: "{0} 기차",
-        editItineraryBtn: "← 일정 수정하기"
+        editItineraryBtn: "일정 수정하기 ✏️"
     },
     en: {
         heroTitle: "Smart Travel AI",
@@ -83,7 +83,7 @@ const dictionary = {
         generationComplete: "✨ Route design is complete!",
         showResultsBtn: "✨ View Itinerary",
         generationFail: "❌ Failed to generate itinerary.",
-        goBackBtn: "🔙 Go Back",
+        goBackBtn: "← Go Back",
         saveItineraryBtn: "Save this Itinerary 💾",
         itinerarySaveToast: "Itinerary saved successfully! 🎉",
         itineraryDeleteToast: "Itinerary deleted successfully.",
@@ -99,7 +99,7 @@ const dictionary = {
         busFormat: "Bus {0}",
         subwayFormat: "Line {0}",
         trainFormat: "Train {0}",
-        editItineraryBtn: "← Edit Itinerary"
+        editItineraryBtn: "Edit Itinerary ✏️"
     }
 };
 
