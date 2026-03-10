@@ -1,5 +1,6 @@
 import { saveItinerary } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
+import { t } from '../../../utils/i18n.js';
 
 export default class ItineraryView extends HTMLElement {
   constructor() {
@@ -12,6 +13,23 @@ export default class ItineraryView extends HTMLElement {
     this.render();
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
     this.setupSaveListener();
+    this.updateTexts();
+
+    window.addEventListener('i18n-changed', () => {
+      this.updateTexts();
+    });
+  }
+
+  updateTexts() {
+    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+        el.setAttribute('placeholder', t(key));
+      } else {
+        el.textContent = t(key);
+      }
+    });
   }
 
   setupSaveListener() {
@@ -27,15 +45,15 @@ export default class ItineraryView extends HTMLElement {
 
         try {
           saveBtn.disabled = true;
-          saveBtn.textContent = '저장 중...';
+          saveBtn.textContent = t('savingStateBtn') || '저장 중...';
           await saveItinerary(user.uid, this.currentItinerary);
-          this.showToast("일정이 성공적으로 저장되었습니다! 🎉");
+          this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다! 🎉");
         } catch (error) {
           console.error("Save error:", error);
-          this.showToast("저장에 실패했습니다.", true);
+          this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
         } finally {
           saveBtn.disabled = false;
-          saveBtn.textContent = '이 일정 저장하기 💾';
+          saveBtn.textContent = t('saveItineraryBtn') || '이 일정 저장하기 💾';
         }
       });
     }
@@ -56,7 +74,27 @@ export default class ItineraryView extends HTMLElement {
       const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
       if (el) {
         const icon = detail.mode === 'TRANSIT' ? '🚌' : '🚶‍♂️';
-        const modeText = detail.mode === 'TRANSIT' ? 'Transit' : 'Walk';
+        let modeText = t('transitText') || '대중교통';
+
+        if (detail.mode === 'TRANSIT' && detail.vehicleType) {
+          const vType = detail.vehicleType.toUpperCase();
+          const lineName = detail.lineName || '';
+
+          if (vType === 'BUS' || vType === 'INTERCITY_BUS') {
+            const format = t('busFormat');
+            modeText = format ? format.replace('{0}', lineName) : `${lineName} Bus`;
+          } else if (vType === 'SUBWAY' || vType === 'HEAVY_RAIL' || vType === 'COMMUTER_TRAIN') {
+            const format = t('subwayFormat');
+            modeText = format ? format.replace('{0}', lineName) : `Line ${lineName}`;
+          } else if (vType === 'TRAIN' || vType === 'HIGH_SPEED_TRAIN') {
+            const format = t('trainFormat');
+            modeText = format ? format.replace('{0}', lineName) : `Train ${lineName}`;
+          }
+        } else if (detail.mode === 'WALKING') {
+          modeText = t('walkText') || '도보';
+        }
+
+        // Only show bullet point if modeText is valid otherwise fallback to basic
         el.innerHTML = `<span class="transit-pill">${icon} ${modeText} • ${detail.duration} (${detail.distance})</span>`;
         el.classList.remove('hidden');
       }
@@ -332,10 +370,10 @@ export default class ItineraryView extends HTMLElement {
         <div class="timeline" id="timeline-container">
           <!-- Dynamically injected -->
         </div>
-        <button id="save-itinerary-btn" class="save-btn">이 일정 저장하기 💾</button>
+        <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn">이 일정 저장하기 💾</button>
       </div>
 
-      <div id="toast" class="toast">일정이 저장되었습니다!</div>
+      <div id="toast" class="toast" data-i18n="itinerarySaveToast">일정이 저장되었습니다! 🎉</div>
     `;
   }
 

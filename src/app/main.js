@@ -6,6 +6,22 @@ import '../domains/itinerary/ui/itinerary-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary } from '../domains/itinerary/services/firestore-service.js';
+import { t, getLang, setLang } from '../utils/i18n.js';
+
+function updateTexts() {
+    const elements = document.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        // Handle input placeholders specifically
+        if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+            el.setAttribute('placeholder', t(key));
+        } else {
+            // Some elements might have child elements (like icons) we want to preserve?
+            // For now, replacing textContent is safest for simple texts.
+            el.textContent = t(key);
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initialized. Event-based routing ready.");
@@ -23,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const itinerariesModal = document.getElementById('itineraries-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const itinerariesList = document.getElementById('itineraries-list');
+    const langToggleBtn = document.getElementById('lang-toggle');
 
     // View Transition Elements
     const travelFormView = document.getElementById('travel-form-view');
@@ -48,6 +65,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Edit Itinerary button listener (Phase 3 -> Phase 1)
+    const editItineraryBtn = document.getElementById('edit-itinerary-btn');
+    if (editItineraryBtn) {
+        editItineraryBtn.addEventListener('click', () => {
+            resultsLayout.classList.add('hidden-view');
+            setTimeout(() => {
+                resultsLayout.style.display = 'none';
+                if (travelFormView) {
+                    travelFormView.style.display = 'block';
+                    void travelFormView.offsetWidth; // Reflow
+                    travelFormView.classList.remove('hidden-view');
+                }
+            }, 400);
+        });
+    }
+
     // Theme initialization
     const currentTheme = localStorage.getItem('theme') || 'light';
     if (currentTheme === 'dark') {
@@ -60,9 +93,28 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.toggle('dark');
             const isDark = document.body.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            themeToggleBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+            // Do not override with hardcoded text, let i18n handle it if possible, or swap key
         });
     }
+
+    // Language initialization & toggle
+    updateTexts();
+    if (langToggleBtn) {
+        // Set initial button text based on current lang
+        langToggleBtn.textContent = getLang() === 'ko' ? '🌐 English' : '🌐 한국어';
+
+        langToggleBtn.addEventListener('click', () => {
+            const newLang = getLang() === 'ko' ? 'en' : 'ko';
+            setLang(newLang);
+            langToggleBtn.textContent = newLang === 'ko' ? '🌐 English' : '🌐 한국어';
+            updateTexts();
+        });
+    }
+
+    // Listen for global i18n changes, just in case
+    window.addEventListener('i18n-changed', () => {
+        updateTexts();
+    });
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {

@@ -1,4 +1,5 @@
 import { loginWithGoogle } from '../services/firebase-auth.js';
+import { t } from '../../../utils/i18n.js';
 
 export default class LoginView extends HTMLElement {
   constructor() {
@@ -9,6 +10,30 @@ export default class LoginView extends HTMLElement {
   connectedCallback() {
     this.render();
     this.setupListeners();
+    this.updateTexts();
+
+    window.addEventListener('i18n-changed', () => {
+      this.updateTexts();
+    });
+  }
+
+  updateTexts() {
+    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+        el.setAttribute('placeholder', t(key));
+      } else {
+        // Only text elements in login view, simple textContent is safe (excluding the SVG button)
+        if (el.id === 'login-btn') {
+          // Careful not to wipe SVG. We'll wrap text in a span inside the button.
+          const span = el.querySelector('span');
+          if (span) span.textContent = t(key);
+        } else {
+          el.textContent = t(key);
+        }
+      }
+    });
   }
 
   render() {
@@ -149,8 +174,8 @@ export default class LoginView extends HTMLElement {
       </style>
 
       <div class="header-section">
-        <h2>환영합니다! Compasser 시작하기</h2>
-        <p class="subtitle">복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.<br>지금 로그인하고 스마트한 여행 계획을 세워보세요.</p>
+        <h2 data-i18n="loginTitle">환영합니다! Compasser 시작하기</h2>
+        <p class="subtitle" data-i18n="loginSubtitle">복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.<br>지금 로그인하고 스마트한 여행 계획을 세워보세요.</p>
       </div>
 
       <div class="features-grid">
@@ -172,9 +197,9 @@ export default class LoginView extends HTMLElement {
       </div>
       
       <div class="cta-section">
-        <button id="login-btn" class="cta-btn">
+        <button id="login-btn" class="cta-btn" data-i18n="loginBtn">
           <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.9c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.13-10.36 7.13-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-          Google 계정으로 3초 만에 시작하기
+          <span>Google 계정으로 3초 만에 시작하기</span>
         </button>
         <div id="error-msg" style="color: #EA4335; margin-top: 1rem; display: none;"></div>
       </div>

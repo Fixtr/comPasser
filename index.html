@@ -17,12 +17,11 @@
   <!-- App Container -->
   <main class="app-container">
     <header class="hero">
-      <h1>Smart Travel AI</h1>
-      <p>Optimize your itinerary around your must-attend events.</p>
+      <h1 data-i18n="heroTitle">Smart Travel AI</h1>
+      <p data-i18n="heroSubtitle">Optimize your itinerary around your must-attend events.</p>
 
       <!-- Theme Toggle & Logout -->
-      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-        <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
+      <button id="lang-toggle" aria-label="Toggle Language" style="
           background: var(--bg-primary);
           color: var(--text-primary);
           border: 1px solid oklch(80% 0.02 260);
@@ -32,9 +31,21 @@
           font-weight: 600;
           transition: background 0.2s, color 0.2s;
         ">
-          🌙 Dark Mode
-        </button>
-        <button id="my-itineraries-btn" aria-label="My Itineraries" style="
+        🌐 한국어
+      </button>
+      <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          border: 1px solid oklch(80% 0.02 260);
+          padding: 0.5rem 1rem;
+          border-radius: 20px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: background 0.2s, color 0.2s;
+        " data-i18n="darkMode">
+        🌙 Dark Mode
+      </button>
+      <button id="my-itineraries-btn" aria-label="My Itineraries" style="
           background: var(--accent-primary, #7c3aed);
           color: white;
           border: none;
@@ -44,10 +55,10 @@
           font-weight: 600;
           transition: transform 0.2s, box-shadow 0.2s;
           display: none;
-        ">
-          📂 내 여행 일정 보기
-        </button>
-        <button id="logout-btn" aria-label="Logout" style="
+        " data-i18n="myItineraries">
+        📂 내 여행 일정 보기
+      </button>
+      <button id="logout-btn" aria-label="Logout" style="
           background: oklch(95% 0.02 260);
           color: var(--text-primary);
           border: 1px solid oklch(80% 0.02 260);
@@ -57,9 +68,9 @@
           font-weight: 600;
           transition: background 0.2s, color 0.2s;
           display: none;
-        ">
-          🚪 Logout
-        </button>
+        " data-i18n="logout">
+        🚪 Logout
+      </button>
       </div>
     </header>
 
@@ -89,7 +100,8 @@
         box-shadow: var(--shadow-xl);
       ">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-          <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">📂 내 여행 일정</h2>
+          <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;" data-i18n="myItinerariesTitle">📂 내 여행
+            일정</h2>
           <button id="close-modal-btn"
             style="background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
@@ -108,18 +120,43 @@
       <div id="loading-transition-view" class="fade-transition hidden-view"
         style="display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center;">
         <div id="loading-spinner" class="large-spinner"></div>
-        <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);">AI가 최적의 경로를 분석하고 있습니다...</h2>
-        <p id="loading-subtext" style="color: var(--text-secondary); margin-top: 0.5rem;">잠시만 기다려주세요.</p>
+        <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);" data-i18n="loadingText">AI가 최적의
+          경로를 분석하고 있습니다...</h2>
+        <p id="loading-subtext" style="color: var(--text-secondary); margin-top: 0.5rem;" data-i18n="loadingSubtext">잠시만
+          기다려주세요.</p>
 
         <button id="show-results-btn" class="primary-btn"
-          style="display: none; margin-top: 2rem; max-width: 300px; padding: 1rem 2rem; background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280)); color: white; border: none; font-size: 1.1rem; font-weight: 700; border-radius: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+          style="display: none; margin-top: 2rem; max-width: 300px; padding: 1rem 2rem; background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280)); color: white; border: none; font-size: 1.1rem; font-weight: 700; border-radius: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;"
+          data-i18n="showResultsBtn">
           ✨ 경로 확인하기
         </button>
       </div>
 
       <!-- Results Section Container -->
       <div class="results-layout fade-transition hidden-view" id="results-layout"
-        style="display: none; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem;">
+        style="display: none; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem; position: relative;">
+        <!-- Back Navigation Button -->
+        <button id="edit-itinerary-btn"
+          style="
+            grid-column: 1 / -1;
+            width: fit-content;
+            background: transparent;
+            color: var(--accent-primary);
+            border: 2px solid var(--accent-primary);
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: -1rem; /* bring closer to grid items */
+          "
+          data-i18n="editItineraryBtn"
+          onmouseover="this.style.background='var(--accent-primary)'; this.style.color='white';"
+          onmouseout="this.style.background='transparent'; this.style.color='var(--accent-primary)';">
+          ← 일정 다시 수정하기
+        </button>
+
         <map-view></map-view>
         <itinerary-view></itinerary-view>
       </div>

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { getLang } from "../../../utils/i18n.js";
 
 /**
  * Calls the real Gemini API to generate an optimized itinerary.
@@ -67,6 +68,11 @@ export async function generateOptimizedItinerary(plannerRequest) {
     ? `1. You MUST include ScheduleItems with type="AnchorSchedule" that exactly match the time and location of the provided AnchorSchedules.`
     : `1. You may omit ScheduleItems of type="AnchorSchedule" since none were provided.`;
 
+  const currentLang = getLang();
+  const langRule = currentLang === 'ko'
+    ? 'ALL output text (titles, descriptions, themes) MUST be written in Korean language.'
+    : 'ALL output text (titles, descriptions, themes) MUST be written in English language.';
+
   const prompt = `
 You are an expert AI Travel Planner.
 Plan a 1-day itinerary for the date ${plannerRequest.date}.
@@ -90,6 +96,7 @@ ${anchorRule}
 2. All alternative locations MUST be real places in Korea, close to the route.
 3. Obey the JSON schema exactly.
 4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
+5. ${langRule}
   `;
 
   try {

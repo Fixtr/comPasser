@@ -351,11 +351,29 @@ export class MapView extends HTMLElement {
 
           const leg = response.routes[0]?.legs[0];
           if (leg) {
+            let primaryVehicleType = null;
+            let primaryLineName = null;
+
+            // Search steps for the most relevant transit line
+            if (leg.steps && leg.steps.length > 0) {
+              const transitStep = leg.steps.find(s => s.travel_mode === 'TRANSIT');
+              if (transitStep && transitStep.transit) {
+                const transitDetails = transitStep.transit;
+                const line = transitDetails.line;
+                if (line) {
+                  primaryVehicleType = line.vehicle?.type || 'TRANSIT';
+                  primaryLineName = line.short_name || line.name || null;
+                }
+              }
+            }
+
             transitRoutes.push({
               fromIndex: i,
               duration: leg.duration.text,
               distance: leg.distance.text,
-              mode: 'TRANSIT' /* Ubiquitous Language */
+              mode: 'TRANSIT', /* Ubiquitous Language */
+              vehicleType: primaryVehicleType,
+              lineName: primaryLineName
             });
           }
         }).catch(err => {

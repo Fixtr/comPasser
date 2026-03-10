@@ -1,3 +1,5 @@
+import { t } from '../../../utils/i18n.js';
+
 export default class TravelForm extends HTMLElement {
   constructor() {
     super();
@@ -16,9 +18,34 @@ export default class TravelForm extends HTMLElement {
       const btn = this.shadowRoot.querySelector('.primary-btn');
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Generate AI Itinerary ✨';
+        btn.textContent = t('generateBtn');
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
+      }
+    });
+
+    // Listen for global language changes
+    window.addEventListener('i18n-changed', () => {
+      this.updateTexts();
+    });
+  }
+
+  updateTexts() {
+    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+        el.setAttribute('placeholder', t(key));
+      } else {
+        // preserve child elements like spans if we need to? Or just textContent. 
+        // For travel-form, we have one span inside h2. Let's be careful.
+        if (el.children.length === 0) {
+          el.textContent = t(key);
+        } else {
+          // If it has children, we might need a safer approach. But in this form, most are simple text labels
+          // We can put data-i18n on the exact text node wrapper.
+          el.childNodes[0].nodeValue = t(key) + ' ';
+        }
       }
     });
   }
@@ -166,44 +193,44 @@ export default class TravelForm extends HTMLElement {
       <form id="travel-form">
         
         <div class="form-section">
-          <h2>Trip Basics</h2>
+          <h2 data-i18n="tripBasicsTitle">Trip Basics</h2>
           <div class="row-3">
             <div class="form-group">
-              <label for="schedule-date">Date</label>
+              <label for="schedule-date" data-i18n="scheduleDate">Date</label>
               <input type="date" id="schedule-date" required>
             </div>
             <div class="form-group">
-              <label for="start-time">Start Time</label>
+              <label for="start-time" data-i18n="startTime">Start Time</label>
               <input type="time" id="start-time" required>
             </div>
             <div class="form-group">
-              <label for="end-time">End Time</label>
+              <label for="end-time" data-i18n="endTime">End Time</label>
               <input type="time" id="end-time" required>
             </div>
           </div>
           
           <div class="row-2">
             <div class="form-group">
-              <label for="start-location">Start Location (e.g., Hotel)</label>
-              <input type="text" id="start-location" placeholder="Myeongdong Lotte Hotel" required>
+              <label for="start-location" data-i18n="startLocation">Start Location (e.g., Hotel)</label>
+              <input type="text" id="start-location" data-i18n="startLocationPlaceholder" placeholder="Myeongdong Lotte Hotel" required>
             </div>
             <div class="form-group">
-              <label for="end-location">End Location (e.g., Hotel/Airport)</label>
-              <input type="text" id="end-location" placeholder="Incheon Airport" required>
+              <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
+              <input type="text" id="end-location" data-i18n="endLocationPlaceholder" placeholder="Incheon Airport" required>
             </div>
           </div>
         </div>
 
         <div class="form-section">
-          <h2>Anchor Schedules <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
-          <p class="subtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
+          <h2><span data-i18n="anchorTitle">Anchor Schedules</span> <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
+          <p class="subtitle" data-i18n="anchorSubtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
           
           <div id="anchors-container"></div>
           
-          <button type="button" id="add-anchor-btn" class="secondary-btn">+ Add Anchor Schedule</button>
+          <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="addAnchor">+ Add Anchor Schedule</button>
         </div>
 
-        <button type="submit" class="primary-btn">Generate AI Itinerary ✨</button>
+        <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
       </form>
     `;
 
@@ -222,21 +249,21 @@ export default class TravelForm extends HTMLElement {
     template.innerHTML = `
       <button type="button" class="remove-btn" title="Remove Anchor">×</button>
       <div class="form-group">
-        <label>Schedule Name</label>
-        <input type="text" class="anchor-name" placeholder="G-Dragon Concert" required>
+        <label data-i18n="anchorNameLabel">${t('anchorNameLabel')}</label>
+        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" required>
       </div>
       <div class="row-3">
         <div class="form-group">
-          <label>Start Time</label>
+          <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
           <input type="time" class="anchor-time" required>
         </div>
         <div class="form-group">
-          <label>End Time</label>
+          <label data-i18n="anchorEndLabel">${t('anchorEndLabel')}</label>
           <input type="time" class="anchor-end-time" required>
         </div>
         <div class="form-group">
-          <label>Location (Area or Venue)</label>
-          <input type="text" class="anchor-location" placeholder="KSPO Dome" required>
+          <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
+          <input type="text" class="anchor-location" data-i18n="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}" required>
         </div>
       </div>
     `;
