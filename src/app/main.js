@@ -24,6 +24,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModalBtn = document.getElementById('close-modal-btn');
     const itinerariesList = document.getElementById('itineraries-list');
 
+    // View Transition Elements
+    const travelFormView = document.getElementById('travel-form-view');
+    const loadingTransitionView = document.getElementById('loading-transition-view');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const loadingText = document.getElementById('loading-text');
+    const loadingSubtext = document.getElementById('loading-subtext');
+    const showResultsBtn = document.getElementById('show-results-btn');
+    const resultsLayout = document.getElementById('results-layout');
+
+    // Show results button listener (Phase 2 -> Phase 3)
+    if (showResultsBtn) {
+        showResultsBtn.onclick = () => {
+            loadingTransitionView.classList.add('hidden-view');
+            setTimeout(() => {
+                loadingTransitionView.style.display = 'none';
+                resultsLayout.style.display = 'grid';
+                void resultsLayout.offsetWidth; // Reflow
+                resultsLayout.classList.remove('hidden-view');
+                // Ensure map resizes correctly
+                window.dispatchEvent(new Event('resize'));
+            }, 400);
+        };
+    }
+
     // Theme initialization
     const currentTheme = localStorage.getItem('theme') || 'light';
     if (currentTheme === 'dark') {
@@ -142,8 +166,28 @@ document.addEventListener('DOMContentLoaded', () => {
         travelForm.addEventListener('generate-itinerary', async (e) => {
             console.log('App main received itinerary generation event:', e.detail);
 
-            // Update UI state to loading
-            itineraryView.setLoading(true);
+            // Phase 1 -> Phase 2 Transition
+            if (travelFormView) travelFormView.classList.add('hidden-view');
+            if (resultsLayout) resultsLayout.classList.add('hidden-view');
+
+            setTimeout(() => {
+                if (travelFormView) travelFormView.style.display = 'none';
+                if (resultsLayout) resultsLayout.style.display = 'none';
+
+                // Setup Phase 2
+                loadingSpinner.style.display = 'block';
+                loadingText.textContent = 'AI가 최적의 경로를 분석하고 있습니다...';
+                loadingText.style.color = 'var(--accent-primary)';
+                loadingSubtext.textContent = '잠시만 기다려주세요.';
+                loadingSubtext.style.display = 'block';
+                showResultsBtn.style.display = 'none';
+                showResultsBtn.textContent = '✨ 경로 확인하기';
+
+                loadingTransitionView.style.display = 'flex';
+                // Trigger reflow
+                void loadingTransitionView.offsetWidth;
+                loadingTransitionView.classList.remove('hidden-view');
+            }, 100);
 
             try {
                 // Call the AI Service
@@ -154,15 +198,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Map Update Map Mock
                 mapView.renderRoute(itineraryPlan);
+
+                // Phase 2: Complete Waiting -> Ready for Phase 3
+                loadingSpinner.style.display = 'none';
+                loadingText.textContent = '✨ 경로 설계가 완료되었습니다!';
+                loadingSubtext.style.display = 'none';
+                showResultsBtn.style.display = 'inline-block';
+
+                // Set click action for success
+                showResultsBtn.onclick = () => {
+                    loadingTransitionView.classList.add('hidden-view');
+                    setTimeout(() => {
+                        loadingTransitionView.style.display = 'none';
+                        resultsLayout.style.display = 'grid';
+                        void resultsLayout.offsetWidth; // Reflow
+                        resultsLayout.classList.remove('hidden-view');
+                        window.dispatchEvent(new Event('resize'));
+                    }, 400);
+                };
+
             } catch (error) {
                 console.error("Failed to generate itinerary:", error);
+
+                // Phase 2: Error state
+                loadingSpinner.style.display = 'none';
+                loadingText.textContent = '❌ 일정을 생성하지 못했습니다.';
+                loadingText.style.color = '#ef4444';
+                loadingSubtext.textContent = error.message || '다시 시도해주세요.';
+                loadingSubtext.style.display = 'block';
+
+                // Allow user to go back to Phase 1
+                showResultsBtn.textContent = '🔙 돌아가기';
+                showResultsBtn.style.display = 'inline-block';
+                showResultsBtn.onclick = () => {
+                    loadingTransitionView.classList.add('hidden-view');
+                    setTimeout(() => {
+                        loadingTransitionView.style.display = 'none';
+                        if (travelFormView) {
+                            travelFormView.style.display = 'block';
+                            void travelFormView.offsetWidth;
+                            travelFormView.classList.remove('hidden-view');
+                        }
+                    }, 400);
+                };
 
                 // Friendly error handling via alert for 429, or itineraryView for others
                 if (error.message.includes("429")) {
                     alert('⏳ ' + error.message);
                 }
-
-                itineraryView.setError(error.message || "Failed to generate your trip. Please try again.");
             } finally {
                 // Signal to form that generation is done (success or fail)
                 window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));

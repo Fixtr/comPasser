@@ -102,10 +102,24 @@
     <!-- Web Components will be injected here -->
     <section class="content" id="app-content" style="display: none;">
       <!-- The custom travel form -->
-      <travel-form></travel-form>
+      <travel-form id="travel-form-view" class="fade-transition"></travel-form>
+
+      <!-- Phase 2: Full Screen Loading / Waiting View -->
+      <div id="loading-transition-view" class="fade-transition hidden-view"
+        style="display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center;">
+        <div id="loading-spinner" class="large-spinner"></div>
+        <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);">AI가 최적의 경로를 분석하고 있습니다...</h2>
+        <p id="loading-subtext" style="color: var(--text-secondary); margin-top: 0.5rem;">잠시만 기다려주세요.</p>
+
+        <button id="show-results-btn" class="primary-btn"
+          style="display: none; margin-top: 2rem; max-width: 300px; padding: 1rem 2rem; background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280)); color: white; border: none; font-size: 1.1rem; font-weight: 700; border-radius: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+          ✨ 경로 확인하기
+        </button>
+      </div>
 
       <!-- Results Section Container -->
-      <div class="results-layout" style="display: grid; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem;">
+      <div class="results-layout fade-transition hidden-view" id="results-layout"
+        style="display: none; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem;">
         <map-view></map-view>
         <itinerary-view></itinerary-view>
       </div>

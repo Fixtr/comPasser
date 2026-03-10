@@ -325,10 +325,7 @@ export default class ItineraryView extends HTMLElement {
         }
       </style>
       
-      <div id="loader" class="loader">
-        <div class="spinner"></div>
-        <p>AI is analyzing routes, venues, and transit times...</p>
-      </div>
+      <!-- Global loader handles loading state -->
 
       <div id="results" style="display: none;">
         <h2><span id="day-title">Day 1</span> Itinerary</h2>
@@ -344,14 +341,11 @@ export default class ItineraryView extends HTMLElement {
 
   setLoading(isLoading) {
     this.setAttribute('visible', '');
-    const loader = this.shadowRoot.getElementById('loader');
     const results = this.shadowRoot.getElementById('results');
 
     if (isLoading) {
-      loader.classList.add('active');
       results.style.display = 'none';
     } else {
-      loader.classList.remove('active');
       results.style.display = 'block';
     }
   }
