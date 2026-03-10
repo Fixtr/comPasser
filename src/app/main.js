@@ -71,6 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
         editItineraryBtn.addEventListener('click', (e) => {
             e.preventDefault();
             console.log('[View Transition] Back button clicked: Phase 3 -> Phase 1');
+            
+            // Auto-fill logic: Populate Phase 1 form with currentItinerary's original request data
+            if (travelFormView && travelFormView.populateForm && itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {
+                console.log('[Auto-fill] Populating travel form with:', itineraryView.currentItinerary.request);
+                travelFormView.populateForm(itineraryView.currentItinerary.request);
+            }
+
             resultsLayout.classList.add('hidden-view');
             setTimeout(() => {
                 resultsLayout.style.display = 'none';

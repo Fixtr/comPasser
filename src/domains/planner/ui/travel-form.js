@@ -10,6 +10,9 @@ export default class TravelForm extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    if (this.anchorCount === 0) {
+      this.addAnchor(); // Initialize first anchor safely
+    }
     this.setupEventListeners();
 
     // Listen for completion to reset button state
@@ -235,10 +238,10 @@ export default class TravelForm extends HTMLElement {
     `;
 
     // Initialize with 1 empty anchor
-    this.addAnchor();
+    // this.addAnchor(); // Move to connectedCallback or let populate logic handle it
   }
 
-  addAnchor() {
+  addAnchor(data = null) {
     this.anchorCount++;
     const container = this.shadowRoot.getElementById('anchors-container');
     const id = `anchor-${Date.now()}`;
@@ -273,7 +276,43 @@ export default class TravelForm extends HTMLElement {
       container.removeChild(template);
     });
 
+    if (data) {
+      template.querySelector('.anchor-name').value = data.name || '';
+      template.querySelector('.anchor-time').value = data.time || '';
+      template.querySelector('.anchor-end-time').value = data.endTime || '';
+      template.querySelector('.anchor-location').value = data.location || '';
+    }
+
     container.appendChild(template);
+  }
+
+  populateForm(requestData) {
+    if (!requestData) return;
+    
+    // 1. Reset Form
+    const form = this.shadowRoot.getElementById('travel-form');
+    if (form) form.reset();
+
+    // 2. Clear old anchors
+    const container = this.shadowRoot.getElementById('anchors-container');
+    if (container) container.innerHTML = '';
+    this.anchorCount = 0;
+
+    // 3. Inject basic fields
+    if (requestData.date) this.shadowRoot.getElementById('schedule-date').value = requestData.date;
+    if (requestData.startTime) this.shadowRoot.getElementById('start-time').value = requestData.startTime;
+    if (requestData.endTime) this.shadowRoot.getElementById('end-time').value = requestData.endTime;
+    if (requestData.startLocation) this.shadowRoot.getElementById('start-location').value = requestData.startLocation;
+    if (requestData.endLocation) this.shadowRoot.getElementById('end-location').value = requestData.endLocation;
+
+    // 4. Inject Anchors dynamically
+    if (requestData.anchorSchedules && requestData.anchorSchedules.length > 0) {
+      requestData.anchorSchedules.forEach(anchor => {
+        this.addAnchor(anchor);
+      });
+    } else {
+      this.addAnchor(); // Leave at least 1 empty anchor line
+    }
   }
 
   setupEventListeners() {
