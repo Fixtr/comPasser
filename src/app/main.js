@@ -239,6 +239,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     card.addEventListener('click', () => {
                         itinerariesModal.style.display = 'none';
                         if (item.itineraryPlan) {
+                            // Phase 1 숨기기
+                            if (travelFormView) {
+                                travelFormView.classList.add('hidden-view');
+                                travelFormView.style.display = 'none';
+                            }
+
+                            // Phase 3 띄우기
+                            if (resultsLayout) {
+                                resultsLayout.style.display = 'grid';
+                                void resultsLayout.offsetWidth; // Reflow
+                                resultsLayout.classList.remove('hidden-view');
+                                // 지도가 깨지지 않도록 resize 이벤트 트리거
+                                window.dispatchEvent(new Event('resize'));
+                            }
+
                             itineraryView.showResults(item.itineraryPlan);
                             mapView.renderRoute(item.itineraryPlan);
                         }
