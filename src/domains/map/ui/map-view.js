@@ -1,4 +1,4 @@
-import { Loader } from "@googlemaps/js-api-loader";
+import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
 
@@ -11,11 +11,7 @@ export class MapView extends HTMLElement {
     this.directionsRenderers = [];
     this.fallbackPolylines = [];
 
-    this.loader = new Loader({
-      apiKey: import.meta.env.VITE_MAPS_API_KEY,
-      version: "weekly",
-      libraries: ["marker", "geocoding", "routes", "maps", "core"]
-    });
+    this.loader = getMapsLoader();
 
     // Initialize domain services
     this.geocodingService = new GeocodingService(this.loader);

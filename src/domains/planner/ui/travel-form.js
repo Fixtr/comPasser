@@ -1,4 +1,5 @@
 import { t } from '../../../utils/i18n.js';
+import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -6,6 +7,7 @@ export default class TravelForm extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.anchorCount = 0;
     this.isSubmitting = false;
+    this.loader = getMapsLoader();
   }
 
   connectedCallback() {
@@ -15,6 +17,7 @@ export default class TravelForm extends HTMLElement {
     }
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
+    this.initPlaces();
 
     // Restore Form Data on load if we are not locked in Phase 3
     const savedPhase = sessionStorage.getItem('currentPhase');
@@ -122,6 +125,36 @@ export default class TravelForm extends HTMLElement {
 
         input:focus {
           outline: none;
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
+        }
+
+        gmp-place-picker, gmp-place-autocomplete {
+          width: 100%;
+          display: block;
+          border-radius: 8px;
+          background: var(--bg-primary);
+          
+          /* Google Maps Places Shadow DOM overrides */
+          --gmpx-color-surface: var(--bg-primary);
+          --gmpx-color-on-surface: var(--text-primary);
+          --gmpx-color-on-surface-variant: var(--text-secondary);
+          
+          /* Match our standard input border & padding */
+          border: 1px solid oklch(90% 0.02 260);
+          box-sizing: border-box;
+          overflow: hidden;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          min-height: 48px;
+        }
+
+        .anchor-item gmp-place-picker, 
+        .anchor-item gmp-place-autocomplete {
+          --gmpx-color-surface: transparent;
+          border: 1px solid oklch(90% 0.02 260);
+        }
+
+        gmp-place-picker:focus-within, gmp-place-autocomplete:focus-within {
           border-color: var(--accent-primary);
           box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
         }
@@ -253,6 +286,80 @@ export default class TravelForm extends HTMLElement {
     // this.addAnchor(); // Move to connectedCallback or let populate logic handle it
   }
 
+  async initPlaces() {
+    try {
+      const { PlaceAutocompleteElement } = await this.loader.importLibrary("places");
+      this.PlaceAutocompleteElement = PlaceAutocompleteElement;
+
+      const startInput = this.shadowRoot.getElementById('start-location');
+      const endInput = this.shadowRoot.getElementById('end-location');
+
+      if (startInput) this.bindAutocomplete(startInput);
+      if (endInput) this.bindAutocomplete(endInput);
+
+      // Bind to existing anchors if any
+      const anchorInputs = this.shadowRoot.querySelectorAll('.anchor-location');
+      anchorInputs.forEach(input => this.bindAutocomplete(input));
+
+    } catch (e) {
+      console.error("Failed to load Places API:", e);
+    }
+  }
+
+  bindAutocomplete(inputElement) {
+    if (!this.PlaceAutocompleteElement || !inputElement) return;
+    
+    // Check if already bound
+    if (inputElement.dataset.autocompleteBound) return;
+
+    // Create the new PlaceAutocompleteElement
+    const autocomplete = new this.PlaceAutocompleteElement();
+    
+    // The CSS rules in <style> will now pick up gmp-place-picker
+    // Remove the explicit inline overrides that broke the border and background theme sync
+    autocomplete.style.width = '100%';
+    // The internal input handles its own padding, but wrapping it with our border simulates the native look.
+
+    // To properly swap the standard input, we configure the inner input manually 
+    // Wait, PlaceAutocompleteElement renders its own input. Let's just swap it.
+    // However, getting values out of shadow DOM might be tricky for getFormData.
+    // Instead, just append it right after the input and hide the original input.
+
+    inputElement.style.display = 'none';
+    inputElement.parentNode.insertBefore(autocomplete, inputElement.nextSibling);
+
+    autocomplete.addEventListener('gmp-placeselect', (event) => {
+      const place = event.place;
+      if (place && place.displayName) {
+        inputElement.value = place.displayName;
+        // Trigger manual input event to save state
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+      } else {
+        inputElement.value = autocomplete.inputValue || '';
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    autocomplete.addEventListener('input', (e) => {
+        // Sync text if user types and doesn't select
+        inputElement.value = autocomplete.inputValue;
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // If there is already a value, set it
+    if (inputElement.value) {
+        autocomplete.inputValue = inputElement.value;
+    }
+
+    // Sync placeholder
+    if (inputElement.placeholder) {
+        // Unfortunately standard shadow DOM doesn't pass native placeholder directly, 
+        // but we can try setting the attribute if it supports it, or just leave it.
+    }
+
+    inputElement.dataset.autocompleteBound = "true";
+  }
+
   addAnchor(data = null) {
     this.anchorCount++;
     const container = this.shadowRoot.getElementById('anchors-container');
@@ -296,6 +403,12 @@ export default class TravelForm extends HTMLElement {
     }
 
     container.appendChild(template);
+
+    // Bind autocomplete to the new input if places API is ready
+    const newLocationInput = template.querySelector('.anchor-location');
+    if (newLocationInput) {
+      this.bindAutocomplete(newLocationInput);
+    }
   }
 
   populateForm(requestData) {
