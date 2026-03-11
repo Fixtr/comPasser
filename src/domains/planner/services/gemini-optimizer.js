@@ -39,9 +39,11 @@ export async function generateOptimizedItinerary(plannerRequest) {
                   title: { type: SchemaType.STRING },
                   description: { type: SchemaType.STRING },
                   location: { type: SchemaType.STRING, description: "Specific real world Address or accurate Place Name in Korea" },
-                  duration: { type: SchemaType.STRING }
+                  duration: { type: SchemaType.STRING },
+                  officialWebsiteUrl: { type: SchemaType.STRING, description: "Official website URL of the place. Return an empty string if unknown." },
+                  googleMapsUrl: { type: SchemaType.STRING, description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" }
                 },
-                required: ["time", "endTime", "type", "title", "description", "location", "duration"]
+                required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl"]
               }
             }
           },
@@ -94,7 +96,7 @@ The last ScheduleItem of the day MUST end at the End Location near the End Time.
 CRITICAL RULES:
 ${anchorRule}
 2. All alternative locations MUST be real places in Korea, close to the route.
-3. Obey the JSON schema exactly.
+3. Obey the JSON schema exactly. You MUST provide a valid 'googleMapsUrl' for every single schedule item. Provide 'officialWebsiteUrl' if available, otherwise an empty string.
 4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
 5. ${langRule}
   `;
@@ -109,6 +111,8 @@ ${anchorRule}
     }
 
     const parsedData = JSON.parse(responseText);
+
+    console.log("AI Response:", parsedData);
 
     // Merge the input metadata back in for reference
     return {

@@ -52,7 +52,9 @@ const dictionary = {
         boarding: "승차",
         alighting: "하차",
         fare: "요금",
-        itineraryHeader: "{0} 여행 일정"
+        itineraryHeader: "{0} 여행 일정",
+        officialWebsite: "🌐 홈페이지",
+        googleMapsLink: "📍 구글맵 보기"
     },
     en: {
         heroTitle: "Smart Travel AI",
@@ -107,7 +109,9 @@ const dictionary = {
         boarding: "Boarding",
         alighting: "Drop-off",
         fare: "Fare",
-        itineraryHeader: "{0} Itinerary"
+        itineraryHeader: "{0} Itinerary",
+        officialWebsite: "🌐 Website",
+        googleMapsLink: "📍 View on Maps"
     }
 };
 

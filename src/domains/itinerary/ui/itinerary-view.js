@@ -305,6 +305,40 @@ export default class ItineraryView extends HTMLElement {
           gap: 0.25rem;
         }
 
+        .action-links {
+          margin-top: 1rem;
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        .action-link-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          padding: 0.4rem 0.8rem;
+          border-radius: 20px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s ease;
+          background: oklch(97% 0.01 260);
+          color: var(--text-secondary);
+          border: 1px solid oklch(90% 0.02 260);
+        }
+
+        .action-link-badge.primary {
+          background: oklch(96% 0.04 260);
+          color: var(--accent-primary);
+          border-color: oklch(85% 0.05 260);
+        }
+
+        .action-link-badge:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+          background: white;
+        }
+
         .loader {
           display: none;
           flex-direction: column;
@@ -463,6 +497,13 @@ export default class ItineraryView extends HTMLElement {
 
       const timeDisplay = scheduleItem.endTime ? `${scheduleItem.time} -<br>${scheduleItem.endTime}` : scheduleItem.time;
 
+      const linksHtml = `
+        <div class="link-buttons" style="margin-top: 8px; display: flex; gap: 8px;">
+          ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" style="background: #eef2ff; color: #4f46e5; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;">🌐 홈페이지</a>` : ''}
+          ${scheduleItem?.googleMapsUrl ? `<a href="${scheduleItem.googleMapsUrl}" target="_blank" rel="noopener noreferrer" style="background: #eef2ff; color: #4f46e5; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;">📍 구글맵 보기</a>` : ''}
+        </div>
+      `;
+
       item.innerHTML = `
         <div class="time-badge">${timeDisplay}</div>
         <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
@@ -472,6 +513,7 @@ export default class ItineraryView extends HTMLElement {
             <span class="meta-item">📍 ${scheduleItem.location}</span>
             <span class="meta-item">⏱ ${scheduleItem.duration}</span>
           </div>
+          ${linksHtml}
         </div>
       `;
 

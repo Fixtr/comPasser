@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const dateObj = item.createdAt?.toDate() || new Date();
                     const dateString = dateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-                    const anchorsCount = item.itineraryPlan?.days[0]?.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0;
+                    const anchorsCount = item.itineraryPlan?.days?.[0]?.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0;
 
                     card.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -382,6 +382,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             if (mapView && typeof mapView.setLoading === 'function') {
                                 mapView.setLoading(false);
+                            }
+                            if (loadingTransitionView) {
+                                loadingTransitionView.style.display = 'none';
                             }
                             alert("이 일정을 불러오는 중 오류가 발생했습니다. 데이터 구조가 호환되지 않을 수 있습니다.");
                         }
