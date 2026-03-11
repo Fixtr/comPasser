@@ -328,15 +328,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         card.style.transform = 'none';
                     });
 
-                    card.addEventListener('click', () => {
+                    card.addEventListener('click', async () => {
                         itinerariesModal.style.display = 'none';
-                        if (item.itineraryPlan) {
-                            
+                        if (!item.itineraryPlan) return;
+                        
+                        try {
                             // 🚀 [Auto-fill Sync] 모달에서 일정을 불러오는 즉시 백그라운드 폼(Phase 1)도 완벽 동기화
                             let requestData = null;
-                            if (item.itineraryPlan.request) {
+                            if (item.itineraryPlan?.request) {
                                 requestData = item.itineraryPlan.request;
-                            } else if (item.itineraryPlan.metadata && item.itineraryPlan.metadata.request) {
+                            } else if (item.itineraryPlan?.metadata?.request) {
                                 requestData = item.itineraryPlan.metadata.request;
                             }
                             
@@ -362,12 +363,27 @@ document.addEventListener('DOMContentLoaded', () => {
                                 window.dispatchEvent(new Event('resize'));
                             }
 
-                            itineraryView.showResults(item.itineraryPlan);
-                            mapView.renderRoute(item.itineraryPlan);
+                            if (itineraryView) itineraryView.showResults(item.itineraryPlan);
+                            if (mapView) await mapView.renderRoute(item.itineraryPlan);
 
                             // 현재 세션 상태 동기화 (새로고침 대비)
                             sessionStorage.setItem('currentPhase', '3');
                             sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
+                        } catch (error) {
+                            console.error('[Load Itinerary Error] Failed to load the itinerary rendering flow:', error);
+                            
+                            // Revert to Phase 1 securely in case of error
+                            if (travelFormView) {
+                                travelFormView.style.display = 'block';
+                                travelFormView.classList.remove('hidden-view');
+                            }
+                            if (resultsLayout) {
+                                resultsLayout.style.display = 'none';
+                            }
+                            if (mapView && typeof mapView.setLoading === 'function') {
+                                mapView.setLoading(false);
+                            }
+                            alert("이 일정을 불러오는 중 오류가 발생했습니다. 데이터 구조가 호환되지 않을 수 있습니다.");
                         }
                     });
 

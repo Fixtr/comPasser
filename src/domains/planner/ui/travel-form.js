@@ -301,29 +301,38 @@ export default class TravelForm extends HTMLElement {
   populateForm(requestData) {
     if (!requestData) return;
     
-    // 1. Reset Form
-    const form = this.shadowRoot.getElementById('travel-form');
-    if (form) form.reset();
+    try {
+      // 1. Reset Form
+      const form = this.shadowRoot.getElementById('travel-form');
+      if (form) form.reset();
 
-    // 2. Clear old anchors
-    const container = this.shadowRoot.getElementById('anchors-container');
-    if (container) container.innerHTML = '';
-    this.anchorCount = 0;
+      // 2. Clear old anchors
+      const container = this.shadowRoot.getElementById('anchors-container');
+      if (container) container.innerHTML = '';
+      this.anchorCount = 0;
 
-    // 3. Inject basic fields
-    if (requestData.date) this.shadowRoot.getElementById('schedule-date').value = requestData.date;
-    if (requestData.startTime) this.shadowRoot.getElementById('start-time').value = requestData.startTime;
-    if (requestData.endTime) this.shadowRoot.getElementById('end-time').value = requestData.endTime;
-    if (requestData.startLocation) this.shadowRoot.getElementById('start-location').value = requestData.startLocation;
-    if (requestData.endLocation) this.shadowRoot.getElementById('end-location').value = requestData.endLocation;
+      // 3. Inject basic fields safely
+      const setVal = (id, val) => {
+        const el = this.shadowRoot.getElementById(id);
+        if (el && val !== undefined && val !== null) el.value = val;
+      };
 
-    // 4. Inject Anchors dynamically
-    if (requestData.anchorSchedules && requestData.anchorSchedules.length > 0) {
-      requestData.anchorSchedules.forEach(anchor => {
-        this.addAnchor(anchor);
-      });
-    } else {
-      this.addAnchor(); // Leave at least 1 empty anchor line
+      setVal('schedule-date', requestData?.date);
+      setVal('start-time', requestData?.startTime);
+      setVal('end-time', requestData?.endTime);
+      setVal('start-location', requestData?.startLocation);
+      setVal('end-location', requestData?.endLocation);
+
+      // 4. Inject Anchors dynamically safely
+      if (requestData?.anchorSchedules && Array.isArray(requestData.anchorSchedules) && requestData.anchorSchedules.length > 0) {
+        requestData.anchorSchedules.forEach(anchor => {
+          if (anchor) this.addAnchor(anchor);
+        });
+      } else {
+        this.addAnchor(); // Leave at least 1 empty anchor line
+      }
+    } catch (error) {
+      console.error("[Auto-fill Error] Failed to populate form:", error);
     }
   }
 

@@ -30,6 +30,15 @@ export default class ItineraryView extends HTMLElement {
         el.textContent = t(key);
       }
     });
+
+    if (this.currentItinerary && this.currentItinerary.days && this.currentItinerary.days.length > 0) {
+      const dayData = this.currentItinerary.days[0];
+      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
+      const headerEl = this.shadowRoot.getElementById('day-title-header');
+      if (headerEl) {
+        headerEl.textContent = headerFormat.replace('{0}', dayData.date);
+      }
+    }
   }
 
   setupSaveListener() {
@@ -95,7 +104,22 @@ export default class ItineraryView extends HTMLElement {
         }
 
         // Only show bullet point if modeText is valid otherwise fallback to basic
-        el.innerHTML = `<span class="transit-pill">${icon} ${modeText} • ${detail.duration} (${detail.distance})</span>`;
+        let innerHtml = `<span class="transit-pill">${icon} ${modeText} • ${detail.duration} (${detail.distance})</span>`;
+        
+        if (detail.mode === 'TRANSIT' && detail.transitDetailsExtended) {
+          const ext = detail.transitDetailsExtended;
+          if (ext.departureStop && ext.arrivalStop) {
+            const boarding = t('boarding') || '승차';
+            const alighting = t('alighting') || '하차';
+            
+            let extHtml = `<div class="transit-extended-info">`;
+            extHtml += `[${boarding}] ${ext.departureStop} ➔ [${alighting}] ${ext.arrivalStop}`;
+            extHtml += `</div>`;
+            innerHtml += extHtml;
+          }
+        }
+        
+        el.innerHTML = innerHtml;
         el.classList.remove('hidden');
       }
     });
@@ -142,7 +166,7 @@ export default class ItineraryView extends HTMLElement {
         .timeline::before {
           content: '';
           position: absolute;
-          left: 14px;
+          left: calc(100px + 1rem); /* Middle of the 2rem gap */
           top: 0;
           bottom: 0;
           width: 2px;
@@ -151,14 +175,14 @@ export default class ItineraryView extends HTMLElement {
 
         .timeline-item {
           display: flex;
-          gap: 1.5rem;
+          gap: 2rem;
           position: relative;
           z-index: 1;
         }
 
         .time-badge {
           flex-shrink: 0;
-          width: 80px;
+          width: 100px;
           font-weight: 600;
           font-size: 0.9rem;
           color: var(--accent-primary);
@@ -186,7 +210,7 @@ export default class ItineraryView extends HTMLElement {
         .schedule-card::before {
           content: attr(data-index);
           position: absolute;
-          left: -1.5rem;
+          left: -1rem;
           top: 1rem;
           width: 24px;
           height: 24px;
@@ -216,14 +240,27 @@ export default class ItineraryView extends HTMLElement {
         }
 
         .transit-info {
-          padding-left: 80px;
+          padding-left: calc(100px + 2rem);
           margin-block: -0.5rem;
           font-size: 0.85rem;
           color: var(--text-secondary);
           position: relative;
           z-index: 1;
           display: flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.4rem;
+        }
+
+        .transit-extended-info {
+          margin-left: 1rem;
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          background: oklch(98% 0.02 260);
+          padding: 0.4rem 0.8rem;
+          border-radius: 8px;
+          border: 1px solid oklch(90% 0.02 260);
+          display: inline-block;
         }
 
         .transit-info.hidden {
@@ -298,21 +335,25 @@ export default class ItineraryView extends HTMLElement {
         @container (max-width: 500px) {
           .timeline-item {
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 1.5rem;
           }
           .time-badge {
             text-align: left;
             width: auto;
+            padding-left: 2rem;
           }
           .timeline::before {
-            left: 20px;
+            left: 11px;
           }
           .schedule-card {
-            margin-left: 1.5rem;
+            margin-left: 2rem;
           }
           .schedule-card::before {
-            left: -1.5rem;
+            left: -2rem;
             transform: none;
+          }
+          .transit-info {
+            padding-left: 2rem;
           }
         }
 
@@ -366,7 +407,7 @@ export default class ItineraryView extends HTMLElement {
       <!-- Global loader handles loading state -->
 
       <div id="results" style="display: none;">
-        <h2><span id="day-title">Day 1</span> Itinerary</h2>
+        <h2 id="day-title-header">Day 1 Itinerary</h2>
         <div class="timeline" id="timeline-container">
           <!-- Dynamically injected -->
         </div>
@@ -407,7 +448,8 @@ export default class ItineraryView extends HTMLElement {
     this.setLoading(false);
 
     const dayData = itineraryPlan.days[0]; // Currently mocking single day
-    this.shadowRoot.getElementById('day-title').textContent = dayData.date;
+    const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
+    this.shadowRoot.getElementById('day-title-header').textContent = headerFormat.replace('{0}', dayData.date);
 
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = ''; // Clear old

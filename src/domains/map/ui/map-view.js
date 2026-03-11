@@ -272,31 +272,36 @@ export class MapView extends HTMLElement {
       return;
     }
 
-    // 1. Delegate Geocoding to GeocodingService
-    const scheduleItems = day.scheduleItems;
-    const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
+    try {
+      // 1. Delegate Geocoding to GeocodingService
+      const scheduleItems = day.scheduleItems;
+      const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
 
-    if (geocodedItems.length === 0) {
+      if (geocodedItems.length === 0) {
+        this.setLoading(false);
+        return;
+      }
+
+      // 2. Center Map on Anchor Schedule, or first item
+      const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
+      const centerCoordinate = anchorItem ? anchorItem.latLng : geocodedItems[0].latLng;
+      this.map.setCenter(centerCoordinate);
+      this.map.setZoom(14);
+
+      // 3. Render Markers on Map
+      await this.renderMarkers(geocodedItems);
+
+      // 4. Delegate Routing to RoutingService and Render Lines
+      if (geocodedItems.length > 1) {
+        this.setLoading(true, "Calculating routes...");
+        await this.renderTransitSegments(geocodedItems);
+      }
+    } catch (err) {
+      console.error("[Map Rendering Error]", err);
+      // Optional: Dispatch event to notify itinerary-view to display error message
+    } finally {
       this.setLoading(false);
-      return;
     }
-
-    // 2. Center Map on Anchor Schedule, or first item
-    const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
-    const centerCoordinate = anchorItem ? anchorItem.latLng : geocodedItems[0].latLng;
-    this.map.setCenter(centerCoordinate);
-    this.map.setZoom(14);
-
-    // 3. Render Markers on Map
-    await this.renderMarkers(geocodedItems);
-
-    // 4. Delegate Routing to RoutingService and Render Lines
-    if (geocodedItems.length > 1) {
-      this.setLoading(true, "Calculating routes...");
-      await this.renderTransitSegments(geocodedItems);
-    }
-
-    this.setLoading(false);
   }
 
   async renderMarkers(geocodedItems) {
@@ -357,17 +362,29 @@ export class MapView extends HTMLElement {
           if (leg) {
             let primaryVehicleType = null;
             let primaryLineName = null;
+            let transitDetailsExtended = null;
 
             // Search steps for the most relevant transit line
             if (leg.steps && leg.steps.length > 0) {
-              const transitStep = leg.steps.find(s => s.travel_mode === 'TRANSIT');
-              if (transitStep && transitStep.transit) {
-                const transitDetails = transitStep.transit;
-                const line = transitDetails.line;
+              const transitSteps = leg.steps.filter(s => s.travel_mode === 'TRANSIT' && s.transit);
+
+              if (transitSteps.length > 0) {
+                const firstTransit = transitSteps[0].transit;
+                const lastTransit = transitSteps[transitSteps.length - 1].transit;
+
+                const line = firstTransit.line;
                 if (line) {
                   primaryVehicleType = line.vehicle?.type || 'TRANSIT';
                   primaryLineName = line.short_name || line.name || null;
                 }
+
+                const departureStop = firstTransit.departure_stop?.name || '';
+                const arrivalStop = lastTransit.arrival_stop?.name || '';
+
+                transitDetailsExtended = {
+                  departureStop,
+                  arrivalStop
+                };
               }
             }
 
@@ -377,7 +394,8 @@ export class MapView extends HTMLElement {
               distance: leg.distance.text,
               mode: 'TRANSIT', /* Ubiquitous Language */
               vehicleType: primaryVehicleType,
-              lineName: primaryLineName
+              lineName: primaryLineName,
+              transitDetailsExtended
             });
           }
         }).catch(err => {
