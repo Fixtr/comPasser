@@ -129,32 +129,41 @@ export default class TravelForm extends HTMLElement {
           box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
         }
 
-        gmp-place-picker, gmp-place-autocomplete {
-          width: 100%;
+        /* Google Maps Autocomplete 컴포넌트 스타일링 */
+        gmp-place-autocomplete {
           display: block;
-          border-radius: 8px;
-          background: var(--bg-primary);
-          
-          /* Google Maps Places Shadow DOM overrides */
-          --gmpx-color-surface: var(--bg-primary);
-          --gmpx-color-on-surface: var(--text-primary);
-          --gmpx-color-on-surface-variant: var(--text-secondary);
-          
-          /* Match our standard input border & padding */
-          border: 1px solid oklch(90% 0.02 260);
+          width: 100%;
           box-sizing: border-box;
-          overflow: hidden;
+          overflow: visible; /* 💎 드롭다운 잘림 방지 💎 */
+
+          /* 💎 다크모드 무시 & 라이트 테마 강제 고정 💎 */
+          --gmpx-color-surface: #ffffff !important;             /* 폼/드롭다운 배경 무조건 흰색 */
+          --gmpx-color-on-surface: #111827 !important;          /* 입력 글씨 무조건 검은색 */
+          --gmpx-color-on-surface-variant: #6b7280 !important;   /* 상세 주소 무조건 진회색 */
+          color: #111827 !important;
+          
+          /* 💎 핵심 2: 'X' 버튼 검은 원 크기 축소 (Padding 조절) 💎 */
+          --gmp-place-autocomplete-icon-padding: 0px; /* 아이콘 패딩을 없애서 뱃지 크기 최소화 */
+
+          /* 기존 폼 UI와 동일한 외형 */
+          border: 1px solid #e5e7eb; 
+          border-radius: 8px; 
+          min-height: 48px; 
+          background-color: #ffffff;
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
-          min-height: 48px;
+          position: relative;
+          z-index: 10;
         }
 
-        .anchor-item gmp-place-picker, 
-        .anchor-item gmp-place-autocomplete {
-          --gmpx-color-surface: transparent;
-          border: 1px solid oklch(90% 0.02 260);
+        /* 앵커(Anchor) 박스 내부의 장소 입력창 전용 */
+        .anchor-item gmp-place-autocomplete, 
+        .anchor-schedule-item gmp-place-autocomplete {
+          /* 앵커 박스 배경에 자연스럽게 묻히도록 투명하게 처리 */
+          --gmpx-color-surface: transparent; 
+          border: 1px solid #d1d5db; /* 앵커 내부의 다른 인풋과 같은 테두리 색상 */
         }
 
-        gmp-place-picker:focus-within, gmp-place-autocomplete:focus-within {
+        gmp-place-autocomplete:focus-within {
           border-color: var(--accent-primary);
           box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
         }
@@ -260,11 +269,11 @@ export default class TravelForm extends HTMLElement {
           <div class="row-2">
             <div class="form-group">
               <label for="start-location" data-i18n="startLocation">Start Location (e.g., Hotel)</label>
-              <input type="text" id="start-location" data-i18n="startLocationPlaceholder" placeholder="Myeongdong Lotte Hotel" required>
+              <gmp-place-autocomplete id="start-location" data-i18n="startLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
             </div>
             <div class="form-group">
               <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
-              <input type="text" id="end-location" data-i18n="endLocationPlaceholder" placeholder="Incheon Airport" required>
+              <gmp-place-autocomplete id="end-location" data-i18n="endLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
             </div>
           </div>
         </div>
@@ -288,76 +297,52 @@ export default class TravelForm extends HTMLElement {
 
   async initPlaces() {
     try {
-      const { PlaceAutocompleteElement } = await this.loader.importLibrary("places");
-      this.PlaceAutocompleteElement = PlaceAutocompleteElement;
+      // 💎 핵심 1: libraries=['places']가 포함된 로더로부터 places 라이브러리를 명확히 가져옴 💎
+      await this.loader.importLibrary("places");
 
-      const startInput = this.shadowRoot.getElementById('start-location');
-      const endInput = this.shadowRoot.getElementById('end-location');
+      const startAutocomplete = this.shadowRoot.getElementById('start-location');
+      const endAutocomplete = this.shadowRoot.getElementById('end-location');
 
-      if (startInput) this.bindAutocomplete(startInput);
-      if (endInput) this.bindAutocomplete(endInput);
+      if (startAutocomplete) this.setupAutocompleteListener(startAutocomplete);
+      if (endAutocomplete) this.setupAutocompleteListener(endAutocomplete);
 
       // Bind to existing anchors if any
-      const anchorInputs = this.shadowRoot.querySelectorAll('.anchor-location');
-      anchorInputs.forEach(input => this.bindAutocomplete(input));
+      const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
+      anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
     }
   }
 
-  bindAutocomplete(inputElement) {
-    if (!this.PlaceAutocompleteElement || !inputElement) return;
+  setupAutocompleteListener(autocomplete) {
+    if (!autocomplete) return;
     
-    // Check if already bound
-    if (inputElement.dataset.autocompleteBound) return;
+    // Safety check to prevent duplicate listeners
+    if (autocomplete.dataset.listenerBound) return;
 
-    // Create the new PlaceAutocompleteElement
-    const autocomplete = new this.PlaceAutocompleteElement();
-    
-    // The CSS rules in <style> will now pick up gmp-place-picker
-    // Remove the explicit inline overrides that broke the border and background theme sync
-    autocomplete.style.width = '100%';
-    // The internal input handles its own padding, but wrapping it with our border simulates the native look.
-
-    // To properly swap the standard input, we configure the inner input manually 
-    // Wait, PlaceAutocompleteElement renders its own input. Let's just swap it.
-    // However, getting values out of shadow DOM might be tricky for getFormData.
-    // Instead, just append it right after the input and hide the original input.
-
-    inputElement.style.display = 'none';
-    inputElement.parentNode.insertBefore(autocomplete, inputElement.nextSibling);
-
+    // 💎 핵심 2: 최신 규격인 gmp-placeselect 이벤트를 사용 💎
     autocomplete.addEventListener('gmp-placeselect', (event) => {
       const place = event.place;
+      
+      // 장소 선택 시 내부 value에 명칭을 동기화 (getFormData에서 읽기 위함)
       if (place && place.displayName) {
-        inputElement.value = place.displayName;
-        // Trigger manual input event to save state
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-      } else {
-        inputElement.value = autocomplete.inputValue || '';
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        // gmp-place-autocomplete는 .value를 프로퍼티로 갖거나 
+        // 혹은 내부 input의 가시적인 값을 string으로 유지합니다.
+        // 선택된 값으로 명시적으로 업데이트
+        autocomplete.value = place.displayName;
       }
+      
+      // 폼 자동 저장 트리거
+      this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    autocomplete.addEventListener('input', (e) => {
-        // Sync text if user types and doesn't select
-        inputElement.value = autocomplete.inputValue;
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+    // 사용자가 수동으로 타이핑하는 경우도 반영
+    autocomplete.addEventListener('input', () => {
+        // value가 알아서 업데이트되겠지만 확실히 하기 위해 커스텀 로직 추가 가능
     });
 
-    // If there is already a value, set it
-    if (inputElement.value) {
-        autocomplete.inputValue = inputElement.value;
-    }
-
-    // Sync placeholder
-    if (inputElement.placeholder) {
-        // Unfortunately standard shadow DOM doesn't pass native placeholder directly, 
-        // but we can try setting the attribute if it supports it, or just leave it.
-    }
-
-    inputElement.dataset.autocompleteBound = "true";
+    autocomplete.dataset.listenerBound = "true";
   }
 
   addAnchor(data = null) {
@@ -385,7 +370,7 @@ export default class TravelForm extends HTMLElement {
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
-          <input type="text" class="anchor-location" data-i18n="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}" required>
+          <gmp-place-autocomplete class="anchor-location" data-i18n="anchorLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
         </div>
       </div>
     `;
@@ -393,21 +378,23 @@ export default class TravelForm extends HTMLElement {
     // Setup remove logic
     template.querySelector('.remove-btn').addEventListener('click', () => {
       container.removeChild(template);
+      this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
 
     if (data) {
       template.querySelector('.anchor-name').value = data.name || '';
       template.querySelector('.anchor-time').value = data.time || '';
       template.querySelector('.anchor-end-time').value = data.endTime || '';
-      template.querySelector('.anchor-location').value = data.location || '';
+      const ac = template.querySelector('.anchor-location');
+      if (ac) ac.value = data.location || '';
     }
 
     container.appendChild(template);
 
-    // Bind autocomplete to the new input if places API is ready
-    const newLocationInput = template.querySelector('.anchor-location');
-    if (newLocationInput) {
-      this.bindAutocomplete(newLocationInput);
+    // Bind autocomplete to the new element
+    const newAutocomplete = template.querySelector('.anchor-location');
+    if (newAutocomplete) {
+      this.setupAutocompleteListener(newAutocomplete);
     }
   }
 
@@ -435,6 +422,12 @@ export default class TravelForm extends HTMLElement {
       setVal('end-time', requestData?.endTime);
       setVal('start-location', requestData?.startLocation);
       setVal('end-location', requestData?.endLocation);
+
+      // 💎 핵심 3: Autocomplete 컴포넌트의 가시적인 값도 즉시 업데이트 💎
+      const startAC = this.shadowRoot.getElementById('start-location');
+      const endAC = this.shadowRoot.getElementById('end-location');
+      if (startAC) startAC.value = requestData?.startLocation || '';
+      if (endAC) endAC.value = requestData?.endLocation || '';
 
       // 4. Inject Anchors dynamically safely
       if (requestData?.anchorSchedules && Array.isArray(requestData.anchorSchedules) && requestData.anchorSchedules.length > 0) {
@@ -500,6 +493,57 @@ export default class TravelForm extends HTMLElement {
 
       const plannerRequest = this.getFormData();
 
+      // --- Time Validation Logic ---
+      const tripStart = plannerRequest.startTime;
+      const tripEnd = plannerRequest.endTime;
+
+      // Rule D: Basic Trip Start Time >= Basic Trip End Time
+      if (tripStart >= tripEnd) {
+        alert(t('basicTimeValidationError'));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
+
+      for (const anchor of plannerRequest.anchorSchedules) {
+        // Skip empty anchors if they aren't filled yet (though required attribute should catch most)
+        if (!anchor.time || !anchor.endTime) continue;
+
+        // Rule C: Anchor Start Time >= Anchor End Time
+        if (anchor.time >= anchor.endTime) {
+          const msg = t('invalidAnchorTime').replace('{0}', anchor.name || 'Anchor');
+          alert(msg);
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+
+        // Rule A: Anchor Start Time < Basic Trip Start Time
+        if (anchor.time < tripStart) {
+          const msg = t('timeValidationError')
+            .replace('{0}', anchor.name || 'Anchor')
+            .replace('{1}', tripStart)
+            .replace('{2}', tripEnd);
+          alert(msg);
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+
+        // Rule B: Anchor 종료 시간 > 기본 일정 종료 시간
+        if (anchor.endTime > tripEnd) {
+          const msg = t('timeValidationError')
+            .replace('{0}', anchor.name || 'Anchor')
+            .replace('{1}', tripStart)
+            .replace('{2}', tripEnd);
+          alert(msg);
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+      }
+      // --- End Validation ---
+
       console.log('Dispatching generation event:', plannerRequest);
 
       // Dispatch custom event reaching up through the DOM
@@ -509,6 +553,15 @@ export default class TravelForm extends HTMLElement {
         composed: true // Allows event to pass through shadow DOM boundary
       }));
     });
+  }
+
+  _resetSubmitButton(btn) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = t('generateBtn');
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    }
   }
 }
 

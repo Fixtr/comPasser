@@ -7,8 +7,10 @@ export function getMapsLoader() {
   if (!loaderInstance) {
     loaderInstance = new Loader({
       apiKey: import.meta.env.VITE_MAPS_API_KEY,
-      version: "beta", // PlacesAutocompleteElement is available in beta or weekly, but let's be safe. weekly is standard.
-      libraries: ["marker", "geocoding", "routes", "maps", "core", "places"]
+      version: "beta",
+      libraries: ["marker", "geocoding", "routes", "maps", "core", "places"],
+      language: "ko",
+      region: "KR"
     });
   }
   return loaderInstance;
