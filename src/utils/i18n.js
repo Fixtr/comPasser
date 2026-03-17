@@ -41,6 +41,8 @@ const dictionary = {
         confirmDelete: "정말로 이 일정을 삭제하시겠습니까?",
         loadingModal: "불러오는 중...",
         saveFailToast: "저장에 실패했습니다.",
+        shareItineraryBtn: "🔗 일정 공유하기",
+        shareSuccessAlert: "🔗 공유 링크가 클립보드에 복사되었습니다!",
         loginRequiredToast: "로그인이 필요합니다.",
         savingStateBtn: "저장 중...",
         walkText: "도보",

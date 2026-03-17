@@ -13,6 +13,7 @@ export default class ItineraryView extends HTMLElement {
     this.render();
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
     this.setupSaveListener();
+    this.setupShareListener();
     this.updateTexts();
 
     window.addEventListener('i18n-changed', () => {
@@ -63,6 +64,35 @@ export default class ItineraryView extends HTMLElement {
         } finally {
           saveBtn.disabled = false;
           saveBtn.textContent = t('saveItineraryBtn') || '이 일정 저장하기 💾';
+        }
+      });
+    }
+  }
+
+  setupShareListener() {
+    const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', () => {
+        if (!this.currentItinerary) return;
+
+        try {
+          // 1. Convert itinerary data to string
+          const dataStr = JSON.stringify(this.currentItinerary);
+          // 2. Compress using LZString
+          const compressed = LZString.compressToEncodedURIComponent(dataStr);
+          // 3. Create full URL
+          const shareUrl = window.location.origin + window.location.pathname + '?share=' + compressed;
+
+          // 4. Copy to clipboard
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!");
+          }).catch(err => {
+            console.error('Clipboard copy failed:', err);
+            this.showToast("클립보드 복사에 실패했습니다.", true);
+          });
+        } catch (error) {
+          console.error("Compression error:", error);
+          this.showToast("링크 생성 중 오류가 발생했습니다.", true);
         }
       });
     }
@@ -416,6 +446,31 @@ export default class ItineraryView extends HTMLElement {
           cursor: not-allowed;
         }
 
+        .share-btn {
+          margin-top: 1rem;
+          background: var(--bg-primary);
+          color: var(--accent-primary, #7c3aed);
+          border: 2px solid var(--accent-primary, #7c3aed);
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 700;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          display: none;
+        }
+
+        .share-btn:hover {
+          background: oklch(95% 0.02 260);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-sm);
+        }
+
+        .share-btn:active {
+          transform: translateY(0);
+        }
+
         .toast {
           position: fixed;
           bottom: 2rem;
@@ -445,7 +500,10 @@ export default class ItineraryView extends HTMLElement {
         <div class="timeline" id="timeline-container">
           <!-- Dynamically injected -->
         </div>
-        <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn">이 일정 저장하기 💾</button>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem;">
+          <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기 💾</button>
+          <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">🔗 일정 공유하기</button>
+        </div>
       </div>
 
       <div id="toast" class="toast" data-i18n="itinerarySaveToast">일정이 저장되었습니다! 🎉</div>
@@ -475,6 +533,8 @@ export default class ItineraryView extends HTMLElement {
     if (container) container.innerHTML = '';
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) saveBtn.style.display = 'none';
+    const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
+    if (shareBtn) shareBtn.style.display = 'none';
   }
 
   showResults(itineraryPlan) {
@@ -490,6 +550,9 @@ export default class ItineraryView extends HTMLElement {
 
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) saveBtn.style.display = 'block';
+
+    const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
+    if (shareBtn) shareBtn.style.display = 'block';
 
     dayData.scheduleItems.forEach((scheduleItem, idx) => {
       const item = document.createElement('div');

@@ -26,6 +26,76 @@ function updateTexts() {
 // 1. 초기 로드 시 다국어(i18n) 자동 적용 (즉시 실행)
 updateTexts();
 
+/**
+ * [Phase 1 전용] 웰컴 모달 관리 함수
+ * - 최초 1회만 노출 (LocalStorage)
+ * - 공유 링크(?share=)로 접속 시 절대 뜨지 않음
+ * - 세션 복구(Phase 3) 시에도 뜨지 않음
+ */
+function showWelcomeOverlay() {
+    // 1. 이미 본 유저인지 확인 (2차 방어막)
+    if (localStorage.getItem('hasSeenWelcomeOverlay') === 'true') {
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'welcome-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        padding: 2rem;
+    `;
+
+    overlay.innerHTML = `
+        <div style="max-width: 500px; animation: fadeIn 0.5s ease-out;">
+            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🧭 Compasser</h1>
+            <p style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 2rem;">
+                당신의 소중한 일정을 중심으로<br>AI가 최적의 여행 경로를 설계해 드립니다.
+            </p>
+            <button id="close-welcome-btn" style="
+                background: var(--accent-primary, #7c3aed);
+                color: white;
+                border: none;
+                padding: 1rem 2rem;
+                font-size: 1.1rem;
+                font-weight: 700;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: transform 0.2s;
+            ">시작하기 ✨</button>
+        </div>
+        <style>
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector('#close-welcome-btn');
+    closeBtn.addEventListener('click', () => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+            overlay.remove();
+            // 쐐기 박기 (로컬 스토리지 저장)
+            localStorage.setItem('hasSeenWelcomeOverlay', 'true');
+        }, 300);
+    });
+
+    closeBtn.addEventListener('mouseover', () => closeBtn.style.transform = 'scale(1.05)');
+    closeBtn.addEventListener('mouseout', () => closeBtn.style.transform = 'scale(1)');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initialized. Event-based routing ready.");
 
@@ -53,9 +123,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const showResultsBtn = document.getElementById('show-results-btn');
     const resultsLayout = document.getElementById('results-layout');
 
-    // 2. 초기 렌더링 시점 (Restore State) - DOMContentLoaded 직후 즉시 실행
+    // 2. 초기 렌더링 시점 (Restore State or Share URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedData = urlParams.get('share');
     const savedPhase = sessionStorage.getItem('currentPhase');
-    if (savedPhase === '3') {
+
+    if (sharedData) {
+        try {
+            console.log("[Share] Found shared itinerary data. Decompressing...");
+            const decompressed = LZString.decompressFromEncodedURIComponent(sharedData);
+            if (!decompressed) throw new Error("Decompression failed");
+            
+            const parsedItinerary = JSON.parse(decompressed);
+            
+            // Phase 1 컨테이너 숨기기
+            if (travelFormView) {
+                travelFormView.style.display = 'none';
+                travelFormView.classList.add('hidden-view');
+            }
+            
+            // Phase 3 컨테이너 보이기
+            if (resultsLayout) {
+                resultsLayout.style.display = 'grid';
+                resultsLayout.classList.remove('hidden-view');
+            }
+
+            // 컴포넌트 마운트를 위한 약간의 지연 후 렌더링
+            setTimeout(() => {
+                if (mapView) mapView.renderRoute(parsedItinerary);
+                if (itineraryView) itineraryView.showResults(parsedItinerary);
+                window.dispatchEvent(new Event('resize'));
+                
+                // 깔끔하게 URL 세탁 (history.replaceState)
+                const newUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+                console.log("[Share] URL cleaned up.");
+            }, 100);
+
+        } catch (error) {
+            console.error("[Share Error]", error);
+            alert("공유된 일정을 불러오는 데 실패했습니다.");
+        }
+    } else if (savedPhase === '3') {
+        // [방어막 3] 세션 복구 시에는 웰컴 모달을 절대 띄우지 않음
         try {
             const rawData = sessionStorage.getItem('savedItineraryData');
             if (!rawData) throw new Error("No savedItineraryData found.");
@@ -95,6 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsLayout.style.display = 'none';
             }
         }
+    } else {
+        // [방어막 1 & 2] 로컬 스토리지 및 Phase 1 상태 확인 후 웰컴 모달 노출
+        showWelcomeOverlay();
     }
 
     // Show results button listener (Phase 2 -> Phase 3)
