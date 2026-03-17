@@ -1,6 +1,9 @@
 import { t } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 
+const MAX_DAILY_CREDITS = 3;
+const USAGE_STORAGE_KEY = 'compasser_usage';
+
 export default class TravelForm extends HTMLElement {
   constructor() {
     super();
@@ -18,6 +21,7 @@ export default class TravelForm extends HTMLElement {
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
     this.initPlaces();
+    this.updateCreditStatus(); // Initialize credit status UI
 
     // Restore Form Data on load if we are not locked in Phase 3
     const savedPhase = sessionStorage.getItem('currentPhase');
@@ -182,9 +186,25 @@ export default class TravelForm extends HTMLElement {
           transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .primary-btn:hover {
+        .primary-btn:disabled {
+          background: #d1d5db !important;
+          color: #9ca3af !important;
+          cursor: not-allowed !important;
+          box-shadow: none !important;
+          transform: none !important;
+        }
+
+        .primary-btn:hover:not(:disabled) {
           transform: translateY(-2px);
           box-shadow: var(--shadow-glow);
+        }
+
+        .credit-status {
+          text-align: center;
+          font-size: 14px;
+          color: #6b7280;
+          margin-bottom: 8px;
+          font-weight: 500;
         }
 
         .secondary-btn {
@@ -287,6 +307,7 @@ export default class TravelForm extends HTMLElement {
           <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="addAnchor">+ Add Anchor Schedule</button>
         </div>
 
+        <div id="credit-status" class="credit-status"></div>
         <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
       </form>
     `;
@@ -482,6 +503,21 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
+      // --- Daily Credit Check ---
+      const today = new Date().toDateString();
+      let usage = JSON.parse(localStorage.getItem(USAGE_STORAGE_KEY) || 'null');
+
+      if (!usage || usage.date !== today) {
+        usage = { date: today, count: 0 };
+        localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
+      }
+
+      if (usage.count >= MAX_DAILY_CREDITS) {
+        alert("오늘 제공된 무료 AI 생성 횟수(3회)를 모두 소진했습니다. 내일 다시 이용해 주세요! 🚀");
+        return;
+      }
+      // --------------------------
+
       this.isSubmitting = true;
       const btn = this.shadowRoot.querySelector('.primary-btn');
       if (btn) {
@@ -544,6 +580,11 @@ export default class TravelForm extends HTMLElement {
       }
       // --- End Validation ---
 
+      // Increment credit count after successful validation
+      usage.count += 1;
+      localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
+      this.updateCreditStatus();
+
       console.log('Dispatching generation event:', plannerRequest);
 
       // Dispatch custom event reaching up through the DOM
@@ -561,6 +602,32 @@ export default class TravelForm extends HTMLElement {
       btn.textContent = t('generateBtn');
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
+    }
+  }
+
+  updateCreditStatus() {
+    const today = new Date().toDateString();
+    let usage = JSON.parse(localStorage.getItem(USAGE_STORAGE_KEY) || 'null');
+
+    if (!usage || usage.date !== today) {
+      usage = { date: today, count: 0 };
+      localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
+    }
+
+    const remaining = Math.max(0, MAX_DAILY_CREDITS - usage.count);
+    const statusEl = this.shadowRoot.getElementById('credit-status');
+    const btn = this.shadowRoot.querySelector('.primary-btn');
+
+    if (statusEl) {
+      statusEl.textContent = `💡 오늘 남은 무료 생성 횟수: ${remaining}/${MAX_DAILY_CREDITS}`;
+    }
+
+    if (btn && remaining <= 0) {
+      btn.disabled = true;
+      btn.textContent = "내일 다시 생성할 수 있습니다 🌙";
+    } else if (btn && !this.isSubmitting) {
+      btn.disabled = false;
+      btn.textContent = t('generateBtn');
     }
   }
 }
