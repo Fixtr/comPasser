@@ -14,6 +14,7 @@ export default class ItineraryView extends HTMLElement {
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
     this.setupSaveListener();
     this.setupShareListener();
+    this.setupDownloadListener();
     this.updateTexts();
 
     window.addEventListener('i18n-changed', () => {
@@ -98,6 +99,74 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
+  setupDownloadListener() {
+    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', () => this.downloadAsImage());
+    }
+  }
+
+  async downloadAsImage() {
+    if (!this.currentItinerary) return;
+    
+    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
+    const originalText = downloadBtn.textContent;
+    
+    try {
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = "📸 이미지 생성 중...";
+      
+      const target = this.shadowRoot.getElementById('results-content');
+      
+      // html2canvas options
+      const options = {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          const clonedResults = clonedDoc.querySelector('#results-content');
+          if (clonedResults) {
+            clonedResults.style.padding = '40px';
+            clonedResults.style.borderRadius = '0';
+            clonedResults.style.background = '#ffffff';
+
+            // Ensure specific standard colors for capture
+            const overrideStyle = clonedDoc.createElement('style');
+            overrideStyle.textContent = `
+              .timeline::before { background: #e5e7eb !important; }
+              .schedule-card { border-color: #e5e7eb !important; background: #ffffff !important; color: #1f2937 !important; }
+              .schedule-card[data-type="AnchorSchedule"] { border-color: #7c3aed !important; background: #f5f3ff !important; }
+              .time-badge { color: #7c3aed !important; }
+              .schedule-title { color: #1f2937 !important; }
+              .schedule-desc { color: #4b5563 !important; }
+              .schedule-meta { color: #6b7280 !important; }
+              .transit-pill { background: #f3f4f6 !important; border-color: #e5e7eb !important; color: #4b5563 !important; }
+              h2 { color: #1f2937 !important; border-bottom: 2px solid #f3f4f6 !important; margin-bottom: 20px !important; }
+            `;
+            clonedResults.appendChild(overrideStyle);
+          }
+        }
+      };
+      
+      const canvas = await html2canvas(target, options);
+      const dataUrl = canvas.toDataURL("image/png");
+      
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `my-trip-itinerary-${new Date().getTime()}.png`;
+      link.click();
+      
+      this.showToast("이미지가 성공적으로 저장되었습니다! 📸");
+    } catch (error) {
+      console.error("Image generation failed:", error);
+      this.showToast("이미지 생성에 실패했습니다.", true);
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = originalText;
+    }
+  }
+
   showToast(message, isError = false) {
     const toast = this.shadowRoot.getElementById('toast');
     toast.textContent = message;
@@ -179,7 +248,7 @@ export default class ItineraryView extends HTMLElement {
           font-size: 1.5rem;
           color: var(--text-primary);
           margin-bottom: 1.5rem;
-          border-bottom: 2px solid oklch(95% 0.02 260);
+          border-bottom: 2px solid #f3f4f6;
           padding-bottom: 0.5rem;
           display: flex;
           align-items: center;
@@ -200,7 +269,7 @@ export default class ItineraryView extends HTMLElement {
           top: 0;
           bottom: 0;
           width: 2px;
-          background: oklch(90% 0.02 260);
+          background: #e5e7eb;
         }
 
         .timeline-item {
@@ -225,7 +294,7 @@ export default class ItineraryView extends HTMLElement {
           background: var(--bg-primary);
           padding: 1.25rem;
           border-radius: 12px;
-          border: 1px solid oklch(95% 0.02 260);
+          border: 1px solid #f3f4f6;
           position: relative;
           transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -258,15 +327,15 @@ export default class ItineraryView extends HTMLElement {
         }
 
         .schedule-card[data-type="AnchorSchedule"] {
-          background: linear-gradient(to right, oklch(98% 0.02 260), oklch(95% 0.05 280));
+          background: linear-gradient(to right, #f8faff, #f5f3ff);
           border: 1px solid var(--accent-primary);
-          box-shadow: 0 4px 12px oklch(65% 0.2 260 / 15%);
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
         }
         
         .schedule-card[data-type="AnchorSchedule"]::before {
           background: var(--accent-primary);
           color: white;
-          box-shadow: 0 0 0 4px oklch(65% 0.2 260 / 30%);
+          box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.3);
         }
 
         .transit-info {
@@ -286,10 +355,10 @@ export default class ItineraryView extends HTMLElement {
           margin-left: 1rem;
           font-size: 0.8rem;
           color: var(--text-secondary);
-          background: oklch(98% 0.02 260);
+          background: #f8f9ff;
           padding: 0.4rem 0.8rem;
           border-radius: 8px;
-          border: 1px solid oklch(90% 0.02 260);
+          border: 1px solid #e5e7eb;
           display: inline-block;
         }
 
@@ -298,10 +367,10 @@ export default class ItineraryView extends HTMLElement {
         }
 
         .transit-pill {
-          background: oklch(95% 0.02 260);
+          background: #f3f4f6;
           padding: 0.3rem 0.8rem;
           border-radius: 20px;
-          border: 1px dashed oklch(85% 0.02 260);
+          border: 1px dashed #e5e7eb;
           display: inline-flex;
           align-items: center;
           gap: 0.25rem;
@@ -352,15 +421,15 @@ export default class ItineraryView extends HTMLElement {
           font-weight: 600;
           text-decoration: none;
           transition: all 0.2s ease;
-          background: oklch(97% 0.01 260);
+          background: #f9fafb;
           color: var(--text-secondary);
-          border: 1px solid oklch(90% 0.02 260);
+          border: 1px solid #e5e7eb;
         }
 
         .action-link-badge.primary {
-          background: oklch(96% 0.04 260);
+          background: #f5f3ff;
           color: var(--accent-primary);
-          border-color: oklch(85% 0.05 260);
+          border-color: #ddd6fe;
         }
 
         .action-link-badge:hover {
@@ -385,7 +454,7 @@ export default class ItineraryView extends HTMLElement {
         .spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid oklch(90% 0.02 260);
+          border: 3px solid #f3f4f6;
           border-top-color: var(--accent-primary);
           border-radius: 50%;
           animation: spin 1s linear infinite;
@@ -423,7 +492,7 @@ export default class ItineraryView extends HTMLElement {
 
         .save-btn {
           margin-top: 2rem;
-          background: oklch(95% 0.02 260);
+          background: #f3f4f6;
           color: var(--accent-primary, #7c3aed);
           border: 2px solid var(--accent-primary, #7c3aed);
           padding: 1rem 2rem;
@@ -462,13 +531,46 @@ export default class ItineraryView extends HTMLElement {
         }
 
         .share-btn:hover {
-          background: oklch(95% 0.02 260);
+          background: #f3f4f6;
           transform: translateY(-2px);
           box-shadow: var(--shadow-sm);
         }
 
         .share-btn:active {
           transform: translateY(0);
+        }
+
+        .download-btn {
+          margin-top: 1rem;
+          background: linear-gradient(135deg, var(--accent-primary, #7c3aed), #4f46e5);
+          color: white;
+          border: none;
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 700;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          display: none;
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+          text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .download-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(124, 58, 237, 0.3);
+          filter: brightness(1.1);
+        }
+
+        .download-btn:active {
+          transform: translateY(0);
+        }
+
+        .download-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
         }
 
         .toast {
@@ -496,11 +598,14 @@ export default class ItineraryView extends HTMLElement {
       <!-- Global loader handles loading state -->
 
       <div id="results" style="display: none;">
-        <h2 id="day-title-header">Day 1 Itinerary</h2>
-        <div class="timeline" id="timeline-container">
-          <!-- Dynamically injected -->
+        <div id="results-content" style="background: white;">
+          <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0;">Day 1 Itinerary</h2>
+          <div class="timeline" id="timeline-container">
+            <!-- Dynamically injected -->
+          </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem;">
+          <button id="download-image-btn" class="download-btn">📸 일정 이미지로 저장하기</button>
           <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기 💾</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">🔗 일정 공유하기</button>
         </div>
@@ -535,6 +640,8 @@ export default class ItineraryView extends HTMLElement {
     if (saveBtn) saveBtn.style.display = 'none';
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) shareBtn.style.display = 'none';
+    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
+    if (downloadBtn) downloadBtn.style.display = 'none';
   }
 
   showResults(itineraryPlan) {
@@ -553,6 +660,9 @@ export default class ItineraryView extends HTMLElement {
 
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) shareBtn.style.display = 'block';
+
+    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
+    if (downloadBtn) downloadBtn.style.display = 'block';
 
     dayData.scheduleItems.forEach((scheduleItem, idx) => {
       const item = document.createElement('div');

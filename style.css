@@ -1,23 +1,24 @@
 /* Base Baseline & Modern CSS Reset */
 :root {
-  /* Dynamic, vibrant OKLCH colors for a premium feel */
-  --bg-primary: oklch(98% 0.01 260);
+  /* Dynamic, vibrant OKLCH colors for a premium feel - Converted to Hex for compatibility */
+  --bg-primary: #f8f9ff;
   /* Very light, cool blue/grey */
-  --bg-secondary: oklch(100% 0 0);
+  --bg-secondary: #ffffff;
   /* Pure White */
-  --text-primary: oklch(25% 0.02 260);
+  --text-primary: #1f2937;
   /* Deep grey-blue */
-  --text-secondary: oklch(50% 0.01 260);
+  --text-secondary: #4b5563;
+  /* Medium grey */
 
-  --accent-primary: oklch(65% 0.2 260);
+  --accent-primary: #7c3aed;
   /* Vibrant Blue/Purple Accent */
-  --accent-hover: oklch(55% 0.2 260);
+  --accent-hover: #6d28d9;
 
   /* Layered Shadows for depth */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 15px oklch(65% 0.2 260 / 30%);
+  --shadow-glow: 0 0 15px rgba(124, 58, 237, 0.3);
 
   /* Border Radius */
   --radius-md: 12px;
@@ -25,16 +26,16 @@
 }
 
 body.dark {
-  --bg-primary: oklch(20% 0.01 260);
+  --bg-primary: #111827;
   /* Dark grey-blue */
-  --bg-secondary: oklch(15% 0.01 260);
+  --bg-secondary: #1f2937;
   /* Very Dark */
-  --text-primary: oklch(95% 0.01 260);
+  --text-primary: #f9fafb;
   /* Near White */
-  --text-secondary: oklch(75% 0.01 260);
+  --text-secondary: #d1d5db;
   /* Light Grey */
 
-  --accent-primary: oklch(75% 0.2 260);
+  --accent-primary: #a78bfa;
   /* Brighter Accent for Dark Mode */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
@@ -90,14 +91,14 @@ h4 {
 .hero {
   padding: 4rem 2rem;
   text-align: center;
-  background: linear-gradient(135deg, oklch(95% 0.05 260), oklch(90% 0.08 280));
-  border-bottom: 1px solid oklch(90% 0.02 260);
+  background: linear-gradient(135deg, #f0f4ff, #eef2ff);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .hero h1 {
   font-size: 3rem;
   font-weight: 800;
-  background: linear-gradient(90deg, var(--accent-primary), oklch(70% 0.2 320));
+  background: linear-gradient(90deg, var(--accent-primary), #4f46e5);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -146,7 +147,7 @@ h4 {
 .large-spinner {
   width: 60px;
   height: 60px;
-  border: 5px solid oklch(90% 0.02 260);
+  border: 5px solid #f3f4f6;
   border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -169,6 +170,6 @@ h4 {
   font-family: inherit;
   border-radius: 8px;
   box-shadow: var(--shadow-md) !important;
-  border: 1px solid oklch(90% 0.02 260);
+  border: 1px solid #e5e7eb;
   margin-top: 4px;
 }
