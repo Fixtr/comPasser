@@ -199,6 +199,36 @@ export default class TravelForm extends HTMLElement {
           box-shadow: var(--shadow-glow);
         }
 
+        .submit-row {
+          display: flex;
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+
+        .submit-row .primary-btn {
+          margin-top: 0;
+          flex: 1;
+        }
+
+        .reset-btn {
+          background: transparent;
+          color: var(--text-secondary);
+          border: 1px solid oklch(85% 0.02 260);
+          padding: 1rem 1.5rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .reset-btn:hover {
+          background: oklch(98% 0.02 260);
+          color: var(--text-primary);
+          border-color: oklch(75% 0.02 260);
+        }
+
         .credit-status {
           text-align: center;
           font-size: 14px;
@@ -308,7 +338,10 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         <div id="credit-status" class="credit-status"></div>
-        <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
+        <div class="submit-row">
+          <button type="button" id="reset-btn" class="reset-btn" data-i18n="resetBtn">🔄 초기화</button>
+          <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
+        </div>
       </form>
     `;
 
@@ -493,6 +526,32 @@ export default class TravelForm extends HTMLElement {
     // Auto-save form data on any input
     form.addEventListener('input', () => {
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+    });
+
+    // Reset Form Event
+    this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
+      // 1. Reset standard inputs and clear native validation states
+      form.reset();
+
+      // 2. Clear Google Autocomplete values
+      const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
+      autocompletes.forEach(ac => ac.value = '');
+
+      // 3. Clear dynamic anchors entirely and re-add one blank slot
+      const container = this.shadowRoot.getElementById('anchors-container');
+      container.innerHTML = '';
+      this.anchorCount = 0;
+      this.addAnchor();
+
+      // 4. Clear specific error classes or inline borders just in case
+      const allInputs = this.shadowRoot.querySelectorAll('input');
+      allInputs.forEach(input => {
+        input.classList.remove('error');
+        input.style.borderColor = '';
+      });
+
+      // 5. Purge the internal storage backup
+      sessionStorage.removeItem('currentFormData');
     });
 
     form.addEventListener('submit', (e) => {

@@ -1,4 +1,4 @@
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { app } from "../../auth/services/firebase-auth.js";
 
 const db = getFirestore(app);
@@ -46,6 +46,37 @@ export async function deleteItinerary(documentId) {
         console.log(`Itinerary ${documentId} successfully deleted.`);
     } catch (error) {
         console.error("Error deleting itinerary: ", error);
+        throw error;
+    }
+}
+
+export async function createSharedItinerary(itineraryPlan) {
+    try {
+        const sharedRef = collection(db, "shared_itineraries");
+        const docRef = await addDoc(sharedRef, {
+            itineraryPlan: itineraryPlan,
+            createdAt: serverTimestamp()
+        });
+        return docRef.id;
+    } catch (error) {
+        console.error("Error creating shared itinerary:", error);
+        throw error;
+    }
+}
+
+export async function getSharedItinerary(documentId) {
+    try {
+        const docRef = doc(db, "shared_itineraries", documentId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            return docSnap.data().itineraryPlan;
+        } else {
+            console.log("No such shared itinerary!");
+            return null;
+        }
+    } catch (error) {
+        console.error("Error fetching shared itinerary:", error);
         throw error;
     }
 }

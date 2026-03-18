@@ -5,7 +5,7 @@ import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
-import { getUserItineraries, deleteItinerary } from '../domains/itinerary/services/firestore-service.js';
+import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
 
 function updateTexts() {
@@ -96,8 +96,14 @@ function showWelcomeOverlay() {
     closeBtn.addEventListener('mouseout', () => closeBtn.style.transform = 'scale(1)');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log("App initialized. Event-based routing ready.");
+
+    // Initialize Kakao SDK
+    if (typeof Kakao !== 'undefined' && !Kakao.isInitialized()) {
+        Kakao.init('164b3385a56f88dfb3d04e05b873426f');
+        console.log('Kakao initialized:', Kakao.isInitialized());
+    }
 
     const travelForm = document.querySelector('travel-form');
     const itineraryView = document.querySelector('itinerary-view');
@@ -125,35 +131,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. 초기 렌더링 시점 (Restore State or Share URL)
     const urlParams = new URLSearchParams(window.location.search);
-    const sharedData = urlParams.get('share');
+    const sharedId = urlParams.get('id');
     const savedPhase = sessionStorage.getItem('currentPhase');
 
-    if (sharedData) {
+    if (sharedId) {
         try {
-            console.log("[Share] Found shared itinerary data. Decompressing...");
-            const decompressed = LZString.decompressFromEncodedURIComponent(sharedData);
-            if (!decompressed) throw new Error("Decompression failed");
+            console.log("[Share] Found shared itinerary ID. Fetching from Firestore...");
             
-            const parsedItinerary = JSON.parse(decompressed);
-            
-            // Phase 1 컨테이너 숨기기
+            // Phase 1 컨테이너 숨기고 UI 즉각 준비 (웰컴 모달/빈화면 방지)
             if (travelFormView) {
                 travelFormView.style.display = 'none';
                 travelFormView.classList.add('hidden-view');
             }
-            
-            // Phase 3 컨테이너 보이기
             if (resultsLayout) {
                 resultsLayout.style.display = 'grid';
                 resultsLayout.classList.remove('hidden-view');
             }
+            if (mapView) {
+                mapView.hideEmptyState();
+                mapView.setLoading(true, "공유된 일정을 불러오는 중입니다...");
+            }
+
+            const parsedItinerary = await getSharedItinerary(sharedId);
+            
+            if (!parsedItinerary) throw new Error("Itinerary not found in Firestore.");
 
             // 컴포넌트 마운트를 위한 약간의 지연 후 렌더링
             setTimeout(() => {
                 if (mapView) mapView.renderRoute(parsedItinerary);
                 if (itineraryView) itineraryView.showResults(parsedItinerary);
                 window.dispatchEvent(new Event('resize'));
-                
+
                 // 깔끔하게 URL 세탁 (history.replaceState)
                 const newUrl = window.location.origin + window.location.pathname;
                 window.history.replaceState({}, document.title, newUrl);
@@ -169,15 +177,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const rawData = sessionStorage.getItem('savedItineraryData');
             if (!rawData) throw new Error("No savedItineraryData found.");
-            
+
             const parsedItinerary = JSON.parse(rawData);
-            
+
             // Phase 1 컨테이너 숨기기
             if (travelFormView) {
                 travelFormView.style.display = 'none';
                 travelFormView.classList.add('hidden-view');
             }
-            
+
             // Phase 3 컨테이너 보이기
             if (resultsLayout) {
                 resultsLayout.style.display = 'grid';
@@ -190,13 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (itineraryView) itineraryView.showResults(parsedItinerary);
                 window.dispatchEvent(new Event('resize'));
             }, 100);
-            
+
         } catch (error) {
             console.error("[State Restore Error]", error);
             // 3. 안전한 Fallback (조용히 청소하고 Phase 1 띄우기)
             sessionStorage.removeItem('currentPhase');
             sessionStorage.removeItem('savedItineraryData');
-            
+
             if (travelFormView) {
                 travelFormView.style.display = 'block';
                 travelFormView.classList.remove('hidden-view');
@@ -219,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsLayout.style.display = 'grid';
                 void resultsLayout.offsetWidth; // Reflow
                 resultsLayout.classList.remove('hidden-view');
-                
+
                 // Ensure map resizes correctly
                 window.dispatchEvent(new Event('resize'));
             }, 400);
@@ -263,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editItineraryBtn.addEventListener('click', (e) => {
             e.preventDefault();
             console.log('[Routing] "Edit Itinerary" clicked: Injecting data, then transitioning.');
-            
+
             // 데이터 파싱
             let requestData = null;
             if (itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {
@@ -444,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     card.addEventListener('click', async () => {
                         itinerariesModal.style.display = 'none';
                         if (!item.itineraryPlan) return;
-                        
+
                         try {
                             // 🚀 [Auto-fill Sync] 모달에서 일정을 불러오는 즉시 백그라운드 폼(Phase 1)도 완벽 동기화
                             let requestData = null;
@@ -453,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else if (item.itineraryPlan?.metadata?.request) {
                                 requestData = item.itineraryPlan.metadata.request;
                             }
-                            
+
                             if (travelFormView && travelFormView.populateForm && requestData) {
                                 console.log('[Sync] Synchronizing loaded itinerary to background form:', requestData);
                                 travelFormView.populateForm(requestData);
@@ -484,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
                         } catch (error) {
                             console.error('[Load Itinerary Error] Failed to load the itinerary rendering flow:', error);
-                            
+
                             // Revert to Phase 1 securely in case of error
                             if (travelFormView) {
                                 travelFormView.style.display = 'block';
@@ -559,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Trigger reflow
                 void loadingTransitionView.offsetWidth;
                 loadingTransitionView.classList.remove('hidden-view');
-                
+
                 sessionStorage.setItem('currentPhase', '2');
             }, 100);
 
@@ -575,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 1. 데이터 저장 시점 (Save State) - 'Generate' 완료 직후
                 sessionStorage.setItem('currentPhase', '3');
-                
+
                 // 저장 객체가 구글 맵스 순환참조를 포함하지 않도록 주의. (gemini-optimizer 반환값은 순수 JSON 객체임)
                 sessionStorage.setItem('savedItineraryData', JSON.stringify(itineraryPlan));
 

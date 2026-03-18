@@ -39,6 +39,12 @@ export class GeocodingService {
     async geocodeSchedule(scheduleItems) {
         const geocodedItems = [];
         for (const item of scheduleItems) {
+            // Already geocoded (e.g., loaded from a shared or saved itinerary)
+            if (item.latLng) {
+                geocodedItems.push(item);
+                continue;
+            }
+
             const latLng = await this.getCoordinate(item.location);
             if (latLng) {
                 geocodedItems.push({ ...item, latLng });

@@ -59,7 +59,9 @@ const dictionary = {
         googleMapsLink: "📍 구글맵 보기",
         timeValidationError: "오류: '[{0}]' 일정이 전체 여행 시간({1} ~ {2})을 벗어납니다. 시간을 다시 확인해 주세요.",
         invalidAnchorTime: "오류: '[{0}]' 일정이 시작 시간이 종료 시간보다 늦거나 같습니다.",
-        basicTimeValidationError: "오류: 여행 종료 시간은 시작 시간보다 늦어야 합니다. 시간을 다시 확인해 주세요."
+        basicTimeValidationError: "오류: 여행 종료 시간은 시작 시간보다 늦어야 합니다. 시간을 다시 확인해 주세요.",
+        kakaoShareBtn: "💬 카카오톡 공유하기",
+        resetBtn: "🔄 초기화"
     },
     en: {
         heroTitle: "Smart Travel AI",
@@ -119,7 +121,9 @@ const dictionary = {
         googleMapsLink: "📍 View on Maps",
         timeValidationError: "Error: '{0}' schedule is outside the total trip time ({1} ~ {2}). Please check the time again.",
         invalidAnchorTime: "Error: '{0}' schedule's start time is later than or equal to the end time.",
-        basicTimeValidationError: "Error: Trip end time must be later than the start time. Please check the time again."
+        basicTimeValidationError: "Error: Trip end time must be later than the start time. Please check the time again.",
+        kakaoShareBtn: "💬 Share on KakaoTalk",
+        resetBtn: "🔄 Reset"
     }
 };
 

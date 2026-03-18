@@ -1,4 +1,4 @@
-import { saveItinerary } from '../services/firestore-service.js';
+import { saveItinerary, createSharedItinerary } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
 
@@ -14,6 +14,7 @@ export default class ItineraryView extends HTMLElement {
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
     this.setupSaveListener();
     this.setupShareListener();
+    this.setupKakaoShareListener();
     this.setupDownloadListener();
     this.updateTexts();
 
@@ -73,27 +74,71 @@ export default class ItineraryView extends HTMLElement {
   setupShareListener() {
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) {
-      shareBtn.addEventListener('click', () => {
+      shareBtn.addEventListener('click', async () => {
         if (!this.currentItinerary) return;
 
+        const originalText = shareBtn.textContent;
         try {
-          // 1. Convert itinerary data to string
-          const dataStr = JSON.stringify(this.currentItinerary);
-          // 2. Compress using LZString
-          const compressed = LZString.compressToEncodedURIComponent(dataStr);
-          // 3. Create full URL
-          const shareUrl = window.location.origin + window.location.pathname + '?share=' + compressed;
+          shareBtn.textContent = "링크 생성 중...";
+          shareBtn.disabled = true;
 
-          // 4. Copy to clipboard
-          navigator.clipboard.writeText(shareUrl).then(() => {
-            alert(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!");
-          }).catch(err => {
-            console.error('Clipboard copy failed:', err);
-            this.showToast("클립보드 복사에 실패했습니다.", true);
+          const docId = await createSharedItinerary(this.currentItinerary);
+          const shareUrl = window.location.origin + window.location.pathname + '?id=' + docId;
+
+          await navigator.clipboard.writeText(shareUrl);
+          alert(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!");
+        } catch (error) {
+          console.error("Share error:", error);
+          this.showToast("링크 생성 중 오류가 발생했습니다.", true);
+        } finally {
+          shareBtn.textContent = originalText;
+          shareBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  setupKakaoShareListener() {
+    const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
+    if (kakaoBtn) {
+      kakaoBtn.addEventListener('click', async () => {
+        if (!this.currentItinerary) return;
+
+        const originalText = kakaoBtn.textContent;
+        try {
+          kakaoBtn.textContent = "링크 생성 중...";
+          kakaoBtn.disabled = true;
+
+          const docId = await createSharedItinerary(this.currentItinerary);
+          const shareUrl = window.location.origin + window.location.pathname + '?id=' + docId;
+
+          Kakao.Share.sendDefault({
+            objectType: 'feed',
+            content: {
+              title: "✈️ 나만의 스마트한 여행 일정이 도착했어요!",
+              description: "Compasser에서 만든 완벽한 여행 타임라인과 지도를 지금 바로 확인해 보세요.",
+              imageUrl: "https://images.unsplash.com/photo-1488646953014-c8c2eb5f2b2b",
+              link: {
+                mobileWebUrl: shareUrl,
+                webUrl: shareUrl,
+              },
+            },
+            buttons: [
+              {
+                title: "일정 자세히 보기",
+                link: {
+                  mobileWebUrl: shareUrl,
+                  webUrl: shareUrl,
+                },
+              },
+            ],
           });
         } catch (error) {
-          console.error("Compression error:", error);
-          this.showToast("링크 생성 중 오류가 발생했습니다.", true);
+          console.error("Kakao Share error:", error);
+          this.showToast("카카오톡 공유 중 오류가 발생했습니다.", true);
+        } finally {
+          kakaoBtn.textContent = originalText;
+          kakaoBtn.disabled = false;
         }
       });
     }
@@ -540,6 +585,32 @@ export default class ItineraryView extends HTMLElement {
           transform: translateY(0);
         }
 
+        .kakao-share-btn {
+          margin-top: 1rem;
+          background: #FEE500;
+          color: #000000;
+          border: none;
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 700;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          display: none;
+          box-shadow: 0 4px 12px rgba(254, 229, 0, 0.2);
+        }
+
+        .kakao-share-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(254, 229, 0, 0.4);
+          filter: brightness(0.95);
+        }
+
+        .kakao-share-btn:active {
+          transform: translateY(0);
+        }
+
         .download-btn {
           margin-top: 1rem;
           background: linear-gradient(135deg, var(--accent-primary, #7c3aed), #4f46e5);
@@ -608,6 +679,7 @@ export default class ItineraryView extends HTMLElement {
           <button id="download-image-btn" class="download-btn">📸 일정 이미지로 저장하기</button>
           <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기 💾</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">🔗 일정 공유하기</button>
+          <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">💬 카카오톡 공유하기</button>
         </div>
       </div>
 
@@ -642,6 +714,8 @@ export default class ItineraryView extends HTMLElement {
     if (shareBtn) shareBtn.style.display = 'none';
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'none';
+    const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
+    if (kakaoBtn) kakaoBtn.style.display = 'none';
   }
 
   showResults(itineraryPlan) {
@@ -660,6 +734,9 @@ export default class ItineraryView extends HTMLElement {
 
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) shareBtn.style.display = 'block';
+
+    const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
+    if (kakaoBtn) kakaoBtn.style.display = 'block';
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
