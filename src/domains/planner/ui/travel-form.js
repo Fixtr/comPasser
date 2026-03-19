@@ -59,16 +59,19 @@ export default class TravelForm extends HTMLElement {
       if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
         el.setAttribute('placeholder', t(key));
       } else {
-        // preserve child elements like spans if we need to? Or just textContent. 
-        // For travel-form, we have one span inside h2. Let's be careful.
         if (el.children.length === 0) {
           el.textContent = t(key);
         } else {
-          // If it has children, we might need a safer approach. But in this form, most are simple text labels
-          // We can put data-i18n on the exact text node wrapper.
           el.childNodes[0].nodeValue = t(key) + ' ';
         }
       }
+    });
+
+    // placeholder 전용 업데이트 로직 추가
+    const placeholders = this.shadowRoot.querySelectorAll('[data-i18n-placeholder]');
+    placeholders.forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (key) el.setAttribute('placeholder', t(key));
     });
   }
 
@@ -319,11 +322,11 @@ export default class TravelForm extends HTMLElement {
           <div class="row-2">
             <div class="form-group">
               <label for="start-location" data-i18n="startLocation">Start Location (e.g., Hotel)</label>
-              <gmp-place-autocomplete id="start-location" data-i18n="startLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
+              <gmp-place-autocomplete id="start-location" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
             <div class="form-group">
               <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
-              <gmp-place-autocomplete id="end-location" data-i18n="endLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
+              <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
           </div>
         </div>
@@ -371,14 +374,14 @@ export default class TravelForm extends HTMLElement {
 
   setupAutocompleteListener(autocomplete) {
     if (!autocomplete) return;
-    
+
     // Safety check to prevent duplicate listeners
     if (autocomplete.dataset.listenerBound) return;
 
     // 💎 핵심 2: 최신 규격인 gmp-placeselect 이벤트를 사용 💎
     autocomplete.addEventListener('gmp-placeselect', (event) => {
       const place = event.place;
-      
+
       // 장소 선택 시 내부 value에 명칭을 동기화 (getFormData에서 읽기 위함)
       if (place && place.displayName) {
         // gmp-place-autocomplete는 .value를 프로퍼티로 갖거나 
@@ -386,14 +389,14 @@ export default class TravelForm extends HTMLElement {
         // 선택된 값으로 명시적으로 업데이트
         autocomplete.value = place.displayName;
       }
-      
+
       // 폼 자동 저장 트리거
       this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
 
     // 사용자가 수동으로 타이핑하는 경우도 반영
     autocomplete.addEventListener('input', () => {
-        // value가 알아서 업데이트되겠지만 확실히 하기 위해 커스텀 로직 추가 가능
+      // value가 알아서 업데이트되겠지만 확실히 하기 위해 커스텀 로직 추가 가능
     });
 
     autocomplete.dataset.listenerBound = "true";
@@ -424,7 +427,7 @@ export default class TravelForm extends HTMLElement {
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
-          <gmp-place-autocomplete class="anchor-location" data-i18n="anchorLocationPlaceholder" placeholder="장소를 입력하세요"></gmp-place-autocomplete>
+          <gmp-place-autocomplete class="anchor-location" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}"></gmp-place-autocomplete>
         </div>
       </div>
     `;
@@ -454,7 +457,7 @@ export default class TravelForm extends HTMLElement {
 
   populateForm(requestData) {
     if (!requestData) return;
-    
+
     try {
       // 1. Reset Form
       const form = this.shadowRoot.getElementById('travel-form');
@@ -522,7 +525,7 @@ export default class TravelForm extends HTMLElement {
     });
 
     const form = this.shadowRoot.getElementById('travel-form');
-    
+
     // Auto-save form data on any input
     form.addEventListener('input', () => {
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
