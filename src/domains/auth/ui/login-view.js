@@ -1,5 +1,6 @@
 import { loginWithGoogle } from '../services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
+import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 
 export default class LoginView extends HTMLElement {
   constructor() {
@@ -12,8 +13,17 @@ export default class LoginView extends HTMLElement {
     this.setupListeners();
     this.updateTexts();
 
+    // 🛡️ 인앱 브라우저 감지 시 경고 배너 표시
+    if (isInAppBrowser()) {
+      this._showInAppBrowserWarning();
+    }
+
     window.addEventListener('i18n-changed', () => {
       this.updateTexts();
+      // 언어 전환 시 인앱 경고 배너 텍스트도 업데이트
+      if (isInAppBrowser()) {
+        this._updateInAppBannerTexts();
+      }
     });
   }
 
@@ -24,9 +34,7 @@ export default class LoginView extends HTMLElement {
       if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
         el.setAttribute('placeholder', t(key));
       } else {
-        // Only text elements in login view, simple textContent is safe (excluding the SVG button)
         if (el.id === 'login-btn') {
-          // Careful not to wipe SVG. We'll wrap text in a span inside the button.
           const span = el.querySelector('span');
           if (span) span.textContent = t(key);
         } else {
@@ -34,6 +42,58 @@ export default class LoginView extends HTMLElement {
         }
       }
     });
+  }
+
+  /** 인앱 브라우저 경고 배너를 로그인 화면 상단에 삽입 */
+  _showInAppBrowserWarning() {
+    const banner = document.createElement('div');
+    banner.id = 'inapp-browser-warning';
+    banner.style.cssText = `
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      max-width: 520px;
+      width: 100%;
+      box-sizing: border-box;
+      animation: slideDown 0.4s ease-out;
+    `;
+    banner.innerHTML = `
+      <div id="inapp-title" style="font-size: 1.3rem; font-weight: 800; color: #92400e; margin-bottom: 0.75rem;">
+        ${t('inAppBrowserTitle')}
+      </div>
+      <div id="inapp-desc" style="font-size: 0.95rem; color: #78350f; line-height: 1.6;">
+        ${t('inAppBrowserDesc')}
+      </div>
+      <div style="margin-top: 1rem; font-size: 0.85rem; color: #92400e; font-weight: 600;">
+        iOS: 우측 하단 [ ⠇ ] → "다른 브라우저로 열기"<br>
+        Android: 자동으로 외부 브라우저가 열립니다.
+      </div>
+      <style>
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-15px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+    `;
+
+    // Shadow DOM 내부 최상단에 삽입
+    const headerSection = this.shadowRoot.querySelector('.header-section');
+    if (headerSection) {
+      headerSection.parentNode.insertBefore(banner, headerSection);
+    }
+  }
+
+  /** 인앱 배너 텍스트를 현재 언어로 업데이트 */
+  _updateInAppBannerTexts() {
+    const banner = this.shadowRoot.getElementById('inapp-browser-warning');
+    if (!banner) return;
+    const titleEl = banner.querySelector('#inapp-title');
+    const descEl = banner.querySelector('#inapp-desc');
+    if (titleEl) titleEl.textContent = t('inAppBrowserTitle');
+    if (descEl) descEl.textContent = t('inAppBrowserDesc');
   }
 
   render() {
@@ -82,10 +142,10 @@ export default class LoginView extends HTMLElement {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1.5rem;
-          margin: 0 auto 3.5rem auto; /* Added 0 auto to center the grid */
+          margin: 0 auto 3.5rem auto;
           width: 100%;
           max-width: 900px;
-          justify-content: center; /* Ensures children are centered if they don't fill the space */
+          justify-content: center;
         }
 
         .feature-card {
@@ -211,14 +271,19 @@ export default class LoginView extends HTMLElement {
     const errorMsg = this.shadowRoot.getElementById('error-msg');
 
     btn.addEventListener('click', async () => {
+      // 🛡️ 인앱 브라우저 탈출 로직 (로그인 시도 전 차단)
+      if (isInAppBrowser()) {
+        handleInAppBrowserEscape(t);
+        return; // 인앱 브라우저면 로그인 시도 자체를 막음
+      }
+
       btn.disabled = true;
       errorMsg.style.display = 'none';
       try {
         await loginWithGoogle();
-        // The auth state change event in main.js will handle UI updates
       } catch (err) {
         btn.disabled = false;
-        errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
+        errorMsg.textContent = t('loginError') || '로그인에 실패했습니다. 다시 시도해 주세요.';
         errorMsg.style.display = 'block';
       }
     });
