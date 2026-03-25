@@ -32,6 +32,10 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **맞춤 이벤트 로깅**: 핵심 사용자 액션(AI 일정 생성, 일정 저장, 카카오톡 공유, 언어 전환 등) 발생 시 `trackEvent` 커스텀 유틸리티를 통해 사용자 인터랙션을 세밀하게 수집합니다.
 - **가상 페이지 뷰**: History API 기반의 SPA 네비게이션 시 전환되는 가상 페이지 뷰(Virtual Page View)를 추적합니다.
 
+### 3.6. 모바일 웹앱 설치 (PWA) 지원
+- Web App Manifest(`manifest.json`)와 Service Worker(`sw.js`) 연동을 통해 사용자가 앱을 홈 화면에 직접 설치(Add to Home Screen)할 수 있도록 지원합니다.
+- 동적 테마 색상(theme-color)과 규격화된 앱 아이콘(192x192, 512x512)을 적용하여 스마트폰 바탕화면에서도 이질감 없는 네이티브 앱 수준의 모바일 사용성을 확보했습니다.
+
 ## 4. Security & Access Control (보안 및 접근 제어)
 
 ### 4.1. 환경 변수(.env) 기반 설정 관리

@@ -55,6 +55,10 @@ Compasser는 한국을 여행하는 모든 사람(내/외국인 모두 포함)�
 - **SPA 가상 페이지 뷰**: 바닐라 JS의 History API 네비게이션(popstate)을 감지하여 리로드 없이 화면이 변경되어도 정확하게 `page_view` 이벤트를 GA4로 전송합니다.
 - **보안/환경 변수 분리**: GA4 측정 ID(`VITE_GA_MEASUREMENT_ID`) 등 주요 설정값은 코드에 직접 노출하지 않고 `.env` 파일로 주입시켜 관리하며 Git 저장소 공유를 원천 차단했습니다.
 
+### 12. 📱 모바일 웹앱 설치 (PWA) 완벽 지원
+- **홈 화면 추가**: Web App Manifest(`manifest.json`)와 Service Worker(`sw.js`) 연동을 통해 사용자가 터치 한 번으로 모바일 및 데스크탑 홈 화면에 바로가기 앱을 설치(Add to Home Screen)할 수 있습니다.
+- **네이티브 앱 경험**: 모바일 사용성 강화를 위해 동적 테마 색상(theme-color)을 적용하고, 모바일 OS 표준에 맞춘 고해상도 규격 아이콘(192x192, 512x512)을 탑재하여 이질감 없는 사용 환경을 제공합니다.
+
 ## 🏛️ 아키텍처 하이라이트: DDD & Vibe Coding 최적화
 Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding)의 효율성을 극대화하고 유지보수성을 높이기 위해 **도메인 주도 설계(DDD: Domain-Driven Design)** 아키텍처를 도입했습니다.
 

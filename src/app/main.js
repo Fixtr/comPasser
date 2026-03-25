@@ -9,6 +9,15 @@ import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../doma
 import { t, getLang, setLang } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
 
+// PWA Service Worker 등록
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('ServiceWorker registered:', reg.scope))
+            .catch(err => console.log('ServiceWorker registration failed:', err));
+    });
+}
+
 function updateTexts() {
     const elements = document.querySelectorAll('[data-i18n]');
     elements.forEach(el => {
