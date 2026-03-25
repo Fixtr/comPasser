@@ -134,7 +134,7 @@ export default class TravelForm extends HTMLElement {
         input:focus {
           outline: none;
           border-color: var(--accent-primary);
-          box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
         }
 
         /* Google Maps Autocomplete 컴포넌트 스타일링 */
@@ -173,7 +173,7 @@ export default class TravelForm extends HTMLElement {
 
         gmp-place-autocomplete:focus-within {
           border-color: var(--accent-primary);
-          box-shadow: 0 0 0 3px oklch(65% 0.2 260 / 20%);
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
         }
 
         .primary-btn {
@@ -187,7 +187,7 @@ export default class TravelForm extends HTMLElement {
           cursor: pointer;
           width: 100%;
           margin-top: 1rem;
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: all 0.2s ease;
         }
 
         .primary-btn:disabled {
@@ -266,6 +266,13 @@ export default class TravelForm extends HTMLElement {
           border-radius: 12px;
           margin-bottom: 1rem;
           position: relative;
+          box-shadow: var(--shadow-sm); /* 추가적인 카드 느낌 */
+          transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        
+        .anchor-item:hover {
+          box-shadow: var(--shadow-md);
+          transform: translateY(-1px);
         }
 
         .remove-btn {

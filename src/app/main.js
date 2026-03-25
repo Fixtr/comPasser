@@ -395,8 +395,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         border-radius: 12px;
                         border: 1px solid oklch(90% 0.02 260);
                         cursor: pointer;
-                        transition: all 0.2s;
+                        transition: all 0.2s ease;
                         position: relative;
+                        box-shadow: var(--shadow-sm);
                     `;
 
                     const dateObj = item.createdAt?.toDate() || new Date();
@@ -442,8 +443,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     });
 
-                    card.addEventListener('mouseover', () => { card.style.borderColor = 'var(--accent-primary)'; card.style.transform = 'translateY(-2px)'; });
-                    card.addEventListener('mouseout', () => { card.style.borderColor = 'oklch(90% 0.02 260)'; card.style.transform = 'none'; });
+                    card.addEventListener('mouseover', () => { card.style.borderColor = 'var(--accent-primary)'; card.style.transform = 'translateY(-2px)'; card.style.boxShadow = 'var(--shadow-md)'; });
+                    card.addEventListener('mouseout', () => { card.style.borderColor = 'oklch(90% 0.02 260)'; card.style.transform = 'none'; card.style.boxShadow = 'var(--shadow-sm)'; });
 
                     card.addEventListener('click', async () => {
                         itinerariesModal.style.display = 'none';

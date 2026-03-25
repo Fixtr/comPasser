@@ -127,6 +127,12 @@ h4 {
     min-height: 100vh;
     border-radius: 0;
   }
+  .hero {
+    padding: 3rem 1.25rem;
+  }
+  .content {
+    padding: 2rem 1rem;
+  }
 }
 
 /* View Transition Classes */
@@ -157,6 +163,17 @@ h4 {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Loading Text Pulse Animation */
+@keyframes textPulse {
+  0% { opacity: 0.7; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.7; transform: scale(0.98); }
+}
+
+#loading-text {
+  animation: textPulse 2s infinite ease-in-out;
 }
 
 .primary-btn:hover {
