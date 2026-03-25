@@ -61,7 +61,7 @@ const dictionary = {
         invalidAnchorTime: "오류: '[{0}]' 일정이 시작 시간이 종료 시간보다 늦거나 같습니다.",
         basicTimeValidationError: "오류: 여행 종료 시간은 시작 시간보다 늦어야 합니다. 시간을 다시 확인해 주세요.",
         kakaoShareBtn: "💬 카카오톡 공유하기",
-        resetBtn: "🔄 초기화",
+        resetBtn: "초기화",
         inAppBrowserIOSAlert: "보안 문제로 카카오톡 등 인앱 브라우저에서는 구글 로그인이 제한됩니다. 우측 하단의 [ ⠇ ] 버튼을 눌러 '다른 브라우저로 열기'를 선택해 주세요.",
         inAppBrowserTitle: "⚠️ 외부 브라우저에서 열어주세요",
         inAppBrowserDesc: "카카오톡 등 인앱 브라우저에서는 보안 정책으로 인해 구글 로그인이 제한됩니다. 아래 안내를 따라 외부 브라우저에서 다시 접속해 주세요."
@@ -126,7 +126,7 @@ const dictionary = {
         invalidAnchorTime: "Error: '{0}' schedule's start time is later than or equal to the end time.",
         basicTimeValidationError: "Error: Trip end time must be later than the start time. Please check the time again.",
         kakaoShareBtn: "💬 Share on KakaoTalk",
-        resetBtn: "🔄 Reset",
+        resetBtn: "Reset",
         inAppBrowserIOSAlert: "Due to security policies, Google login is restricted in in-app browsers like KakaoTalk. Please tap the [ ⠇ ] button at the bottom right and select 'Open in browser'.",
         inAppBrowserTitle: "⚠️ Please open in an external browser",
         inAppBrowserDesc: "Google login is restricted in in-app browsers (e.g., KakaoTalk) due to security policies. Please follow the instructions below to open this page in your default browser."
