@@ -7,6 +7,7 @@ import { generateOptimizedItinerary } from '../domains/planner/services/gemini-o
 import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
+import { trackEvent } from '../utils/analytics.js';
 
 function updateTexts() {
     const elements = document.querySelectorAll('[data-i18n]');
@@ -150,6 +151,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const user = getCurrentUser();
 
         console.log(`[Router] Navigation to: '${path}', User logged in: ${!!user}`);
+        
+        // Track page view
+        trackEvent('page_view', { page_path: path });
 
         // Route Guards
         if (!user && path !== '/home' && path !== '/') {
@@ -341,6 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             setLang(newLang);
             langToggleBtn.textContent = newLang === 'ko' ? '🌐 English' : '🌐 한국어';
             updateTexts();
+            trackEvent('change_language', { language: newLang });
         });
     }
 

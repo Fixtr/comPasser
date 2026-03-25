@@ -28,9 +28,17 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - `#page-home` (로그인), `#page-plan` (계획 설계), `#page-view` (결과 및 지도)의 3단계 화면으로 완벽하게 분리된 바닐라 JS 해시 라우팅을 지원합니다.
 - View 화면에서 Plan 화면으로 되돌아가도 기존에 입력한 폼 데이터가 날아가지 않는 **상태 유지 기능(Seamless Editor)**이 적용되어 지속적인 수정과 재생성이 가능합니다.
 
+### 3.5. 데이터 분석 추적 (Google Analytics 4)
+- **맞춤 이벤트 로깅**: 핵심 사용자 액션(AI 일정 생성, 일정 저장, 카카오톡 공유, 언어 전환 등) 발생 시 `trackEvent` 커스텀 유틸리티를 통해 사용자 인터랙션을 세밀하게 수집합니다.
+- **가상 페이지 뷰**: History API 기반의 SPA 네비게이션 시 전환되는 가상 페이지 뷰(Virtual Page View)를 추적합니다.
+
 ## 4. Security & Access Control (보안 및 접근 제어)
 
-### 4.1. Firebase 인증 및 인앱 브라우저 방어
+### 4.1. 환경 변수(.env) 기반 설정 관리
+- **민감 정보 분리**: GA4 측정 ID(`VITE_GA_MEASUREMENT_ID`), Firebase 설정값, Google Maps API 키 등을 코드베이스에서 하드코딩하지 않고 `.env` 환경 변수로 분리 관리하여 Git 유출을 원천 차단합니다. (`.gitignore` 적용)
+- **템플릿 공유**: 협업을 위한 `.env.example` 파일을 별도로 구성하여 안전한 환경 설정을 지원합니다.
+
+### 4.2. Firebase 인증 및 인앱 브라우저 방어
 - Google 계정을 활용한 OAuth 로그인을 기본으로 지원합니다.
 - 카카오톡, 라인 등 인앱 브라우저(WebView)에서 Google 로그인 시도 시 발생하는 `disallowed_useragent` 에러 403을 방지하기 위해:
   - **안드로이드**: Chrome Intent scheme을 이용해 외부 브라우저(Chrome)로 즉시 강제 리다이렉션.

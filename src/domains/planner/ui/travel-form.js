@@ -1,5 +1,6 @@
 import { t } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
+import { trackEvent } from '../../../utils/analytics.js';
 
 const MAX_DAILY_CREDITS = 3;
 const USAGE_STORAGE_KEY = 'compasser_usage';
@@ -648,6 +649,8 @@ export default class TravelForm extends HTMLElement {
       this.updateCreditStatus();
 
       console.log('Dispatching generation event:', plannerRequest);
+      
+      trackEvent('generate_itinerary_click');
 
       // Dispatch custom event reaching up through the DOM
       this.dispatchEvent(new CustomEvent('generate-itinerary', {

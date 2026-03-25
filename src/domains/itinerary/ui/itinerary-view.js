@@ -1,6 +1,7 @@
 import { saveItinerary, createSharedItinerary } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
+import { trackEvent } from '../../../utils/analytics.js';
 
 export default class ItineraryView extends HTMLElement {
   constructor() {
@@ -48,6 +49,7 @@ export default class ItineraryView extends HTMLElement {
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
+        trackEvent('save_itinerary_click');
         const user = getCurrentUser();
         if (!user) {
           this.showToast("로그인이 필요합니다.", true);
@@ -102,6 +104,7 @@ export default class ItineraryView extends HTMLElement {
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
     if (kakaoBtn) {
       kakaoBtn.addEventListener('click', async () => {
+        trackEvent('share_kakao_click');
         if (!this.currentItinerary) return;
 
         const originalText = kakaoBtn.textContent;

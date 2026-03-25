@@ -11,6 +11,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css" />
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', '%VITE_GA_MEASUREMENT_ID%');
+  </script>
+
   <!-- Screenshot capture -->
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <!-- Kakao SDK -->
@@ -128,9 +138,11 @@
         <div id="loading-transition-view" class="fade-transition hidden-view"
           style="display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center;">
           <div id="loading-spinner" class="large-spinner"></div>
-          <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);" data-i18n="loadingText">AI가 최적의
+          <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);" data-i18n="loadingText">AI가
+            최적의
             경로를 분석하고 있습니다...</h2>
-          <p id="loading-subtext" style="color: var(--text-secondary); margin-top: 0.5rem;" data-i18n="loadingSubtext">잠시만
+          <p id="loading-subtext" style="color: var(--text-secondary); margin-top: 0.5rem;" data-i18n="loadingSubtext">
+            잠시만
             기다려주세요.</p>
 
           <button id="show-results-btn" class="primary-btn"
