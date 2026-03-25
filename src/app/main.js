@@ -140,22 +140,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ----------------------------------------------------
     // [Paged Architecture] SPA Router
     // ----------------------------------------------------
-    async function handleHashChange() {
-        const hash = window.location.hash;
+    window.navigate = function(path) {
+        window.history.pushState({}, '', path);
+        handleRouteChange(); // Immediately trigger route change logic
+    };
+
+    async function handleRouteChange() {
+        const path = window.location.pathname;
         const user = getCurrentUser();
 
-        console.log(`[Router] Navigation to: '${hash}', User logged in: ${!!user}`);
+        console.log(`[Router] Navigation to: '${path}', User logged in: ${!!user}`);
 
         // Route Guards
-        if (!user && hash !== '#/home' && hash !== '' && hash !== '#/') {
+        if (!user && path !== '/home' && path !== '/') {
             console.log('[Router] Unauthenticated access denied, redirecting to home.');
-            window.location.hash = '#/home';
+            window.navigate('/home');
             return;
         }
 
-        if (user && (hash === '' || hash === '#/' || hash === '#/home')) {
+        if (user && (path === '/' || path === '/home')) {
             console.log('[Router] Authenticated user at home, redirecting to plan.');
-            window.location.hash = '#/plan';
+            window.navigate('/plan');
             return;
         }
 
@@ -165,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pageView) pageView.style.display = 'none';
 
         // 2. Evaluate Route
-        if (hash.startsWith('#/view')) {
+        if (path.startsWith('/view')) {
             if (pageView) {
                 pageView.style.display = 'grid'; // Grid layout applied
                 pageView.classList.remove('hidden-view');
@@ -173,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // Check for Deep Link (Shared Itinerary URL)
-            const idMatch = hash.match(/#\/view\/(.+)/);
+            const idMatch = path.match(/^\/view\/(.+)/);
             if (idMatch && idMatch[1]) {
                 const sharedId = idMatch[1];
                 try {
@@ -189,13 +194,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (itineraryView) itineraryView.showResults(parsedItinerary);
                     
                     // Cleanup URL visually
-                    const newUrl = window.location.origin + window.location.pathname + '#/view';
+                    const newUrl = window.location.origin + '/view';
                     window.history.replaceState({}, document.title, newUrl);
                     
                 } catch (error) {
                     console.error("[Share Error]", error);
                     alert("공유된 일정을 불러오는 데 실패했습니다.");
-                    window.location.hash = '#/plan';
+                    window.navigate('/plan');
                 }
             } else {
                 // Determine if we arrived properly from a loaded state.
@@ -213,22 +218,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }, 50);
                         } catch (e) {
                             console.error("[Router] State parse error", e);
-                            window.location.hash = '#/plan';
+                            window.navigate('/plan');
                         }
                     }
                 } else if (!sessionStorage.getItem('savedItineraryData')) {
                     // No generated data available, fallback to plan
-                    window.location.hash = '#/plan';
+                    window.navigate('/plan');
                 }
             }
-        } else if (hash === '#/plan') {
+        } else if (path === '/plan') {
             showWelcomeOverlay(); // Safe to call, auto-aborts if already seen
             
             if (pagePlan) pagePlan.style.display = 'flex';
             
             // CRITICAL: State Preservation (Seamless Editor)
-            // When returning from view, we naturally just show the form again.
-            // We DO NOT reset the travel form data here!
             if (travelFormView) {
                 travelFormView.style.display = 'block';
                 travelFormView.classList.remove('hidden-view');
@@ -239,22 +242,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             sessionStorage.setItem('currentPhase', '1');
         } else {
-            // Default: #/home
+            // Default: /home
             if (pageHome) pageHome.style.display = 'block';
         }
     }
 
     // Attach Router listener
-    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleRouteChange);
 
     // Initial Routing Evaluation (Handles ?id= legacy query params to maintain backward compatibility)
     const urlParams = new URLSearchParams(window.location.search);
     const legacySharedId = urlParams.get('id');
     if (legacySharedId) {
-        // Clean up URL and redirect to hash deep link immediately
-        const newUrl = window.location.origin + window.location.pathname;
+        // Clean up URL and redirect to deep link immediately
+        const newUrl = window.location.origin + '/view/' + legacySharedId;
         window.history.replaceState({}, document.title, newUrl);
-        window.location.hash = `#/view/${legacySharedId}`;
+    } else if (window.location.hash) {
+        // Fallback for returning users with # links
+        const newPath = window.location.hash.replace('#', '');
+        if (newPath) {
+            window.history.replaceState({}, document.title, window.location.origin + newPath);
+        }
     }
 
     // Subscribe to Firebase Auth and trigger initial route
@@ -267,7 +275,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (myItinerariesBtn) myItinerariesBtn.style.display = 'none';
         }
         // Force router re-evaluation on auth state changes (which also handles standard initial load)
-        handleHashChange();
+        handleRouteChange();
     });
 
     // ----------------------------------------------------
@@ -279,8 +287,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (goBackBtn) {
         goBackBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[Routing] "Go Back" clicked: Moving hash to #/plan (Data preserved seamlessly).');
-            window.location.hash = '#/plan';
+            console.log('[Routing] "Go Back" clicked: Moving to /plan (Data preserved seamlessly).');
+            window.navigate('/plan');
         });
     }
 
@@ -295,6 +303,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 requestData = itineraryView.currentItinerary.request;
             } else if (itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.metadata && itineraryView.currentItinerary.metadata.request) {
                 requestData = itineraryView.currentItinerary.metadata.request;
+            } else {
+                const storedForm = sessionStorage.getItem('currentFormData');
+                if (storedForm) {
+                    try { requestData = JSON.parse(storedForm); } catch(err) {}
+                }
             }
 
             if (travelFormView && travelFormView.populateForm && requestData) {
@@ -302,7 +315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 console.warn('[Auto-fill] Failed to find existing requestData to populate.');
             }
-            window.location.hash = '#/plan';
+            window.navigate('/plan');
         });
     }
 
@@ -423,27 +436,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (!item.itineraryPlan) return;
 
                         try {
+                            // 🚀 [Routing] 1. Route to View Phase immediately to prevent form flickering on /plan
+                            window.navigate('/view');
+
                             let requestData = null;
                             if (item.itineraryPlan?.request) requestData = item.itineraryPlan.request;
                             else if (item.itineraryPlan?.metadata?.request) requestData = item.itineraryPlan.metadata.request;
 
-                            if (travelFormView && travelFormView.populateForm && requestData) {
-                                travelFormView.populateForm(requestData);
+                            // 2. Save only to JS state (session storage). DO NOT touch DOM (travelFormView) during transition.
+                            if (requestData) {
                                 sessionStorage.setItem('currentFormData', JSON.stringify(requestData));
                             }
 
-                            if (itineraryView) itineraryView.showResults(item.itineraryPlan);
-                            if (mapView) await mapView.renderRoute(item.itineraryPlan);
-
                             sessionStorage.setItem('currentPhase', '3');
                             sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
+
+                            // 3. Smooth transition: show loading and delay heavy render by a frame tick
+                            if (mapView && mapView.setLoading) {
+                                mapView.setLoading(true, "일정을 시각화하는 중입니다...");
+                            }
+
+                            requestAnimationFrame(async () => {
+                                if (itineraryView) itineraryView.showResults(item.itineraryPlan);
+                                if (mapView) await mapView.renderRoute(item.itineraryPlan);
+                            });
                             
-                            // 🚀 [Routing] Route to View Phase directly
-                            window.location.hash = '#/view';
                         } catch (error) {
                             console.error('[Load Itinerary Error]', error);
                             alert("이 일정을 불러오는 중 오류가 발생했습니다.");
-                            window.location.hash = '#/plan';
+                            window.navigate('/plan');
                         }
                     });
 
@@ -493,8 +514,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showResultsBtn.style.display = 'inline-block';
 
                 showResultsBtn.onclick = () => {
-                    // 🚀 [Routing] Proceed to View via Hash Change
-                    window.location.hash = '#/view';
+                    // 🚀 [Routing] Proceed to View via Router Function
+                    window.navigate('/view');
                 };
 
             } catch (error) {
