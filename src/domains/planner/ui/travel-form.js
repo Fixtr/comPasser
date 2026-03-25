@@ -215,22 +215,37 @@ export default class TravelForm extends HTMLElement {
         }
 
         .reset-btn {
-          background: transparent;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          background: #f1f5f9;
           color: var(--text-secondary);
-          border: 1px solid oklch(85% 0.02 260);
-          padding: 1rem 1.5rem;
-          font-size: 1.1rem;
+          border: 1px solid #e2e8f0;
+          padding: 0.8rem 1.5rem;
+          font-size: 1.05rem;
           font-weight: 600;
-          border-radius: 12px;
+          border-radius: 8px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
           white-space: nowrap;
         }
 
         .reset-btn:hover {
-          background: oklch(98% 0.02 260);
+          background: #e2e8f0;
           color: var(--text-primary);
-          border-color: oklch(75% 0.02 260);
+          border-color: #cbd5e1;
+          box-shadow: var(--shadow-sm);
+        }
+
+        .reset-btn svg {
+          width: 1.25rem;
+          height: 1.25rem;
+          stroke: currentColor;
+          fill: none;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
         }
 
         .credit-status {
@@ -350,7 +365,12 @@ export default class TravelForm extends HTMLElement {
 
         <div id="credit-status" class="credit-status"></div>
         <div class="submit-row">
-          <button type="button" id="reset-btn" class="reset-btn" data-i18n="resetBtn">🔄 초기화</button>
+          <button type="button" id="reset-btn" class="reset-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            <span data-i18n="resetBtn">초기화</span>
+          </button>
           <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
         </div>
       </form>
