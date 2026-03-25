@@ -219,23 +219,24 @@ export default class TravelForm extends HTMLElement {
           align-items: center;
           justify-content: center;
           gap: 0.5rem;
-          background: #f1f5f9;
-          color: var(--text-secondary);
+          background: transparent;
+          color: #475569;
           border: 1px solid #e2e8f0;
           padding: 0.8rem 1.5rem;
           font-size: 1.05rem;
           font-weight: 600;
-          border-radius: 8px;
+          border-radius: 12px;
           cursor: pointer;
           transition: all 0.2s ease;
           white-space: nowrap;
         }
 
         .reset-btn:hover {
-          background: #e2e8f0;
-          color: var(--text-primary);
+          background-color: #f8fafc;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
           border-color: #cbd5e1;
-          box-shadow: var(--shadow-sm);
+          color: #334155;
         }
 
         .reset-btn svg {
@@ -243,7 +244,7 @@ export default class TravelForm extends HTMLElement {
           height: 1.25rem;
           stroke: currentColor;
           fill: none;
-          stroke-width: 2;
+          stroke-width: 1.5;
           stroke-linecap: round;
           stroke-linejoin: round;
         }
