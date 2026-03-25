@@ -112,6 +112,24 @@ h4 {
   margin: 0 auto;
 }
 
+/* Header Actions & Avatar */
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+#user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+
 /* Main Content Tracking - Container Queries */
 .content {
   padding: 3rem 2rem;

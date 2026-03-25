@@ -49,6 +49,7 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 
 ### 4.2. Firebase 인증 및 인앱 브라우저 방어
 - Google 계정을 활용한 OAuth 로그인을 기본으로 지원합니다.
+- **개인화 프로필 아바타 UI**: 회원 로그인 성공 시 상단 헤더에 사용자 프로필 이미지를 즉시 표출합니다. 외부 이미지 리소스 로드 시 발생할 수 있는 Referrer Policy 정책 차단 문제를 `referrerpolicy="no-referrer"`로 완전히 우회하고, 로드 실패 시(`onerror`)를 대비한 기본 SVG Fallback 로직을 설계하여 안정성을 극대화했습니다.
 - 카카오톡, 라인 등 인앱 브라우저(WebView)에서 Google 로그인 시도 시 발생하는 `disallowed_useragent` 에러 403을 방지하기 위해:
   - **안드로이드**: Chrome Intent scheme을 이용해 외부 브라우저(Chrome)로 즉시 강제 리다이렉션.
   - **iOS**: Apple 정책상 강제 리다이렉션이 불가능하므로 사파리 등 외부 브라우저를 켜도록 유도하는 맞춤형 안내 모달 제공.

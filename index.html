@@ -38,56 +38,58 @@
       <p data-i18n="heroSubtitle">Optimize your itinerary around your must-attend events.</p>
 
       <!-- Theme Toggle & Logout -->
-      <button id="lang-toggle" aria-label="Toggle Language" style="
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          border: 1px solid oklch(80% 0.02 260);
-          padding: 0.5rem 1rem;
-          border-radius: 20px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: background 0.2s, color 0.2s;
-        ">
-        🌐 한국어
-      </button>
-      <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          border: 1px solid oklch(80% 0.02 260);
-          padding: 0.5rem 1rem;
-          border-radius: 20px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: background 0.2s, color 0.2s;
-        " data-i18n="darkMode">
-        🌙 Dark Mode
-      </button>
-      <button id="my-itineraries-btn" aria-label="My Itineraries" style="
-          background: var(--accent-primary, #7c3aed);
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 20px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: transform 0.2s, box-shadow 0.2s;
-          display: none;
-        " data-i18n="myItineraries">
-        📂 내 여행 일정 보기
-      </button>
-      <button id="logout-btn" aria-label="Logout" style="
-          background: oklch(95% 0.02 260);
-          color: var(--text-primary);
-          border: 1px solid oklch(80% 0.02 260);
-          padding: 0.5rem 1rem;
-          border-radius: 20px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: background 0.2s, color 0.2s;
-          display: none;
-        " data-i18n="logout">
-        🚪 Logout
-      </button>
+      <div class="header-actions">
+        <button id="lang-toggle" aria-label="Toggle Language" style="
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid oklch(80% 0.02 260);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+          ">
+          🌐 한국어
+        </button>
+        <button id="theme-toggle" aria-label="Toggle Dark Mode" style="
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid oklch(80% 0.02 260);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+          " data-i18n="darkMode">
+          🌙 Dark Mode
+        </button>
+        <button id="my-itineraries-btn" aria-label="My Itineraries" style="
+            background: var(--accent-primary, #7c3aed);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: none;
+          " data-i18n="myItineraries">
+          📂 내 여행 일정 보기
+        </button>
+        <img id="user-avatar" alt="User Profile" referrerpolicy="no-referrer" style="display: none;" />
+        <button id="logout-btn" aria-label="Logout" style="
+            background: oklch(95% 0.02 260);
+            color: var(--text-primary);
+            border: 1px solid oklch(80% 0.02 260);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            display: none;
+          " data-i18n="logout">
+          🚪 Logout
+        </button>
       </div>
     </header>
 
