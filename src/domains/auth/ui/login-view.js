@@ -1,4 +1,4 @@
-import { loginWithGoogle } from '../services/firebase-auth.js';
+import { loginWithGoogle, loginWithEmail } from '../services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 
@@ -76,6 +76,24 @@ export default class LoginView extends HTMLElement {
           from { opacity: 0; transform: translateY(-15px); }
           to { opacity: 1; transform: translateY(0); }
         }
+      
+        .join-link {
+          margin-top: 2.5rem;
+          font-size: 0.95rem;
+          color: #64748b;
+        }
+        .join-link a {
+          color: #7c3aed;
+          font-weight: bold;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .join-link a:hover {
+          text-decoration: underline;
+          color: #6d28d9;
+        }
+
       </style>
     `;
 
@@ -117,9 +135,7 @@ export default class LoginView extends HTMLElement {
           container-type: inline-size;
         }
 
-        .header-section {
-          margin-bottom: 3rem;
-        }
+        .header-section { margin-bottom: 3rem; }
 
         h2 {
           font-size: 2.5rem;
@@ -191,38 +207,158 @@ export default class LoginView extends HTMLElement {
           line-height: 1.5;
         }
 
-        .cta-section {
+        .auth-form {
+          width: 100%;
+          max-width: 380px;
+          margin: 0 auto;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          margin-top: 3rem;
+          gap: 1rem;
         }
 
-        .cta-btn {
-          background: linear-gradient(135deg, #4285F4, #34A853, #FBBC05, #EA4335);
-          color: white;
-          border: none;
-          padding: 1.25rem 2.5rem;
-          font-size: 1.2rem;
+        .input-group {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .auth-input {
+          width: 100%;
+          padding: 1rem 1.25rem;
+          border: 1px solid oklch(85% 0.02 260);
+          border-radius: 12px;
+          font-size: 1rem;
+          font-family: inherit;
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+
+        .auth-input:focus {
+          outline: none;
+          background: var(--bg-secondary);
+          border-color: var(--accent-primary, #7c3aed);
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+
+        .btn-group {
+          display: flex;
+          gap: 0.75rem;
+          margin-top: 0.5rem;
+        }
+
+        .auth-btn {
+          flex: 1;
+          padding: 1rem;
+          font-size: 1rem;
           font-weight: 700;
           border-radius: 12px;
           cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.75rem;
-          box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+          transition: all 0.2s ease;
+          border: none;
         }
 
-        .cta-btn:hover {
+        .login-btn {
+          background: var(--accent-primary, #7c3aed);
+          color: white;
+          box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
+        }
+
+        .login-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(66, 133, 244, 0.4);
+          box-shadow: 0 6px 12px rgba(124, 58, 237, 0.3);
+          background: var(--accent-hover, #6d28d9);
         }
 
-        .cta-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-          transform: none;
+        .signup-btn {
+          background: transparent;
+          color: var(--accent-primary, #7c3aed);
+          border: 1px solid var(--accent-primary, #7c3aed);
+        }
+
+        .signup-btn:hover {
+          background: rgba(124, 58, 237, 0.05);
+          transform: translateY(-2px);
+        }
+
+        .divider {
+          display: flex;
+          align-items: center;
+          text-align: center;
+          margin: 2.5rem 0 1.5rem 0;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          font-weight: 500;
+          width: 100%;
+          max-width: 380px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .divider::before, .divider::after {
+          content: '';
+          flex: 1;
+          border-bottom: 1px solid oklch(90% 0.02 260);
+        }
+
+        .divider::before { margin-right: 1rem; }
+        .divider::after { margin-left: 1rem; }
+
+        .social-login-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          width: 100%;
+          max-width: 380px;
+          margin: 0 auto;
+        }
+
+        .social-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.75rem;
+          padding: 1rem;
+          font-size: 1rem;
+          font-weight: 600;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          border: none;
+        }
+
+        .social-btn:hover {
+          transform: translateY(-2px);
+        }
+
+        .google-btn {
+          background: #ffffff;
+          color: #3c4043;
+          border: 1px solid #dadce0;
+        }
+
+        .google-btn:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+
+        .kakao-btn {
+          background: #FEE500;
+          color: #000000;
+        }
+
+        .kakao-btn:hover { box-shadow: 0 4px 12px rgba(254, 229, 0, 0.3); }
+
+        .naver-btn {
+          background: #03C75A;
+          color: #ffffff;
+        }
+
+        .naver-btn:hover { box-shadow: 0 4px 12px rgba(3, 199, 90, 0.3); }
+
+        #error-msg {
+          color: #EA4335;
+          margin-top: 0.5rem;
+          font-size: 0.9rem;
+          display: none;
         }
 
         @container (max-width: 800px) {
@@ -230,61 +366,129 @@ export default class LoginView extends HTMLElement {
             grid-template-columns: 1fr;
             max-width: 400px;
           }
+          .btn-group {
+            flex-direction: column;
+          }
         }
       </style>
 
-      <div class="header-section">
-        <h2 data-i18n="loginTitle">환영합니다! Compasser 시작하기</h2>
-        <p class="subtitle" data-i18n="loginSubtitle">복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.<br>지금 로그인하고 스마트한 여행 계획을 세워보세요.</p>
+      <div class="header-section"><h2>로그인</h2><p class="subtitle">이메일 또는 소셜 계정으로 로그인하세요.</p></div>
+      
+      <div class="auth-form">
+        <div class="input-group">
+          <input type="email" id="email-input" class="auth-input" placeholder="이메일 주소" autocomplete="email" />
+        </div>
+        <div class="input-group">
+          <input type="password" id="password-input" class="auth-input" placeholder="비밀번호" autocomplete="current-password" />
+        </div>
+        <div class="btn-group">
+          <button id="email-login-btn" class="auth-btn login-btn">로그인</button>
+          
+        </div>
+        <div id="error-msg"></div>
       </div>
 
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🧠</div>
-          <div class="feature-title">스마트 동선 알고리즘</div>
-          <div class="feature-desc">이동 시간을 최소화하는 AI 라우팅으로 버려지는 시간 없이 알찬 여행을 즐기세요.</div>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <div class="feature-title">이벤트 중심 스케줄링</div>
-          <div class="feature-desc">반드시 가야 하는 장소(Anchor)를 기준으로 동선을 낭비 없는 맞춤형 계획을 세워드립니다.</div>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">⚡️</div>
-          <div class="feature-title">원클릭 일정 완성</div>
-          <div class="feature-desc">복잡한 여행지 검색 없이 단 몇 초 만에 세부 동선이 포함된 스마트 여행 지도가 완성됩니다.</div>
-        </div>
-      </div>
-      
-      <div class="cta-section">
-        <button id="login-btn" class="cta-btn" data-i18n="loginBtn">
-          <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.9c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.13-10.36 7.13-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-          <span>Google 계정으로 3초 만에 시작하기</span>
+      <div class="divider">또는 소셜 계정으로 로그인</div>
+
+      <div class="social-login-group">
+        <button id="google-btn" class="social-btn google-btn">
+          <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.9c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.13-10.36 7.13-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+          Google 계정으로 시작하기
         </button>
-        <div id="error-msg" style="color: #EA4335; margin-top: 1rem; display: none;"></div>
+        <button id="kakao-btn" class="social-btn kakao-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 3C6.47715 3 2 6.40243 2 10.5976C2 13.3444 3.7844 15.7483 6.47161 17.0673L5.59024 20.3164C5.45261 20.8242 6.00287 21.2212 6.45265 20.9419L10.5186 18.4204C11.0023 18.4719 11.4965 18.4984 12 18.4984C17.5228 18.4984 22 15.096 22 10.8984C22 6.70081 17.5228 3 12 3Z"/></svg>
+          카카오로 시작하기
+        </button>
+        <button id="naver-btn" class="social-btn naver-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.0355 12.0128L8.12056 2.00843C7.94326 1.78502 7.67376 1.6521 7.39007 1.6521H2.41844C1.94326 1.6521 1.61348 2.11287 1.74468 2.56588L2.09574 3.8279L9.62411 13.9213L16.0355 12.0128Z" fill="white"/><path d="M16.5177 1.6521H21.4894C21.844 1.6521 22.1277 1.9358 22.1277 2.29043V21.7587C22.1277 22.1133 21.844 22.397 21.4894 22.397H16.5177C16.1631 22.397 15.8794 22.1133 15.8794 21.7587V13.8828L15.9362 12.0135L16.5177 1.6521Z" fill="white"/><path d="M7.39007 22.397H2.41844C2.06383 22.397 1.78014 22.1133 1.78014 21.7587V2.29043C1.78014 1.9358 2.06383 1.6521 2.41844 1.6521H7.39007C7.74468 1.6521 8.02837 1.9358 8.02837 2.29043V21.7587C8.02837 22.1133 7.74468 22.397 7.39007 22.397Z" fill="white"/><path d="M7.87234 11.9865L15.8794 22.0945C16.0567 22.3179 16.3262 22.4508 16.6099 22.4508H21.5816C22.0567 22.4508 22.3865 21.99 22.2553 21.537L21.9043 20.275L14.3759 10.1816L7.87234 11.9865Z" fill="white"/></svg>
+          네이버로 시작하기
+        </button>
+      </div>
+
+      <div class="join-link">
+        아직 계정이 없으신가요? <a href="#" id="go-to-join">회원가입</a>
       </div>
     `;
   }
 
   setupListeners() {
-    const btn = this.shadowRoot.getElementById('login-btn');
+    const googleBtn = this.shadowRoot.getElementById('google-btn');
+    const kakaoBtn = this.shadowRoot.getElementById('kakao-btn');
+    const naverBtn = this.shadowRoot.getElementById('naver-btn');
+    
+    const emailLoginBtn = this.shadowRoot.getElementById('email-login-btn');
+    const goToJoin = this.shadowRoot.getElementById('go-to-join');
+    const emailInput = this.shadowRoot.getElementById('email-input');
+    const passwordInput = this.shadowRoot.getElementById('password-input');
     const errorMsg = this.shadowRoot.getElementById('error-msg');
 
-    btn.addEventListener('click', async () => {
-      // 🛡️ 인앱 브라우저 탈출 로직 (로그인 시도 전 차단)
+    const checkInApp = () => {
       if (isInAppBrowser()) {
         handleInAppBrowserEscape(t);
-        return; // 인앱 브라우저면 로그인 시도 자체를 막음
+        return true;
       }
+      return false;
+    };
 
-      btn.disabled = true;
+    googleBtn.addEventListener('click', async () => {
+      if (checkInApp()) return;
+      
+      googleBtn.disabled = true;
       errorMsg.style.display = 'none';
       try {
         await loginWithGoogle();
       } catch (err) {
-        btn.disabled = false;
-        errorMsg.textContent = t('loginError') || '로그인에 실패했습니다. 다시 시도해 주세요.';
+        googleBtn.disabled = false;
+        errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
         errorMsg.style.display = 'block';
+      }
+    });
+
+    kakaoBtn.addEventListener('click', () => {
+      alert('준비 중인 서비스입니다.');
+    });
+
+    naverBtn.addEventListener('click', () => {
+      alert('준비 중인 서비스입니다.');
+    });
+
+    
+    if (goToJoin) {
+      goToJoin.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.navigate('/join');
+      });
+    }
+
+
+    emailLoginBtn.addEventListener('click', async () => {
+      if (checkInApp()) return;
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        errorMsg.textContent = '이메일과 비밀번호를 입력해주세요.';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      emailLoginBtn.disabled = true;
+      errorMsg.style.display = 'none';
+
+      try {
+        await loginWithEmail(email, password);
+      } catch (err) {
+        console.error(err);
+        if (err.message === 'EMAIL_NOT_VERIFIED') {
+          alert('이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.');
+        } else {
+          errorMsg.textContent = '로그인에 실패했습니다: ' + err.message;
+          errorMsg.style.display = 'block';
+        }
+      } finally {
+        emailLoginBtn.disabled = false;
+        passwordInput.value = '';
       }
     });
   }

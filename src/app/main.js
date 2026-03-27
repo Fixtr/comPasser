@@ -1,10 +1,12 @@
 // Entry point for the frontend logic
 import '../domains/auth/ui/login-view.js';
+import '../domains/auth/ui/join-view.js';
+import '../domains/auth/ui/verify-view.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
-import { subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
+import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
@@ -44,7 +46,7 @@ updateTexts();
  */
 function showWelcomeOverlay() {
     // 1. 이미 본 유저인지 확인 (2차 방어막)
-    if (localStorage.getItem('hasSeenWelcomeOverlay') === 'true') {
+    if (localStorage.getItem('hasSeenTutorial') === 'true') {
         return;
     }
 
@@ -55,7 +57,8 @@ function showWelcomeOverlay() {
         inset: 0;
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(8px);
-        z-index: 9999;
+        z-index: 99999; /* Fix overlapping video players */
+        pointer-events: auto;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -65,7 +68,18 @@ function showWelcomeOverlay() {
     `;
 
     overlay.innerHTML = `
-        <div style="max-width: 500px; animation: fadeIn 0.5s ease-out;">
+        
+        <div style="max-width: 500px; animation: fadeIn 0.5s ease-out; position: relative;">
+            <button id="close-x-btn" style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                background: none;
+                border: none;
+                color: rgba(255,255,255,0.6);
+                font-size: 1.5rem;
+                cursor: pointer;
+            ">✖</button>
             <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🧭 Compasser</h1>
             <p style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 2rem;">
                 당신의 소중한 일정을 중심으로<br>AI가 최적의 여행 경로를 설계해 드립니다.
@@ -92,15 +106,21 @@ function showWelcomeOverlay() {
 
     document.body.appendChild(overlay);
 
+    
     const closeBtn = overlay.querySelector('#close-welcome-btn');
-    closeBtn.addEventListener('click', () => {
+    const closeXBtn = overlay.querySelector('#close-x-btn');
+    
+    const closeModal = () => {
         overlay.classList.add('fade-out');
         setTimeout(() => {
             overlay.remove();
-            // 쐐기 박기 (로컬 스토리지 저장)
-            localStorage.setItem('hasSeenWelcomeOverlay', 'true');
+            localStorage.setItem('hasSeenTutorial', 'true');
         }, 300);
-    });
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    if (closeXBtn) closeXBtn.addEventListener('click', closeModal);
+
 
     closeBtn.addEventListener('mouseover', () => closeBtn.style.transform = 'scale(1.05)');
     closeBtn.addEventListener('mouseout', () => closeBtn.style.transform = 'scale(1)');
@@ -122,7 +142,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Auth & Routing Containers
     const loginView = document.getElementById('login-view');
     const appContent = document.getElementById('app-content');
+    const pageLogin = document.getElementById('page-login');
+    const pageJoin = document.getElementById('page-join');
     const pageHome = document.getElementById('page-home');
+    const pageVerify = document.getElementById('page-verify');
     const pagePlan = document.getElementById('page-plan');
     const pageView = document.getElementById('page-view');
     
@@ -131,6 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // UI Buttons and Elements
     const logoutBtn = document.getElementById('logout-btn');
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
     const themeToggleBtn = document.getElementById('theme-toggle');
     const myItinerariesBtn = document.getElementById('my-itineraries-btn');
     const itinerariesModal = document.getElementById('itineraries-modal');
@@ -165,13 +189,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         trackEvent('page_view', { page_path: path });
 
         // Route Guards
-        if (!user && path !== '/home' && path !== '/') {
+        if (!user && path !== '/login' && path !== '/join' && !path.startsWith('/verify') && path !== '/' && path !== '/home') {
             console.log('[Router] Unauthenticated access denied, redirecting to home.');
-            window.navigate('/home');
+            window.navigate('/login');
             return;
         }
 
-        if (user && (path === '/' || path === '/home')) {
+        if (user && (path === '/' || path === '/login' || path === '/join' || path === '/home')) {
             console.log('[Router] Authenticated user at home, redirecting to plan.');
             window.navigate('/plan');
             return;
@@ -179,6 +203,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 1. Hide all pages by default
         if (pageHome) pageHome.style.display = 'none';
+        if (pageLogin) pageLogin.style.display = 'none';
+        if (pageVerify) pageVerify.style.display = 'none';
+        if (pageJoin) pageJoin.style.display = 'none';
         if (pagePlan) pagePlan.style.display = 'none';
         if (pageView) pageView.style.display = 'none';
 
@@ -240,7 +267,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else if (path === '/plan') {
-            showWelcomeOverlay(); // Safe to call, auto-aborts if already seen
+            if (!localStorage.getItem('hasSeenTutorial')) {
+                showWelcomeOverlay();
+            }
             
             if (pagePlan) pagePlan.style.display = 'flex';
             
@@ -254,9 +283,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingTransitionView.classList.add('hidden-view');
             }
             sessionStorage.setItem('currentPhase', '1');
-        } else {
-            // Default: /home
-            if (pageHome) pageHome.style.display = 'block';
+        } else if (path === '/home' || path === '/') {
+            if (pageHome) pageHome.style.display = 'flex';
+        } else if (path === '/login') {
+            if (pageLogin) pageLogin.style.display = 'block';
+        } else if (path === '/join') {
+            if (pageJoin) pageJoin.style.display = 'block';
+        } else if (path.startsWith('/verify')) {
+            if (pageVerify) pageVerify.style.display = 'block';
+            const oobCode = new URLSearchParams(window.location.search).get('oobCode');
+            const verifyView = document.getElementById('verify-view');
+            if (oobCode && verifyView && typeof verifyView.verify === 'function') {
+                verifyView.verify(oobCode);
+            }
         }
     }
 
@@ -282,8 +321,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userAvatar = document.getElementById('user-avatar');
 
     subscribeToAuthChanges((user) => {
+        if (user && !user.emailVerified) {
+            console.log('[Auth] User unverified. Logging them out immediately to prevent redirection hijack.');
+            logout().catch(err => console.error(err));
+            return;
+        }
         if (user) {
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
+            if (deleteAccountBtn) deleteAccountBtn.style.display = 'inline-block';
             if (myItinerariesBtn) myItinerariesBtn.style.display = 'inline-block';
             if (userAvatar) {
                 userAvatar.onerror = () => {
@@ -299,6 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } else {
             if (logoutBtn) logoutBtn.style.display = 'none';
+            if (deleteAccountBtn) deleteAccountBtn.style.display = 'none';
             if (myItinerariesBtn) myItinerariesBtn.style.display = 'none';
             if (userAvatar) {
                 userAvatar.style.display = 'none';
@@ -377,6 +423,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     window.addEventListener('i18n-changed', () => updateTexts());
+
+    
+    if (deleteAccountBtn) {
+        deleteAccountBtn.addEventListener('click', async () => {
+            if (confirm('정말로 계정을 삭제하시겠습니까? 모든 여행 일정 데이터가 영구적으로 삭제됩니다.')) {
+                try {
+                    await deleteCurrentUser();
+                    window.navigate('/login');
+                } catch (err) {
+                    if (err.code === 'auth/requires-recent-login') {
+                        alert('보안을 위해 다시 로그인한 후 탈퇴를 진행해주세요.');
+                        await logout();
+                    } else {
+                        alert('회원탈퇴에 실패했습니다.');
+                        console.error(err);
+                    }
+                }
+            }
+        });
+    }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
