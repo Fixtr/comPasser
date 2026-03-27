@@ -438,9 +438,10 @@ export default class LoginView extends HTMLElement {
       try {
         await loginWithGoogle();
       } catch (err) {
-        googleBtn.disabled = false;
         errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
         errorMsg.style.display = 'block';
+      } finally {
+        googleBtn.disabled = false;
       }
     });
 
@@ -483,8 +484,23 @@ export default class LoginView extends HTMLElement {
         if (err.message === 'EMAIL_NOT_VERIFIED') {
           alert('이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.');
         } else {
-          errorMsg.textContent = '로그인에 실패했습니다: ' + err.message;
-          errorMsg.style.display = 'block';
+          switch (err.code) {
+            case 'auth/user-not-found':
+              alert("가입되지 않은 이메일입니다.");
+              break;
+            case 'auth/wrong-password':
+              alert("비밀번호가 틀립니다.");
+              break;
+            case 'auth/invalid-credential':
+              alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+              break;
+            case 'auth/too-many-requests':
+              alert("비밀번호를 여러 번 틀려 계정이 잠겼습니다. 나중에 다시 시도하거나 비밀번호를 재설정해주세요.");
+              break;
+            default:
+              errorMsg.textContent = '로그인에 실패했습니다: ' + err.message;
+              errorMsg.style.display = 'block';
+          }
         }
       } finally {
         emailLoginBtn.disabled = false;

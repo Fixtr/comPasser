@@ -430,7 +430,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (confirm('정말로 계정을 삭제하시겠습니까? 모든 여행 일정 데이터가 영구적으로 삭제됩니다.')) {
                 try {
                     await deleteCurrentUser();
-                    window.navigate('/login');
+                    // Hard reload to guarantee clean state unbinding
+                    window.location.href = '/login';
                 } catch (err) {
                     if (err.code === 'auth/requires-recent-login') {
                         alert('보안을 위해 다시 로그인한 후 탈퇴를 진행해주세요.');

@@ -37,6 +37,9 @@ export async function loginWithGoogle() {
 
 export async function logout() {
     try {
+        sessionStorage.removeItem('currentFormData');
+        sessionStorage.removeItem('currentPhase');
+        sessionStorage.removeItem('savedItineraryData');
         await signOut(auth);
     } catch (error) {
         console.error("Logout failed", error);
@@ -85,6 +88,10 @@ export async function loginWithEmail(email, password) {
 export async function deleteCurrentUser() {
     const user = auth.currentUser;
     if (user) {
+        localStorage.removeItem('hasSeenTutorial');
+        sessionStorage.removeItem('currentFormData');
+        sessionStorage.removeItem('currentPhase');
+        sessionStorage.removeItem('savedItineraryData');
         await deleteUser(user);
     }
 }
