@@ -228,6 +228,125 @@ h4 {
   animation: textPulse 2s infinite ease-in-out;
 }
 
+/* ====== Ad Banner Carousel ====== */
+#ad-banner-carousel {
+  margin-top: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+}
+
+.ad-banner {
+  position: relative;
+  padding: 1.5rem 1.5rem 1.5rem 1.25rem;
+  border-radius: 12px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.ad-banner.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ad-banner.fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.ad-banner-icon {
+  font-size: 2.2rem;
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+}
+
+.ad-banner-content {
+  flex: 1;
+}
+
+.ad-banner-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.ad-banner-desc {
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.ad-badge {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.ad-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 0.75rem;
+}
+
+.ad-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: all 0.3s ease;
+}
+
+.ad-dot.active {
+  background: var(--accent-primary);
+  transform: scale(1.3);
+}
+
+/* Dark mode overrides for banner */
+body.dark .ad-banner-title {
+  color: #f3f4f6;
+}
+
+body.dark .ad-banner-desc {
+  color: #d1d5db;
+}
+
+body.dark .ad-banner-icon {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+body.dark .ad-badge {
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+body.dark .ad-banner {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+/* ====== End Ad Banner Carousel ====== */
+
 .primary-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow);

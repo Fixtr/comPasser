@@ -19,9 +19,10 @@ Compasser는 한국을 여행하는 모든 사람(내/외국인 모두 포함)�
 - **다이내믹 일정 폼**: 하루의 시작/종료 장소를 지정하고, 반드시 방문해야 하는 '앵커 일정(Anchor Schedule)'을 원하는 만큼 `+`, `-` 버튼으로 자유롭게 추가할 수 있습니다.
 - **스마트 빈칸 채우기**: 앵커 일정 사이의 붕 뜨는 시간과 동선을 AI가 분석하여, 최적의 맛집, 카페, 명소를 추천하고 완벽한 하루 일정을 완성합니다.
 
-### 3. 📍 구글 맵 기반 다중 구간 스마트 길찾기
-- **구간별 분할 렌더링 (Point-to-Point)**: `A ➔ B`, `B ➔ C` 등 구간마다 독립적인 길찾기를 수행하여 전체 동선을 하나의 지도 위에 직관적으로 시각화합니다.
-- **대중교통 & 도보 완벽 지원**: 대중교통(Transit) 경로를 똑똑하게 안내하며, 너무 가까운 거리는 도보 이동으로 간주하여 점선(Dashed Line)으로 자연스럽게 이어줍니다.
+### 3. 📍 하이브리드 지도 연동 전략 (Hybrid Map Strategy)
+Compasser는 지도의 역할을 **뷰어(Viewer)**와 **네비게이터(Navigator)**로 철저히 분리하여 최상의 사용성을 제공합니다.
+- **뷰어 (Google Maps)**: 전체 동선을 다국어로 한눈에 보여주는 시각적 현황판 역할을 수행합니다. `A ➤ B`, `B ➤ C` 등 구간별 독립적 길찾기를 수행하여 대중교통 및 도보 경로를 지도 위에 시각화합니다.
+- **네비게이터 (덴링크 실행)**: 실제 이동 시에는 일정 카드의 **버튼을 터치**하면 유저 스마트폰에 설치된 **네이버 지도 / 카카오맵 / Google Maps** 앱을 딥링크(URL Scheme)로 직접 실행시켜 실시간 길찾기를 수행합니다.
 
 ### 4. ⏱️ 사용자 친화적 타임라인 UI
 - 일정이 진행되는 순서대로 번호가 매겨진 타임라인을 제공합니다.
@@ -69,6 +70,11 @@ Compasser는 한국을 여행하는 모든 사람(내/외국인 모두 포함)�
 - **인증 UX 고도화**: `/join` 페이지에 비밀번호 가시성 토글(👁️) 및 실시간 비밀번호 강도 체크 기능을 추가하여 보안성과 편의성을 높였습니다.
 - **폼 및 버튼 인터랙션 강화**: 입력 폼과 핵심 버튼, 카드 UI에 포커스 및 호버 시 부드러운 메인 컬러 그림자(`box-shadow`)와 애니메이션을 적용했습니다. 특히 '로그인하고 시작하기 🚀' 등 직관적인 CTA 버튼을 배치했습니다.
 
+### 14. 📢 로딩 대기 시간 활용 제휴 광고 배너 캐러셀
+- **타겟 맞춤형 배너**: AI 일정 생성 대기 중 한국 여행 외국인 관광객 타겟의 가상 제휴 광고(eSIM, AREX, 한복 대여, K-Food 투어, T-money 카드) 배너를 자동 슬라이드로 노출합니다.
+- **부드러운 전환 애니메이션**: `opacity`와 `translateY` 기반의 fade-in/out 효과로 3.5초마다 배너가 자연스럽게 전환되며, 하단 인디케이터 도트로 현재 위치를 표시합니다.
+- **메모리 안전**: 로딩 완료/실패 시 `clearInterval`을 호출하여 메모리 누수를 방지하며, 다크모드에서도 시인성이 유지되도록 별도 스타일을 적용했습니다.
+
 ## 🏛️ 아키텍처 하이라이트: DDD & Vibe Coding 최적화
 Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding)의 효율성을 극대화하고 유지보수성을 높이기 위해 **도메인 주도 설계(DDD: Domain-Driven Design)** 아키텍처를 도입했습니다.
 
@@ -83,8 +89,9 @@ Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 ## 🛠️ Tech Stack
 - **Frontend**: Vite, Vanilla JS (ES6 Modules), HTML5/CSS3
 - **API / Cloud**: 
-  - Google Maps JavaScript API (Maps, Geocoding, Directions)
-  - Google Gemini API (gemini-2.5-flash)
+  - Google Maps JavaScript API (Maps, Geocoding, Directions) — 동선 시각화 뷰어
+  - Google Gemini API (gemini-2.5-flash) — AI 일정 생성
+- **네비게이션 딥링크**: 네이버 지도 / 카카오맵 / Google Maps URL Scheme — 실시간 길찾기 액션
 - **Deployment**: Cloudflare Pages
 
 ## 🚀 Getting Started (로컬 실행 방법)
