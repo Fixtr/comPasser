@@ -41,9 +41,18 @@ export async function generateOptimizedItinerary(plannerRequest) {
                   location: { type: SchemaType.STRING, description: "Specific real world Address or accurate Place Name in Korea" },
                   duration: { type: SchemaType.STRING },
                   officialWebsiteUrl: { type: SchemaType.STRING, description: "Official website URL of the place. Return an empty string if unknown." },
-                  googleMapsUrl: { type: SchemaType.STRING, description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" }
+                  googleMapsUrl: { type: SchemaType.STRING, description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" },
+                  practicalInfo: { 
+                    type: SchemaType.OBJECT, 
+                    properties: {
+                      estimatedCost: { type: SchemaType.STRING, description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
+                      operatingHours: { type: SchemaType.STRING, description: "General opening/closing hours and holidays (e.g. '10:00 - 22:00 (Closed on Mons)')" },
+                      localTip: { type: SchemaType.STRING, description: "Crucial pro tips for foreigners/locals (e.g. 'English menu available', 'Credit cards accepted', 'Last entry at 21:00')" }
+                    },
+                    required: ["estimatedCost", "operatingHours", "localTip"]
+                  }
                 },
-                required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl"]
+                required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl", "practicalInfo"]
               }
             }
           },
@@ -90,6 +99,10 @@ ${anchorText}
 
 The primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.
 Fill the rest of the day prior to and after the AnchorSchedules with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
+For every single place, you MUST provide a 'practicalInfo' object containing:
+  - estimatedCost: Approximate spending per person in KRW or 'Free'.
+  - operatingHours: Opening hours and regular holidays.
+  - localTip: A crucial pro-tip specially for tourists in Korea (e.g. availability of English menus, tax-free info, or waiting time advice).
 The first ScheduleItem of the day MUST start at the Start Location near the Start Time.
 The last ScheduleItem of the day MUST end at the End Location near the End Time.
 

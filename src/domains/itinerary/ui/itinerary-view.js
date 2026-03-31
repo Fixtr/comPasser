@@ -964,6 +964,71 @@ export default class ItineraryView extends HTMLElement {
         /* ====== 길찾기 Popup (anchor-positioned, body-level) ====== */
         /* Shadow DOM 안에는 dim overlay 없음 — 팝업 스타일만 정의 */
 
+        .quick-info-box {
+          margin-top: 0.85rem;
+          margin-bottom: 0.75rem;
+          padding: 0.75rem 1rem;
+          background: #f8fafc;
+          border-left: 3.5px solid var(--accent-primary);
+          border-radius: 4px 12px 12px 4px;
+          display: flex;
+          gap: 0.5rem;
+          align-items: flex-start;
+          font-size: 0.82rem;
+          color: #475569;
+          line-height: 1.4;
+          animation: quickInfoFade 0.4s ease-out;
+        }
+
+        .quick-info-box.structured {
+          display: block;
+          padding: 1rem 1.25rem;
+          background: linear-gradient(to right, #f8fafc, #f1f5f9);
+        }
+
+        @keyframes quickInfoFade {
+          from { opacity: 0; transform: translateY(5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .quick-info-icon {
+          font-size: 1rem;
+          flex-shrink: 0;
+          margin-top: -1px;
+        }
+
+        .info-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .info-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.6rem;
+          font-size: 0.85rem;
+        }
+
+        .info-icon {
+          font-size: 1.1rem;
+          flex-shrink: 0;
+          width: 24px;
+          text-align: center;
+        }
+
+        .info-label {
+          font-weight: 800;
+          color: #334155;
+          min-width: 65px;
+          display: inline-block;
+        }
+
+        .info-value {
+          color: #475569;
+          line-height: 1.4;
+        }
+
         /* ====== Buttons ====== */
         .loader {
           display: none;
@@ -1267,6 +1332,40 @@ export default class ItineraryView extends HTMLElement {
             <span class="meta-item">📍 ${locationStr}</span>
             <span class="meta-item">⏱ ${scheduleItem.duration}</span>
           </div>
+          ${(function() {
+            const info = scheduleItem.practicalInfo;
+            if (!info) return '';
+            
+            // Structured Object Format (Phase 4)
+            if (typeof info === 'object' && !Array.isArray(info)) {
+              return `
+                <div class="quick-info-box structured">
+                  <div class="info-group">
+                    <div class="info-row">
+                      <span class="info-icon">💰</span>
+                      <span class="info-value"><span class="info-label">예상 비용:</span> ${info.estimatedCost || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-icon">🕐</span>
+                      <span class="info-value"><span class="info-label">영업 시간:</span> ${info.operatingHours || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-icon">💡</span>
+                      <span class="info-value"><span class="info-label">현지 팁:</span> ${info.localTip || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+            
+            // Legacy String Format (Phase 3 Fallback)
+            return `
+              <div class="quick-info-box">
+                <span class="quick-info-icon">💡</span>
+                <div class="quick-info-text">${info}</div>
+              </div>
+            `;
+          })()}
           ${linksHtml}
         </div>
       `;
