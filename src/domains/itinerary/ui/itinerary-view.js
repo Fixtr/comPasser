@@ -1,4 +1,4 @@
-import { saveItinerary, createSharedItinerary } from '../services/firestore-service.js';
+import { saveItinerary, createSharedItinerary, getItineraryById } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
@@ -13,6 +13,10 @@ export default class ItineraryView extends HTMLElement {
   connectedCallback() {
     this.render();
     window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
+    
+    // Check URL for direct ID access
+    this.checkUrlForId();
+    
     this.setupSaveListener();
     this.setupShareListener();
     this.setupKakaoShareListener();
@@ -60,8 +64,13 @@ export default class ItineraryView extends HTMLElement {
         try {
           saveBtn.disabled = true;
           saveBtn.textContent = t('savingStateBtn') || '저장 중...';
-          await saveItinerary(user.uid, this.currentItinerary);
+          const newId = await saveItinerary(user.uid, this.currentItinerary);
           this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다! 🎉");
+          
+          // 🚀 [Routing] URL 업데이트: /view/:id 로 이동
+          if (window.navigate) {
+            window.navigate('/view/' + newId);
+          }
         } catch (error) {
           console.error("Save error:", error);
           this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
@@ -70,6 +79,37 @@ export default class ItineraryView extends HTMLElement {
           saveBtn.textContent = t('saveItineraryBtn') || '이 일정 저장하기 💾';
         }
       });
+    }
+  }
+
+  async checkUrlForId() {
+    const path = window.location.pathname;
+    const match = path.match(/^\/view\/([a-zA-Z0-9]+)$/);
+    if (match && match[1]) {
+      const id = match[1];
+      console.log(`[ItineraryView] URL-based ID detected: ${id}`);
+      await this.loadItineraryById(id);
+    }
+  }
+
+  async loadItineraryById(id) {
+    try {
+      this.clear();
+      this.setLoading(true);
+      
+      const itinerary = await getItineraryById(id);
+      if (itinerary) {
+        this.showResults(itinerary);
+        // Dispatch event for map to update
+        window.dispatchEvent(new CustomEvent('render-map-route', { detail: itinerary }));
+      } else {
+        this.setError("일정을 찾을 수 없습니다.");
+      }
+    } catch (err) {
+      console.error("Load by ID error:", err);
+      this.setError("데이터를 불러오는 중 오류가 발생했습니다.");
+    } finally {
+      this.setLoading(false);
     }
   }
 

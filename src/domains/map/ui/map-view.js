@@ -21,6 +21,17 @@ export class MapView extends HTMLElement {
   connectedCallback() {
     this.render();
     this.initMap();
+
+    // Listen for manual route render requests (e.g. when loading by ID)
+    window.removeEventListener('render-map-route', this._renderRouteHandler);
+    this._renderRouteHandler = (e) => {
+      if (e.detail) this.renderRoute(e.detail);
+    };
+    window.addEventListener('render-map-route', this._renderRouteHandler);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('render-map-route', this._renderRouteHandler);
   }
 
   render() {

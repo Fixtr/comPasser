@@ -99,3 +99,19 @@ export async function getSharedItinerary(documentId) {
         throw error;
     }
 }
+export async function getItineraryById(documentId) {
+    try {
+        const docRef = doc(db, "itineraries", documentId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            return docSnap.data().itineraryPlan;
+        } else {
+            console.log("No such itinerary document!");
+            return null;
+        }
+    } catch (error) {
+        console.error("Error fetching itinerary by ID:", error);
+        throw error;
+    }
+}

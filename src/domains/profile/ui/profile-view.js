@@ -282,20 +282,10 @@ class ProfileView extends HTMLElement {
     }
 
     viewTrip(item) {
-        if (!item.itineraryPlan) return;
+        if (!item.itineraryPlan || !item.id) return;
         if (window.navigate) {
-            window.navigate('/view');
-            let requestData = item.itineraryPlan.request || item.itineraryPlan.metadata?.request;
-            if (requestData) sessionStorage.setItem('currentFormData', JSON.stringify(requestData));
-            sessionStorage.setItem('currentPhase', '3');
-            sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
-
-            requestAnimationFrame(() => {
-                const itineraryView = document.querySelector('itinerary-view');
-                const mapView = document.querySelector('map-view');
-                if (itineraryView) itineraryView.showResults(item.itineraryPlan);
-                if (mapView) mapView.renderRoute(item.itineraryPlan);
-            });
+            // 🚀 [Routing] 동적 파라미터 경로(/view/:id)로 이동
+            window.navigate('/view/' + item.id);
         }
     }
 

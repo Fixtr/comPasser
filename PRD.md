@@ -28,8 +28,10 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **UI 사용성 제한**: 장소 검색(Autocomplete)을 대한민국(KR)으로 엄격하게 제한하여 사용자 혼란을 방지하고 정확도를 높였습니다.
 - **초기화(Reset)**: 폼 입력 전체를 즉시 비우고 처음부터 다시 단계를 밟을 수 있는 강력한 리셋 버튼을 제공합니다.
 
-### 3.4. 7-Page Architecture (SPA & Paged Routing)
-- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과 및 지도), `#page-verify` (이메일 인증), `#page-profile` (마이페이지)의 화면으로 완벽하게 분리된 바닐라 JS 라우팅을 지원합니다.
+### 3.4. 8-Page Architecture (SPA & Dynamic Routing)
+- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과), `#page-verify` (이메일 인증), `#page-profile` (마이페이지)의 화면으로 분리된 바닐라 JS 라우팅을 지원합니다.
+- **동적 파라미터 라우팅 (/view/:id)**: 정규식을 통해 고유 ID를 파싱하고 브라우저 새로고침 시에도 Firestore에서 일정을 즉시 복원하는 아키텍처를 구현했습니다.
+- **Deep Linking**: 고유 URL을 통해 본인 혹은 타인의(권한 허용 시) 일정을 외부에서 즉시 접근할 수 있도록 동선을 고도화했습니다.
 - **마이페이지 통합 관리**: 전용 `/profile` 경로를 통해 개인정보, 여정 히스토리, 계정 보안을 한곳에서 관리할 수 있는 Google 스타일의 2-Column 레이아웃을 제공합니다.
   - **Firestore 개인정보 연동 (Phase 1)**: `users/{uid}` 구조를 통해 휴대전화, 생년월일 등 확장된 프로필 데이터를 저장 및 동기화합니다.
   - **실제 서비스 수준의 본인인증 (PortOne/KG이니시스)**: 포트원 V1 SDK와 KG이니시스 채널을 연동하여 실제 한국 웹 서비스 표준인 '본인인증(PASS/통신사)' 흐름을 구현했습니다.

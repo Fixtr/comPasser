@@ -292,36 +292,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.dispatchEvent(new Event('resize')); // Fix map sizing
             }
 
-            // Check for Deep Link (Shared Itinerary URL)
-            const idMatch = path.match(/^\/view\/(.+)/);
+            // [Dynamic Parameter Routing]
+            // Format: /view/:id (e.g., /view/abc123def)
+            const idMatch = path.match(/^\/view\/([a-zA-Z0-9]+)$/);
+            
             if (idMatch && idMatch[1]) {
-                const sharedId = idMatch[1];
-                try {
-                    console.log(`[Share] Fetching shared itinerary ID: ${sharedId}`);
-                    if (mapView) {
-                        mapView.hideEmptyState();
-                        mapView.setLoading(true, "공유된 일정을 불러오는 중입니다...");
-                    }
-                    const parsedItinerary = await getSharedItinerary(sharedId);
-                    if (!parsedItinerary) throw new Error("Itinerary not found in Firestore.");
-
-                    if (mapView) mapView.renderRoute(parsedItinerary);
-                    if (itineraryView) itineraryView.showResults(parsedItinerary);
-
-                    // Cleanup URL visually
-                    const newUrl = window.location.origin + '/view';
-                    window.history.replaceState({}, document.title, newUrl);
-
-                } catch (error) {
-                    console.error("[Share Error]", error);
-                    alert("공유된 일정을 불러오는 데 실패했습니다.");
-                    window.navigate('/plan');
-                }
-            } else {
-                // Determine if we arrived properly from a loaded state.
+                const docId = idMatch[1];
+                console.log(`[Router] Dynamic route detected with ID: ${docId}`);
+                
+                // itinerary-view 컴포넌트 내부에서 ID를 감지하여 로딩하므로, 
+                // 여기선 UI 세팅만 보장하고 별도의 replaceState는 하지 않습니다.
+                
+                // 만약 legacy 공유 로직이나 다른 처리가 필요하다면 여기서 추가 가능하지만, 
+                // 기본적으로 itinerary-view가 checkUrlForId()를 통해 스스로 로드합니다.
+            } else if (path === '/view') {
+                // Case: /view (Temporary memory-based itinerary or just generated)
+                console.log('[Router] Static /view route: Looking for memory state.');
+                
                 const savedPhase = sessionStorage.getItem('currentPhase');
                 if (savedPhase === '3') {
-                    // Valid phase 3 state exists
                     const rawData = sessionStorage.getItem('savedItineraryData');
                     if (rawData) {
                         try {
@@ -337,7 +326,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
                 } else if (!sessionStorage.getItem('savedItineraryData')) {
-                    // No generated data available, fallback to plan
                     window.navigate('/plan');
                 }
             }
