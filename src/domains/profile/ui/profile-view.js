@@ -7,7 +7,7 @@ class ProfileView extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.activeTab = 'personal-info';
+        this.activeTab = 'personal';
         this.itineraries = [];
         this.isLoadingItineraries = false;
         this.userData = {
@@ -313,9 +313,11 @@ class ProfileView extends HTMLElement {
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const target = tab.dataset.tab;
-                this.activeTab = target;
-                tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === target));
-                sections.forEach(s => s.classList.toggle('active', s.id === target));
+                if (window.navigate) {
+                    window.navigate('/profile/' + target);
+                } else {
+                    this.setTabFromPath(target);
+                }
             });
         });
 
@@ -371,6 +373,36 @@ class ProfileView extends HTMLElement {
                     closeModal();
                 }
             });
+        }
+    }
+
+    setTabFromPath(tabId) {
+        if (!tabId) tabId = 'personal';
+        // Map common aliases if needed
+        if (tabId === 'personal-info') tabId = 'personal';
+        if (tabId === 'my-trips') tabId = 'trips';
+
+        this.activeTab = tabId;
+        const tabs = this.shadowRoot.querySelectorAll('.nav-item');
+        const sections = this.shadowRoot.querySelectorAll('.content-section');
+
+        let found = false;
+        tabs.forEach(t => {
+            const isActive = t.dataset.tab === tabId;
+            t.classList.toggle('active', isActive);
+            if (isActive) found = true;
+        });
+
+        sections.forEach(s => s.classList.toggle('active', s.id === tabId));
+
+        // Fallback for invalid tab ids
+        if (!found && tabId !== 'personal') {
+            this.setTabFromPath('personal');
+        }
+
+        // Trigger data fetch if switching to trips
+        if (tabId === 'trips') {
+            this.fetchItineraries();
         }
     }
 
@@ -654,10 +686,10 @@ class ProfileView extends HTMLElement {
                     <button id="btn-back-home" class="btn-back-home">
                         <span>←</span> <span>홈으로 돌아가기</span>
                     </button>
-                    <div class="nav-item active" data-tab="personal-info">
+                    <div class="nav-item active" data-tab="personal">
                         <span class="nav-icon">👤</span> <span>개인 정보</span>
                     </div>
-                    <div class="nav-item" data-tab="my-trips">
+                    <div class="nav-item" data-tab="trips">
                         <span class="nav-icon">🗺️</span> <span>내 여행 일정</span>
                     </div>
                     <div class="nav-item" data-tab="security">
@@ -672,7 +704,7 @@ class ProfileView extends HTMLElement {
                         <p>Compasser에서 당신의 정보를 안전하게 관리하세요.</p>
                     </div>
 
-                    <div id="personal-info" class="content-section active">
+                    <div id="personal" class="content-section active">
                         <div class="card">
                             <div class="card-header">
                                 <h2>기본 정보</h2>
@@ -717,7 +749,7 @@ class ProfileView extends HTMLElement {
                         </div>
                     </div>
 
-                    <div id="my-trips" class="content-section">
+                    <div id="trips" class="content-section">
                         <div class="card">
                             <div class="card-header">
                                 <h2>저장된 일정 관리</h2>

@@ -29,10 +29,12 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **초기화(Reset)**: 폼 입력 전체를 즉시 비우고 처음부터 다시 단계를 밟을 수 있는 강력한 리셋 버튼을 제공합니다.
 
 ### 3.4. 8-Page Architecture (SPA & Dynamic Routing)
-- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과), `#page-verify` (이메일 인증), `#page-profile` (마이페이지)의 화면으로 분리된 바닐라 JS 라우팅을 지원합니다.
+- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과), `#page-verify` (이메일 인증), `#page-profile` (마이페이지 & 중첩 탭)의 화면으로 분리된 바닐라 JS 라우팅을 지원합니다.
+- **중첩 라우팅(/profile/:tab)**: 마이페이지 내부에 `/personal`, `/trips`, `/security` 서브 경로를 도입하여 각 탭의 상태를 URL과 동기화했습니다.
 - **동적 파라미터 라우팅 (/view/:id)**: 정규식을 통해 고유 ID를 파싱하고 브라우저 새로고침 시에도 Firestore에서 일정을 즉시 복원하는 아키텍처를 구현했습니다.
 - **Deep Linking**: 고유 URL을 통해 본인 혹은 타인의(권한 허용 시) 일정을 외부에서 즉시 접근할 수 있도록 동선을 고도화했습니다.
-- **마이페이지 통합 관리**: 전용 `/profile` 경로를 통해 개인정보, 여정 히스토리, 계정 보안을 한곳에서 관리할 수 있는 Google 스타일의 2-Column 레이아웃을 제공합니다.
+- **마이페이지 통합 관리**: 전용 `/profile` 경로 및 중첩 라우팅을 통해 개인정보, 여정 히스토리, 계정 보안을 한곳에서 관리할 수 있는 Google 스타일의 2-Column 레이아웃을 제공합니다.
+  - **URL 동기화**: 탭 전환 시 History API를 통해 URL이 즉시 업데이트되어 브라우저 뒤로 가기 및 딥 링크(Deep Link)를 완벽히 지원합니다.
   - **Firestore 개인정보 연동 (Phase 1)**: `users/{uid}` 구조를 통해 휴대전화, 생년월일 등 확장된 프로필 데이터를 저장 및 동기화합니다.
   - **실제 서비스 수준의 본인인증 (PortOne/KG이니시스)**: 포트원 V1 SDK와 KG이니시스 채널을 연동하여 실제 한국 웹 서비스 표준인 '본인인증(PASS/통신사)' 흐름을 구현했습니다.
     - **절차**: [📱 본인인증] 버튼 클릭 -> PG 통합인증 팝업 -> 성공 시 번호 입력 인라인 폼 -> Firestore 저장(`phoneNumber`, `isVerified: true`).

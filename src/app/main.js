@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 1.5 Toggle Main Header Visibility (Hide on Profile Page)
         if (mainHeader) {
-            mainHeader.style.display = (path === '/profile') ? 'none' : 'block';
+            mainHeader.style.display = (path.startsWith('/profile')) ? 'none' : 'block';
         }
 
         // 2. Evaluate Route
@@ -359,8 +359,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (oobCode && verifyView && typeof verifyView.verify === 'function') {
                 verifyView.verify(oobCode);
             }
-        } else if (path === '/profile') {
+        } else if (path.startsWith('/profile')) {
             if (pageProfile) pageProfile.style.display = 'block';
+
+            // [Nested Routing] Extract tab parameter from /profile/:tab
+            const tabMatch = path.match(/^\/profile\/([a-zA-Z0-9-]+)$/);
+            const subPath = tabMatch ? tabMatch[1] : 'personal';
+
+            const profileView = document.querySelector('profile-view');
+            if (profileView && typeof profileView.setTabFromPath === 'function') {
+                // Ensure the component is rendered before calling setTab
+                if (profileView.shadowRoot) {
+                    profileView.setTabFromPath(subPath);
+                } else {
+                    // Fallback for initial load if component hasn't rendered yet
+                    setTimeout(() => profileView.setTabFromPath(subPath), 50);
+                }
+            }
+
+            // Normalize base /profile URL to /profile/personal
+            if (path === '/profile') {
+                window.history.replaceState({}, '', '/profile/personal');
+            }
         }
     }
 
