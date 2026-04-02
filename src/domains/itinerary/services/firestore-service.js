@@ -50,6 +50,25 @@ export async function deleteItinerary(documentId) {
     }
 }
 
+export async function deleteAllUserItineraries(userId) {
+    try {
+        const itinerariesRef = collection(db, "itineraries");
+        const q = query(itinerariesRef, where("userId", "==", userId));
+        const querySnapshot = await getDocs(q);
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+            deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        console.log(`Deleted all ${deletePromises.length} itineraries for user ${userId}`);
+    } catch (error) {
+        console.error("Error deleting all user itineraries:", error);
+        throw error;
+    }
+}
+
 export async function createSharedItinerary(itineraryPlan) {
     try {
         const sharedRef = collection(db, "shared_itineraries");
