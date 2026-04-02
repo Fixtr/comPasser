@@ -76,98 +76,10 @@ export class MapView extends HTMLElement {
           pointer-events: none;
         }
 
-        .empty-state-overlay {
-          position: fixed;
-          inset: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(5px);
-          z-index: 1000;
-          transition: opacity 0.5s ease-out;
-          padding: 2rem;
-          text-align: center;
-        }
-
-        .empty-state-overlay.hidden {
-          opacity: 0;
-          pointer-events: none;
-        }
-
-        .empty-card {
-          background: var(--bg-primary, #fff);
-          padding: 2rem;
-          border-radius: 16px;
-          box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04));
-          border: 1px solid oklch(90% 0.02 260);
-          max-width: 450px;
-          width: 100%;
-        }
-
-        .empty-title {
-          font-size: 1.4rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin-bottom: 1.5rem;
-        }
-
-        .demo-gif {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin-bottom: 1.5rem;
-          border: 1px solid oklch(90% 0.02 260);
-        }
-
-        .use-case {
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-          background: oklch(98% 0.02 260);
-          padding: 1rem;
-          border-radius: 8px;
-          margin-bottom: 1.5rem;
-          text-align: left;
-          line-height: 1.5;
-        }
-
-        .start-btn {
-          margin-top: 1.5rem;
-          background: var(--accent-primary, #7c3aed);
-          color: white;
-          border: none;
-          padding: 1.2rem 2rem;
-          font-size: 1.15rem;
-          font-weight: 700;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-          width: 100%;
-          display: block;
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
-        }
-
-        .start-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
-        }
       </style>
 
       <div id="map-container"></div>
 
-      <div class="empty-state-overlay" id="empty-state-overlay">
-        <div class="empty-card">
-          <div class="empty-title">🧭 나만의 스마트한 여행 일정을 만들어보세요!</div>
-          <!-- demo.gif placeholder, assumes it's in public/ -->
-          <img src="/demo.gif" alt="앱 사용 시연" class="demo-gif" onerror="this.style.display='none'" />
-          <div class="use-case">
-            <strong>💡 추천 시나리오:</strong><br>
-            2박 3일 빡빡한 도쿄 일정, 꼭 가야 하는 팝업스토어가 포함된 성수동 데이트
-          </div>
-          <button id="hide-modal-btn" class="start-btn">지금 일정 생성하러 가기</button>
-        </div>
-      </div>
 
       <div class="loading-overlay" id="loading-overlay">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary, #7c3aed)" stroke-width="2">
@@ -183,11 +95,6 @@ export class MapView extends HTMLElement {
     const overlay = this.shadowRoot.getElementById('loading-overlay');
     const textEl = this.shadowRoot.getElementById('loading-text');
 
-    // When actual loading starts from 'generate-itinerary'
-    if (isLoading) {
-      this.hideEmptyState();
-    }
-
     if (isLoading) {
       if (textEl) textEl.textContent = text;
       overlay.classList.remove('hidden');
@@ -196,12 +103,7 @@ export class MapView extends HTMLElement {
     }
   }
 
-  hideEmptyState() {
-    const emptyState = this.shadowRoot.getElementById('empty-state-overlay');
-    if (emptyState && !emptyState.classList.contains('hidden')) {
-      emptyState.classList.add('hidden');
-    }
-  }
+
 
   async initMap() {
     const apiKey = import.meta.env.VITE_MAPS_API_KEY;
@@ -223,14 +125,6 @@ export class MapView extends HTMLElement {
       });
 
       this.setLoading(false);
-
-      // Add event listener to the modal button
-      const hideModalBtn = this.shadowRoot.getElementById('hide-modal-btn');
-      if (hideModalBtn) {
-        hideModalBtn.addEventListener('click', () => {
-          this.hideEmptyState();
-        });
-      }
 
     } catch (e) {
       console.error("Failed to load map:", e);
@@ -264,9 +158,6 @@ export class MapView extends HTMLElement {
         google.maps.event.trigger(this.map, 'resize');
       }
     }
-
-    // Hide empty state if it's still showing
-    this.hideEmptyState();
 
     // Clear Transit info for UI
     window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: [] }));

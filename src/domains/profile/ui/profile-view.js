@@ -274,8 +274,14 @@ class ProfileView extends HTMLElement {
                 </div>
             `;
 
-            card.querySelector('.btn-view').onclick = () => this.viewTrip(item);
-            card.querySelector('.btn-delete-trip').onclick = () => this.handleDeleteItinerary(item.id, card);
+            card.querySelector('.btn-view').onclick = (e) => {
+                e.stopPropagation();
+                this.viewTrip(item);
+            };
+            card.querySelector('.btn-delete-trip').onclick = (e) => {
+                e.stopPropagation();
+                this.handleDeleteItinerary(item.id, card);
+            };
 
             listContainer.appendChild(card);
         });
