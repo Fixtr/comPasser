@@ -12,9 +12,11 @@ class ProfileView extends HTMLElement {
         this.isLoadingItineraries = false;
         this.userData = {
             phoneNumber: '',
-            birthday: ''
+            birthday: '',
+            isVerified: false
         };
         this.editingField = null; // 'phoneNumber' or 'birthday'
+        this.showCertificationInput = false;
     }
 
     connectedCallback() {
@@ -84,16 +86,42 @@ class ProfileView extends HTMLElement {
 
     updateExtendedProfileUI() {
         this.renderField('birthday', '생년월일', this.userData.birthday, 'date');
-        this.renderField('phoneNumber', '휴대전화', this.userData.phoneNumber, 'tel');
+        this.renderField('phoneNumber', '휴대전화', this.userData.phoneNumber, 'tel', this.userData.isVerified);
     }
 
-    renderField(field, label, value, inputType) {
+    renderField(field, label, value, inputType, isVerified = false) {
         const container = this.shadowRoot.getElementById(`field-${field}`);
         if (!container) return;
 
         const isEditing = this.editingField === field;
         const displayValue = value || '설정되지 않음';
         const hasValue = !!value;
+
+        // Special Case: PortOne Certification Flow for Phone Number
+        if (field === 'phoneNumber' && this.showCertificationInput) {
+            container.innerHTML = `
+                <div class="edit-mode-container certification-success">
+                    <div class="cert-msg">✅ 인증이 완료되었습니다. 번호를 입력하고 저장하세요.</div>
+                    <input type="tel" id="input-phoneNumber" class="inline-input" value="${value || ''}" placeholder="번호 입력">
+                    <div class="edit-actions">
+                        <button class="btn-save" data-field="phoneNumber">💾 저장</button>
+                        <button class="btn-cancel" data-field="phoneNumber">❌ 취소</button>
+                    </div>
+                </div>
+            `;
+            const input = container.querySelector('input');
+            input.focus();
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9-]/g, '');
+            });
+
+            container.querySelector('.btn-save').onclick = () => this.handleSave('phoneNumber', true);
+            container.querySelector('.btn-cancel').onclick = () => {
+                this.showCertificationInput = false;
+                this.updateExtendedProfileUI();
+            };
+            return;
+        }
 
         if (isEditing) {
             container.innerHTML = `
@@ -116,12 +144,47 @@ class ProfileView extends HTMLElement {
             container.querySelector('.btn-save').onclick = () => this.handleSave(field);
             container.querySelector('.btn-cancel').onclick = () => this.handleCancel();
         } else {
+            const isPhone = field === 'phoneNumber';
+            const badge = (isPhone && isVerified) ? '<span class="verified-badge">인증완료 ✅</span>' : '';
+            const buttonText = isPhone ? '📱 본인인증' : '✏️ 수정';
+
             container.innerHTML = `
-                <span class="value-text ${!hasValue ? 'not-set' : ''}">${displayValue}</span>
-                <button class="btn-edit-inline" data-field="${field}">✏️ 수정</button>
+                <div class="value-wrapper">
+                    <span class="value-text ${!hasValue ? 'not-set' : ''}">${displayValue}</span>
+                    ${badge}
+                </div>
+                <button class="btn-edit-inline" data-field="${field}">${buttonText}</button>
             `;
-            container.querySelector('.btn-edit-inline').onclick = () => this.handleEdit(field);
+
+            if (isPhone) {
+                container.querySelector('.btn-edit-inline').onclick = () => this.handleCertification();
+            } else {
+                container.querySelector('.btn-edit-inline').onclick = () => this.handleEdit(field);
+            }
         }
+    }
+
+    handleCertification() {
+        if (!window.IMP) {
+            alert("인증 모듈을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            return;
+        }
+
+        const IMP = window.IMP;
+        IMP.init('imp66802662'); // TODO: 실제 식별코드로 변경 (현재는 테스트 가맹점 코드)
+
+        IMP.certification({
+            pg: 'inicis_unified',
+            merchant_uid: 'cert_' + new Date().getTime(),
+            popup: true
+        }, (rsp) => {
+            if (rsp.success) {
+                this.showCertificationInput = true;
+                this.updateExtendedProfileUI();
+            } else {
+                alert("본인인증에 실패했습니다: " + rsp.error_msg);
+            }
+        });
     }
 
     handleEdit(field) {
@@ -134,7 +197,7 @@ class ProfileView extends HTMLElement {
         this.updateExtendedProfileUI();
     }
 
-    async handleSave(field) {
+    async handleSave(field, isVerifiedUpdate = false) {
         const input = this.shadowRoot.getElementById(`input-${field}`);
         const newValue = input.value.trim();
         const user = getCurrentUser();
@@ -143,9 +206,19 @@ class ProfileView extends HTMLElement {
 
         try {
             const userDocRef = doc(db, "users", user.uid);
-            await setDoc(userDocRef, { [field]: newValue }, { merge: true });
-            
+            const updateData = { [field]: newValue };
+            if (isVerifiedUpdate) {
+                updateData.isVerified = true;
+            }
+
+            await setDoc(userDocRef, updateData, { merge: true });
+
             this.userData[field] = newValue;
+            if (isVerifiedUpdate) {
+                this.userData.isVerified = true;
+                this.showCertificationInput = false;
+            }
+
             this.editingField = null;
             this.updateExtendedProfileUI();
         } catch (error) {
@@ -283,18 +356,18 @@ class ProfileView extends HTMLElement {
 
                 confirmBtn.disabled = true;
                 confirmBtn.textContent = '데이터 정리 중...';
-                
+
                 try {
                     // 1. Delete all itineraries
                     await deleteAllUserItineraries(user.uid);
-                    
+
                     // 2. Delete user document from Firestore
                     await deleteDoc(doc(db, "users", user.uid));
-                    
+
                     // 3. Delete Auth account
                     await deleteCurrentUser();
-                    
-                    window.location.href = '/login'; 
+
+                    window.location.href = '/login';
                 } catch (err) {
                     console.error("Account deletion failed:", err);
                     if (err.code === 'auth/requires-recent-login') {
@@ -513,6 +586,35 @@ class ProfileView extends HTMLElement {
                     border: 1px solid var(--accent-primary);
                 }
                 .btn-edit-inline:hover { background: rgba(124, 58, 237, 0.05); }
+
+                .value-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+
+                .verified-badge {
+                    background: oklch(95% 0.1 150);
+                    color: oklch(40% 0.15 150);
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 20px;
+                    border: 1px solid oklch(85% 0.1 150);
+                }
+
+                .certification-success {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    width: 100%;
+                }
+
+                .cert-msg {
+                    font-size: 0.9rem;
+                    color: var(--accent-primary);
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                }
 
                 /* My Trips */
                 .itineraries-container { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
