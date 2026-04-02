@@ -5,6 +5,7 @@ import '../domains/auth/ui/verify-view.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
+import '../domains/profile/ui/profile-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
@@ -13,19 +14,19 @@ import { trackEvent } from '../utils/analytics.js';
 
 // ====== Ad Banner Carousel Data & Logic ======
 const AD_BANNERS = [
-  { id: 1, title: "Unlimited eSIM for Korea 📱", desc: "Get 10% off your fast & reliable data connection!", bgColor: "#f3e8ff", icon: "🌐" },
-  { id: 2, title: "AREX Airport Express 🚆", desc: "Fastest way from Incheon Airport to Seoul Station. Book now!", bgColor: "#e0e7ff", icon: "🎫" },
-  { id: 3, title: "Hanbok Rental Discount 👘", desc: "Explore Gyeongbokgung Palace in beautiful traditional wear.", bgColor: "#fce7f3", icon: "✨" },
-  { id: 4, title: "Seoul K-Food Tour 🍜", desc: "Taste authentic Korean cuisine with a local guide. 15% off!", bgColor: "#ecfdf5", icon: "🥘" },
-  { id: 5, title: "T-money Transport Card 🚇", desc: "Reload & ride all buses and subways seamlessly.", bgColor: "#fef9c3", icon: "💳" }
+    { id: 1, title: "Unlimited eSIM for Korea 📱", desc: "Get 10% off your fast & reliable data connection!", bgColor: "#f3e8ff", icon: "🌐" },
+    { id: 2, title: "AREX Airport Express 🚆", desc: "Fastest way from Incheon Airport to Seoul Station. Book now!", bgColor: "#e0e7ff", icon: "🎫" },
+    { id: 3, title: "Hanbok Rental Discount 👘", desc: "Explore Gyeongbokgung Palace in beautiful traditional wear.", bgColor: "#fce7f3", icon: "✨" },
+    { id: 4, title: "Seoul K-Food Tour 🍜", desc: "Taste authentic Korean cuisine with a local guide. 15% off!", bgColor: "#ecfdf5", icon: "🥘" },
+    { id: 5, title: "T-money Transport Card 🚇", desc: "Reload & ride all buses and subways seamlessly.", bgColor: "#fef9c3", icon: "💳" }
 ];
 
 let bannerIntervalId = null;
 let currentBannerIndex = 0;
 
 function renderBanner(container, index) {
-  const banner = AD_BANNERS[index];
-  container.innerHTML = `
+    const banner = AD_BANNERS[index];
+    container.innerHTML = `
     <div class="ad-banner" style="background-color: ${banner.bgColor};">
       <span class="ad-badge">AD</span>
       <div class="ad-banner-icon">${banner.icon}</div>
@@ -38,47 +39,47 @@ function renderBanner(container, index) {
       ${AD_BANNERS.map((_, i) => `<span class="ad-dot${i === index ? ' active' : ''}"></span>`).join('')}
     </div>
   `;
-  // Trigger fade-in on next frame
-  requestAnimationFrame(() => {
-    const bannerEl = container.querySelector('.ad-banner');
-    if (bannerEl) bannerEl.classList.add('fade-in');
-  });
+    // Trigger fade-in on next frame
+    requestAnimationFrame(() => {
+        const bannerEl = container.querySelector('.ad-banner');
+        if (bannerEl) bannerEl.classList.add('fade-in');
+    });
 }
 
 function startBannerCarousel() {
-  const container = document.getElementById('ad-banner-carousel');
-  if (!container) return;
+    const container = document.getElementById('ad-banner-carousel');
+    if (!container) return;
 
-  // Reset state
-  stopBannerCarousel();
-  currentBannerIndex = 0;
-  container.style.display = 'block';
-  renderBanner(container, currentBannerIndex);
+    // Reset state
+    stopBannerCarousel();
+    currentBannerIndex = 0;
+    container.style.display = 'block';
+    renderBanner(container, currentBannerIndex);
 
-  bannerIntervalId = setInterval(() => {
-    const bannerEl = container.querySelector('.ad-banner');
-    if (bannerEl) {
-      bannerEl.classList.remove('fade-in');
-      bannerEl.classList.add('fade-out');
-    }
-    // After fade-out animation completes, switch to next banner
-    setTimeout(() => {
-      currentBannerIndex = (currentBannerIndex + 1) % AD_BANNERS.length;
-      renderBanner(container, currentBannerIndex);
-    }, 500); // matches CSS transition duration
-  }, 3500);
+    bannerIntervalId = setInterval(() => {
+        const bannerEl = container.querySelector('.ad-banner');
+        if (bannerEl) {
+            bannerEl.classList.remove('fade-in');
+            bannerEl.classList.add('fade-out');
+        }
+        // After fade-out animation completes, switch to next banner
+        setTimeout(() => {
+            currentBannerIndex = (currentBannerIndex + 1) % AD_BANNERS.length;
+            renderBanner(container, currentBannerIndex);
+        }, 500); // matches CSS transition duration
+    }, 3500);
 }
 
 function stopBannerCarousel() {
-  if (bannerIntervalId) {
-    clearInterval(bannerIntervalId);
-    bannerIntervalId = null;
-  }
-  const container = document.getElementById('ad-banner-carousel');
-  if (container) {
-    container.style.display = 'none';
-    container.innerHTML = '';
-  }
+    if (bannerIntervalId) {
+        clearInterval(bannerIntervalId);
+        bannerIntervalId = null;
+    }
+    const container = document.getElementById('ad-banner-carousel');
+    if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    }
 }
 // ====== End Ad Banner Carousel ======
 
@@ -177,10 +178,10 @@ function showWelcomeOverlay() {
 
     document.body.appendChild(overlay);
 
-    
+
     const closeBtn = overlay.querySelector('#close-welcome-btn');
     const closeXBtn = overlay.querySelector('#close-x-btn');
-    
+
     const closeModal = () => {
         overlay.classList.add('fade-out');
         setTimeout(() => {
@@ -219,19 +220,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pageVerify = document.getElementById('page-verify');
     const pagePlan = document.getElementById('page-plan');
     const pageView = document.getElementById('page-view');
-    
+    const pageProfile = document.getElementById('page-profile');
+
     // Always show app-content container now that we control child pages
     if (appContent) appContent.style.display = 'block';
 
     // UI Buttons and Elements
     const logoutBtn = document.getElementById('logout-btn');
-    const deleteAccountBtn = document.getElementById('delete-account-btn');
     const themeToggleBtn = document.getElementById('theme-toggle');
-    const myItinerariesBtn = document.getElementById('my-itineraries-btn');
-    const itinerariesModal = document.getElementById('itineraries-modal');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const itinerariesList = document.getElementById('itineraries-list');
     const langToggleBtn = document.getElementById('lang-toggle');
+    const mainHeader = document.getElementById('main-header');
 
     // View Transition Elements
     const travelFormView = document.getElementById('travel-form-view');
@@ -245,7 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ----------------------------------------------------
     // [Paged Architecture] SPA Router
     // ----------------------------------------------------
-    window.navigate = function(path) {
+    window.navigate = function (path) {
         window.history.pushState({}, '', path);
         handleRouteChange(); // Immediately trigger route change logic
     };
@@ -255,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const user = getCurrentUser();
 
         console.log(`[Router] Navigation to: '${path}', User logged in: ${!!user}`);
-        
+
         // Track page view
         trackEvent('page_view', { page_path: path });
 
@@ -279,6 +277,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pageJoin) pageJoin.style.display = 'none';
         if (pagePlan) pagePlan.style.display = 'none';
         if (pageView) pageView.style.display = 'none';
+        if (pageProfile) pageProfile.style.display = 'none';
+
+        // 1.5 Toggle Main Header Visibility (Hide on Profile Page)
+        if (mainHeader) {
+            mainHeader.style.display = (path === '/profile') ? 'none' : 'block';
+        }
 
         // 2. Evaluate Route
         if (path.startsWith('/view')) {
@@ -300,14 +304,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     const parsedItinerary = await getSharedItinerary(sharedId);
                     if (!parsedItinerary) throw new Error("Itinerary not found in Firestore.");
-                    
+
                     if (mapView) mapView.renderRoute(parsedItinerary);
                     if (itineraryView) itineraryView.showResults(parsedItinerary);
-                    
+
                     // Cleanup URL visually
                     const newUrl = window.location.origin + '/view';
                     window.history.replaceState({}, document.title, newUrl);
-                    
+
                 } catch (error) {
                     console.error("[Share Error]", error);
                     alert("공유된 일정을 불러오는 데 실패했습니다.");
@@ -341,9 +345,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!localStorage.getItem('hasSeenTutorial')) {
                 showWelcomeOverlay();
             }
-            
+
             if (pagePlan) pagePlan.style.display = 'flex';
-            
+
             // CRITICAL: State Preservation (Seamless Editor)
             if (travelFormView) {
                 travelFormView.style.display = 'block';
@@ -367,6 +371,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (oobCode && verifyView && typeof verifyView.verify === 'function') {
                 verifyView.verify(oobCode);
             }
+        } else if (path === '/profile') {
+            if (pageProfile) pageProfile.style.display = 'block';
         }
     }
 
@@ -399,9 +405,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (user) {
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
-            if (deleteAccountBtn) deleteAccountBtn.style.display = 'inline-block';
-            if (myItinerariesBtn) myItinerariesBtn.style.display = 'inline-block';
             if (userAvatar) {
+                userAvatar.style.cursor = 'pointer';
+                userAvatar.onclick = () => window.navigate('/profile');
                 userAvatar.onerror = () => {
                     userAvatar.onerror = null; // Prevent infinite loop
                     userAvatar.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
@@ -415,8 +421,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } else {
             if (logoutBtn) logoutBtn.style.display = 'none';
-            if (deleteAccountBtn) deleteAccountBtn.style.display = 'none';
-            if (myItinerariesBtn) myItinerariesBtn.style.display = 'none';
             if (userAvatar) {
                 userAvatar.style.display = 'none';
                 userAvatar.src = '';
@@ -454,7 +458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 const storedForm = sessionStorage.getItem('currentFormData');
                 if (storedForm) {
-                    try { requestData = JSON.parse(storedForm); } catch(err) {}
+                    try { requestData = JSON.parse(storedForm); } catch (err) { }
                 }
             }
 
@@ -495,156 +499,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('i18n-changed', () => updateTexts());
 
-    
-    if (deleteAccountBtn) {
-        deleteAccountBtn.addEventListener('click', async () => {
-            if (confirm('정말로 계정을 삭제하시겠습니까? 모든 여행 일정 데이터가 영구적으로 삭제됩니다.')) {
-                try {
-                    await deleteCurrentUser();
-                    // Hard reload to guarantee clean state unbinding
-                    window.location.href = '/login';
-                } catch (err) {
-                    if (err.code === 'auth/requires-recent-login') {
-                        alert('보안을 위해 다시 로그인한 후 탈퇴를 진행해주세요.');
-                        await logout();
-                    } else {
-                        alert('회원탈퇴에 실패했습니다.');
-                        console.error(err);
-                    }
-                }
-            }
-        });
-    }
-
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try { await logout(); } catch (err) { console.error('Logout failed:', err); }
-        });
-    }
-
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => { itinerariesModal.style.display = 'none'; });
-    }
-
-    if (myItinerariesBtn) {
-        myItinerariesBtn.addEventListener('click', async () => {
-            const user = getCurrentUser();
-            if (!user) return;
-
-            itinerariesModal.style.display = 'flex';
-            itinerariesList.innerHTML = '<p style="text-align:center;">불러오는 중...</p>';
-
-            try {
-                const itineraries = await getUserItineraries(user.uid);
-
-                if (itineraries.length === 0) {
-                    itinerariesList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">저장된 일정이 없습니다.</p>';
-                    return;
-                }
-
-                itinerariesList.innerHTML = '';
-                itineraries.forEach(item => {
-                    const card = document.createElement('div');
-                    card.style.cssText = `
-                        background: var(--bg-secondary);
-                        padding: 1.5rem;
-                        border-radius: 12px;
-                        border: 1px solid oklch(90% 0.02 260);
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        position: relative;
-                        box-shadow: var(--shadow-sm);
-                    `;
-
-                    const dateObj = item.createdAt?.toDate() || new Date();
-                    const dateString = dateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    const anchorsCount = item.itineraryPlan?.days?.[0]?.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0;
-
-                    card.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div>
-                                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--accent-primary);">여행 일정 (${anchorsCount}개의 핵심 방문지)</div>
-                                <div style="font-size: 0.9rem; color: var(--text-secondary);">저장일: ${dateString}</div>
-                            </div>
-                            <button class="delete-itinerary-btn" title="삭제" style="
-                                background: none; border: none; color: oklch(60% 0.15 20); font-size: 1.2rem; cursor: pointer; padding: 0.5rem; margin: -0.5rem -0.5rem 0 0; border-radius: 50%; transition: transform 0.2s, opacity 0.2s; opacity: 0.7;
-                            ">🗑️</button>
-                        </div>
-                    `;
-
-                    const deleteBtn = card.querySelector('.delete-itinerary-btn');
-                    deleteBtn.addEventListener('mouseover', () => { deleteBtn.style.opacity = '1'; deleteBtn.style.transform = 'scale(1.1)'; });
-                    deleteBtn.addEventListener('mouseout', () => { deleteBtn.style.opacity = '0.7'; deleteBtn.style.transform = 'none'; });
-
-                    deleteBtn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        if (confirm("정말로 이 일정을 삭제하시겠습니까?")) {
-                            try {
-                                deleteBtn.style.pointerEvents = 'none';
-                                deleteBtn.style.opacity = '0.3';
-                                await deleteItinerary(item.id);
-                                card.remove();
-                                if (itinerariesList.children.length === 0) {
-                                    itinerariesList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">저장된 일정이 없습니다.</p>';
-                                }
-                                if (itineraryView && typeof itineraryView.showToast === 'function') {
-                                    itineraryView.showToast("일정이 성공적으로 삭제되었습니다.");
-                                } else alert("일정이 성공적으로 삭제되었습니다.");
-                            } catch (error) {
-                                console.error('Failed to delete itinerary:', error);
-                                alert("일정 삭제에 실패했습니다.");
-                                deleteBtn.style.pointerEvents = 'auto';
-                                deleteBtn.style.opacity = '0.7';
-                            }
-                        }
-                    });
-
-                    card.addEventListener('mouseover', () => { card.style.borderColor = 'var(--accent-primary)'; card.style.transform = 'translateY(-2px)'; card.style.boxShadow = 'var(--shadow-md)'; });
-                    card.addEventListener('mouseout', () => { card.style.borderColor = 'oklch(90% 0.02 260)'; card.style.transform = 'none'; card.style.boxShadow = 'var(--shadow-sm)'; });
-
-                    card.addEventListener('click', async () => {
-                        itinerariesModal.style.display = 'none';
-                        if (!item.itineraryPlan) return;
-
-                        try {
-                            // 🚀 [Routing] 1. Route to View Phase immediately to prevent form flickering on /plan
-                            window.navigate('/view');
-
-                            let requestData = null;
-                            if (item.itineraryPlan?.request) requestData = item.itineraryPlan.request;
-                            else if (item.itineraryPlan?.metadata?.request) requestData = item.itineraryPlan.metadata.request;
-
-                            // 2. Save only to JS state (session storage). DO NOT touch DOM (travelFormView) during transition.
-                            if (requestData) {
-                                sessionStorage.setItem('currentFormData', JSON.stringify(requestData));
-                            }
-
-                            sessionStorage.setItem('currentPhase', '3');
-                            sessionStorage.setItem('savedItineraryData', JSON.stringify(item.itineraryPlan));
-
-                            // 3. Smooth transition: show loading and delay heavy render by a frame tick
-                            if (mapView && mapView.setLoading) {
-                                mapView.setLoading(true, "일정을 시각화하는 중입니다...");
-                            }
-
-                            requestAnimationFrame(async () => {
-                                if (itineraryView) itineraryView.showResults(item.itineraryPlan);
-                                if (mapView) await mapView.renderRoute(item.itineraryPlan);
-                            });
-                            
-                        } catch (error) {
-                            console.error('[Load Itinerary Error]', error);
-                            alert("이 일정을 불러오는 중 오류가 발생했습니다.");
-                            window.navigate('/plan');
-                        }
-                    });
-
-                    itinerariesList.appendChild(card);
-                });
-            } catch (error) {
-                console.error('Failed to fetch itineraries:', error);
-                itinerariesList.innerHTML = '<p style="text-align:center; color: red;">일정을 불러오는 데 실패했습니다.</p>';
-            }
         });
     }
 
@@ -657,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Phase 2: Start Loading Transition INSIDE #page-plan
             if (travelFormView) travelFormView.style.display = 'none';
-            
+
             loadingSpinner.style.display = 'block';
             loadingText.textContent = 'AI가 최적의 경로를 분석하고 있습니다...';
             loadingText.style.color = 'var(--accent-primary)';

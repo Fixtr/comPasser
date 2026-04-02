@@ -28,8 +28,9 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **UI 사용성 제한**: 장소 검색(Autocomplete)을 대한민국(KR)으로 엄격하게 제한하여 사용자 혼란을 방지하고 정확도를 높였습니다.
 - **초기화(Reset)**: 폼 입력 전체를 즉시 비우고 처음부터 다시 단계를 밟을 수 있는 강력한 리셋 버튼을 제공합니다.
 
-### 3.4. 5-Page Architecture (SPA & Paged Routing)
-- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과 및 지도), `#page-verify` (이메일 인증)의 화면으로 완벽하게 분리된 바닐라 JS 라우팅을 지원합니다.
+### 3.4. 7-Page Architecture (SPA & Paged Routing)
+- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과 및 지도), `#page-verify` (이메일 인증), `#page-profile` (마이페이지)의 화면으로 완벽하게 분리된 바닐라 JS 라우팅을 지원합니다.
+- **마이페이지 통합 관리**: 전용 `/profile` 경로를 통해 개인정보, 여정 히스토리, 계정 보안을 한곳에서 관리할 수 있는 Google 스타일의 2-Column 레이아웃을 제공합니다.
 - **상태 유지 기능(Seamless Editor)**: View 화면에서 Plan 화면으로 되돌아가도 기존에 입력한 폼 데이터가 날아가지 않으며, 지속적인 수정과 재생성이 가능합니다.
 - **온보딩 모달**: `/plan` 페이지 최초 진입 시 유저에게 서비스 이용법을 안내하는 튜토리얼 모달을 제공하며, `localStorage`를 통해 중복 노출을 방지합니다.
 
@@ -55,6 +56,10 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - `opacity`/`translateY` 기반 fade-in/out 애니메이션과 인디케이터 도트를 제공하며, 로딩 종료 시 `clearInterval`로 메모리 누수를 방지합니다.
 
 ## 4. Security & Access Control (보안 및 접근 제어)
+
+### 4.1. 보안 강화 및 Route Guard
+- **비정상 접근 차단**: 비로그인 사용자가 `/plan`, `/view`, `/profile` 등 인증이 필요한 경로에 직접 접근을 시도할 경우, 자동으로 홈/로그인 화면으로 리다이렉트하는 Route Guard가 적용되어 있습니다.
+- **계정 탈퇴 안전장치**: 회원 탈퇴 시 즉시 삭제되지 않고, 커스텀 확인 모달을 통해 최종 승인을 거치는 2단계 보안 프로세스를 구현했습니다.
 
 ### 4.1. 환경 변수(.env) 기반 설정 관리
 - **민감 정보 분리**: GA4 측정 ID(`VITE_GA_MEASUREMENT_ID`), Firebase 설정값, Google Maps API 키 등을 코드베이스에서 하드코딩하지 않고 `.env` 환경 변수로 분리 관리하여 Git 유출을 원천 차단합니다. (`.gitignore` 적용)

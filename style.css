@@ -179,9 +179,11 @@ h4 {
     min-height: 100vh;
     border-radius: 0;
   }
+
   .hero {
     padding: 3rem 1.25rem;
   }
+
   .content {
     padding: 2rem 1rem;
   }
@@ -219,9 +221,20 @@ h4 {
 
 /* Loading Text Pulse Animation */
 @keyframes textPulse {
-  0% { opacity: 0.7; transform: scale(0.98); }
-  50% { opacity: 1; transform: scale(1.02); }
-  100% { opacity: 0.7; transform: scale(0.98); }
+  0% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
 }
 
 #loading-text {
@@ -345,6 +358,7 @@ body.dark .ad-badge {
 body.dark .ad-banner {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
+
 /* ====== End Ad Banner Carousel ====== */
 
 .primary-btn:hover {
