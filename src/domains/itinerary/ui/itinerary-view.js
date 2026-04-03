@@ -198,11 +198,26 @@ export default class ItineraryView extends HTMLElement {
     if (!this.currentItinerary) return;
     
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
-    const originalText = downloadBtn.textContent;
+    const originalText = downloadBtn ? downloadBtn.textContent : '';
+    
+    // 1. 임시 컬러 조작을 위한 변수
+    const styleTag = this.shadowRoot.querySelector('style');
+    let originalStyleContent = '';
     
     try {
-      downloadBtn.disabled = true;
-      downloadBtn.textContent = "📸 이미지 생성 중...";
+      if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = "📸 이미지 생성 중...";
+      }
+      
+      // 2. html2canvas 파싱 에러(color-mix 등 최신 CSS 함수) 우회를 위해 안전한 색상으로 치환
+      if (styleTag) {
+        originalStyleContent = styleTag.textContent;
+        // 문제가 되는 color-mix 등 최신 문법을 정적 색상으로 임시 변경
+        styleTag.textContent = styleTag.textContent
+          .replace(/color-mix\([^;}]+\)/g, 'rgba(124, 58, 237, 0.15)')
+          .replace(/color\([^;}]+\)/g, 'rgba(124, 58, 237, 0.15)');
+      }
       
       const target = this.shadowRoot.getElementById('results-content');
       
@@ -212,6 +227,13 @@ export default class ItineraryView extends HTMLElement {
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        // 3. 버튼 등 불필요한 요소 캡처 제외
+        ignoreElements: (element) => {
+          if (element.tagName === 'BUTTON') return true;
+          if (element.classList && element.classList.contains('itinerary-actions')) return true;
+          if (element.id && (element.id.includes('-btn') || element.id === 'itinerary-actions')) return true;
+          return false;
+        },
         onclone: (clonedDoc) => {
           const clonedResults = clonedDoc.querySelector('#results-content');
           if (clonedResults) {
@@ -247,11 +269,18 @@ export default class ItineraryView extends HTMLElement {
       
       this.showToast("이미지가 성공적으로 저장되었습니다! 📸");
     } catch (error) {
-      console.error("Image generation failed:", error);
-      this.showToast("이미지 생성에 실패했습니다.", true);
+      // 4. 에러 핸들링 보강
+      console.error("[html2canvas] Image generation failed:", error);
+      this.showToast("최신 브라우저 환경에서 캡처 기능이 지원되지 않을 수 있습니다.", true);
     } finally {
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = originalText;
+      // 5. Cleanup: CSS 원상복구
+      if (styleTag && originalStyleContent) {
+        styleTag.textContent = originalStyleContent;
+      }
+      if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = originalText;
+      }
     }
   }
 

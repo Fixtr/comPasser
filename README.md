@@ -44,6 +44,7 @@ Compasser는 지도의 역할을 **뷰어(Viewer)**와 **네비게이터(Navigat
 - **깜빡임 없는 (Flicker-free) UX**: 화면 전환 시 History API 기반의 Navigation First 패턴과 `requestAnimationFrame`, `sessionStorage`를 활용하여 데이터 로드와 DOM 업데이트를 완벽히 분리, 60fps에 달하는 쾌적한 화면 전환을 제공합니다.
 - **동적 파라미터 라우팅 (/view/:id) 도입**: 정규 표현식을 활용한 고도화된 라우팅 엔진을 구현하여 개별 여행 일정에 고유 URL을 부여했습니다. 이제 특정 일정의 링크를 공유하거나 브라우저 새로고침을 해도 데이터가 유지됩니다. 
 - **Deep Linking 및 상태 유지**: URL의 ID를 기반으로 Firestore(`itineraries` 컬렉션)에서 실시간 데이터를 조회하도록 개선하여, 아키텍처의 안정성과 확장성을 확보했습니다.
+- **안정적인 이미지 내보내기 (Bug Fix)**: `html2canvas` 라이브러리를 활용한 DOM 캡처 중, 최신 CSS 색상 함수(예: `color(display-p3)`)를 파싱하지 못해 이미지 다운로드가 실패하는 렌더링 엔진 호환성 문제를 해결했습니다. 캡처 프로세스 시작 시 문제가 되는 최신 CSS 속성과 불필요한 UI 요소(버튼 등)를 `ignoreElements` 콜백 및 임시 스타일 변환(Cleanup 로직 포함)을 통해 필터링하여 다운로드 기능을 완벽하게 복구했습니다.
 - **8-Page 전문 라우팅**: `/home`(랜딩), `/login`(로그인), `/join`(회원가입), `/verify`(인증), `/plan`(플래너), `/view`(결과 - 임시), `/view/:id`(결과 - 고유), `/profile`(마이페이지 & 중첩 탭)로 이어지는 체계적인 서비스 경로를 구축했습니다.
 
 ### 6. 📂 내 일정 저장 및 마이페이지 통합 관리
