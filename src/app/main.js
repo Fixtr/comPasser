@@ -11,32 +11,36 @@ import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } fro
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
+import { affiliateAds } from '../config/ads.js';
 
-// ====== Ad Banner Carousel Data & Logic ======
-const AD_BANNERS = [
-    { id: 1, title: "Unlimited eSIM for Korea 📱", desc: "Get 10% off your fast & reliable data connection!", bgColor: "#f3e8ff", icon: "🌐" },
-    { id: 2, title: "AREX Airport Express 🚆", desc: "Fastest way from Incheon Airport to Seoul Station. Book now!", bgColor: "#e0e7ff", icon: "🎫" },
-    { id: 3, title: "Hanbok Rental Discount 👘", desc: "Explore Gyeongbokgung Palace in beautiful traditional wear.", bgColor: "#fce7f3", icon: "✨" },
-    { id: 4, title: "Seoul K-Food Tour 🍜", desc: "Taste authentic Korean cuisine with a local guide. 15% off!", bgColor: "#ecfdf5", icon: "🥘" },
-    { id: 5, title: "T-money Transport Card 🚇", desc: "Reload & ride all buses and subways seamlessly.", bgColor: "#fef9c3", icon: "💳" }
-];
+// ====== Affiliate Ad Banner Carousel Logic ======
+// Ads data is imported from src/config/ads.js
 
 let bannerIntervalId = null;
 let currentBannerIndex = 0;
 
 function renderBanner(container, index) {
-    const banner = AD_BANNERS[index];
+    const ad = affiliateAds[index];
+    if (!ad) return;
+
+    // Use image if available, fallback to icon
+    const iconContent = ad.imageUrl ? `<img src="${ad.imageUrl}" alt="${ad.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; object-fit: contain;">` : '';
+    const fallbackIcon = `<div class="ad-banner-icon-inner" style="display: ${ad.imageUrl ? 'none' : 'flex'};">${ad.icon}</div>`;
+
     container.innerHTML = `
-    <div class="ad-banner" style="background-color: ${banner.bgColor};">
+    <div class="ad-banner" style="background-color: ${ad.bgColor};" onclick="window.open('${ad.link}', '_blank')">
       <span class="ad-badge">AD</span>
-      <div class="ad-banner-icon">${banner.icon}</div>
+      <div class="ad-banner-icon">
+        ${iconContent}
+        ${fallbackIcon}
+      </div>
       <div class="ad-banner-content">
-        <div class="ad-banner-title">${banner.title}</div>
-        <div class="ad-banner-desc">${banner.desc}</div>
+        <div class="ad-banner-title">${ad.title}</div>
+        <div class="ad-banner-desc">${ad.desc}</div>
       </div>
     </div>
     <div class="ad-dots">
-      ${AD_BANNERS.map((_, i) => `<span class="ad-dot${i === index ? ' active' : ''}"></span>`).join('')}
+      ${affiliateAds.map((_, i) => `<span class="ad-dot${i === index ? ' active' : ''}"></span>`).join('')}
     </div>
   `;
     // Trigger fade-in on next frame
@@ -64,7 +68,7 @@ function startBannerCarousel() {
         }
         // After fade-out animation completes, switch to next banner
         setTimeout(() => {
-            currentBannerIndex = (currentBannerIndex + 1) % AD_BANNERS.length;
+            currentBannerIndex = (currentBannerIndex + 1) % affiliateAds.length;
             renderBanner(container, currentBannerIndex);
         }, 500); // matches CSS transition duration
     }, 3500);
