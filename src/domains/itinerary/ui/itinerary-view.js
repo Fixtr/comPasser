@@ -92,22 +92,41 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
+  normalizeData(rawData) {
+    if (!rawData) return null;
+
+    // 이미 신버전 구조(itineraryPlan 존재)인 경우
+    if (rawData.itineraryPlan && Array.isArray(rawData.itineraryPlan.days)) {
+      return rawData.itineraryPlan;
+    }
+
+    // 구버전 구조인 경우 (껍데기 씌우기)
+    const days = Array.isArray(rawData.days) ? rawData.days : [];
+    return { days: days }; 
+  }
+
   async loadItineraryById(id) {
     try {
       this.clear();
       this.setLoading(true);
       
-      const itinerary = await getItineraryById(id);
-      if (itinerary) {
-        this.showResults(itinerary);
-        // Dispatch event for map to update
-        window.dispatchEvent(new CustomEvent('render-map-route', { detail: itinerary }));
-      } else {
-        this.setError("일정을 찾을 수 없습니다.");
+      const data = await getItineraryById(id);
+
+      if (!data) {
+        this.setError("<div>존재하지 않는 일정입니다.</div>");
+        return;
       }
-    } catch (err) {
-      console.error("Load by ID error:", err);
-      this.setError("데이터를 불러오는 중 오류가 발생했습니다.");
+
+      this.showResults(data);
+
+      // Dispatch event for map to update
+      const safePlan = this.normalizeData(data);
+      if (safePlan) {
+        window.dispatchEvent(new CustomEvent('render-map-route', { detail: safePlan }));
+      }
+    } catch (error) {
+      console.error('🔥 렌더링 치명적 오류:', error);
+      this.setError(`<div style="padding: 20px; border: 2px solid red; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: bold;">데이터를 불러오는 중 치명적인 오류가 발생했습니다.<br/><br/>${error.message}</div>`);
     } finally {
       this.setLoading(false);
     }
@@ -1346,19 +1365,33 @@ export default class ItineraryView extends HTMLElement {
     if (summaryEl) summaryEl.style.display = 'none';
   }
 
-  showResults(itineraryPlan) {
-    this.currentItinerary = itineraryPlan;
-    this.setLoading(false);
+  showResults(itineraryData) {
+    try {
+      this.currentItinerary = itineraryData;
+      this.setLoading(false);
 
-    const dayData = itineraryPlan.days[0]; // Currently mocking single day
-    const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
-    this.shadowRoot.getElementById('day-title-header').textContent = headerFormat.replace('{0}', dayData.date);
+      const safePlan = this.normalizeData(itineraryData);
 
-    // Render Trip Summary Dashboard
-    this.renderTripSummary(dayData.scheduleItems, dayData.date);
+      if (!safePlan || !Array.isArray(safePlan.days) || safePlan.days.length === 0) {
+        this.setError("<div>저장된 세부 일정이 없습니다.</div>");
+        return;
+      }
 
-    const container = this.shadowRoot.getElementById('timeline-container');
-    container.innerHTML = ''; // Clear old
+      const firstDay = safePlan.days[0];
+      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
+      const headerEl = this.shadowRoot.getElementById('day-title-header');
+      if (headerEl) {
+        headerEl.textContent = headerFormat.replace('{0}', firstDay?.date || '');
+      }
+
+      // Render Trip Summary Dashboard
+      if (firstDay && firstDay.scheduleItems) {
+        this.renderTripSummary(firstDay.scheduleItems, firstDay.date);
+      }
+
+      const container = this.shadowRoot.getElementById('timeline-container');
+      if (!container) return;
+      container.innerHTML = ''; // Clear old
 
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) saveBtn.style.display = 'block';
@@ -1372,7 +1405,27 @@ export default class ItineraryView extends HTMLElement {
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
 
-    dayData.scheduleItems.forEach((scheduleItem, idx) => {
+    let globalIdx = 0;
+    safePlan.days.forEach((dayData) => {
+      const items = dayData.scheduleItems || [];
+      
+      // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
+      if (items.length === 0) {
+        const fallbackItem = document.createElement('div');
+        fallbackItem.className = 'timeline-item';
+        fallbackItem.innerHTML = `
+          <div class="time-badge">--:--</div>
+          <div class="schedule-card" style="border-color: #ef4444; background: #fef2f2;">
+            <div class="schedule-title" style="color: #b91c1c;">⚠️ 항목 없음</div>
+            <div class="schedule-desc" style="color: #7f1d1d;">저장된 세부 일정이 없습니다.</div>
+          </div>
+        `;
+        container.appendChild(fallbackItem);
+        return;
+      }
+
+      items.forEach((scheduleItem) => {
+        const idx = globalIdx++;
       const item = document.createElement('div');
       item.className = 'timeline-item';
 
@@ -1453,13 +1506,19 @@ export default class ItineraryView extends HTMLElement {
 
       container.appendChild(item);
 
-      if (idx < dayData.scheduleItems.length - 1) {
+      const totalItems = safePlan.days.reduce((acc, d) => acc + (d.scheduleItems?.length || 0), 0);
+      if (idx < totalItems - 1) {
         const transit = document.createElement('div');
         transit.className = 'transit-info hidden';
         transit.id = `transit-info-${idx}`;
         container.appendChild(transit);
       }
     });
+    });
+    } catch (error) {
+      console.error('🔥 렌더링 치명적 오류:', error);
+      this.setError(`<div style="padding: 20px; border: 2px solid red; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: bold;">[렌더링 실패] 데이터를 화면에 그리는 중 오류가 발생했습니다.<br/><br/>${error.message}</div>`);
+    }
   }
 }
 

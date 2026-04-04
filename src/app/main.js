@@ -10,7 +10,6 @@ import { generateOptimizedItinerary } from '../domains/planner/services/gemini-o
 import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
-import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
 
 // ====== Affiliate Ad Banner Carousel Logic ======
@@ -302,13 +301,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (idMatch && idMatch[1]) {
                 const docId = idMatch[1];
-                console.log(`[Router] Dynamic route detected with ID: ${docId}`);
                 
-                // itinerary-view 컴포넌트 내부에서 ID를 감지하여 로딩하므로, 
-                // 여기선 UI 세팅만 보장하고 별도의 replaceState는 하지 않습니다.
-                
-                // 만약 legacy 공유 로직이나 다른 처리가 필요하다면 여기서 추가 가능하지만, 
-                // 기본적으로 itinerary-view가 checkUrlForId()를 통해 스스로 로드합니다.
+                try {
+                    const itineraryView = document.querySelector('itinerary-view');
+                    if (itineraryView && typeof itineraryView.loadItineraryById === 'function') {
+                        // 기존에 삽입되어 있는 컴포넌트에 명시적으로 로드 명령 하달
+                        itineraryView.loadItineraryById(docId);
+                    } else {
+                        throw new Error('ItineraryView 컴포넌트가 DOM에 존재하지 않거나 loadItineraryById 메서드가 없습니다.');
+                    }
+                } catch (error) {
+                    console.error('🔥 라우팅/마운트 에러:', error);
+                }
             } else if (path === '/view') {
                 // Case: /view (Temporary memory-based itinerary or just generated)
                 console.log('[Router] Static /view route: Looking for memory state.');
