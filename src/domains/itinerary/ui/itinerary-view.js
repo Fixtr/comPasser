@@ -87,7 +87,6 @@ export default class ItineraryView extends HTMLElement {
     const match = path.match(/^\/view\/([a-zA-Z0-9]+)$/);
     if (match && match[1]) {
       const id = match[1];
-      console.log(`[ItineraryView] URL-based ID detected: ${id}`);
       await this.loadItineraryById(id);
     }
   }

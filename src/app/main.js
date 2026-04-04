@@ -10,7 +10,10 @@ import { generateOptimizedItinerary } from '../domains/planner/services/gemini-o
 import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang } from '../utils/i18n.js';
+import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
+
+window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
 
 // ====== Affiliate Ad Banner Carousel Logic ======
 // Ads data is imported from src/config/ads.js
@@ -301,6 +304,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (idMatch && idMatch[1]) {
                 const docId = idMatch[1];
+                console.log(`[Router] Dynamic route detected with ID: ${docId}`);
                 
                 try {
                     const itineraryView = document.querySelector('itinerary-view');
