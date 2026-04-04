@@ -28,6 +28,14 @@ export default class ItineraryView extends HTMLElement {
     });
   }
 
+  disconnectedCallback() {
+    // 3. 컴포넌트 클린업: 유저가 다른 페이지로 이동 시 Light DOM 기반의 광고 컨테이너 제거
+    const adWrapper = this.querySelector('.adsense-wrapper');
+    if (adWrapper) {
+      adWrapper.remove();
+    }
+  }
+
   updateTexts() {
     const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
     elements.forEach(el => {
@@ -1514,6 +1522,32 @@ export default class ItineraryView extends HTMLElement {
       }
     });
     });
+
+      // 1. Shadow DOM 우회 및 광고 컨테이너 삽입 (Light DOM 영역)
+      // 기존 광고가 있다면 제거 후 새로 생성 (SPA 라우팅 대응)
+      const existingAd = this.querySelector('.adsense-wrapper');
+      if (existingAd) existingAd.remove();
+
+      const adWrapper = document.createElement('div');
+      adWrapper.className = 'adsense-wrapper';
+      adWrapper.style.cssText = 'margin-top: 40px; text-align: center; width: 100%;';
+      adWrapper.innerHTML = `
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-2887038255405057"
+             data-ad-slot="3531494624"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+      `;
+      // shadowRoot가 아닌 컴포넌트 최상위에 붙이기 (Light DOM)
+      this.appendChild(adWrapper);
+
+      // 2. 광고 트리거 스크립트 실행
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error('AdSense 렌더링 에러:', e);
+      }
     } catch (error) {
       console.error('🔥 렌더링 치명적 오류:', error);
       this.setError(`<div style="padding: 20px; border: 2px solid red; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: bold;">[렌더링 실패] 데이터를 화면에 그리는 중 오류가 발생했습니다.<br/><br/>${error.message}</div>`);
