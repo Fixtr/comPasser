@@ -246,6 +246,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showResultsBtn = document.getElementById('show-results-btn');
     const resultsLayout = document.getElementById('results-layout');
 
+    window.addEventListener('ai-retry-status', (e) => {
+        if (loadingText) {
+            loadingText.textContent = e.detail.message;
+            loadingText.style.color = '#f59e0b'; // Optional: orange hue for warning/retry
+        }
+    });
+
     // ----------------------------------------------------
     // [Paged Architecture] SPA Router
     // ----------------------------------------------------

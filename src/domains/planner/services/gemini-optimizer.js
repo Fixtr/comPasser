@@ -63,14 +63,6 @@ export async function generateOptimizedItinerary(plannerRequest) {
     required: ["days"]
   };
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: itinerarySchema,
-    }
-  });
-
   const anchorText = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
     ? plannerRequest.anchorSchedules.map((a, i) => `${i + 1}. "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
     : "No fixed AnchorSchedules provided. Free to plan the entire day.";
@@ -114,20 +106,61 @@ ${anchorRule}
 5. ${langRule}
   `;
 
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const maxRetries = 3;
+  const delays = [1000, 2000, 4000];
+  let hasDispatchedRetryEvent = false;
+
+  const tryGenerate = async (modelName) => {
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: itinerarySchema,
+      }
+    });
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await model.generateContent(prompt);
+        return result;
+      } catch (err) {
+        const isRetryable = err.status === 503 || err.status === 429 || (err.message && (err.message.includes("503") || err.message.includes("429")));
+        
+        if (isRetryable && attempt < maxRetries) {
+          if (!hasDispatchedRetryEvent) {
+            window.dispatchEvent(new CustomEvent('ai-retry-status', { 
+               detail: { message: "서버에 접속자가 많아 연결을 재시도하고 있습니다. 잠시만 기다려주세요..." }
+            }));
+            hasDispatchedRetryEvent = true;
+          }
+          console.warn(`[Gemini API] Error with ${modelName} (attempt ${attempt + 1}). Retrying in ${delays[attempt]}ms...`, err);
+          await sleep(delays[attempt]);
+        } else {
+          throw err;
+        }
+      }
+    }
+  };
+
   try {
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      result = await tryGenerate("gemini-2.5-flash");
+    } catch (primaryErr) {
+      console.warn("[Gemini API] Primary model gemini-2.5-flash failed. Falling back to gemini-1.5-flash.", primaryErr);
+      result = await tryGenerate("gemini-1.5-flash");
+    }
+
     let responseText = result.response.text();
 
-    // Sometimes AI includes markdown tags around JSON
     if (responseText.startsWith("\`\`\`json")) {
       responseText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
     }
 
     const parsedData = JSON.parse(responseText);
-
     console.log("AI Response:", parsedData);
 
-    // Merge the input metadata back in for reference
     return {
       request: plannerRequest,
       days: parsedData.days
