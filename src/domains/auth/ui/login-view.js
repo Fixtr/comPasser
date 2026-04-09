@@ -1,7 +1,11 @@
-import { loginWithGoogle, loginWithEmail } from '../services/firebase-auth.js';
+import { loginWithGoogle, loginWithEmail, app } from '../services/firebase-auth.js';
+import { getAuth, signInWithCustomToken } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 
+const auth = getAuth(app);
+const functions = getFunctions(app);
 export default class LoginView extends HTMLElement {
   constructor() {
     super();
@@ -9,6 +13,18 @@ export default class LoginView extends HTMLElement {
   }
 
   connectedCallback() {
+    // 네이버 로그인 팝업에서 리다이렉트 된 경우 토큰 추출 후 창 닫기
+    if (window.opener && window.location.hash.includes('access_token=')) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const token = hashParams.get('access_token');
+      const state = hashParams.get('state');
+      if (token) {
+        window.opener.postMessage({ type: 'NAVER_OAUTH', token, state }, window.location.origin);
+        window.close();
+        return;
+      }
+    }
+
     this.render();
     this.setupListeners();
     this.updateTexts();
@@ -445,12 +461,114 @@ export default class LoginView extends HTMLElement {
       }
     });
 
-    kakaoBtn.addEventListener('click', () => {
-      alert('준비 중인 서비스입니다.');
+    kakaoBtn.addEventListener('click', async () => {
+      if (checkInApp()) return;
+      
+      kakaoBtn.disabled = true;
+      const originalHtml = kakaoBtn.innerHTML;
+      kakaoBtn.textContent = '로그인 처리 중...';
+      errorMsg.style.display = 'none';
+
+      try {
+        if (!window.Kakao) {
+           throw new Error('Kakao SDK가 로드되지 않았습니다.');
+        }
+        if (!window.Kakao.isInitialized()) {
+           if (import.meta.env.VITE_KAKAO_APP_KEY) {
+               window.Kakao.init(import.meta.env.VITE_KAKAO_APP_KEY);
+           } else {
+               throw new Error('카카오 앱 키가 설정되지 않았습니다. (.env 파일을 확인해주세요)');
+           }
+        }
+
+        const authObj = await new Promise((resolve, reject) => {
+          window.Kakao.Auth.login({
+            success: resolve,
+            fail: reject
+          });
+        });
+
+        const access_token = authObj.access_token;
+        const verifySocialToken = httpsCallable(functions, 'verifySocialToken');
+        const result = await verifySocialToken({ provider: 'kakao', token: access_token });
+        
+        await signInWithCustomToken(auth, result.data.customToken);
+        window.navigate('/plan');
+      } catch (err) {
+        console.error('[Kakao] Social login failed:', err.message || 'Unknown error');
+        errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+        errorMsg.style.display = 'block';
+      } finally {
+        kakaoBtn.disabled = false;
+        kakaoBtn.innerHTML = originalHtml;
+      }
     });
 
     naverBtn.addEventListener('click', () => {
-      alert('준비 중인 서비스입니다.');
+      if (checkInApp()) return;
+
+      const originalHtml = naverBtn.innerHTML;
+      const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
+      if (!clientId) {
+          errorMsg.textContent = '네이버 앱 키가 설정되지 않았습니다. (.env 파일을 확인해주세요)';
+          errorMsg.style.display = 'block';
+          return;
+      }
+
+      naverBtn.disabled = true;
+      naverBtn.textContent = '로그인 처리 중...';
+      errorMsg.style.display = 'none';
+
+      const state = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('naver_oauth_state', state);
+      
+      const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+      const authUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=token&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
+
+      const popup = window.open(authUrl, 'naverLogin', 'width=500,height=600');
+      
+      const handlePopupMessage = async (e) => {
+          if (e.origin !== window.location.origin) return;
+          if (e.data && e.data.type === 'NAVER_OAUTH') {
+              window.removeEventListener('message', handlePopupMessage);
+              
+              if (e.data.state !== sessionStorage.getItem('naver_oauth_state')) {
+                  errorMsg.textContent = '네이버 로그인 상태 검증에 실패했습니다.';
+                  errorMsg.style.display = 'block';
+                  naverBtn.disabled = false;
+                  naverBtn.innerHTML = originalHtml;
+                  return;
+              }
+
+              try {
+                  const verifySocialToken = httpsCallable(functions, 'verifySocialToken');
+                  const result = await verifySocialToken({ provider: 'naver', token: e.data.token });
+                  
+                  await signInWithCustomToken(auth, result.data.customToken);
+                  window.navigate('/plan');
+              } catch (err) {
+                  console.error('[Naver] Social login failed:', err.message || 'Unknown error');
+                  errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+                  errorMsg.style.display = 'block';
+              } finally {
+                  naverBtn.disabled = false;
+                  naverBtn.innerHTML = originalHtml;
+              }
+          }
+      };
+
+      window.addEventListener('message', handlePopupMessage);
+
+      const popupCheckInterval = setInterval(() => {
+          if (popup && popup.closed) {
+              clearInterval(popupCheckInterval);
+              if (naverBtn.disabled && naverBtn.textContent === '로그인 처리 중...') {
+                  naverBtn.disabled = false;
+                  naverBtn.innerHTML = originalHtml;
+              }
+              window.removeEventListener('message', handlePopupMessage);
+          }
+      }, 500);
     });
 
     

@@ -47,3 +47,30 @@
    - 1순위 모델(`gemini-2.5-flash`)이 최종 실패할 경우, 즉시 2순위 백업 모델(`gemini-1.5-flash`)로 우회하여 요청하도록 안전망을 구축하여 서비스 연속성을 확보함.
 3. **UX 개선 (재시도 피드백):**
    - 재시도 돌입 시 로딩 화면 텍스트를 "서버 연결 지연으로 재시도 중입니다..."로 변경하여 사용자에게 현재 상황을 투명하게 안내하고 이탈을 방지함.
+
+---
+
+## 카카오/네이버 소셜 로그인 (Custom Token) 연동 및 권한 관련 이슈
+
+**이슈 발행:** 2026-04-09
+**관련 컴포넌트:** `LoginView` (`src/domains/auth/ui/login-view.js`), `main.js`, `verifySocialToken` (Firebase Functions)
+
+### 이슈 1: 카카오 로그인 `window.Kakao.Auth.login is not a function` 에러
+- **원인:** 카카오 SDK v2부터 팝업 방식(`login`)이 공식 지원 중단되고 리다이렉트(`authorize`) 방식 위주로 개편됨. 그러나 SPA 환경에서 리다이렉트 시 앱 상태가 초기화되어 사용자 경험이 저하되는 문제 발생.
+- **해결:** `index.html`에 삽입된 카카오 SDK를 v1.43.1로 다운그레이드하여 팝업 기반 인증을 안정적으로 유지하고 SPA 상태 이탈 방지.
+
+### 이슈 2: Cloud Functions 호출 시 CORS 에러 및 `internal` 에러
+- **원인:** Firebase `onCall` (v2) 사용 시 브라우저에서 보낸 Preflight(OPTIONS) 요청이 적절히 처리되지 않거나 백엔드에서 거부됨.
+- **해결:** 함수 타입을 `onRequest` (v1 아키텍처)로 변경하고, `cors({ origin: true })` 미들웨어를 사용하여 모든 도메인에서의 호출 및 OPTIONS 요청을 명시적으로 허용.
+
+### 이슈 3: 함수 타입 변경 배포 에러 (`Changing from a callable function to an HTTPS function is not allowed`)
+- **원인:** 이름이 같은 기존 `onCall` 함수를 `onRequest` 함수로 덮어쓰려 할 때 발생하는 Firebase CLI의 안전 정책.
+- **해결:** `firebase functions:delete verifySocialToken` 명령어로 기존 배포된 함수 인스턴스를 수동 삭제한 후, 신규 타입의 함수를 재배포하여 충돌 해결.
+
+### 이슈 4: 커스텀 토큰 발급 권한 에러 (`iam.serviceAccounts.signBlob denied`)
+- **원인:** Firebase Admin SDK가 커스텀 토큰을 서버에서 생성할 때 사용하는 서비스 계정(Default Service Account)에 '기기 서명' 및 '토큰 생성'에 필요한 권한이 부족하여 발생.
+- **해결:** Google Cloud IAM 콘솔에서 해당 프로젝트의 서비스 계정에 **서비스 계정 토큰 생성자(Service Account Token Creator)** 역할을 직접 추가 부여하여 권한 문제 해결.
+
+### 이슈 5: 소셜 로그인 성공 후 메인 화면 진입 시 강제 로그아웃 튕김 현상
+- **원인:** `main.js`의 전역 인증 감지 로직이 이메일/비밀번호 가입자를 위한 `emailVerified` 체크를 수행하는데, 인증 프로세스가 다른 소셜 로그인 유저까지 이를 맹목적으로 체크하여 강제 로그아웃시키는 로직이 작동함.
+- **해결:** 유저 객체의 `providerData` 배열을 순회하여 `providerId`가 `password`인 경우에만 이메일 인증을 요구하고, 소셜 로그인 유저(Kakao, Naver, Google 등)는 인증 여부와 상관없이 통과시키는 조건부 예외 처리(Bypass) 로직 적용.

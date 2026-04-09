@@ -425,10 +425,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userAvatar = document.getElementById('user-avatar');
 
     subscribeToAuthChanges((user) => {
-        if (user && !user.emailVerified) {
-            console.log('[Auth] User unverified. Logging them out immediately to prevent redirection hijack.');
-            logout().catch(err => console.error(err));
-            return;
+        if (user) {
+            const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
+            const needsVerification = isEmailPasswordUser && !user.emailVerified;
+            
+            if (needsVerification) {
+                console.warn('[Auth] Email password user unverified. Logging them out immediately.');
+                logout().catch(err => console.error(err));
+                return;
+            }
         }
         if (user) {
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
