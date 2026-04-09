@@ -88,6 +88,49 @@ function stopBannerCarousel() {
     }
 }
 // ====== End Ad Banner Carousel ======
+// ====== Dynamic Loading Message Logic ======
+const loadingMessages = [
+    "AI가 최적의 여행 장소를 탐색하고 있습니다 🔍",
+    "추천 장소 간의 이동 동선을 계산하는 중입니다 🗺️",
+    "방문 시간에 맞춰 일정을 최적화하고 있습니다 🕒",
+    "거의 다 준비되었습니다! 조금만 더 기다려주세요 ✨"
+];
+
+let loadingMessageIntervalId = null;
+let currentMessageIndex = 0;
+
+function startLoadingMessageRotation() {
+    const loadingSubtext = document.getElementById('loading-subtext');
+    if (!loadingSubtext) return;
+
+    // Reset state
+    stopLoadingMessageRotation();
+    currentMessageIndex = 0;
+    
+    // Initial message
+    loadingSubtext.textContent = loadingMessages[currentMessageIndex];
+    loadingSubtext.classList.add('loading-text-fade');
+
+    loadingMessageIntervalId = setInterval(() => {
+        currentMessageIndex = (currentMessageIndex + 1) % loadingMessages.length;
+        
+        // CSS animation handles the transition if we just update the text 
+        // synchronized with the 3s interval defined in style.css (.loading-text-fade)
+        loadingSubtext.textContent = loadingMessages[currentMessageIndex];
+    }, 3000);
+}
+
+function stopLoadingMessageRotation() {
+    if (loadingMessageIntervalId) {
+        clearInterval(loadingMessageIntervalId);
+        loadingMessageIntervalId = null;
+    }
+    const loadingSubtext = document.getElementById('loading-subtext');
+    if (loadingSubtext) {
+        loadingSubtext.classList.remove('loading-text-fade');
+    }
+}
+// ====== End Dynamic Loading Message Logic ======
 
 // PWA Service Worker 등록
 if ('serviceWorker' in navigator) {
@@ -561,6 +604,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Start ad banner carousel during loading
             startBannerCarousel();
+            // Start dynamic loading messages
+            startLoadingMessageRotation();
 
             try {
                 const itineraryPlan = await generateOptimizedItinerary(e.detail);
@@ -574,6 +619,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingSpinner.style.display = 'none';
                 loadingText.textContent = '✨ 경로 설계가 완료되었습니다!';
                 loadingSubtext.style.display = 'none';
+                stopLoadingMessageRotation(); // Stop rotation on success
                 showResultsBtn.style.display = 'inline-block';
 
                 showResultsBtn.onclick = () => {
@@ -589,6 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingText.style.color = '#ef4444';
                 loadingSubtext.textContent = error.message || '다시 시도해주세요.';
                 loadingSubtext.style.display = 'block';
+                stopLoadingMessageRotation(); // Stop rotation on error
 
                 showResultsBtn.textContent = '🔙 돌아가기';
                 showResultsBtn.style.display = 'inline-block';
@@ -607,6 +654,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } finally {
                 stopBannerCarousel();
+                stopLoadingMessageRotation(); // Ensure timer is cleared in any case
                 window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
             }
         });
