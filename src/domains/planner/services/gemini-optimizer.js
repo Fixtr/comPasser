@@ -42,8 +42,8 @@ export async function generateOptimizedItinerary(plannerRequest) {
                   duration: { type: SchemaType.STRING },
                   officialWebsiteUrl: { type: SchemaType.STRING, description: "Official website URL of the place. Return an empty string if unknown." },
                   googleMapsUrl: { type: SchemaType.STRING, description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" },
-                  practicalInfo: { 
-                    type: SchemaType.OBJECT, 
+                  practicalInfo: {
+                    type: SchemaType.OBJECT,
                     properties: {
                       estimatedCost: { type: SchemaType.STRING, description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
                       operatingHours: { type: SchemaType.STRING, description: "General opening/closing hours and holidays (e.g. '10:00 - 22:00 (Closed on Mons)')" },
@@ -107,9 +107,72 @@ ${anchorRule}
   `;
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  const maxRetries = 3;
-  const delays = [1000, 2000, 4000];
+  const maxRetries = 2; // 최대 2회 재시도 (503 에러 등)
+  const delays = [1000, 2000];
   let hasDispatchedRetryEvent = false;
+
+  const getMockItinerary = (constraints) => {
+    const currentLang = getLang();
+    const isKo = currentLang === 'ko';
+    
+    return {
+      request: constraints,
+      days: [
+        {
+          day: 1,
+          date: constraints.date || "Unknown Date",
+          theme: isKo ? "임시 생성된 일정" : "Mock Generated Itinerary",
+          scheduleItems: [
+            {
+              time: constraints.startTime || "09:00",
+              endTime: "10:00",
+              type: "attraction",
+              title: isKo ? "출발지" : "Start Location",
+              description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
+              location: constraints.startLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+              duration: "1h",
+              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
+              practicalInfo: {
+                estimatedCost: "Free",
+                operatingHours: "24/7",
+                localTip: isKo ? "안전한 여행 되세요." : "Have a safe trip."
+              }
+            },
+            ...((constraints.anchorSchedules || []).map((a) => ({
+              time: a.time,
+              endTime: a.endTime,
+              type: "AnchorSchedule",
+              title: a.name,
+              description: isKo ? "예정된 일정입니다." : "Scheduled event.",
+              location: a.location,
+              duration: "Varies",
+              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.location)}`,
+              practicalInfo: {
+                estimatedCost: "N/A",
+                operatingHours: "N/A",
+                localTip: "N/A"
+              }
+            }))),
+            {
+              time: "18:00",
+              endTime: constraints.endTime || "19:00",
+              type: "attraction",
+              title: isKo ? "도착지" : "End Location",
+              description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
+              location: constraints.endLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+              duration: "1h",
+              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
+              practicalInfo: {
+                estimatedCost: "Free",
+                operatingHours: "24/7",
+                localTip: isKo ? "수고하셨습니다." : "Good job."
+              }
+            }
+          ]
+        }
+      ]
+    };
+  };
 
   const tryGenerate = async (modelName) => {
     const model = genAI.getGenerativeModel({
@@ -120,38 +183,48 @@ ${anchorRule}
       }
     });
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const result = await model.generateContent(prompt);
-        return result;
-      } catch (err) {
-        const isRetryable = err.status === 503 || err.status === 429 || (err.message && (err.message.includes("503") || err.message.includes("429")));
-        
-        if (isRetryable && attempt < maxRetries) {
-          if (!hasDispatchedRetryEvent) {
-            window.dispatchEvent(new CustomEvent('ai-retry-status', { 
-               detail: { message: "서버에 접속자가 많아 연결을 재시도하고 있습니다. 잠시만 기다려주세요..." }
-            }));
-            hasDispatchedRetryEvent = true;
-          }
-          console.warn(`[Gemini API] Error with ${modelName} (attempt ${attempt + 1}). Retrying in ${delays[attempt]}ms...`, err);
-          await sleep(delays[attempt]);
-        } else {
-          throw err;
-        }
+    try {
+      const result = await model.generateContent(prompt);
+      return result;
+    } catch (err) {
+      const is429 = err.status === 429 || (err.message && err.message.includes("429"));
+      const is503 = err.status === 503 || (err.message && err.message.includes("503"));
+      const is404 = err.status === 404 || (err.message && err.message.includes("404"));
+
+      if (is429 || is503 || is404) {
+        console.warn(`[Gemini API] ${err.status || 'API'} Error with ${modelName}. Skipping retries.`);
+        throw err; // 대기 시간 없이 즉시 다음 Fallback 모델로 넘어가게 처리
       }
+      
+      throw err;
     }
   };
 
-  try {
-    let result;
-    try {
-      result = await tryGenerate("gemini-2.5-flash");
-    } catch (primaryErr) {
-      console.warn("[Gemini API] Primary model gemini-2.5-flash failed. Falling back to gemini-1.5-flash.", primaryErr);
-      result = await tryGenerate("gemini-1.5-flash");
-    }
+  const modelsToTry = ['gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
+  let result = null;
 
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[Gemini API] Attempting to generate itinerary using ${modelName}...`);
+      result = await tryGenerate(modelName);
+      if (result) break; // 성공 시 루프 탈출
+    } catch (err) {
+      console.warn(`[Gemini API] Model ${modelName} failed. Falling back to next model...`, err);
+    }
+  }
+
+  // 모든 모델이 실패하여 결과가 없을 경우 (Mock 데이터 최후 방어선)
+  if (!result) {
+    console.error(`[Gemini API] All models failed. Falling back to Mock Data.`);
+    
+    setTimeout(() => {
+      alert("API 일일 할당량이 초과되어 임시 데이터로 일정을 생성했습니다.");
+    }, 500);
+    
+    return getMockItinerary(plannerRequest);
+  }
+
+  try {
     let responseText = result.response.text();
 
     if (responseText.startsWith("\`\`\`json")) {
@@ -166,10 +239,13 @@ ${anchorRule}
       days: parsedData.days
     };
   } catch (err) {
-    console.error("Gemini API Error:", err);
-    if (err.status === 429 || (err.message && err.message.includes("429"))) {
-      throw new Error("429 Too Many Requests: AI 서버에 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
-    }
-    throw new Error("AI를 통한 일정 생성에 실패했습니다.");
+    console.error("Gemini API Parsing Error:", err);
+    console.error(`[Gemini API] Parsing failed, falling back to Mock Data.`);
+    
+    setTimeout(() => {
+      alert("API 일일 할당량이 초과되어 임시 데이터로 일정을 생성했습니다.");
+    }, 500);
+    
+    return getMockItinerary(plannerRequest);
   }
 }

@@ -74,3 +74,19 @@
 ### 이슈 5: 소셜 로그인 성공 후 메인 화면 진입 시 강제 로그아웃 튕김 현상
 - **원인:** `main.js`의 전역 인증 감지 로직이 이메일/비밀번호 가입자를 위한 `emailVerified` 체크를 수행하는데, 인증 프로세스가 다른 소셜 로그인 유저까지 이를 맹목적으로 체크하여 강제 로그아웃시키는 로직이 작동함.
 - **해결:** 유저 객체의 `providerData` 배열을 순회하여 `providerId`가 `password`인 경우에만 이메일 인증을 요구하고, 소셜 로그인 유저(Kakao, Naver, Google 등)는 인증 여부와 상관없이 통과시키는 조건부 예외 처리(Bypass) 로직 적용.
+
+---
+
+## Gemini API 할당량 에러 완벽 해결 및 최후 방어선(Fail-safe) 로직 구축
+
+**이슈 발행:** 2026-04-10
+**관련 컴포넌트:** `GeminiOptimizer` (`src/domains/planner/services/gemini-optimizer.js`)
+
+### 1. 증상 (문제 현상)
+- 일정 생성 시 무료 할당량 초과로 인한 `429 Too Many Requests` 및 서버 과부하 `503 Service Unavailable`, 일부 모델의 `404 Not Found` 에러 연속 발생. 
+- 모든 Gemini API 호출이 실패할 경우 앱 로직이 중단되고 무한 로딩 또는 크래시가 발생하는 위험 상황 노출.
+
+### 2. 해결 방법
+1. **요금제 업그레이드:** API 요금제를 종량제(Pay-as-you-go)로 업그레이드하여 기본적인 리소스(할당량) 한계 문제 근본적 해결.
+2. **최적의 Lite Fallback 큐 구성:** 가성비와 속도가 뛰어난 Lite 모델 위주로 메인 및 백업 큐를 구성 (`gemini-2.5-flash-lite` -> `gemini-2.0-flash-lite`). 이 과정에서 잦은 에러(404, 503) 발생 시 별도의 Sleep/Retry 대기 시간 없이 즉각 다음 Fallback 모델로 넘겨 성능 저하 방지.
+3. **최후 방어선 Mock Data 구현 (안전망):** 모든 AI API 호출이 실패하더라도 앱이 크래시되지 않도록 방어. 파라미터로 받은 시작지/도착지 데이터 등을 활용하여 정상 API 응답과 100% 동일한 형태의 임시 일정(Mock Data)을 생성해 반환하고, UI에 경고창(Alert)을 띄우는 Fail-safe 도입.
