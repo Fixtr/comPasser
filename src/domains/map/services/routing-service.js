@@ -5,10 +5,13 @@ export class RoutingService {
     }
 
     async init() {
-        if (!this.directionsService) {
-            const { DirectionsService } = await this.loader.importLibrary("routes");
-            this.directionsService = new DirectionsService();
+        if (!this.initPromise) {
+            this.initPromise = (async () => {
+                const { DirectionsService } = await this.loader.importLibrary("routes");
+                this.directionsService = new DirectionsService();
+            })();
         }
+        await this.initPromise;
     }
 
     /**

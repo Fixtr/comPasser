@@ -188,7 +188,7 @@ ${anchorRule}
       return result;
     } catch (err) {
       const is429 = err.status === 429 || (err.message && err.message.includes("429"));
-      const is503 = err.status === 503 || (err.message && err.message.includes("503"));
+      const is503 = err.status === 503 || (err.message && (err.message.includes("503") || err.message.includes("High demand") || err.message.includes("overloaded")));
       const is404 = err.status === 404 || (err.message && err.message.includes("404"));
 
       if (is429 || is503 || is404) {

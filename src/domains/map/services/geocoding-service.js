@@ -5,10 +5,13 @@ export class GeocodingService {
     }
 
     async init() {
-        if (!this.geocoder) {
-            const { Geocoder } = await this.loader.importLibrary("geocoding");
-            this.geocoder = new Geocoder();
+        if (!this.initPromise) {
+            this.initPromise = (async () => {
+                const { Geocoder } = await this.loader.importLibrary("geocoding");
+                this.geocoder = new Geocoder();
+            })();
         }
+        await this.initPromise;
     }
 
     /**
@@ -37,19 +40,20 @@ export class GeocodingService {
      * @returns {Promise<Array>} The same list but with .latLng objects attached
      */
     async geocodeSchedule(scheduleItems) {
-        const geocodedItems = [];
-        for (const item of scheduleItems) {
+        const geocodePromises = scheduleItems.map(async (item) => {
             // Already geocoded (e.g., loaded from a shared or saved itinerary)
             if (item.latLng) {
-                geocodedItems.push(item);
-                continue;
+                return item;
             }
 
             const latLng = await this.getCoordinate(item.location);
             if (latLng) {
-                geocodedItems.push({ ...item, latLng });
+                return { ...item, latLng };
             }
-        }
-        return geocodedItems;
+            return null;
+        });
+
+        const geocodedResults = await Promise.all(geocodePromises);
+        return geocodedResults.filter(item => item !== null);
     }
 }

@@ -232,98 +232,99 @@ export class MapView extends HTMLElement {
     const { SymbolPath } = await this.loader.importLibrary("core");
 
     const PATH_COLORS = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#0284c7', '#4f46e5', '#9333ea'];
-    const transitRoutes = [];
-    const routePromises = [];
-
-    for (let i = 0; i < geocodedItems.length - 1; i++) {
+    // map()을 활용하여 병렬 Promise 배열 생성 후 Promise.all()로 처리
+    const routePromises = geocodedItems.slice(0, -1).map((item, i) => {
       const origin = geocodedItems[i].latLng;
       const destination = geocodedItems[i + 1].latLng;
       const segmentColor = PATH_COLORS[i % PATH_COLORS.length];
 
       // Delegate to RoutingService
-      routePromises.push(
-        this.routingService.getTransitRoute(origin, destination).then(response => {
-          const renderer = new DirectionsRenderer({
-            map: this.map,
-            suppressMarkers: true,
-            preserveViewport: true,
-            polylineOptions: {
-              strokeColor: segmentColor,
-              strokeOpacity: 0.8,
-              strokeWeight: 4,
-            }
-          });
-          renderer.setDirections(response);
-          this.directionsRenderers.push(renderer);
-
-          const leg = response.routes[0]?.legs[0];
-          if (leg) {
-            let primaryVehicleType = null;
-            let primaryLineName = null;
-            let transitDetailsExtended = null;
-
-            // Search steps for the most relevant transit line
-            if (leg.steps && leg.steps.length > 0) {
-              const transitSteps = leg.steps.filter(s => s.travel_mode === 'TRANSIT' && s.transit);
-
-              if (transitSteps.length > 0) {
-                const firstTransit = transitSteps[0].transit;
-                const lastTransit = transitSteps[transitSteps.length - 1].transit;
-
-                const line = firstTransit.line;
-                if (line) {
-                  primaryVehicleType = line.vehicle?.type || 'TRANSIT';
-                  primaryLineName = line.short_name || line.name || null;
-                }
-
-                const departureStop = firstTransit.departure_stop?.name || '';
-                const arrivalStop = lastTransit.arrival_stop?.name || '';
-
-                transitDetailsExtended = {
-                  departureStop,
-                  arrivalStop
-                };
-              }
-            }
-
-            transitRoutes.push({
-              fromIndex: i,
-              duration: leg.duration.text,
-              distance: leg.distance.text,
-              mode: 'TRANSIT', /* Ubiquitous Language */
-              vehicleType: primaryVehicleType,
-              lineName: primaryLineName,
-              transitDetailsExtended
-            });
-          }
-        }).catch(err => {
-          console.warn(`Transit route failed between "${geocodedItems[i].title}" and "${geocodedItems[i + 1].title}".Drawing walking line.`, err.message);
-
-          const dashedPolyline = new Polyline({
-            path: [origin, destination],
-            strokeOpacity: 0,
-            icons: [{
-              icon: { path: SymbolPath.CIRCLE, fillOpacity: 1, scale: 3 },
-              offset: "0",
-              repeat: "20px"
-            }],
+      return this.routingService.getTransitRoute(origin, destination).then(response => {
+        const renderer = new DirectionsRenderer({
+          map: this.map,
+          suppressMarkers: true,
+          preserveViewport: true,
+          polylineOptions: {
             strokeColor: segmentColor,
-            strokeWeight: 2,
-            map: this.map
-          });
-          this.fallbackPolylines.push(dashedPolyline);
+            strokeOpacity: 0.8,
+            strokeWeight: 4,
+          }
+        });
+        renderer.setDirections(response);
+        this.directionsRenderers.push(renderer);
 
-          transitRoutes.push({
+        const leg = response.routes[0]?.legs[0];
+        let routeResult = null;
+        
+        if (leg) {
+          let primaryVehicleType = null;
+          let primaryLineName = null;
+          let transitDetailsExtended = null;
+
+          // Search steps for the most relevant transit line
+          if (leg.steps && leg.steps.length > 0) {
+            const transitSteps = leg.steps.filter(s => s.travel_mode === 'TRANSIT' && s.transit);
+
+            if (transitSteps.length > 0) {
+              const firstTransit = transitSteps[0].transit;
+              const lastTransit = transitSteps[transitSteps.length - 1].transit;
+
+              const line = firstTransit.line;
+              if (line) {
+                primaryVehicleType = line.vehicle?.type || 'TRANSIT';
+                primaryLineName = line.short_name || line.name || null;
+              }
+
+              const departureStop = firstTransit.departure_stop?.name || '';
+              const arrivalStop = lastTransit.arrival_stop?.name || '';
+
+              transitDetailsExtended = {
+                departureStop,
+                arrivalStop
+              };
+            }
+          }
+
+          routeResult = {
             fromIndex: i,
-            duration: 'Short Walk',
-            distance: 'Nearby',
-            mode: 'WALKING'
-          });
-        })
-      );
-    }
+            duration: leg.duration.text,
+            distance: leg.distance.text,
+            mode: 'TRANSIT', /* Ubiquitous Language */
+            vehicleType: primaryVehicleType,
+            lineName: primaryLineName,
+            transitDetailsExtended
+          };
+        }
+        return routeResult;
+      }).catch(err => {
+        console.warn(`Transit route failed between "${geocodedItems[i].title}" and "${geocodedItems[i + 1].title}".Drawing walking line.`, err.message);
 
-    await Promise.allSettled(routePromises);
+        const dashedPolyline = new Polyline({
+          path: [origin, destination],
+          strokeOpacity: 0,
+          icons: [{
+            icon: { path: SymbolPath.CIRCLE, fillOpacity: 1, scale: 3 },
+            offset: "0",
+            repeat: "20px"
+          }],
+          strokeColor: segmentColor,
+          strokeWeight: 2,
+          map: this.map
+        });
+        this.fallbackPolylines.push(dashedPolyline);
+
+        return {
+          fromIndex: i,
+          duration: 'Short Walk',
+          distance: 'Nearby',
+          mode: 'WALKING'
+        };
+      });
+    });
+
+    // 한꺼번에 병렬로 요청 대기 및 결과 취합 (null 값 제외)
+    let transitRoutes = await Promise.all(routePromises);
+    transitRoutes = transitRoutes.filter(route => route !== null);
 
     // Broadcast transit details back to itinerary view using the old bus channel
     window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: transitRoutes }));
