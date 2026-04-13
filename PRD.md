@@ -78,6 +78,14 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
   - 투어: Klook 한복 대여 (심사 중)
 - **개발 관리 유연성**: `src/config/ads.js` 파일을 통해 마케팅 성과에 따른 배너 실시간 교체가 가능한 구조입니다.
 
+### 3.10. 모바일 앱 패키징 (iOS/Android Support)
+- Capacitor를 활용하여 동일한 웹 소스 코드를 iOS 및 Android 네이티브 앱으로 패키징했습니다.
+- **모바일 UX 최적화**: 
+  - `viewport-fit=cover` 설정을 통한 노치 디자인 대응.
+  - 전역 CSS에 `safe-area-inset` 여백을 적용하여 상단바 및 하단 바 간섭 방지.
+  - 앱 전용 라우팅 보완: 초기 경로가 `/index.html`로 시작하는 앱 환경에서도 홈 화면이 즉시 렌더링되도록 개선.
+- **네이티브 성능**: Vite의 `base: './'` 빌드 설정을 통해 로컬 자산 경로 이슈를 해결하고 빠른 로딩 속도를 유지합니다.
+
 ## 4. Security & Access Control (보안 및 접근 제어)
 
 ### 4.1. 보안 강화 및 Route Guard

@@ -59,6 +59,10 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   /* Center the app container */
   /* Subtle noise base can be added via SVG overlay later if needed */
 }

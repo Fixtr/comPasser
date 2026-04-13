@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingTransitionView.classList.add('hidden-view');
             }
             sessionStorage.setItem('currentPhase', '1');
-        } else if (path === '/home' || path === '/') {
+        } else if (path === '/home' || path === '/' || path.endsWith('/index.html')) {
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
             if (pageLogin) pageLogin.style.display = 'block';

@@ -117,6 +117,12 @@ Compasser는 지도의 역할을 **뷰어(Viewer)**와 **네비게이터(Navigat
 - **완벽한 병렬 처리 (Parallel Execution)**: 구글 맵스 지오코딩 및 경로 계산 로직(Directions)을 `Promise.all` 기반의 병렬 구조로 리팩토링하여 네트워크 병목을 제거했습니다.
 - **초기화 락(Init Lock) 패턴**: 수십 개의 병렬 요청이 발생해도 SDK 로드는 단 한 번만 수행되도록 설계되어 불필요한 오버헤드를 원천 차단합니다.
 
+### 18. 📱 하이브리드 모바일 앱 지원 (Capacitor)
+Compasser는 단순히 웹에 머물지 않고 iOS와 Android 네이티브 앱으로 패키징되어 진정한 모바일 경험을 제공합니다.
+- **네이티브 시뮬레이터 실행**: Capacitor CLI를 통해 터미널에서 즉시 iOS/Android 앱을 빌드하고 실행할 수 있습니다.
+- **모바일 최적화 UI**: 노치(Notch) 디자인 대응을 위한 `Safe Area Inset` 처리와 모바일 전용 뷰포트 설정이 적용되어 있습니다.
+- **고도화된 모바일 라우팅**: 앱 환경에서 발생할 수 있는 `/index.html` 경로 이슈를 자동으로 해결하는 지능형 라우터를 탑재했습니다.
+
 ## 🏛️ 아키텍처 하이라이트: DDD & Vibe Coding 최적화
 Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding)의 효율성을 극대화하고 유지보수성을 높이기 위해 **도메인 주도 설계(DDD: Domain-Driven Design)** 아키텍처를 도입했습니다.
 
@@ -126,37 +132,45 @@ Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
   - 📁 `itinerary/`: 생성된 일정 데이터를 타임라인 UI로 렌더링하는 도메인
   - 📁 `profile/`: 사용자 정보, 일정 히스토리, 계정 보안 설정을 담당하는 마이페이지 도메인
   - 📁 `map/`: Google Maps 렌더링, 지오코딩, 길찾기 서비스 로직 도메인
+- **네이티브 브릿지 (Mobile Layer)**: Capacitor를 통해 웹의 비즈니스 로직을 손상시키지 않고 네이티브 기능과 결합합니다.
 - **유비쿼터스 언어 (Ubiquitous Language)**: AI의 환각(Hallucination)을 방지하기 위해 `AnchorSchedule`, `TransitRoute`, `ItineraryPlan` 등 명확한 비즈니스 용어 사전을 정의하고 코드 전반에 강제했습니다.
 - **컨텍스트 트리거 (Context Triggers)**: 각 도메인 폴더 최상단에 `COMMAND_GUIDE.md`를 배치하여, AI 및 협업 개발자가 해당 도메인의 비즈니스 규칙을 즉각적으로 파악할 수 있도록 설계했습니다.
 
 ## 🛠️ Tech Stack
 - **Frontend**: Vite, Vanilla JS (ES6 Modules), HTML5/CSS3
+- **Mobile Foundation**: Capacitor (@capacitor/ios, @capacitor/android)
 - **API / Cloud**: 
   - Google Maps JavaScript API (Maps, Geocoding, Directions) — 동선 시각화 뷰어
   - Google Gemini API (gemini-2.5-flash) — AI 일정 생성
 - **네비게이션 딥링크**: 네이버 지도 / 카카오맵 / Google Maps URL Scheme — 실시간 길찾기 액션
-- **Deployment**: Cloudflare Pages
+- **Deployment**: GitHub Pages (Web), Native Build (iOS/Android)
 
 ## 🚀 Getting Started (로컬 실행 방법)
 
-1. 저장소를 클론합니다.
+### 1. 웹 개발 모드 (Vite)
+1. 저장소를 클론하고 패키지를 설치합니다.
    ```bash
    git clone https://github.com/Fixtr/hackerton.git
    cd hackerton
-   ```
-
-2. 패키지를 설치합니다.
-   ```bash
    npm install
    ```
-
-3. 프로젝트 루트에 `.env` 파일을 생성하고 발급받은 API 키를 입력합니다.
-   ```env
-   VITE_MAPS_API_KEY=당신의_구글_맵_API_키
-   GEMINI_API_KEY=당신의_제미나이_API_키
-   ```
-
-4. 개발 서버를 실행합니다.
+2. `.env` 파일을 생성하고 API 키를 입력합니다. (`VITE_MAPS_API_KEY`, `GEMINI_API_KEY`)
+3. 개발 서버를 실행합니다.
    ```bash
    npm run dev
    ```
+
+### 2. 모바일 앱 개발 모드 (Capacitor)
+웹 프로젝트를 빌드한 후 네이티브 플랫폼에 동기화하여 실행합니다.
+- **iOS 실행**: 
+  ```bash
+  npm run cap:run:ios
+  ```
+- **Android 실행**: 
+  ```bash
+  npm run cap:run:android
+  ```
+- **변경 사항 동기화**: 프로젝트 수정 후 웹 빌드 결과를 앱에 반영합니다.
+  ```bash
+  npm run cap:sync
+  ```

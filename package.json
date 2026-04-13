@@ -8,17 +8,29 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "cap:run:ios": "npm run cap:sync && npx cap run ios",
+    "cap:run:android": "npm run cap:sync && npx cap run android"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@google/generative-ai": "^0.24.1",
     "@googlemaps/js-api-loader": "^1.16.10",
     "firebase": "^10.14.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.0",
     "gh-pages": "^6.3.0",
     "vite": "^5.2.0"
   }

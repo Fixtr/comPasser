@@ -17,6 +17,9 @@
 *   **AI Engine & Map API**:
     *   **AI (LLM)**: Google Gemini API (또는 OpenAI API) 기반으로 자연어 일정 생성.
     *   **Maps API**: Google Maps Platform (Maps JS API, Places API, Directions API).
+*   **Mobile Framework**:
+    *   **Capacitor**: 웹 프로젝트를 iOS/Android 네이티브 앱으로 패키징하고, Safe Area 처리 및 네이티브 플러그인(Keyboard, Splash Screen 등) 연동을 담당합니다.
+    *   **Web-to-Native Bridge**: 전용 라우팅 최적화를 통해 웹의 기능을 손상시키지 않고 앱 환경에서 구동되도록 합니다.
 
 ## 3. 핵심 로직: 이벤트 중심(Anchor-based) 일정 최적화
 단순히 일수별로 유명 지역 위주로 추천하는 기존 서비스들과 달리, 사용자의 가장 중요한 '고정 이벤트(Anchor Event)' 제약을 최우선 변수(Axis)로 삼아 일정을 채워나가는 프롬프트 및 로직 파이프라인입니다.
