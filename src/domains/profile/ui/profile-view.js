@@ -685,6 +685,57 @@ class ProfileView extends HTMLElement {
                 @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .loading-state, .empty-state, .error-state { padding: 3rem; text-align: center; color: var(--text-secondary); }
+
+                @media (max-width: 768px) {
+                    .profile-wrapper {
+                        flex-direction: column;
+                        padding: 1.5rem 1rem;
+                        gap: 1.5rem;
+                    }
+                    .sidebar {
+                        width: 100%;
+                    }
+                    .main-content {
+                        max-width: 100%;
+                    }
+                    .list-item {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.5rem;
+                        padding: 1rem 1.25rem;
+                    }
+                    .list-label {
+                        width: 100%;
+                    }
+                    .list-value {
+                        width: 100%;
+                    }
+                    .value-text, #user-email {
+                        word-break: break-all;
+                        overflow-wrap: break-word;
+                    }
+                    .edit-mode-container {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 0.75rem;
+                    }
+                    .edit-actions {
+                        justify-content: flex-end;
+                    }
+                    .trip-card {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 1rem;
+                    }
+                    .trip-actions {
+                        width: 100%;
+                        justify-content: flex-end;
+                    }
+                    .btn-danger-trigger {
+                        margin: 1.5rem;
+                        width: calc(100% - 3rem);
+                    }
+                }
             </style>
 
             <div class="profile-wrapper">
