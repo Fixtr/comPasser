@@ -101,17 +101,35 @@ export async function getSharedItinerary(documentId) {
 }
 export async function getItineraryById(documentId) {
     try {
+        // 1. 먼저 프라이빗 itineraries 컬렉션 조회 시도
         const docRef = doc(db, "itineraries", documentId);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
             return docSnap.data().itineraryPlan;
         } else {
+            // 없으면 공유된 일정(shared_itineraries) 컬렉션에서 교차 조회
+            const sharedData = await getSharedItinerary(documentId);
+            if (sharedData) return sharedData;
+
             console.log("No such itinerary document!");
             return null;
         }
     } catch (error) {
+        // 본인 소유가 아닌 일정 접근 시 Firestore 권한 에러(permission-denied 등) 발동 가능
+        // 이 경우에도 공유된 공유 객체인지 확인
+        if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
+            console.log("Permission denied for private map. Checking shared_itineraries fallback...");
+            try {
+                const sharedData = await getSharedItinerary(documentId);
+                if (sharedData) return sharedData;
+            } catch (sharedError) {
+                console.error("Error fetching shared itinerary fallback:", sharedError);
+                return null;
+            }
+        }
+        
         console.error("Error fetching itinerary by ID:", error);
-        throw error;
+        throw error; // 실제 네트워크나 다른 치명적 예외인 경우 throw
     }
 }

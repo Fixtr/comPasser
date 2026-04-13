@@ -127,4 +127,24 @@
 1.  **Vite base 경로 수정**: `vite.config.js`에서 `base: './'`를 `base: '/'` (절대 경로)로 수정하여 어떤 경로에서든 루트 기준으로 자원을 참조하게 합니다.
 2.  **Cloudflare Redirects 설정**: `public/_redirects` 파일을 생성하고 `/* /index.html 200` 내용을 추가하여, 서버가 찾지 못하는 모든 요청을 SPA의 진입점인 `index.html`로 리다이렉트하도록 설정합니다.
 
+---
+
+## 공유 링크 접속 시 일정 데이터 로드 실패 (Cross-Collection Fetch Error)
+
+**이슈 발행:** 2026-04-13
+**관련 서비스:** Firestore, `ItineraryView`
+
+### 1. 증상
+- 카카오톡 등으로 공유받은 링크(`/view/:id`)로 접속 시, 콘솔에 `No such itinerary document!` 또는 `permission-denied` 에러가 출력되며 일정을 불러오지 못함.
+- 작성자 본인은 잘 보이지만, 링크를 받은 제3자는 볼 수 없는 현상 발생.
+
+### 2. 원인
+- **조회 로직의 편향성**: `/view/:id` 진입 시 호출되는 `getItineraryById` 함수가 로그인한 사용자의 개인 소유물인 `itineraries` 컬렉션만 우선적으로 조회함.
+- **권한 모델 충돌**: 공유 링크는 누구나 접근 가능한 `shared_itineraries` 컬렉션의 ID를 사용하지만, 코드에서는 이를 프라이빗 공간(`itineraries`)에서 찾으려 했기 때문에 데이터가 없거나 보안 규칙에 의해 차단됨.
+
+### 3. 해결
+1.  **하이브리드 패치(Hybrid Fetch) 로직 도입**: `src/domains/itinerary/services/firestore-service.js`의 `getItineraryById`를 수정하여, 프라이빗 조회가 실패하거나 권한 에러가 발생할 경우 즉시 공용 공유 컬렉션(`shared_itineraries`)을 교차 조회하는 Fallback 메커니즘을 구현함.
+2.  **UX 강화 (Fallback UI)**: 데이터가 정말로 없거나 권한이 없는 경우, 단순히 무한 로딩이나 빈 화면을 보여주는 대신 "일정을 찾을 수 없거나 접근 권한이 없습니다"라는 안내와 함께 메인으로 복귀할 수 있는 버튼이 포함된 전용 에러 뷰를 제공하도록 `ItineraryView`를 개선함.
+
+
 

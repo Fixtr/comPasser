@@ -120,7 +120,14 @@ export default class ItineraryView extends HTMLElement {
       const data = await getItineraryById(id);
 
       if (!data) {
-        this.setError("<div>존재하지 않는 일정입니다.</div>");
+        this.setError(`
+          <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary); background: var(--bg-secondary); border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: var(--shadow-sm);">
+             <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+             <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">일정을 찾을 수 없거나 접근 권한이 없습니다.</h3>
+             <p style="font-size: 0.9rem; margin-bottom: 2rem;">요청하신 여행 일정이 삭제되었거나, 비공개 상태일 수 있습니다.<br>올바른 링크인지 다시 확인해 주세요.</p>
+             <button onclick="window.navigate('/plan')" style="background: var(--accent-primary); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">새 일정 만들기 🚀</button>
+          </div>
+        `);
         return;
       }
 
@@ -133,7 +140,13 @@ export default class ItineraryView extends HTMLElement {
       }
     } catch (error) {
       console.error('🔥 렌더링 치명적 오류:', error);
-      this.setError(`<div style="padding: 20px; border: 2px solid red; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: bold;">데이터를 불러오는 중 치명적인 오류가 발생했습니다.<br/><br/>${error.message}</div>`);
+      this.setError(`
+        <div style="padding: 40px 20px; text-align: center; color: #b91c1c; background: #fef2f2; border-radius: 12px; border: 2px solid #fca5a5;">
+           <div style="font-size: 3rem; margin-bottom: 1rem;">🚨</div>
+           <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">데이터 로딩 오류</h3>
+           <p style="font-size: 0.9rem;">${error.message}</p>
+        </div>
+      `);
     } finally {
       this.setLoading(false);
     }

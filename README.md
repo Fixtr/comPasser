@@ -70,6 +70,8 @@ Compasser는 지도의 역할을 **뷰어(Viewer)**와 **네비게이터(Navigat
 ### 10. 🔒 데이터베이스 보안 규칙 (Security Rules) 분리 적용
 - **공유용 데이터(`shared_itineraries`)**: 카카오톡 등으로 공유된 단축 URL 접근 시 누구나 읽을 수 있도록 읽기 권한을 전체 허용했습니다.
 - **개인 보관용 데이터(`itineraries`)**: 사용자가 개인 계정에 저장한 일정은 철저히 로그인한 본인만 접근(CRUD)할 수 있도록 보안 규칙을 엄격하게 분리했습니다.
+- **하이브리드 데이터 패치 (Hybrid Fetch)**: `/view/:id` 경로 접속 시 우선 개인 저장소를 조회하고, 권한이 없거나 데이터가 없는 경우 자동으로 공유 보관소를 교차 조회하여 데이터 가용성을 극대화했습니다.
+
 
 ### 11. 📊 데이터 분석 및 로깅 (Google Analytics 4)
 - **사용자 행동 추적 (Custom Events)**: AI 일정 생성(`generate_itinerary_click`), 일정 저장(`save_itinerary_click`), 카카오톡 공유(`share_kakao_click`), 다국어 전환(`change_language`) 등 핵심 인터랙션을 세밀하게 추적합니다.
