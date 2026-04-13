@@ -174,3 +174,14 @@ Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
   ```bash
   npm run cap:sync
   ```
+
+---
+
+## 🌐 Deployment (배포 방법)
+
+### Cloudflare Pages (SPA 권장)
+본 프로젝트는 Cloudflare Pages를 통해 배포 중이며, SPA(Single Page Application) 라우팅을 위해 다음 설정이 적용되어 있습니다.
+
+1.  **Vite 설정**: `vite.config.js`의 `base`가 `/` (절대 경로)로 설정되어야 합니다.
+2.  **라우팅 규정**: `public/_redirects` 파일에 `/* /index.html 200` 규칙이 포함되어 있어, 모든 서브 경로 접속 시에도 `index.html`이 정상적으로 로드됩니다.
+3.  **자동 배포**: GitHub의 `main` 브랜치에 코드를 Push 하면 Cloudflare Pages에서 자동으로 빌드 및 배포가 진행됩니다.

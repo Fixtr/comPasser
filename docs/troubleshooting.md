@@ -107,3 +107,24 @@
    - **초기화 락(Initialization Lock) 패턴:** 수십 개의 병렬 요청이 동시에 발생할 때 구글 맵스 SDK 초기화(`importLibrary`)가 중복 실행되는 Race Condition을 방지하기 위해 `initPromise`를 활용한 싱글톤 초기화 로직 도입.
    - **결과:** 네트워크 탭의 계단식 요청이 수직 기둥 형태로 변화하며 렌더링 속도 500% 이상 향상.
 
+---
+
+## Cloudflare Pages SPA 라우팅 및 MIME type ('text/html') 에러
+
+**이슈 발행:** 2026-04-13
+**관련 서비스:** Cloudflare Pages, Vite
+
+### 1. 증상
+- 배포 후 메인 페이지(`/`)는 잘 나오지만, 상세 페이지(`/view/:id`)로 직접 접속하거나 새로고침하면 빈 화면이 뜨며 콘솔에 다음과 같은 에러 발생:
+  - `Failed to load resource: the server responded with a status of 404`
+  - `Refused to apply style from '.../assets/index-XXXX.css' because its MIME type ('text/html') is not a supported stylesheet MIME type.`
+
+### 2. 원인
+1.  **SPA 라우팅 미설정**: Cloudflare Pages는 기본적으로 정적 서버이므로, `/view/123` 같은 경로로 접속 시 해당 이름의 파일이나 폴더를 찾습니다. 없으면 404를 반환하는데, SPA에서는 모든 경로를 `index.html`로 보내주어야 합니다.
+2.  **상대 경로 설정 문제**: Vite 설정에서 `base`가 `./`(상대 경로)로 되어 있으면, `/view/:id` 같은 중첩 경로에서 자원을 불러올 때 현재 경로를 기준으로 찾게 됩니다 (예: `/view/assets/...`). 서버는 이 경로에서 자원을 못 찾아 `index.html`을 반환하게 되고, 브라우저는 HTML 파일을 CSS/JS로 인식하려다 MIME 타입 에러를 뱉게 됩니다.
+
+### 3. 해결 
+1.  **Vite base 경로 수정**: `vite.config.js`에서 `base: './'`를 `base: '/'` (절대 경로)로 수정하여 어떤 경로에서든 루트 기준으로 자원을 참조하게 합니다.
+2.  **Cloudflare Redirects 설정**: `public/_redirects` 파일을 생성하고 `/* /index.html 200` 내용을 추가하여, 서버가 찾지 못하는 모든 요청을 SPA의 진입점인 `index.html`로 리다이렉트하도록 설정합니다.
+
+
