@@ -21,6 +21,7 @@ export default class TravelForm extends HTMLElement {
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
     this.initPlaces();
+    this.renderPreferenceBadges(); // 선택된 테마/예산 배지 렌더링
     
 
     // Restore Form Data on load if we are not locked in Phase 3
@@ -50,6 +51,65 @@ export default class TravelForm extends HTMLElement {
     window.addEventListener('i18n-changed', () => {
       this.updateTexts();
     });
+  }
+
+  /**
+   * sessionStorage의 userPreference를 읽어
+   * 헤더의 #preference-chips-container에 칩(Badge) UI를 렌더링합니다.
+   * 값이 없으면 컨테이너가 빈 채로 숨겨집니다.
+   */
+  renderPreferenceBadges() {
+    const container = this.shadowRoot.getElementById('preference-chips-container');
+    if (!container) return;
+
+    // 테마·예산 라벨/이모지 매핑
+    const THEME_MAP = {
+      food:     { emoji: '🍽️', label: '맛집 탐방' },
+      activity: { emoji: '🏄', label: '액티비티' },
+      healing:  { emoji: '🧘', label: '휴식/힐링' },
+      photo:    { emoji: '📸', label: '인생샷' },
+    };
+    const BUDGET_MAP = {
+      flex:     { emoji: '💰', label: '플렉스' },
+      standard: { emoji: '💵', label: '스탠다드' },
+      budget:   { emoji: '🪙', label: '짠내투어' },
+    };
+
+    let theme = null;
+    let budget = null;
+    try {
+      const saved = sessionStorage.getItem('userPreference');
+      if (saved) {
+        const pref = JSON.parse(saved);
+        theme = pref.theme || null;
+        budget = pref.budget || null;
+      }
+    } catch (e) { /* ignore */ }
+
+    // 선택값이 하나도 없으면 컨테이너 숨김
+    if (!theme && !budget) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'flex';
+    container.innerHTML = '';
+
+    const makeChip = (emoji, label) => {
+      const chip = document.createElement('span');
+      chip.className = 'pref-chip';
+      chip.innerHTML = `<span class="chip-icon">${emoji}</span>${label}`;
+      return chip;
+    };
+
+    if (theme && THEME_MAP[theme]) {
+      const { emoji, label } = THEME_MAP[theme];
+      container.appendChild(makeChip(emoji, label));
+    }
+    if (budget && BUDGET_MAP[budget]) {
+      const { emoji, label } = BUDGET_MAP[budget];
+      container.appendChild(makeChip(emoji, label));
+    }
   }
 
   updateTexts() {
@@ -267,6 +327,47 @@ export default class TravelForm extends HTMLElement {
           background: oklch(92% 0.02 260);
         }
 
+        /* ====== Preference Badges ====== */
+        .preference-chips {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          flex-wrap: wrap;
+        }
+
+        .pref-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          padding: 0.28rem 0.75rem;
+          border-radius: 999px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.09), rgba(79, 70, 229, 0.05));
+          border: 1.5px solid rgba(124, 58, 237, 0.28);
+          color: var(--accent-primary, #7c3aed);
+          white-space: nowrap;
+          box-shadow: 0 1px 4px rgba(124, 58, 237, 0.1);
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+          animation: chipPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+          letter-spacing: -0.01em;
+        }
+
+        .pref-chip:hover {
+          transform: translateY(-2px) scale(1.04);
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+        }
+
+        .pref-chip .chip-icon {
+          font-size: 0.9rem;
+          line-height: 1;
+        }
+
+        @keyframes chipPop {
+          from { opacity: 0; transform: scale(0.7); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+
         .anchor-item {
           background: oklch(98% 0.01 260);
           border: 1px solid oklch(90% 0.02 260);
@@ -319,9 +420,12 @@ export default class TravelForm extends HTMLElement {
       <form id="travel-form">
         
         <div class="form-section">
-          <h2 style="display: flex; justify-content: space-between; align-items: baseline;">
+          <h2 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
             <span data-i18n="tripBasicsTitle">Trip Basics</span>
-            <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; font-weight: 600;">테마/예산 다시 선택하기</button>
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+              <div class="preference-chips" id="preference-chips-container"></div>
+              <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">테마/예산 다시 선택하기</button>
+            </div>
           </h2>
           <div class="row-3">
             <div class="form-group">
