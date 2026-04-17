@@ -2,6 +2,7 @@
 import '../domains/auth/ui/login-view.js';
 import '../domains/auth/ui/join-view.js';
 import '../domains/auth/ui/verify-view.js';
+import '../domains/planner/ui/preference-view.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
@@ -268,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pageHome = document.getElementById('page-home');
     const pageVerify = document.getElementById('page-verify');
     const pagePlan = document.getElementById('page-plan');
+    const pagePreference = document.getElementById('page-preference');
     const pageView = document.getElementById('page-view');
     const pageProfile = document.getElementById('page-profile');
 
@@ -320,9 +322,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        if (user && (path === '/' || path === '/login' || path === '/join' || path === '/home')) {
-            console.log('[Router] Authenticated user at home, redirecting to plan.');
-            window.navigate('/plan');
+        if (user && (path === '/login' || path === '/join')) {
+            // 이미 preference를 선택했으면 /plan으로, 아니면 /preference로
+            const hasPreference = sessionStorage.getItem('userPreference');
+            const targetPath = hasPreference ? '/plan' : '/preference';
+            console.log(`[Router] Authenticated user at login/join, redirecting to ${targetPath}.`);
+            window.navigate(targetPath);
             return;
         }
 
@@ -331,6 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pageLogin) pageLogin.style.display = 'none';
         if (pageVerify) pageVerify.style.display = 'none';
         if (pageJoin) pageJoin.style.display = 'none';
+        if (pagePreference) pagePreference.style.display = 'none';
         if (pagePlan) pagePlan.style.display = 'none';
         if (pageView) pageView.style.display = 'none';
         if (pageProfile) pageProfile.style.display = 'none';
@@ -391,6 +397,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.navigate('/plan');
                 }
             }
+        } else if (path === '/preference') {
+            if (pagePreference) pagePreference.style.display = 'flex';
         } else if (path === '/plan') {
             if (!localStorage.getItem('hasSeenTutorial')) {
                 showWelcomeOverlay();

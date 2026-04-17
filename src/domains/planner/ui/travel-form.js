@@ -319,7 +319,10 @@ export default class TravelForm extends HTMLElement {
       <form id="travel-form">
         
         <div class="form-section">
-          <h2 data-i18n="tripBasicsTitle">Trip Basics</h2>
+          <h2 style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span data-i18n="tripBasicsTitle">Trip Basics</span>
+            <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; font-weight: 600;">테마/예산 다시 선택하기</button>
+          </h2>
           <div class="row-3">
             <div class="form-group">
               <label for="schedule-date" data-i18n="scheduleDate">Date</label>
@@ -529,13 +532,27 @@ export default class TravelForm extends HTMLElement {
       location: el.querySelector('.anchor-location').value,
     }));
 
+    // /preference 페이지에서 저장한 테마/예산 데이터 병합
+    let theme = null;
+    let budget = null;
+    try {
+      const savedPref = sessionStorage.getItem('userPreference');
+      if (savedPref) {
+        const pref = JSON.parse(savedPref);
+        theme = pref.theme || null;
+        budget = pref.budget || null;
+      }
+    } catch (e) { /* ignore parse errors */ }
+
     return {
       date: this.shadowRoot.getElementById('schedule-date').value,
       startTime: this.shadowRoot.getElementById('start-time').value,
       endTime: this.shadowRoot.getElementById('end-time').value,
       startLocation: this.shadowRoot.getElementById('start-location').value,
       endLocation: this.shadowRoot.getElementById('end-location').value,
-      anchorSchedules: anchors
+      anchorSchedules: anchors,
+      theme,
+      budget
     };
   }
 
@@ -544,6 +561,13 @@ export default class TravelForm extends HTMLElement {
       this.addAnchor();
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
+
+    const preferenceBtn = this.shadowRoot.getElementById('reselect-preference-btn');
+    if (preferenceBtn) {
+      preferenceBtn.addEventListener('click', () => {
+        window.navigate('/preference');
+      });
+    }
 
     const form = this.shadowRoot.getElementById('travel-form');
 

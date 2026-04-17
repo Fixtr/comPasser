@@ -42,6 +42,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
                   duration: { type: SchemaType.STRING },
                   officialWebsiteUrl: { type: SchemaType.STRING, description: "Official website URL of the place. Return an empty string if unknown." },
                   googleMapsUrl: { type: SchemaType.STRING, description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" },
+                  transitInfo: { type: SchemaType.STRING, description: "Detailed transit route and estimated time from the previous location to this location. MUST include precise transfer stations. (e.g., 'Take Line 3 at Express Bus Terminal -> Transfer to Line 9 at Dongjak -> Alight at Samgakji (approx. 30 mins)')." },
                   practicalInfo: {
                     type: SchemaType.OBJECT,
                     properties: {
@@ -52,7 +53,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
                     required: ["estimatedCost", "operatingHours", "localTip"]
                   }
                 },
-                required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl", "practicalInfo"]
+                required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl", "transitInfo", "practicalInfo"]
               }
             }
           },
@@ -76,6 +77,78 @@ export async function generateOptimizedItinerary(plannerRequest) {
     ? 'ALL output text (titles, descriptions, themes) MUST be written in Korean language.'
     : 'ALL output text (titles, descriptions, themes) MUST be written in English language.';
 
+  // ====== 테마 & 예산 스타일 프롬프트 주입 ======
+  const themeLabels = {
+    food: '맛집 탐방 (Food & Cuisine)',
+    activity: '액티비티 (Activities & Adventures)',
+    healing: '휴식/힐링 (Relaxation & Healing)',
+    photo: '인생샷 (Photo-worthy Spots)'
+  };
+
+  const themeInstructions = {
+    food: `The travel theme is "Food & Cuisine Tour". You MUST prioritize:
+  - Famous local restaurants, hidden gem eateries, traditional markets, dessert shops, and trendy cafes.
+  - Allocate generous time for meals (at least 1-1.5 hours per dining stop).
+  - Include at least 2-3 food-related stops per day.
+  - Recommend dishes that are signature to the region.`,
+    activity: `The travel theme is "Activities & Adventures". You MUST prioritize:
+  - Experience-based activities: surfing, hiking, cultural workshops, theme parks, water sports, cycling.
+  - Include physically engaging stops and hands-on experiences.
+  - Balance active stops with short rest/refreshment breaks.
+  - Recommend activities suitable for the season and weather.`,
+    healing: `The travel theme is "Relaxation & Healing". You MUST prioritize:
+  - Serene natural landscapes, hot springs, quiet parks, botanical gardens, temple stays, peaceful cafes.
+  - Minimize travel distance between stops to reduce fatigue.
+  - Include longer stay durations at each spot (1.5-2 hours).
+  - Avoid crowded tourist traps; prefer hidden, tranquil spots.`,
+    photo: `The travel theme is "Instagram-worthy Photo Spots". You MUST prioritize:
+  - Popular photo spots, scenic viewpoints, aesthetic cafes, murals, rooftop bars, iconic landmarks.
+  - Consider lighting conditions (golden hour spots in morning/evening).
+  - Include unique and visually stunning locations.
+  - Recommend specific spots within venues for best photo opportunities.`
+  };
+
+  const budgetLabels = {
+    flex: '플렉스 / 고급형 (Premium & Luxury)',
+    standard: '스탠다드 / 표준형 (Standard & Balanced)',
+    budget: '짠내투어 / 절약형 (Budget-friendly)'
+  };
+
+  const budgetInstructions = {
+    flex: `The budget style is "Premium / Luxury (Flex)". You MUST:
+  - Assume the traveler uses rental car or taxi for ALL transportation (no public transit).
+  - Recommend fine dining restaurants, premium buffets, high-end cafes, and Michelin-starred venues.
+  - Suggest luxury experiences: private tours, premium tickets, VIP access.
+  - Estimated costs should reflect premium pricing (₩50,000+ per meal, ₩30,000+ per attraction).
+  - Prioritize comfort and exclusivity over cost savings.`,
+    standard: `The budget style is "Standard / Balanced". You MUST:
+  - Mix public transport (subway, bus) with occasional taxi for convenience.
+  - Recommend mid-range restaurants (₩10,000-₩25,000 per meal) with good value.
+  - Balance paid attractions with free/low-cost options.
+  - Suggest a mix of popular spots and local favorites.`,
+    budget: `The budget style is "Budget-friendly (짠내투어)". You MUST:
+  - Use ONLY public transportation (subway, bus, walking). NO taxis or rental cars.
+  - Recommend street food, local markets, budget-friendly eateries (under ₩10,000 per meal).
+  - Prioritize FREE attractions: parks, temples, street art, public viewpoints, free museums.
+  - Suggest money-saving tips in localTip fields (e.g., discount passes, free entry days).
+  - Minimize overall estimated spending per person.`
+  };
+
+  const userTheme = plannerRequest.theme || null;
+  const userBudget = plannerRequest.budget || null;
+
+  let stylePromptBlock = '';
+  if (userTheme || userBudget) {
+    stylePromptBlock = `\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):`;
+    if (userTheme && themeInstructions[userTheme]) {
+      stylePromptBlock += `\n\n[THEME: ${themeLabels[userTheme] || userTheme}]\n${themeInstructions[userTheme]}`;
+    }
+    if (userBudget && budgetInstructions[userBudget]) {
+      stylePromptBlock += `\n\n[BUDGET: ${budgetLabels[userBudget] || userBudget}]\n${budgetInstructions[userBudget]}`;
+    }
+    stylePromptBlock += `\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.`;
+  }
+
   const prompt = `
 You are an expert AI Travel Planner.
 Plan a 1-day itinerary for the date ${plannerRequest.date}.
@@ -88,6 +161,7 @@ PARAMETERS:
 
 ANCHOR SCHEDULES (Must Attend):
 ${anchorText}
+${stylePromptBlock}
 
 The primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.
 Fill the rest of the day prior to and after the AnchorSchedules with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
@@ -104,6 +178,10 @@ ${anchorRule}
 3. Obey the JSON schema exactly. You MUST provide a valid 'googleMapsUrl' for every single schedule item. Provide 'officialWebsiteUrl' if available, otherwise an empty string.
 4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
 5. ${langRule}
+6. Transit realism: The 'description' and 'transitInfo' MUST match 100% in terms of transport mode and travel time. NEVER hallucinate physically impossible routes (e.g., taking a local village bus for 74km). Calculate logical transport modes and travel times based on actual geography in Korea.
+7. Detailed Transit Route: If taking public transit, 'transitInfo' MUST specify exact departure, transfer, and arrival points (e.g. "[Board at A Station -> Transfer at B Station -> Alight at C Station]").
+8. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
+9. Concrete Recommendations: In 'localTip' or 'description' (especially for dining, healing, or relaxation stops), DO NOT vaguely say "go to a nearby restaurant." You MUST strongly recommend 3 to 5 ACTUAL, highly-rated restaurants or cafes nearby with their specific names, ratings, and signature menus (e.g., "1. OO Restaurant (4.5) - Famous for Kimchi Stew").
   `;
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));

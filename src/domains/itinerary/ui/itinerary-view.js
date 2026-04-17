@@ -361,6 +361,12 @@ export default class ItineraryView extends HTMLElement {
     transitRoutes.forEach(detail => {
       const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
       if (el) {
+        // [수정 사항 1] 도보(walk), 자전거, 혹은 이동 시간이 유의미하지 않은 경우 초록 박스 완전히 숨김
+        if (detail.mode === 'WALKING' || detail.mode === 'BICYCLING' || !detail.mode || !detail.duration || detail.duration.includes('0 min') || detail.duration.includes('1 min')) {
+          el.style.display = 'none';
+          return;
+        }
+
         const style = this.getTransitStyle(detail.mode, detail.vehicleType);
         let modeText = t('transitText') || style.label;
 
@@ -1470,6 +1476,7 @@ export default class ItineraryView extends HTMLElement {
         <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
           <div class="schedule-title">${scheduleItem.title}</div>
           <div class="schedule-desc">${scheduleItem.description}</div>
+          ${scheduleItem.transitInfo ? `<div class="schedule-desc" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${scheduleItem.transitInfo}</div>` : ''}
           <div class="schedule-meta">
             <span class="meta-item">📍 ${locationStr}</span>
             <span class="meta-item">⏱ ${scheduleItem.duration}</span>

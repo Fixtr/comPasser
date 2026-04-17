@@ -493,7 +493,8 @@ export default class LoginView extends HTMLElement {
         const result = await verifySocialToken({ provider: 'kakao', token: access_token });
         
         await signInWithCustomToken(auth, result.data.customToken);
-        window.navigate('/plan');
+        const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
+        window.navigate(targetPath);
       } catch (err) {
         console.error('[Kakao] Social login failed:', err.message || 'Unknown error');
         errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
@@ -545,7 +546,8 @@ export default class LoginView extends HTMLElement {
                   const result = await verifySocialToken({ provider: 'naver', token: e.data.token });
                   
                   await signInWithCustomToken(auth, result.data.customToken);
-                  window.navigate('/plan');
+                  const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
+                  window.navigate(targetPath);
               } catch (err) {
                   console.error('[Naver] Social login failed:', err.message || 'Unknown error');
                   errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
