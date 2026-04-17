@@ -49,7 +49,20 @@ export async function generateOptimizedItinerary(plannerRequest) {
                       estimatedCost: { type: SchemaType.STRING, description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
                       operatingHours: { type: SchemaType.STRING, description: "General opening/closing hours and holidays (e.g. '10:00 - 22:00 (Closed on Mons)')" },
                       localTip: { type: SchemaType.STRING, description: "A SINGLE specific, highly actionable pro-tip ONLY (e.g. 'Catchtable app reservation is required', 'Signature menu: Einspanner coffee'). Do NOT include any restaurant/cafe recommendation lists here. NEVER write vague tips like 'Visit on weekdays'." },
-                      top3Recommendations: { type: SchemaType.STRING, description: "ONLY for 'dining' or 'cafe' type items: List exactly 3 real, highly-rated (4.0+) specific venues near the location. Format: '1. [Name]([Rating])\\n2. [Name]([Rating])\\n3. [Name]([Rating])'. Leave as empty string for non-dining/cafe items." }
+                      top3Recommendations: {
+                        type: SchemaType.ARRAY,
+                        description: "ONLY for 'dining' or 'cafe' type items: List exactly 3 real, highly-rated (4.0+) specific venues near the location. Leave as an empty array [] for non-dining/cafe items.",
+                        items: {
+                          type: SchemaType.OBJECT,
+                          properties: {
+                            name: { type: SchemaType.STRING, description: "Name of the venue" },
+                            rating: { type: SchemaType.STRING, description: "Rating of the venue, e.g. '4.3'" },
+                            reviewUrl: { type: SchemaType.STRING, description: "Google Maps search URL for reviews, e.g. https://www.google.com/maps/search/?api=1&query=[Place+Name]" },
+                            directionUrl: { type: SchemaType.STRING, description: "Google Maps directions URL, e.g. https://www.google.com/maps/dir/?api=1&destination=[Place+Name]" }
+                          },
+                          required: ["name", "rating", "reviewUrl", "directionUrl"]
+                        }
+                      }
                     },
                     required: ["estimatedCost", "operatingHours", "localTip", "top3Recommendations"]
                   }
@@ -184,8 +197,12 @@ ${anchorRule}
 8. Explicit Transit Exception (Rule 1): If an activity occurs entirely within one single venue (e.g., Palace Viewing, Museum Exhibition, Theme Park), DO NOT generate fake physical movement texts like "Walking inside the palace" in 'transitInfo'. You MUST write explicitly "[Place Name] Viewing" or "[Place Name] Experience" instead.
 9. Dining & Cafe Data Split (Rule 2 & 3): For ANY 'dining' or 'cafe' type schedule item, you MUST split the recommendation data into TWO separate fields:
    - 'localTip': Write ONE single, specific, highly actionable tip ONLY (e.g., 'Remote queuing via the Catchtable app is essential', 'Signature menu: Einspanner coffee'). You are STRICTLY FORBIDDEN from writing vague tips like 'Visit on weekdays' or 'Arrive early'. Do NOT put any restaurant/cafe list in this field.
-   - 'top3Recommendations': Write ONLY the list of 3 real, highly-rated (4.0+) venues near the location. Each entry on a new line. Format exactly: '1. [Venue Name]([Rating])\n2. [Venue Name]([Rating])\n3. [Venue Name]([Rating])'. Example: '1. 오근내닭갈비(4.5)\n2. 능동미나리(4.3)\n3. 쉑쉑버거(4.2)'
-   For non-dining/non-cafe items, set 'top3Recommendations' to an empty string "".
+   - 'top3Recommendations': Generate an array of EXACTLY 3 objects for real, highly-rated (4.0+) venues near the location. Each object MUST contain:
+     * 'name': the venue's name (string)
+     * 'rating': the venue's rating as a string (e.g., "4.3")
+     * 'reviewUrl': a Google Maps search URL for the venue's reviews (e.g., "https://www.google.com/maps/search/?api=1&query=[Venue+Name+encoded]")
+     * 'directionUrl': a Google Maps directions URL to the venue (e.g., "https://www.google.com/maps/dir/?api=1&destination=[Venue+Name+encoded]")
+   For non-dining/non-cafe items, set 'top3Recommendations' to an empty array [].
 10. Time Logic Rule (Rule 4): The total 'duration' value for any schedule item MUST be greater than or equal to the transit time stated in 'transitInfo'. You MUST NOT create a time paradox where the transit travel time EXCEEDS the total allocated duration for the item. (e.g., if transit is 40 minutes, duration must be at least 40 minutes).
 11. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
   `;

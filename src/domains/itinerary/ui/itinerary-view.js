@@ -1070,6 +1070,80 @@ export default class ItineraryView extends HTMLElement {
           background: linear-gradient(135deg, #d1fae5, #ecfdf5);
         }
 
+        /* ====== Top3 추천 리스트 버튼 ====== */
+        .rec-list {
+          margin-top: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.45rem;
+        }
+
+        .rec-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.83rem;
+          color: #374151;
+          flex-wrap: wrap;
+        }
+
+        .rec-rank {
+          font-weight: 800;
+          color: var(--accent-primary, #7c3aed);
+          min-width: 1.2rem;
+        }
+
+        .rec-name {
+          flex: 1;
+          font-weight: 600;
+        }
+
+        .rec-rating {
+          color: #d97706;
+          font-weight: 700;
+          font-size: 0.8rem;
+        }
+
+        .rec-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.2rem;
+          padding: 0.22rem 0.6rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          text-decoration: none;
+          border: 1.5px solid;
+          cursor: pointer;
+          background: transparent;
+          transition: all 0.18s ease;
+          line-height: 1.4;
+        }
+
+        .rec-btn.review {
+          color: #2563eb;
+          border-color: #bfdbfe;
+          background: #eff6ff;
+        }
+
+        .rec-btn.review:hover {
+          background: #dbeafe;
+          transform: translateY(-1px);
+          box-shadow: 0 3px 8px rgba(37,99,235,0.15);
+        }
+
+        .rec-btn.direction {
+          color: #065f46;
+          border-color: #a7f3d0;
+          background: #ecfdf5;
+        }
+
+        .rec-btn.direction:hover {
+          background: #d1fae5;
+          transform: translateY(-1px);
+          box-shadow: 0 3px 8px rgba(16,185,129,0.15);
+        }
+
         .nav-btn:active {
           transform: translateY(0);
         }
@@ -1512,15 +1586,40 @@ export default class ItineraryView extends HTMLElement {
               const isDining = itemType === 'dining';
               const isCafe = itemType === 'cafe';
 
-              const recsHtml = (recs && recs.trim() !== '')
-                ? `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
+              // 객체 배열 포맷 (신규)
+              let recsHtml = '';
+              if (Array.isArray(recs) && recs.length > 0) {
+                const recIcon = isDining ? '🍽️' : isCafe ? '☕️' : '⭐';
+                const recLabel = isDining ? '추천 식당 Top 3' : isCafe ? '추천 카페 Top 3' : '추천 Top 3';
+                const recItemsHtml = recs.map((rec, i) => {
+                  const safeName = (rec.name || '').replace(/"/g, '&quot;');
+                  const reviewHref = rec.reviewUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name || '')}`;
+                  const dirHref = rec.directionUrl || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rec.name || '')}`;
+                  return `<div class="rec-item">
+                    <span class="rec-rank">${i + 1}.</span>
+                    <span class="rec-name">${safeName}</span>
+                    <span class="rec-rating">⭐ ${rec.rating || ''}</span>
+                    <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">📋 리뷰보기</a>
+                    <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">🗺️ 길찾기</a>
+                  </div>`;
+                }).join('');
+                recsHtml = `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
+                     <span class="info-icon">${recIcon}</span>
+                     <span class="info-value" style="flex:1;">
+                       <span class="info-label">${recLabel}</span>
+                       <div class="rec-list" style="margin-top: 0.4rem;">${recItemsHtml}</div>
+                     </span>
+                   </div>`;
+              } else if (typeof recs === 'string' && recs.trim() !== '') {
+                // 문자열 폴백 (구버전 데이터 호환)
+                recsHtml = `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
                      <span class="info-icon">${isDining ? '🍽️' : isCafe ? '☕️' : '⭐'}</span>
                      <span class="info-value">
                        <span class="info-label">${isDining ? '추천 식당 Top 3' : isCafe ? '추천 카페 Top 3' : '추천 Top 3'}</span>
                        <div style="margin-top: 0.3rem; white-space: pre-line; line-height: 1.7;">${recs.trim()}</div>
                      </span>
-                   </div>`
-                : '';
+                   </div>`;
+              }
 
               return `
                 <div class="quick-info-box structured">
