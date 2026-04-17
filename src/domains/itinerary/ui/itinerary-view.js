@@ -12,7 +12,6 @@ export default class ItineraryView extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    window.addEventListener('transit-info-ready', (e) => this.renderTransitInfo(e.detail));
     
     // Check URL for direct ID access
     this.checkUrlForId();
@@ -1475,11 +1474,32 @@ export default class ItineraryView extends HTMLElement {
         <div class="time-badge">${timeDisplay}</div>
         <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
           <div class="schedule-title">${scheduleItem.title}</div>
-          <div class="schedule-desc">${scheduleItem.description}</div>
-          ${scheduleItem.transitInfo ? `<div class="schedule-desc" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${scheduleItem.transitInfo}</div>` : ''}
+          ${(function() {
+            const info = scheduleItem.transitInfo;
+            if (!info) return '';
+            
+            const trimmedInfo = info.trim();
+            // 강화된 필터링 키워드
+            const skipKeywords = ['없음', '이동 완료', '정보 없음', 'null', 'undefined'];
+            if (trimmedInfo === '' || skipKeywords.some(k => trimmedInfo.includes(k))) return '';
+            
+            return `<div class="schedule-desc" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${trimmedInfo}</div>`;
+          })()}
           <div class="schedule-meta">
             <span class="meta-item">📍 ${locationStr}</span>
-            <span class="meta-item">⏱ ${scheduleItem.duration}</span>
+            <span class="meta-item">⏱ ${scheduleItem.duration}${(function() {
+              const info = scheduleItem.transitInfo || '';
+              // 시간 정보 추출 정규식 (예: 약 15분, 1시간 10분 등)
+              const timeMatch = info.match(/(?:약\s*)?(\d+\s*시간)?\s*(\d+\s*분)/);
+              if (timeMatch) {
+                const transitTime = timeMatch[0];
+                // 전체 소요 시간과 이동 시간이 다른 경우 혹은 이동 관련 키워드가 있는 경우에만 표시
+                if (scheduleItem.duration !== transitTime || info.includes('이동') || info.includes('도보')) {
+                   return ` <span style="opacity: 0.8; font-weight: normal; font-size: 0.85em;">(이동시간: ${transitTime})</span>`;
+                }
+              }
+              return '';
+            })()}</span>
           </div>
           ${(function() {
             const info = scheduleItem.practicalInfo;
@@ -1487,6 +1507,21 @@ export default class ItineraryView extends HTMLElement {
             
             // Structured Object Format (Phase 4)
             if (typeof info === 'object' && !Array.isArray(info)) {
+              const recs = info.top3Recommendations;
+              const itemType = scheduleItem.type || '';
+              const isDining = itemType === 'dining';
+              const isCafe = itemType === 'cafe';
+
+              const recsHtml = (recs && recs.trim() !== '')
+                ? `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
+                     <span class="info-icon">${isDining ? '🍽️' : isCafe ? '☕️' : '⭐'}</span>
+                     <span class="info-value">
+                       <span class="info-label">${isDining ? '추천 식당 Top 3' : isCafe ? '추천 카페 Top 3' : '추천 Top 3'}</span>
+                       <div style="margin-top: 0.3rem; white-space: pre-line; line-height: 1.7;">${recs.trim()}</div>
+                     </span>
+                   </div>`
+                : '';
+
               return `
                 <div class="quick-info-box structured">
                   <div class="info-group">
@@ -1502,6 +1537,7 @@ export default class ItineraryView extends HTMLElement {
                       <span class="info-icon">💡</span>
                       <span class="info-value"><span class="info-label">현지 팁:</span> ${info.localTip || '—'}</span>
                     </div>
+                    ${recsHtml}
                   </div>
                 </div>
               `;
@@ -1532,14 +1568,6 @@ export default class ItineraryView extends HTMLElement {
       }
 
       container.appendChild(item);
-
-      const totalItems = safePlan.days.reduce((acc, d) => acc + (d.scheduleItems?.length || 0), 0);
-      if (idx < totalItems - 1) {
-        const transit = document.createElement('div');
-        transit.className = 'transit-info hidden';
-        transit.id = `transit-info-${idx}`;
-        container.appendChild(transit);
-      }
     });
     });
 

@@ -48,9 +48,10 @@ export async function generateOptimizedItinerary(plannerRequest) {
                     properties: {
                       estimatedCost: { type: SchemaType.STRING, description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
                       operatingHours: { type: SchemaType.STRING, description: "General opening/closing hours and holidays (e.g. '10:00 - 22:00 (Closed on Mons)')" },
-                      localTip: { type: SchemaType.STRING, description: "Crucial pro tips for foreigners/locals (e.g. 'English menu available', 'Credit cards accepted', 'Last entry at 21:00')" }
+                      localTip: { type: SchemaType.STRING, description: "A SINGLE specific, highly actionable pro-tip ONLY (e.g. 'Catchtable app reservation is required', 'Signature menu: Einspanner coffee'). Do NOT include any restaurant/cafe recommendation lists here. NEVER write vague tips like 'Visit on weekdays'." },
+                      top3Recommendations: { type: SchemaType.STRING, description: "ONLY for 'dining' or 'cafe' type items: List exactly 3 real, highly-rated (4.0+) specific venues near the location. Format: '1. [Name]([Rating])\\n2. [Name]([Rating])\\n3. [Name]([Rating])'. Leave as empty string for non-dining/cafe items." }
                     },
-                    required: ["estimatedCost", "operatingHours", "localTip"]
+                    required: ["estimatedCost", "operatingHours", "localTip", "top3Recommendations"]
                   }
                 },
                 required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl", "transitInfo", "practicalInfo"]
@@ -180,8 +181,13 @@ ${anchorRule}
 5. ${langRule}
 6. Transit realism: The 'description' and 'transitInfo' MUST match 100% in terms of transport mode and travel time. NEVER hallucinate physically impossible routes (e.g., taking a local village bus for 74km). Calculate logical transport modes and travel times based on actual geography in Korea.
 7. Detailed Transit Route: If taking public transit, 'transitInfo' MUST specify exact departure, transfer, and arrival points (e.g. "[Board at A Station -> Transfer at B Station -> Alight at C Station]").
-8. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
-9. Concrete Recommendations: In 'localTip' or 'description' (especially for dining, healing, or relaxation stops), DO NOT vaguely say "go to a nearby restaurant." You MUST strongly recommend 3 to 5 ACTUAL, highly-rated restaurants or cafes nearby with their specific names, ratings, and signature menus (e.g., "1. OO Restaurant (4.5) - Famous for Kimchi Stew").
+8. Explicit Transit Exception (Rule 1): If an activity occurs entirely within one single venue (e.g., Palace Viewing, Museum Exhibition, Theme Park), DO NOT generate fake physical movement texts like "Walking inside the palace" in 'transitInfo'. You MUST write explicitly "[Place Name] Viewing" or "[Place Name] Experience" instead.
+9. Dining & Cafe Data Split (Rule 2 & 3): For ANY 'dining' or 'cafe' type schedule item, you MUST split the recommendation data into TWO separate fields:
+   - 'localTip': Write ONE single, specific, highly actionable tip ONLY (e.g., 'Remote queuing via the Catchtable app is essential', 'Signature menu: Einspanner coffee'). You are STRICTLY FORBIDDEN from writing vague tips like 'Visit on weekdays' or 'Arrive early'. Do NOT put any restaurant/cafe list in this field.
+   - 'top3Recommendations': Write ONLY the list of 3 real, highly-rated (4.0+) venues near the location. Each entry on a new line. Format exactly: '1. [Venue Name]([Rating])\n2. [Venue Name]([Rating])\n3. [Venue Name]([Rating])'. Example: '1. 오근내닭갈비(4.5)\n2. 능동미나리(4.3)\n3. 쉑쉑버거(4.2)'
+   For non-dining/non-cafe items, set 'top3Recommendations' to an empty string "".
+10. Time Logic Rule (Rule 4): The total 'duration' value for any schedule item MUST be greater than or equal to the transit time stated in 'transitInfo'. You MUST NOT create a time paradox where the transit travel time EXCEEDS the total allocated duration for the item. (e.g., if transit is 40 minutes, duration must be at least 40 minutes).
+11. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
   `;
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
