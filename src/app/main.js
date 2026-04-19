@@ -406,6 +406,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (pagePlan) pagePlan.style.display = 'flex';
 
+            // Ensure preference badges are updated every time we visit /plan
+            const travelForm = document.querySelector('travel-form');
+            if (travelForm && typeof travelForm.renderPreferenceBadges === 'function') {
+                travelForm.renderPreferenceBadges();
+            }
+
             // CRITICAL: State Preservation (Seamless Editor)
             if (travelFormView) {
                 travelFormView.style.display = 'block';

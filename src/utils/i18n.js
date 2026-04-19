@@ -64,7 +64,16 @@ const dictionary = {
         resetBtn: "초기화",
         inAppBrowserIOSAlert: "보안 문제로 카카오톡 등 인앱 브라우저에서는 구글 로그인이 제한됩니다. 우측 하단의 [ ⠇ ] 버튼을 눌러 '다른 브라우저로 열기'를 선택해 주세요.",
         inAppBrowserTitle: "⚠️ 외부 브라우저에서 열어주세요",
-        inAppBrowserDesc: "카카오톡 등 인앱 브라우저에서는 보안 정책으로 인해 구글 로그인이 제한됩니다. 아래 안내를 따라 외부 브라우저에서 다시 접속해 주세요."
+        inAppBrowserDesc: "카카오톡 등 인앱 브라우저에서는 보안 정책으로 인해 구글 로그인이 제한됩니다. 아래 안내를 따라 외부 브라우저에서 다시 접속해 주세요.",
+        // Preferences
+        theme_food: "🍽️ 맛집 탐방",
+        theme_activity: "🏄 액티비티",
+        theme_healing: "🧘 휴식/힐링",
+        theme_photo: "📸 인생샷",
+        budget_flex: "💰 플렉스",
+        budget_standard: "💵 스탠다드",
+        budget_budget: "🪙 짠내투어",
+        no_preference: "⚙️ 선택 없음"
     },
     en: {
         heroTitle: "Smart Travel AI",
@@ -129,7 +138,16 @@ const dictionary = {
         resetBtn: "Reset",
         inAppBrowserIOSAlert: "Due to security policies, Google login is restricted in in-app browsers like KakaoTalk. Please tap the [ ⠇ ] button at the bottom right and select 'Open in browser'.",
         inAppBrowserTitle: "⚠️ Please open in an external browser",
-        inAppBrowserDesc: "Google login is restricted in in-app browsers (e.g., KakaoTalk) due to security policies. Please follow the instructions below to open this page in your default browser."
+        inAppBrowserDesc: "Google login is restricted in in-app browsers (e.g., KakaoTalk) due to security policies. Please follow the instructions below to open this page in your default browser.",
+        // Preferences
+        theme_food: "🍽️ Foodie",
+        theme_activity: "🏄 Activity",
+        theme_healing: "🧘 Healing",
+        theme_photo: "📸 Photos",
+        budget_flex: "💰 Flex",
+        budget_standard: "💵 Standard",
+        budget_budget: "🪙 Budget",
+        no_preference: "⚙️ No Preference"
     }
 };
 
