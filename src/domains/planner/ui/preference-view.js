@@ -425,9 +425,17 @@ export default class PreferenceView extends HTMLElement {
       const card = e.target.closest('.preference-card');
       if (!card) return;
 
+      const isAlreadySelected = card.classList.contains('selected');
+      
       themeGrid.querySelectorAll('.preference-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      this.selectedTheme = card.dataset.value;
+      
+      if (isAlreadySelected) {
+        this.selectedTheme = null;
+      } else {
+        card.classList.add('selected');
+        this.selectedTheme = card.dataset.value;
+      }
+      
       this._updateButtonState(nextBtn, helperText);
     });
 
@@ -436,9 +444,17 @@ export default class PreferenceView extends HTMLElement {
       const card = e.target.closest('.preference-card');
       if (!card) return;
 
+      const isAlreadySelected = card.classList.contains('selected');
+
       budgetGrid.querySelectorAll('.preference-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      this.selectedBudget = card.dataset.value;
+      
+      if (isAlreadySelected) {
+        this.selectedBudget = null;
+      } else {
+        card.classList.add('selected');
+        this.selectedBudget = card.dataset.value;
+      }
+
       this._updateButtonState(nextBtn, helperText);
     });
 
