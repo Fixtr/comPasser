@@ -13,9 +13,6 @@ export default class ItineraryView extends HTMLElement {
   connectedCallback() {
     this.render();
     
-    // Check URL for direct ID access
-    this.checkUrlForId();
-    
     this.setupSaveListener();
     this.setupShareListener();
     this.setupKakaoShareListener();
@@ -163,7 +160,7 @@ export default class ItineraryView extends HTMLElement {
           shareBtn.disabled = true;
 
           const docId = await createSharedItinerary(this.currentItinerary);
-          const shareUrl = window.location.origin + window.location.pathname + '?id=' + docId;
+          const shareUrl = window.location.origin + '/view/' + docId;
 
           await navigator.clipboard.writeText(shareUrl);
           alert(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!");
@@ -191,7 +188,7 @@ export default class ItineraryView extends HTMLElement {
           kakaoBtn.disabled = true;
 
           const docId = await createSharedItinerary(this.currentItinerary);
-          const shareUrl = window.location.origin + window.location.pathname + '?id=' + docId;
+          const shareUrl = window.location.origin + '/view/' + docId;
 
           Kakao.Share.sendDefault({
             objectType: 'feed',
