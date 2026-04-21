@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "tddGuard": "scripts/hooks/tdd-guard.sh",
+    "dangerousCmdGuard": "scripts/hooks/dangerous-cmd-guard.sh",
+    "circuitBreaker": "scripts/hooks/circuit-breaker.sh"
+  },
+  "circuitBreakerConfig": {
+    "maxConsecutiveErrors": 3,
+    "action": "PAUSE_AND_REPORT",
+    "hitlOutputRequirements": [
+      "현재까지의 로그 (Terminal Output History)",
+      "에러 원인 분석 (Root Cause Analysis)",
+      "해결을 위한 선택지 2가지 (2 Options for Resolution)"
+    ]
+  }
+}

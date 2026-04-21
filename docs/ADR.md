@@ -1,0 +1,28 @@
+# Architecture Decision Record (ADR)
+
+## Context
+We need to select an AI Model, an Authentication Provider, a Frontend Framework Strategy, and a Mobile Packaging solution for Compasser.
+
+## Decision 1: AI Model - Gemini 2.5 Flash Lite
+**Status:** Accepted
+**Trade-offs (Given up / Gained):**
+- **Given Up:** Complex long-chain reasoning capabilities, advanced logic structuring typically found in Pro/Ultra models.
+- **Gained:** Blazing fast latency (crucial for interactive apps), ultra-low API cost, and sufficient instruction-following suitable for stable JSON outputs (`top3Recommendations`), matching our serverless and MVP philosophy perfectly.
+
+## Decision 2: Authentication - Google Auth & Email via Firebase
+**Status:** Accepted
+**Trade-offs:**
+- **Given Up:** Total ownership of the authentication database scheme and complex custom auth pipelines.
+- **Gained:** Single Sign-On (SSO) drastically lowering user entry barriers and eliminating custom backend server maintenance.
+
+## Decision 3: Framework Strategy - Vanilla JS + Vite
+**Status:** Accepted
+**Trade-offs:**
+- **Given Up:** React/Vue's built-in state management algorithms and vast ecosystem of drop-in components.
+- **Gained:** Zero framework runtime overhead (max performance) and direct DOM manipulation stability, directly benefiting the "Hybrid Map Strategy."
+
+## Decision 4: Mobile Packaging - Capacitor
+**Status:** Accepted
+**Trade-offs:**
+- **Given Up:** True native UX fluidity in highly complex animations compared to Swift/Kotlin native.
+- **Gained:** A single codebase for Web, iOS, and Android without writing cross-platform framework codes like Flutter/React Native.
