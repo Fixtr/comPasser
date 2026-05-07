@@ -5,6 +5,11 @@ Compasser는 한국을 여행하는 모든 사람(내/외국인 모두 포함)�
 
 ## ✨ 핵심 기능 (Key Features)
 
+### 0. 🗓️ 멀티 데이 일정 지원 (Multi-day Support) - **NEW**
+- **최대 3박 4일 확장**: 기존 당일치기 일정 생성을 넘어, 최대 3박 4일(4일)까지의 연속된 여행 일정을 한 번에 생성할 수 있습니다.
+- **날짜별 탭 UI**: 생성된 멀티 데이 일정은 타임라인 상단의 날짜 탭(Day 1, Day 2...)을 통해 간편하게 전환하며 확인할 수 있습니다.
+- **지도-타임라인 동기화**: 선택한 날짜의 탭에 맞춰 지도상의 경로와 마커가 실시간으로 동기화되어 시각적 일관성을 제공합니다.
+
 ### 1. 🔐 보안 및 개인화: 통합 인증 시스템
 - **다양한 로그인 방식**: Google 계정 기반의 간편 로그인뿐만 아니라, 이메일/비밀번호 기반의 자체 회원가입 기능을 제공합니다.
 - **이메일 인증 보안**: 가입 시 Firebase Email Verification을 통해 인증 메일을 발송하며, 메일 내 링크를 클릭하여 인증을 완료한 유저만 서비스 이용이 가능하도록 보안 로직이 적용되어 있습니다.
@@ -125,11 +130,11 @@ Compasser는 단순히 웹에 머물지 않고 iOS와 Android 네이티브 앱�
 - **모바일 최적화 UI**: 노치(Notch) 디자인 대응을 위한 `Safe Area Inset` 처리와 모바일 전용 뷰포트 설정이 적용되어 있습니다.
 - **고도화된 모바일 라우팅**: 앱 환경에서 발생할 수 있는 `/index.html` 경로 이슈를 자동으로 해결하는 지능형 라우터를 탑재했습니다.
 
-### 19. 🆕 테마 및 예산 기반 맞춤형 시작 (Preference Flow)
-사용자의 여행 취향을 먼저 파악하여 더욱 개인화된 일정을 생성합니다.
-- **단계별 진입**: 로그인 직후 바로 플래너로 가는 것이 아니라, `/preference` 페이지에서 '여행 테마'와 '예산 스타일'을 먼저 선택합니다.
-- **지능형 가드**: 선택된 취향 데이터는 `sessionStorage`에 안전하게 보관되며, 플래너 진입 시 AI 프롬프트의 핵심 파라미터로 즉시 주입됩니다.
-- **유연한 변경**: 플래너 상단에 배치된 **[테마/예산 다시 선택]** 버튼을 통해 언제든 취향을 수정하고 일정을 다시 생성할 수 있습니다.
+### 19. 🆕 단계별 취향 및 기간 선택 (Step-based Preference Flow)
+사용자의 여행 취향과 정확한 일정을 먼저 파악하여 최적화된 멀티 데이 일정을 생성합니다.
+- **2단계 스텝 UI**: `/preference` 페이지에서 '1단계: 시작일 및 기간(당일~3박 4일) 선택' -> '2단계: 여행 테마 및 예산 스타일 선택'으로 이어지는 직관적인 스텝형 UI를 도입했습니다.
+- **실시간 데이터 동기화**: 선택한 날짜와 기간 데이터는 `sessionStorage`에 즉시 반영되며, SPA 라우팅 캐싱 문제를 해결하기 위해 IntersectionObserver를 통한 강제 리렌더링 로직이 적용되었습니다.
+- **지능형 가드**: 선택된 취향 데이터는 플래너 진입 시 AI 프롬프트의 핵심 파라미터로 주입되어 멀티 데이 스케줄링의 기반이 됩니다.
 
 ### 20. 🧠 AI 환각 방지 시스템 (Anti-Hallucination & Data Integrity)
 AI가 생성하는 데이터의 신뢰성을 극대화하기 위한 다중 방어 체계를 구축했습니다.
@@ -166,8 +171,8 @@ Compasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 - **Frontend**: Vite, Vanilla JS (ES6 Modules), HTML5/CSS3
 - **Mobile Foundation**: Capacitor (@capacitor/ios, @capacitor/android)
 - **API / Cloud**: 
-  - Google Maps JavaScript API (Maps, Geocoding, Directions) — 동선 시각화 뷰어
-  - Google Gemini API (gemini-2.5-flash) — AI 일정 생성
+  - Google Maps JavaScript API (Maps, Geocoding, Directions) — 동선 시각화 및 타임라인 탭 동기화
+  - Google Gemini API (gemini-2.0-flash) — 멀티 데이 AI 일정 생성
 - **네비게이션 딥링크**: 네이버 지도 / 카카오맵 / Google Maps URL Scheme — 실시간 길찾기 액션
 - **Deployment**: GitHub Pages (Web), Native Build (iOS/Android)
 

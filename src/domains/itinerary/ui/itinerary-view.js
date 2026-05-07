@@ -10,6 +10,7 @@ export default class ItineraryView extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.currentItinerary = null;
+    this.activeDayIndex = 0;
   }
 
   connectedCallback() {
@@ -490,8 +491,11 @@ export default class ItineraryView extends HTMLElement {
           <!-- Trip Summary Dashboard -->
           <div id="trip-summary" class="trip-summary"></div>
           
-          <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0;">Day 1 Itinerary</h2>
-          <div class="timeline" id="timeline-container">
+          <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
+          <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
+            <!-- Tabs injected dynamically -->
+          </div>
+          <div class="timeline" id="timeline-container" style="transition: opacity 0.3s ease-in-out;">
             <!-- Dynamically injected -->
           </div>
         </div>
@@ -552,22 +556,6 @@ export default class ItineraryView extends HTMLElement {
         return;
       }
 
-      const firstDay = safePlan.days[0];
-      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
-      const headerEl = this.shadowRoot.getElementById('day-title-header');
-      if (headerEl) {
-        headerEl.textContent = headerFormat.replace('{0}', firstDay?.date || '');
-      }
-
-      // Render Trip Summary Dashboard
-      if (firstDay && firstDay.scheduleItems) {
-        this.renderTripSummary(firstDay.scheduleItems, firstDay.date);
-      }
-
-      const container = this.shadowRoot.getElementById('timeline-container');
-      if (!container) return;
-      container.innerHTML = ''; // Clear old
-
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) saveBtn.style.display = 'block';
 
@@ -580,8 +568,85 @@ export default class ItineraryView extends HTMLElement {
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
 
-    let globalIdx = 0;
-    safePlan.days.forEach((dayData) => {
+    // Tabs setup
+    const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
+    tabsContainer.innerHTML = '';
+    
+    if (safePlan.days.length > 1) {
+      tabsContainer.style.display = 'flex';
+      safePlan.days.forEach((dayData, idx) => {
+        const tabBtn = document.createElement('button');
+        tabBtn.className = `day-tab-btn ${idx === this.activeDayIndex ? 'active' : ''}`;
+        
+        // Use i18n formatter
+        const dayLabelTemplate = t('day_n') || '{0}일차';
+        const dayNum = dayData.day || idx + 1;
+        const dayLabel = dayLabelTemplate.replace('{0}', dayNum);
+        
+        tabBtn.innerHTML = `<strong>${dayLabel}</strong><br><span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8;">${dayData.date}</span>`;
+        tabBtn.style.padding = '0.5rem 1rem';
+        tabBtn.style.border = 'none';
+        tabBtn.style.background = idx === this.activeDayIndex ? 'var(--accent-primary, #7c3aed)' : '#f3f4f6';
+        tabBtn.style.color = idx === this.activeDayIndex ? 'white' : '#4b5563';
+        tabBtn.style.borderRadius = '8px';
+        tabBtn.style.cursor = 'pointer';
+        tabBtn.style.flexShrink = '0';
+        tabBtn.style.transition = 'all 0.2s';
+        
+        tabBtn.addEventListener('click', () => {
+          this.activeDayIndex = idx;
+          this.renderActiveDay(safePlan);
+          
+          // Dispatch map update for specific day
+          const singleDayPlan = { ...safePlan, days: [safePlan.days[idx]] };
+          window.dispatchEvent(new CustomEvent('render-map-route', { detail: singleDayPlan }));
+        });
+        
+        tabsContainer.appendChild(tabBtn);
+      });
+    } else {
+      tabsContainer.style.display = 'none';
+      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
+      const headerEl = this.shadowRoot.getElementById('day-title-header');
+      if (headerEl) {
+        headerEl.textContent = headerFormat.replace('{0}', safePlan.days[0]?.date || '');
+        headerEl.style.display = 'block';
+      }
+    }
+
+    // Render initial
+    this.renderActiveDay(safePlan);
+    this.renderAds();
+    } catch (error) {
+      console.error('showResults error:', error);
+    }
+  }
+
+  renderActiveDay(safePlan) {
+    const container = this.shadowRoot.getElementById('timeline-container');
+    if (!container) return;
+    
+    // Update Tabs UI
+    const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
+    const tabs = tabsContainer.querySelectorAll('.day-tab-btn');
+    tabs.forEach((tab, idx) => {
+      tab.style.background = idx === this.activeDayIndex ? 'var(--accent-primary, #7c3aed)' : '#f3f4f6';
+      tab.style.color = idx === this.activeDayIndex ? 'white' : '#4b5563';
+    });
+
+    // Fade Out
+    container.style.opacity = '0';
+    
+    setTimeout(() => {
+      container.innerHTML = ''; // Clear old
+      
+      const dayData = safePlan.days[this.activeDayIndex];
+      if (!dayData) {
+        container.style.opacity = '1';
+        return;
+      }
+
+      let globalIdx = 0;
       const items = dayData.scheduleItems || [];
       
       // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
@@ -744,8 +809,17 @@ export default class ItineraryView extends HTMLElement {
 
       container.appendChild(item);
     });
-    });
 
+      // Fade In
+      requestAnimationFrame(() => {
+        container.style.opacity = '1';
+      });
+      
+    }, 150); // wait for fade out
+  }
+
+  // Helper inside showResults (formerly at bottom of showResults)
+  renderAds() {
       // 1. Shadow DOM 우회 및 광고 컨테이너 삽입 (Light DOM 영역)
       // 기존 광고가 있다면 제거 후 새로 생성 (SPA 라우팅 대응)
       const existingAd = this.querySelector('.adsense-wrapper');
@@ -771,10 +845,6 @@ export default class ItineraryView extends HTMLElement {
       } catch (e) {
         console.error('AdSense 렌더링 에러:', e);
       }
-    } catch (error) {
-      console.error('🔥 렌더링 치명적 오류:', error);
-      this.setError(`<div style="padding: 20px; border: 2px solid red; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: bold;">[렌더링 실패] 데이터를 화면에 그리는 중 오류가 발생했습니다.<br/><br/>${error.message}</div>`);
-    }
   }
 }
 

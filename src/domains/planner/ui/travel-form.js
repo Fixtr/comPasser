@@ -1,4 +1,4 @@
-import { t } from '../../../utils/i18n.js';
+import { t, getLang } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 
@@ -21,19 +21,19 @@ export default class TravelForm extends HTMLElement {
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
     this.initPlaces();
-    this.renderPreferenceBadges(); // 선택된 테마/예산 배지 렌더링
-    
+    // SPA 캐싱 대응: 화면 표시 감지 옵저버 설정
+    this._visibilityObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          console.log("[TravelForm] Component became visible. Forcing re-fetch from storage.");
+          this.refreshFromStorage();
+        }
+      });
+    }, { threshold: 0.05 });
+    this._visibilityObserver.observe(this);
 
-    // Restore Form Data on load if we are not locked in Phase 3
-    const savedPhase = sessionStorage.getItem('currentPhase');
-    const savedForm = sessionStorage.getItem('currentFormData');
-    if (savedPhase !== '3' && savedForm) {
-      try {
-        this.populateForm(JSON.parse(savedForm));
-      } catch (e) {
-        console.error('Form parse error', e);
-      }
-    }
+    // 최초 로드시에도 1회 실행
+    this.refreshFromStorage();
 
     // Listen for completion to reset button state
     window.addEventListener('itinerary-generation-complete', () => {
@@ -54,45 +54,133 @@ export default class TravelForm extends HTMLElement {
   }
 
   /**
+   * 컴포넌트가 다시 화면에 나타날 때마다 저장소에서 최신 데이터를 강제로 리페치합니다.
+   */
+  refreshFromStorage() {
+    this.renderPreferenceBadges();
+
+    // Restore Form Data on load if we are not locked in Phase 3
+    const savedPhase = sessionStorage.getItem('currentPhase');
+    const savedForm = sessionStorage.getItem('currentFormData');
+    const savedPrefStr = sessionStorage.getItem('userPreference');
+    
+    let prefDate = null;
+    let prefTheme = null;
+    let prefBudget = null;
+    
+    if (savedPrefStr) {
+      try {
+        const pref = JSON.parse(savedPrefStr);
+        prefDate = pref.date || null;
+        prefTheme = pref.theme || null;
+        prefBudget = pref.budget || null;
+      } catch (e) {}
+    }
+
+    // 폼 입력 데이터 찌꺼기 방어를 위해 reset() 호출 (populateForm 내부에서도 호출되지만 이중 방어)
+    const form = this.shadowRoot.getElementById('travel-form');
+    if (form) form.reset();
+
+    if (savedPhase !== '3' && savedForm) {
+      try {
+        const formData = JSON.parse(savedForm);
+        // 데이터 수신부 강제 초기화: 무조건 최신 userPreference 값으로 덮어씌움
+        if (prefDate) formData.date = prefDate;
+        if (prefTheme) formData.theme = prefTheme;
+        if (prefBudget) formData.budget = prefBudget;
+        
+        this.populateForm(formData);
+      } catch (e) {
+        console.error('Form parse error', e);
+      }
+    } else {
+      // 저장된 폼이 없을 경우, preference에서 가져온 데이터로 초기 폼 세팅
+      this.populateForm({ date: prefDate, theme: prefTheme, budget: prefBudget });
+    }
+  }
+
+  /**
    * sessionStorage의 userPreference를 읽어
    * 헤더의 #preference-chips-container에 칩(Badge) UI를 렌더링합니다.
    * 값이 없으면 컨테이너가 빈 채로 숨겨집니다.
    */
   renderPreferenceBadges() {
-    const container = this.shadowRoot.getElementById('preference-chips-container');
-    if (!container) return;
-
-    const makeChip = (key) => {
-      const chip = document.createElement('span');
-      chip.className = 'pref-chip';
-      chip.textContent = t(key);
-      return chip;
-    };
-
-    let theme = null;
-    let budget = null;
     try {
+      const container = this.shadowRoot.getElementById('preference-chips-container');
+      if (!container) return;
+
+      // 기존 DOM 찌꺼기 완벽 초기화 방어 로직 (잔상 방지)
+      container.innerHTML = '';
+
+      const makeChip = (key) => {
+        const chip = document.createElement('span');
+        chip.className = 'pref-chip';
+        chip.textContent = t(key);
+        return chip;
+      };
+
+      let theme = null;
+      let budget = null;
+      let date = null;
+      
       const saved = sessionStorage.getItem('userPreference');
       if (saved) {
-        const pref = JSON.parse(saved);
-        theme = pref.theme || null;
-        budget = pref.budget || null;
+        try {
+          const pref = JSON.parse(saved);
+          if (pref && typeof pref === 'object') {
+            theme = pref.theme || null;
+            budget = pref.budget || null;
+            date = pref.date || null;
+          }
+        } catch (e) {
+          console.warn('Failed to parse userPreference from sessionStorage', e);
+        }
       }
-    } catch (e) { /* ignore */ }
 
-    // 선택값이 하나도 없으면 '선택 없음' 배지 노출
-    if (!theme && !budget) {
+      // 선택값이 하나도 없으면 '선택 없음' 배지 노출
+      if (!theme && !budget && !date) {
+        container.style.display = 'flex';
+        container.appendChild(makeChip('no_preference'));
+        return;
+      }
+
       container.style.display = 'flex';
-      container.innerHTML = '';
-      container.appendChild(makeChip('no_preference'));
-      return;
+
+      if (date) {
+        let displayDate = "";
+        if (Array.isArray(date) && date.length > 0) {
+          if (date.length > 1) {
+            const nights = date.length - 1;
+            const days = date.length;
+            // i18n에 정의된 duration_n 키 사용 시도, 없으면 폴백
+            const durationKey = `duration_${days}`;
+            const durationText = t(durationKey) !== durationKey 
+              ? t(durationKey) 
+              : (getLang() === 'ko' ? `${nights}박 ${days}일` : `${nights}N ${days}D`);
+            
+            // [렌더링 점검] ${dateArray[0]} ~ ${dateArray[last]} (N박 M일) 형태 준수
+            displayDate = `${date[0]} ~ ${date[date.length - 1]} (${durationText})`;
+          } else {
+            displayDate = date[0];
+          }
+        } else if (typeof date === 'string') {
+          displayDate = date;
+        }
+
+        if (displayDate) {
+          const dateChip = document.createElement('span');
+          dateChip.className = 'pref-chip';
+          dateChip.style.background = 'linear-gradient(135deg, #10b981, #059669)'; // Date 배지는 초록
+          dateChip.innerHTML = `<span class="chip-icon">📅</span> ${displayDate}`;
+          container.appendChild(dateChip);
+        }
+      }
+      
+      if (theme) container.appendChild(makeChip(`theme_${theme}`));
+      if (budget) container.appendChild(makeChip(`budget_${budget}`));
+    } catch (error) {
+      console.warn('CRITICAL: renderPreferenceBadges failed but prevented crash:', error);
     }
-
-    container.style.display = 'flex';
-    container.innerHTML = '';
-
-    if (theme) container.appendChild(makeChip(`theme_${theme}`));
-    if (budget) container.appendChild(makeChip(`budget_${budget}`));
   }
 
   updateTexts() {
@@ -582,7 +670,41 @@ export default class TravelForm extends HTMLElement {
       // 3. Inject basic fields safely
       const setVal = (id, val) => {
         const el = this.shadowRoot.getElementById(id);
-        if (el && val !== undefined && val !== null) el.value = val;
+        if (el && val !== undefined && val !== null) {
+          // If the field is schedule-date and the value is an array
+          if (id === 'schedule-date') {
+            if (Array.isArray(val)) {
+              if (val.length > 1) {
+                // Multi-day
+                const nights = val.length - 1;
+                const reqDays = val.length;
+                const durationKey = `duration_${reqDays}`;
+                const durationText = t(durationKey) !== durationKey 
+                  ? t(durationKey) 
+                  : (getLang() === 'ko' ? `${nights}박 ${reqDays}일` : `${nights}N ${reqDays}D`);
+                el.type = 'text';
+                el.value = `${val[0]} ~ ${val[val.length - 1]} (${durationText})`;
+                el.readOnly = true;
+                el.style.backgroundColor = '#f3f4f6';
+                el.style.cursor = 'not-allowed';
+              } else {
+                el.type = 'date';
+                el.value = val[0];
+                el.readOnly = false;
+                el.style.backgroundColor = '';
+                el.style.cursor = '';
+              }
+            } else {
+              el.type = 'date';
+              el.value = val;
+              el.readOnly = false;
+              el.style.backgroundColor = '';
+              el.style.cursor = '';
+            }
+          } else {
+            el.value = val;
+          }
+        }
       };
 
       setVal('schedule-date', requestData?.date);
@@ -619,20 +741,29 @@ export default class TravelForm extends HTMLElement {
       location: el.querySelector('.anchor-location').value,
     }));
 
-    // /preference 페이지에서 저장한 테마/예산 데이터 병합
+    // /preference 페이지에서 저장한 테마/예산/날짜 데이터 병합
     let theme = null;
     let budget = null;
+    let datePref = null; // Can be array or string
     try {
       const savedPref = sessionStorage.getItem('userPreference');
       if (savedPref) {
         const pref = JSON.parse(savedPref);
         theme = pref.theme || null;
         budget = pref.budget || null;
+        datePref = pref.date || null;
       }
     } catch (e) { /* ignore parse errors */ }
 
+    // Use datePref (which contains the raw array for multi-day trips) if form input is readOnly
+    const dateInput = this.shadowRoot.getElementById('schedule-date');
+    let finalDate = datePref;
+    if (dateInput && !dateInput.readOnly) {
+      finalDate = dateInput.value || datePref;
+    }
+
     return {
-      date: this.shadowRoot.getElementById('schedule-date').value,
+      date: finalDate,
       startTime: this.shadowRoot.getElementById('start-time').value,
       endTime: this.shadowRoot.getElementById('end-time').value,
       startLocation: this.shadowRoot.getElementById('start-location').value,

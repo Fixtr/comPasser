@@ -163,9 +163,26 @@ export async function generateOptimizedItinerary(plannerRequest) {
     stylePromptBlock += `\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.`;
   }
 
+  let datesContext = '';
+  let dateText = plannerRequest.date; // fallback if string
+  let numDays = 1;
+
+  if (Array.isArray(plannerRequest.date)) {
+    numDays = plannerRequest.date.length;
+    if (numDays > 1) {
+      dateText = `${plannerRequest.date[0]} to ${plannerRequest.date[numDays - 1]}`;
+      datesContext = `You MUST plan a ${numDays}-day itinerary for the dates: ${plannerRequest.date.join(', ')}.`;
+    } else {
+      dateText = plannerRequest.date[0];
+      datesContext = `Plan a 1-day itinerary for the date ${dateText}.`;
+    }
+  } else {
+    datesContext = `Plan a 1-day itinerary for the date ${dateText}.`;
+  }
+
   const prompt = `
 You are an expert AI Travel Planner.
-Plan a 1-day itinerary for the date ${plannerRequest.date}.
+${datesContext}
 
 PARAMETERS:
 - Start Time: ${plannerRequest.startTime}
@@ -205,6 +222,7 @@ ${anchorRule}
    For non-dining/non-cafe items, set 'top3Recommendations' to an empty array [].
 10. Time Logic Rule (Rule 4): The total 'duration' value for any schedule item MUST be greater than or equal to the transit time stated in 'transitInfo'. You MUST NOT create a time paradox where the transit travel time EXCEEDS the total allocated duration for the item. (e.g., if transit is 40 minutes, duration must be at least 40 minutes).
 11. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
+12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.
   `;
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -216,62 +234,75 @@ ${anchorRule}
     const currentLang = getLang();
     const isKo = currentLang === 'ko';
     
+    // Determine days
+    let dates = ["Unknown Date"];
+    if (Array.isArray(constraints.date) && constraints.date.length > 0) {
+      dates = constraints.date;
+    } else if (typeof constraints.date === 'string') {
+      dates = [constraints.date];
+    }
+
+    const mockDays = dates.map((d, index) => {
+      return {
+        day: index + 1,
+        date: d,
+        theme: isKo ? "임시 생성된 일정" : "Mock Generated Itinerary",
+        scheduleItems: [
+          {
+            time: constraints.startTime || "09:00",
+            endTime: "10:00",
+            type: "attraction",
+            title: isKo ? "출발지" : "Start Location",
+            description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
+            location: constraints.startLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+            duration: "1h",
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
+            practicalInfo: {
+              estimatedCost: "Free",
+              operatingHours: "24/7",
+              localTip: isKo ? "안전한 여행 되세요." : "Have a safe trip.",
+              top3Recommendations: []
+            }
+          },
+          ...((constraints.anchorSchedules || []).map((a) => ({
+            time: a.time,
+            endTime: a.endTime,
+            type: "AnchorSchedule",
+            title: a.name,
+            description: isKo ? "예정된 일정입니다." : "Scheduled event.",
+            location: a.location,
+            duration: "Varies",
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.location)}`,
+            practicalInfo: {
+              estimatedCost: "N/A",
+              operatingHours: "N/A",
+              localTip: "N/A",
+              top3Recommendations: []
+            }
+          }))),
+          {
+            time: "18:00",
+            endTime: constraints.endTime || "19:00",
+            type: "attraction",
+            title: isKo ? "도착지" : "End Location",
+            description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
+            location: constraints.endLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+            duration: "1h",
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
+            practicalInfo: {
+              estimatedCost: "Free",
+              operatingHours: "24/7",
+              localTip: isKo ? "수고하셨습니다." : "Good job.",
+              top3Recommendations: []
+            }
+          }
+        ]
+      };
+    });
+
     return {
       request: constraints,
-      days: [
-        {
-          day: 1,
-          date: constraints.date || "Unknown Date",
-          theme: isKo ? "임시 생성된 일정" : "Mock Generated Itinerary",
-          scheduleItems: [
-            {
-              time: constraints.startTime || "09:00",
-              endTime: "10:00",
-              type: "attraction",
-              title: isKo ? "출발지" : "Start Location",
-              description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
-              location: constraints.startLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
-              duration: "1h",
-              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
-              practicalInfo: {
-                estimatedCost: "Free",
-                operatingHours: "24/7",
-                localTip: isKo ? "안전한 여행 되세요." : "Have a safe trip."
-              }
-            },
-            ...((constraints.anchorSchedules || []).map((a) => ({
-              time: a.time,
-              endTime: a.endTime,
-              type: "AnchorSchedule",
-              title: a.name,
-              description: isKo ? "예정된 일정입니다." : "Scheduled event.",
-              location: a.location,
-              duration: "Varies",
-              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.location)}`,
-              practicalInfo: {
-                estimatedCost: "N/A",
-                operatingHours: "N/A",
-                localTip: "N/A"
-              }
-            }))),
-            {
-              time: "18:00",
-              endTime: constraints.endTime || "19:00",
-              type: "attraction",
-              title: isKo ? "도착지" : "End Location",
-              description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
-              location: constraints.endLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
-              duration: "1h",
-              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
-              practicalInfo: {
-                estimatedCost: "Free",
-                operatingHours: "24/7",
-                localTip: isKo ? "수고하셨습니다." : "Good job."
-              }
-            }
-          ]
-        }
-      ]
+      days: mockDays
     };
   };
 
@@ -326,19 +357,25 @@ ${anchorRule}
   }
 
   try {
-    let responseText = result.response.text();
-
-    if (responseText.startsWith("\`\`\`json")) {
-      responseText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+    const generatedText = result.response.text();
+    let parsedJson = JSON.parse(generatedText);
+    
+    // JSON Schema Validation (Safety check)
+    if (!parsedJson.days || !Array.isArray(parsedJson.days) || parsedJson.days.length === 0) {
+      throw new Error("Invalid Output: Expected 'days' array to be present and not empty.");
+    }
+    
+    // Ensure all days have scheduleItems
+    parsedJson.days = parsedJson.days.filter(d => Array.isArray(d.scheduleItems) && d.scheduleItems.length > 0);
+    if (parsedJson.days.length === 0) {
+        throw new Error("Invalid Output: 'days' array contains no valid scheduleItems.");
     }
 
-    const parsedData = JSON.parse(responseText);
-    console.log("AI Response:", parsedData);
-
-    return {
+    const safePlan = {
       request: plannerRequest,
-      days: parsedData.days
+      days: parsedJson.days
     };
+    return safePlan;
   } catch (err) {
     console.error("Gemini API Parsing Error:", err);
     console.error(`[Gemini API] Parsing failed, falling back to Mock Data.`);
@@ -350,3 +387,7 @@ ${anchorRule}
     return getMockItinerary(plannerRequest);
   }
 }
+
+export const GeminiOptimizer = {
+  generateOptimizedItinerary
+};

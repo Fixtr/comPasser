@@ -15,8 +15,10 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 
 ## 3. Core Features (핵심 기능 요구사항)
 
-### 3.1. 앵커 기반 AI 동선 최적화 (Anchor-based Optimization)
+### 3.1. 멀티 데이 AI 동선 최적화 (Multi-day Optimization)
+- **최대 3박 4일 확장**: 기존 당일치기 일정 생성을 넘어, 최대 3박 4일(4일)까지의 연속된 여행 일정을 한 번에 생성할 수 있습니다.
 - 사용자가 원하는 필수 일정(Anchor Schedule)을 입력하면, 이를 기점으로 앞뒤 빈 시간에 알맞은 추천 장소와 최적화된 동선을 Google Gemini AI가 설계하여 반환합니다.
+- **날짜별 탭 UI**: 생성된 멀티 데이 일정은 타임라인 상단의 날짜 탭(Day 1, Day 2...)을 통해 간편하게 전환하며 확인할 수 있습니다.
 
 ### 3.2. 글로벌 다국어(i18n) 시스템
 - 한국어(ko)와 영어(en)를 지원하며, 언어 토글 시 페이지 새로고침이나 DOM 및 이벤트 리스너 파괴 없이 즉각적으로 UI 텍스트와 AI 프롬프트가 동적으로 변경됩니다.
@@ -29,7 +31,10 @@ Compasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **초기화(Reset)**: 폼 입력 전체를 즉시 비우고 처음부터 다시 단계를 밟을 수 있는 강력한 리셋 버튼을 제공합니다.
 
 ### 3.4. 8-Page Architecture (SPA & Dynamic Routing)
-- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과), `#page-verify` (이메일 인증), `#page-profile` (마이페이지 & 중첩 탭)의 화면으로 분리된 바닐라 JS 라우팅을 지원합니다.
+- `#page-home` (랜딩), `#page-login` (로그인), `#page-join` (회원가입), `#page-plan` (계획 설계), `#page-view` (결과), `#page-verify` (이메일 인증), `#page-profile` (마이페이지 & 중첩 탭), `#page-preference` (취향/기간 선택 스텝)의 화면으로 분리된 바닐라 JS 라우팅을 지원합니다.
+- **단계별 취향 및 기간 선택 (Step-based Preference Flow)**: 
+  - `/preference` 페이지에서 '1단계: 시작일 및 기간 선택' -> '2단계: 여행 테마 및 예산 선택'으로 이어지는 스텝형 UI를 통해 사용자 경험을 고도화했습니다.
+  - **IntersectionObserver 리렌더링**: SPA 라우터 캐싱으로 인해 뒤로 가기 후 데이터 변경 시 화면이 갱신되지 않는 문제를 해결하기 위해 컴포넌트 가시성 감지 기반 자동 리렌더링 시스템을 도입했습니다.
 - **중첩 라우팅(/profile/:tab)**: 마이페이지 내부에 `/personal`, `/trips`, `/security` 서브 경로를 도입하여 각 탭의 상태를 URL과 동기화했습니다.
 - **동적 파라미터 라우팅 (/view/:id)**: 정규식을 통해 고유 ID를 파싱하고 브라우저 새로고침 시에도 Firestore에서 일정을 즉시 복원하는 아키텍처를 구현했습니다.
 - **Deep Linking**: 고유 URL을 통해 본인 혹은 타인의(권한 허용 시) 일정을 외부에서 즉시 접근할 수 있도록 동선을 고도화했습니다.
