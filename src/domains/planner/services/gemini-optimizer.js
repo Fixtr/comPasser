@@ -78,11 +78,23 @@ export async function generateOptimizedItinerary(plannerRequest) {
     required: ["days"]
   };
 
-  const anchorText = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
-    ? plannerRequest.anchorSchedules.map((a, i) => `${i + 1}. [Day ${a.day || 1}] "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
+  const allAnchors = [];
+  if (plannerRequest.dailyData) {
+    plannerRequest.dailyData.forEach(day => {
+      if (day.anchors && day.anchors.length > 0) {
+        day.anchors.forEach(a => {
+          const locName = a.location?.displayName || a.location || "Unknown";
+          allAnchors.push({ day: day.day, name: a.name, time: a.time, endTime: a.endTime, location: locName });
+        });
+      }
+    });
+  }
+
+  const anchorText = allAnchors.length > 0
+    ? allAnchors.map((a, i) => `${i + 1}. [Day ${a.day}] "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
     : "No fixed AnchorSchedules provided. Free to plan the entire day.";
 
-  const anchorRule = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
+  const anchorRule = allAnchors.length > 0
     ? `1. You MUST include ScheduleItems with type="AnchorSchedule" that exactly match the time and location of the provided AnchorSchedules.`
     : `1. You may omit ScheduleItems of type="AnchorSchedule" since none were provided.`;
 
@@ -180,21 +192,25 @@ export async function generateOptimizedItinerary(plannerRequest) {
     datesContext = `Plan a 1-day itinerary for the date ${dateText}.`;
   }
 
-  let timeParameters = '';
-  if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.length > 0) {
-    timeParameters = plannerRequest.dailyTimes.map(dt => `- Day ${dt.day} Time: Start at ${dt.startTime}, End at ${dt.endTime}`).join('\\n');
-  } else {
-    timeParameters = `- Start Time: ${plannerRequest.startTime}\\n- End Time: ${plannerRequest.endTime}`;
+  let timeAndLocationParams = '';
+  if (plannerRequest.dailyData && plannerRequest.dailyData.length > 0) {
+    timeAndLocationParams = plannerRequest.dailyData.map(day => {
+      const startLoc = day.startLocation?.formattedAddress 
+          ? `${day.startLocation.displayName} (${day.startLocation.formattedAddress})` 
+          : (day.startLocation?.displayName || "Unknown");
+      const endLoc = day.endLocation?.formattedAddress 
+          ? `${day.endLocation.displayName} (${day.endLocation.formattedAddress})` 
+          : (day.endLocation?.displayName || "Unknown");
+      return `- [Day ${day.day}] Time: ${day.startTime} to ${day.endTime} | Start Location: "${startLoc}", End Location: "${endLoc}"`;
+    }).join('\\n');
   }
 
   const prompt = `
 You are an expert AI Travel Planner.
 ${datesContext}
 
-PARAMETERS:
-${timeParameters}
-- Start Location (e.g. Hotel): "${plannerRequest.startLocation}"
-- End Location (e.g. Hotel): "${plannerRequest.endLocation}"
+PARAMETERS (Daily Constraints):
+${timeAndLocationParams}
 
 ANCHOR SCHEDULES (Must Attend):
 ${anchorText}
@@ -255,12 +271,12 @@ ${anchorRule}
         theme: isKo ? "임시 생성된 일정" : "Mock Generated Itinerary",
         scheduleItems: [
           {
-            time: constraints.dailyTimes ? constraints.dailyTimes[index]?.startTime : (constraints.startTime || "09:00"),
+            time: constraints.dailyData ? constraints.dailyData[index]?.startTime : "09:00",
             endTime: "10:00",
             type: "attraction",
             title: isKo ? "출발지" : "Start Location",
             description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
-            location: constraints.startLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+            location: constraints.dailyData ? (constraints.dailyData[index]?.startLocation?.displayName || "Unknown Location") : "Unknown Location",
             duration: "1h",
             googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
             practicalInfo: {
@@ -270,7 +286,7 @@ ${anchorRule}
               top3Recommendations: []
             }
           },
-          ...((constraints.anchorSchedules || []).map((a) => ({
+          ...((constraints.dailyData ? constraints.dailyData[index]?.anchors || [] : []).map((a) => ({
             time: a.time,
             endTime: a.endTime,
             type: "AnchorSchedule",
@@ -288,11 +304,11 @@ ${anchorRule}
           }))),
           {
             time: "18:00",
-            endTime: constraints.dailyTimes ? constraints.dailyTimes[index]?.endTime : (constraints.endTime || "19:00"),
+            endTime: constraints.dailyData ? constraints.dailyData[index]?.endTime : "19:00",
             type: "attraction",
             title: isKo ? "도착지" : "End Location",
             description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
-            location: constraints.endLocation || (isKo ? "알 수 없는 장소" : "Unknown Location"),
+            location: constraints.dailyData ? (constraints.dailyData[index]?.endLocation?.displayName || "Unknown Location") : "Unknown Location",
             duration: "1h",
             googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
             practicalInfo: {
