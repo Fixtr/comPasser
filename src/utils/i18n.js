@@ -27,6 +27,7 @@ const dictionary = {
         anchorEndLabel: "종료 시간",
         anchorLocationLabel: "장소명",
         anchorLocationPlaceholder: "장소를 입력하세요",
+        anchorDayLabel: "일정 일차 (Day)",
         loadingText: "AI가 최적의 경로를 분석하고 있습니다...",
         loadingSubtext: "잠시만 기다려주세요.",
         generationComplete: "✨ 경로 설계가 완료되었습니다!",
@@ -60,6 +61,7 @@ const dictionary = {
         timeValidationError: "오류: '[{0}]' 일정이 전체 여행 시간({1} ~ {2})을 벗어납니다. 시간을 다시 확인해 주세요.",
         invalidAnchorTime: "오류: '[{0}]' 일정이 시작 시간이 종료 시간보다 늦거나 같습니다.",
         basicTimeValidationError: "오류: 여행 종료 시간은 시작 시간보다 늦어야 합니다. 시간을 다시 확인해 주세요.",
+        emptyTimeValidationError: "오류: 시작 시간과 종료 시간을 모두 입력해 주세요.",
         kakaoShareBtn: "💬 카카오톡 공유하기",
         resetBtn: "초기화",
         inAppBrowserIOSAlert: "보안 문제로 카카오톡 등 인앱 브라우저에서는 구글 로그인이 제한됩니다. 우측 하단의 [ ⠇ ] 버튼을 눌러 '다른 브라우저로 열기'를 선택해 주세요.",
@@ -85,7 +87,8 @@ const dictionary = {
         budget_flex: "💰 플렉스",
         budget_standard: "💵 스탠다드",
         budget_budget: "🪙 짠내투어",
-        no_preference: "⚙️ 선택 없음"
+        no_preference: "⚙️ 선택 없음",
+        perDayTimeToggle: "일자별로 시간 다르게 설정하기"
     },
     en: {
         heroTitle: "ComPasser",
@@ -115,6 +118,7 @@ const dictionary = {
         anchorEndLabel: "End Time",
         anchorLocationLabel: "Location (Area or Venue)",
         anchorLocationPlaceholder: "Enter your location",
+        anchorDayLabel: "Schedule Day",
         loadingText: "AI is analyzing the optimal route...",
         loadingSubtext: "Please wait a moment.",
         generationComplete: "✨ Route design is complete!",
@@ -146,6 +150,7 @@ const dictionary = {
         timeValidationError: "Error: '{0}' schedule is outside the total trip time ({1} ~ {2}). Please check the time again.",
         invalidAnchorTime: "Error: '{0}' schedule's start time is later than or equal to the end time.",
         basicTimeValidationError: "Error: Trip end time must be later than the start time. Please check the time again.",
+        emptyTimeValidationError: "Error: Please enter both start and end times.",
         kakaoShareBtn: "💬 Share on KakaoTalk",
         resetBtn: "Reset",
         inAppBrowserIOSAlert: "Due to security policies, Google login is restricted in in-app browsers like KakaoTalk. Please tap the [ ⠇ ] button at the bottom right and select 'Open in browser'.",
@@ -171,7 +176,8 @@ const dictionary = {
         budget_flex: "💰 Flex",
         budget_standard: "💵 Standard",
         budget_budget: "🪙 Budget",
-        no_preference: "⚙️ No Preference"
+        no_preference: "⚙️ No Preference",
+        perDayTimeToggle: "Set different times per day"
     }
 };
 

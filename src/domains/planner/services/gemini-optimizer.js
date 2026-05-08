@@ -79,7 +79,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
   };
 
   const anchorText = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
-    ? plannerRequest.anchorSchedules.map((a, i) => `${i + 1}. "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
+    ? plannerRequest.anchorSchedules.map((a, i) => `${i + 1}. [Day ${a.day || 1}] "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
     : "No fixed AnchorSchedules provided. Free to plan the entire day.";
 
   const anchorRule = plannerRequest.anchorSchedules && plannerRequest.anchorSchedules.length > 0
@@ -180,13 +180,19 @@ export async function generateOptimizedItinerary(plannerRequest) {
     datesContext = `Plan a 1-day itinerary for the date ${dateText}.`;
   }
 
+  let timeParameters = '';
+  if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.length > 0) {
+    timeParameters = plannerRequest.dailyTimes.map(dt => `- Day ${dt.day} Time: Start at ${dt.startTime}, End at ${dt.endTime}`).join('\\n');
+  } else {
+    timeParameters = `- Start Time: ${plannerRequest.startTime}\\n- End Time: ${plannerRequest.endTime}`;
+  }
+
   const prompt = `
 You are an expert AI Travel Planner.
 ${datesContext}
 
 PARAMETERS:
-- Start Time: ${plannerRequest.startTime}
-- End Time: ${plannerRequest.endTime}
+${timeParameters}
 - Start Location (e.g. Hotel): "${plannerRequest.startLocation}"
 - End Location (e.g. Hotel): "${plannerRequest.endLocation}"
 
@@ -200,8 +206,8 @@ For every single place, you MUST provide a 'practicalInfo' object containing:
   - estimatedCost: Approximate spending per person in KRW or 'Free'.
   - operatingHours: Opening hours and regular holidays.
   - localTip: A crucial pro-tip specially for tourists in Korea (e.g. availability of English menus, tax-free info, or waiting time advice).
-The first ScheduleItem of the day MUST start at the Start Location near the Start Time.
-The last ScheduleItem of the day MUST end at the End Location near the End Time.
+The first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.
+The last ScheduleItem of each day MUST end at the End Location near that day's End Time.
 
 CRITICAL RULES:
 ${anchorRule}
@@ -249,7 +255,7 @@ ${anchorRule}
         theme: isKo ? "임시 생성된 일정" : "Mock Generated Itinerary",
         scheduleItems: [
           {
-            time: constraints.startTime || "09:00",
+            time: constraints.dailyTimes ? constraints.dailyTimes[index]?.startTime : (constraints.startTime || "09:00"),
             endTime: "10:00",
             type: "attraction",
             title: isKo ? "출발지" : "Start Location",
@@ -282,7 +288,7 @@ ${anchorRule}
           }))),
           {
             time: "18:00",
-            endTime: constraints.endTime || "19:00",
+            endTime: constraints.dailyTimes ? constraints.dailyTimes[index]?.endTime : (constraints.endTime || "19:00"),
             type: "attraction",
             title: isKo ? "도착지" : "End Location",
             description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",

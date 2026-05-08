@@ -16,7 +16,8 @@ export default class TravelForm extends HTMLElement {
   connectedCallback() {
     this.render();
     if (this.anchorCount === 0) {
-      this.addAnchor(); // Initialize first anchor safely
+      // 앵커 자동 생성 로직 제거 (Opt-in)
+      // this.addAnchor();
     }
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
@@ -486,6 +487,83 @@ export default class TravelForm extends HTMLElement {
             gap: 1rem;
           }
         }
+
+        /* Toggle Switch Styles */
+        .toggle-container {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.75rem;
+          cursor: pointer;
+          user-select: none;
+          padding: 0.5rem 0;
+        }
+
+        .toggle-container input {
+          display: none;
+        }
+
+        .toggle-switch {
+          position: relative;
+          width: 44px;
+          height: 24px;
+          background-color: #cbd5e1;
+          border-radius: 999px;
+          transition: background-color 0.2s ease;
+        }
+
+        .toggle-switch::after {
+          content: '';
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 20px;
+          height: 20px;
+          background-color: white;
+          border-radius: 50%;
+          transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-container input:checked + .toggle-switch {
+          background-color: var(--accent-primary, #7c3aed);
+        }
+
+        .toggle-container input:checked + .toggle-switch::after {
+          transform: translateX(20px);
+        }
+
+        .toggle-label {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        #daily-times-accordion {
+          transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+          overflow: hidden;
+        }
+
+        .daily-time-row {
+          background: oklch(98% 0.01 260);
+          border: 1px solid oklch(90% 0.02 260);
+          border-radius: 12px;
+          padding: 1rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .daily-time-row:last-child {
+          margin-bottom: 0;
+        }
+
+        .daily-time-header {
+          font-weight: 700;
+          font-size: 1rem;
+          color: var(--accent-primary);
+          margin-bottom: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
       </style>
 
       <form id="travel-form">
@@ -498,18 +576,29 @@ export default class TravelForm extends HTMLElement {
             </div>
             <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">테마/예산 다시 선택하기</button>
           </h2>
-          <div class="row-3">
+          <div class="row-3" id="global-times-container">
             <div class="form-group">
               <label for="schedule-date" data-i18n="scheduleDate">Date</label>
               <input type="date" id="schedule-date" required>
             </div>
-            <div class="form-group">
+            <div class="form-group global-time-input">
               <label for="start-time" data-i18n="startTime">Start Time</label>
               <input type="time" id="start-time" required>
             </div>
-            <div class="form-group">
+            <div class="form-group global-time-input">
               <label for="end-time" data-i18n="endTime">End Time</label>
               <input type="time" id="end-time" required>
+            </div>
+          </div>
+          
+          <div id="daily-times-wrapper" style="display: none; margin-top: 1rem;">
+            <label class="toggle-container">
+              <input type="checkbox" id="daily-times-toggle">
+              <span class="toggle-switch"></span>
+              <span class="toggle-label" data-i18n="perDayTimeToggle">일자별로 시간 다르게 설정하기</span>
+            </label>
+            <div id="daily-times-accordion" style="display: none; margin-top: 1rem; border-top: 1px dashed oklch(90% 0.02 260); padding-top: 1rem;">
+              <!-- 동적으로 데일리 타임 폼이 렌더링됨 -->
             </div>
           </div>
           
@@ -548,7 +637,7 @@ export default class TravelForm extends HTMLElement {
     `;
 
     // Initialize with 1 empty anchor
-    // this.addAnchor(); // Move to connectedCallback or let populate logic handle it
+    // this.addAnchor(); // Opt-in 방식으로 변경됨에 따라 주석 처리
   }
 
   async initPlaces() {
@@ -606,6 +695,30 @@ export default class TravelForm extends HTMLElement {
     const container = this.shadowRoot.getElementById('anchors-container');
     const id = `anchor-${Date.now()}`;
 
+    let daysCount = 1;
+    try {
+      const savedPrefStr = sessionStorage.getItem('userPreference');
+      if (savedPrefStr) {
+        const pref = JSON.parse(savedPrefStr);
+        if (Array.isArray(pref.date) && pref.date.length > 1) {
+          daysCount = pref.date.length;
+        }
+      }
+    } catch (e) {}
+
+    let daySelectorHTML = '';
+    if (daysCount > 1) {
+      const options = Array.from({ length: daysCount }, (_, i) => `<option value="${i + 1}">Day ${i + 1}</option>`).join('');
+      daySelectorHTML = `
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+          <label data-i18n="anchorDayLabel">일정 일차 (Day)</label>
+          <select class="anchor-day" required style="width: 100%; padding: 0.8rem 1rem; border: 1px solid oklch(90% 0.02 260); border-radius: 8px; font-family: inherit; font-size: 0.95rem;">
+            ${options}
+          </select>
+        </div>
+      `;
+    }
+
     const template = document.createElement('div');
     template.className = 'anchor-item';
     template.id = id;
@@ -615,6 +728,7 @@ export default class TravelForm extends HTMLElement {
         <label data-i18n="anchorNameLabel">${t('anchorNameLabel')}</label>
         <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" required>
       </div>
+      ${daySelectorHTML}
       <div class="row-3">
         <div class="form-group">
           <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
@@ -643,6 +757,8 @@ export default class TravelForm extends HTMLElement {
       template.querySelector('.anchor-end-time').value = data.endTime || '';
       const ac = template.querySelector('.anchor-location');
       if (ac) ac.value = data.location || '';
+      const daySelect = template.querySelector('.anchor-day');
+      if (daySelect && data.day) daySelect.value = data.day;
     }
 
     container.appendChild(template);
@@ -724,9 +840,96 @@ export default class TravelForm extends HTMLElement {
         requestData.anchorSchedules.forEach(anchor => {
           if (anchor) this.addAnchor(anchor);
         });
-      } else {
-        this.addAnchor(); // Leave at least 1 empty anchor line
       }
+
+      // 💎 다일차 로직 처리 💎
+      const dateVal = requestData?.date || requestData?.datePref;
+      const dailyTimesWrapper = this.shadowRoot.getElementById('daily-times-wrapper');
+      const dailyTimesAccordion = this.shadowRoot.getElementById('daily-times-accordion');
+      const dailyTimesToggle = this.shadowRoot.getElementById('daily-times-toggle');
+      const globalInputs = this.shadowRoot.querySelectorAll('.global-time-input');
+      
+      let isMultiDay = false;
+      let daysCount = 1;
+      
+      if (Array.isArray(dateVal) && dateVal.length > 1) {
+        isMultiDay = true;
+        daysCount = dateVal.length;
+      } else if (typeof dateVal === 'string' && dateVal.includes('~')) {
+        // Fallback for some saved string formats if necessary
+        isMultiDay = true;
+        // Parse days count from string if possible, or leave it. This shouldn't be the case often.
+      }
+      
+      if (dailyTimesWrapper) {
+        if (isMultiDay) {
+          dailyTimesWrapper.style.display = 'block';
+          
+          // Render accordion rows
+          dailyTimesAccordion.innerHTML = '';
+          for (let i = 0; i < daysCount; i++) {
+            const dayNum = i + 1;
+            const dRow = document.createElement('div');
+            dRow.className = 'daily-time-row';
+            dRow.dataset.day = dayNum;
+            dRow.innerHTML = `
+              <div class="daily-time-header">Day ${dayNum}</div>
+              <div class="row-2">
+                <div class="form-group">
+                  <label data-i18n="startTime">Start Time</label>
+                  <input type="time" class="daily-start-time" required>
+                </div>
+                <div class="form-group">
+                  <label data-i18n="endTime">End Time</label>
+                  <input type="time" class="daily-end-time" required>
+                </div>
+              </div>
+            `;
+            dailyTimesAccordion.appendChild(dRow);
+          }
+          
+          // Restore dailyTimes if toggled
+          if (requestData?.dailyTimes && Array.isArray(requestData.dailyTimes) && requestData.dailyTimes.length > 0 && requestData.dailyTimes[0].isCustom) {
+            dailyTimesToggle.checked = true;
+            dailyTimesAccordion.style.display = 'block';
+            
+            globalInputs.forEach(el => {
+              el.style.display = 'none';
+              const input = el.querySelector('input');
+              if (input) input.required = false;
+            });
+            
+            const rows = dailyTimesAccordion.querySelectorAll('.daily-time-row');
+            requestData.dailyTimes.forEach((dt, idx) => {
+              if (rows[idx]) {
+                rows[idx].querySelector('.daily-start-time').value = dt.startTime || '';
+                rows[idx].querySelector('.daily-end-time').value = dt.endTime || '';
+              }
+            });
+          } else {
+            dailyTimesToggle.checked = false;
+            dailyTimesAccordion.style.display = 'none';
+            globalInputs.forEach(el => {
+              el.style.display = 'block';
+              const input = el.querySelector('input');
+              if (input) input.required = true;
+            });
+          }
+        } else {
+          dailyTimesWrapper.style.display = 'none';
+          if (dailyTimesToggle) dailyTimesToggle.checked = false;
+          if (dailyTimesAccordion) {
+            dailyTimesAccordion.innerHTML = '';
+            dailyTimesAccordion.style.display = 'none';
+          }
+          globalInputs.forEach(el => {
+            el.style.display = 'block';
+            const input = el.querySelector('input');
+            if (input) input.required = true;
+          });
+        }
+      }
+      this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
       console.error("[Auto-fill Error] Failed to populate form:", error);
     }
@@ -734,12 +937,16 @@ export default class TravelForm extends HTMLElement {
 
   getFormData() {
     const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
-    const anchors = Array.from(anchorsElements).map(el => ({
-      name: el.querySelector('.anchor-name').value,
-      time: el.querySelector('.anchor-time').value,
-      endTime: el.querySelector('.anchor-end-time').value,
-      location: el.querySelector('.anchor-location').value,
-    }));
+    const anchors = Array.from(anchorsElements).map(el => {
+      const daySelect = el.querySelector('.anchor-day');
+      return {
+        name: el.querySelector('.anchor-name').value,
+        time: el.querySelector('.anchor-time').value,
+        endTime: el.querySelector('.anchor-end-time').value,
+        location: el.querySelector('.anchor-location').value,
+        day: daySelect ? parseInt(daySelect.value, 10) : 1
+      };
+    }).filter(a => a.name || a.time || a.endTime || a.location);
 
     // /preference 페이지에서 저장한 테마/예산/날짜 데이터 병합
     let theme = null;
@@ -762,10 +969,38 @@ export default class TravelForm extends HTMLElement {
       finalDate = dateInput.value || datePref;
     }
 
+    const globalStartTime = this.shadowRoot.getElementById('start-time').value;
+    const globalEndTime = this.shadowRoot.getElementById('end-time').value;
+    
+    // Check toggle state for daily times
+    const toggle = this.shadowRoot.getElementById('daily-times-toggle');
+    let dailyTimes = null;
+    
+    if (toggle && toggle.checked) {
+      const rows = this.shadowRoot.querySelectorAll('.daily-time-row');
+      if (rows.length > 0) {
+        dailyTimes = Array.from(rows).map(row => ({
+          day: parseInt(row.dataset.day, 10),
+          startTime: row.querySelector('.daily-start-time').value,
+          endTime: row.querySelector('.daily-end-time').value,
+          isCustom: true
+        }));
+      }
+    } else if (Array.isArray(finalDate) && finalDate.length > 1) {
+      // Create identical dailyTimes array based on global if toggled off
+      dailyTimes = finalDate.map((d, idx) => ({
+        day: idx + 1,
+        startTime: globalStartTime,
+        endTime: globalEndTime,
+        isCustom: false
+      }));
+    }
+
     return {
       date: finalDate,
-      startTime: this.shadowRoot.getElementById('start-time').value,
-      endTime: this.shadowRoot.getElementById('end-time').value,
+      startTime: globalStartTime,
+      endTime: globalEndTime,
+      dailyTimes: dailyTimes,
       startLocation: this.shadowRoot.getElementById('start-location').value,
       endLocation: this.shadowRoot.getElementById('end-location').value,
       anchorSchedules: anchors,
@@ -793,6 +1028,31 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('input', () => {
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
+    
+    const dailyToggle = this.shadowRoot.getElementById('daily-times-toggle');
+    const dailyAccordion = this.shadowRoot.getElementById('daily-times-accordion');
+    const globalInputs = this.shadowRoot.querySelectorAll('.global-time-input');
+    
+    if (dailyToggle) {
+      dailyToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          dailyAccordion.style.display = 'block';
+          globalInputs.forEach(el => {
+            el.style.display = 'none';
+            const input = el.querySelector('input');
+            if (input) input.required = false;
+          });
+        } else {
+          dailyAccordion.style.display = 'none';
+          globalInputs.forEach(el => {
+            el.style.display = 'block';
+            const input = el.querySelector('input');
+            if (input) input.required = true;
+          });
+        }
+        form.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
 
     // Reset Form Event
     this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
@@ -803,11 +1063,10 @@ export default class TravelForm extends HTMLElement {
       const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
       autocompletes.forEach(ac => ac.value = '');
 
-      // 3. Clear dynamic anchors entirely and re-add one blank slot
+      // 3. Clear dynamic anchors entirely (Opt-in)
       const container = this.shadowRoot.getElementById('anchors-container');
       container.innerHTML = '';
       this.anchorCount = 0;
-      this.addAnchor();
 
       // 4. Clear specific error classes or inline borders just in case
       const allInputs = this.shadowRoot.querySelectorAll('input');
@@ -845,16 +1104,39 @@ export default class TravelForm extends HTMLElement {
       const tripStart = plannerRequest.startTime;
       const tripEnd = plannerRequest.endTime;
 
-      // Rule D: Basic Trip Start Time >= Basic Trip End Time
-      if (tripStart >= tripEnd) {
-        alert(t('basicTimeValidationError'));
-        this._resetSubmitButton(btn);
-        this.isSubmitting = false;
-        return;
+      if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.some(dt => dt.isCustom)) {
+        for (const dt of plannerRequest.dailyTimes) {
+          if (!dt.startTime || !dt.endTime) {
+            alert(`[Day ${dt.day}] ` + t('emptyTimeValidationError'));
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
+          }
+          if (dt.startTime >= dt.endTime) {
+            alert(`[Day ${dt.day}] ` + t('basicTimeValidationError'));
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
+          }
+        }
+      } else {
+        if (!tripStart || !tripEnd) {
+          alert(t('emptyTimeValidationError'));
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+        // Rule D: Basic Trip Start Time >= Basic Trip End Time
+        if (tripStart >= tripEnd) {
+          alert(t('basicTimeValidationError'));
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
       }
 
       for (const anchor of plannerRequest.anchorSchedules) {
-        // Skip empty anchors if they aren't filled yet (though required attribute should catch most)
+        // Skip empty anchors if they aren't filled yet
         if (!anchor.time || !anchor.endTime) continue;
 
         // Rule C: Anchor Start Time >= Anchor End Time
@@ -866,28 +1148,19 @@ export default class TravelForm extends HTMLElement {
           return;
         }
 
-        // Rule A: Anchor Start Time < Basic Trip Start Time
-        if (anchor.time < tripStart) {
-          const msg = t('timeValidationError')
-            .replace('{0}', anchor.name || 'Anchor')
-            .replace('{1}', tripStart)
-            .replace('{2}', tripEnd);
-          alert(msg);
-          this._resetSubmitButton(btn);
-          this.isSubmitting = false;
-          return;
-        }
-
-        // Rule B: Anchor 종료 시간 > 기본 일정 종료 시간
-        if (anchor.endTime > tripEnd) {
-          const msg = t('timeValidationError')
-            .replace('{0}', anchor.name || 'Anchor')
-            .replace('{1}', tripStart)
-            .replace('{2}', tripEnd);
-          alert(msg);
-          this._resetSubmitButton(btn);
-          this.isSubmitting = false;
-          return;
+        // Rule A & B: We only apply global time constraint if daily times are NOT custom.
+        // If daily times are custom, anchor time bounds check is relaxed since we don't know the exact day.
+        if (!plannerRequest.dailyTimes || !plannerRequest.dailyTimes[0]?.isCustom) {
+          if (anchor.time < tripStart || anchor.endTime > tripEnd) {
+            const msg = t('timeValidationError')
+              .replace('{0}', anchor.name || 'Anchor')
+              .replace('{1}', tripStart)
+              .replace('{2}', tripEnd);
+            alert(msg);
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
+          }
         }
       }
       // --- End Validation ---
