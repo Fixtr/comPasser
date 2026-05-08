@@ -344,6 +344,31 @@ export default class TravelForm extends HTMLElement {
         .modal-quick-btn.show {
           display: block;
         }
+        
+        .modal-cancel-btn {
+          width: 100%;
+          background: var(--bg-secondary);
+          color: var(--text-secondary);
+          border: 1px solid oklch(90% 0.02 260);
+          padding: 0.8rem;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          margin-top: 0.75rem;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .modal-cancel-btn:hover {
+          background: oklch(95% 0.02 260);
+        }
+        
+        .highlight-pulse {
+          animation: inputPulse 1s ease-out;
+        }
+        @keyframes inputPulse {
+          0% { background-color: rgba(16, 185, 129, 0.15); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4); border-color: #10b981; }
+          100% { background-color: var(--bg-primary); box-shadow: none; border-color: oklch(90% 0.02 260); }
+        }
 
         .primary-btn {
           background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280));
@@ -612,6 +637,7 @@ export default class TravelForm extends HTMLElement {
           </div>
           <gmp-place-autocomplete id="modal-gmp-autocomplete" data-i18n-placeholder="searchLocation" placeholder="장소를 검색하세요"></gmp-place-autocomplete>
           <button type="button" id="modal-quick-btn" class="modal-quick-btn"></button>
+          <button type="button" id="modal-cancel-btn" class="modal-cancel-btn" data-i18n="cancelBtn">취소</button>
         </div>
       </div>
     `;
@@ -971,15 +997,27 @@ export default class TravelForm extends HTMLElement {
 
     // Modal close logic
     const modalCloseBtn = this.shadowRoot.getElementById('modal-close-btn');
+    const modalCancelBtn = this.shadowRoot.getElementById('modal-cancel-btn');
     const modalOverlay = this.shadowRoot.getElementById('location-modal');
     if (modalCloseBtn) {
         modalCloseBtn.addEventListener('click', () => this.closeModal());
+    }
+    if (modalCancelBtn) {
+        modalCancelBtn.addEventListener('click', () => this.closeModal());
     }
     if (modalOverlay) {
         modalOverlay.addEventListener('click', (e) => {
             if (e.target === modalOverlay) this.closeModal();
         });
     }
+
+    const applyVisualFeedback = (targetInput) => {
+        if (!targetInput) return;
+        targetInput.classList.remove('highlight-pulse');
+        void targetInput.offsetWidth; // trigger reflow
+        targetInput.classList.add('highlight-pulse');
+        targetInput.focus();
+    };
 
     // Modal quick button (Bring previous day end location)
     const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
@@ -997,6 +1035,7 @@ export default class TravelForm extends HTMLElement {
                 if (targetInput) {
                     targetInput.value = deepCopied.displayName;
                     this.triggerSave();
+                    applyVisualFeedback(targetInput);
                 }
                 this.closeModal();
             }
@@ -1016,6 +1055,7 @@ export default class TravelForm extends HTMLElement {
                     if (targetInput) {
                         targetInput.value = placeData.displayName;
                         this.triggerSave();
+                        applyVisualFeedback(targetInput);
                     }
                     this.closeModal();
                 }
