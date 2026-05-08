@@ -275,6 +275,76 @@ export default class TravelForm extends HTMLElement {
           box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
         }
 
+        .location-input {
+          cursor: pointer;
+        }
+
+        /* === Modal Styles === */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+          z-index: 9999;
+          display: none;
+          align-items: center;
+          justify-content: center;
+        }
+        .modal-overlay.open {
+          display: flex;
+        }
+        .modal-container {
+          background: var(--bg-primary, #fff);
+          width: 90%;
+          max-width: 500px;
+          border-radius: 16px;
+          padding: 2rem;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          position: relative;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+        }
+        .modal-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: var(--text-secondary);
+        }
+        .modal-quick-btn {
+          width: 100%;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          border: none;
+          padding: 1rem;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 1rem;
+          margin-top: 1rem;
+          cursor: pointer;
+          display: none;
+          transition: transform 0.2s;
+        }
+        .modal-quick-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .modal-quick-btn.show {
+          display: block;
+        }
+
         .primary-btn {
           background: linear-gradient(135deg, var(--accent-primary), oklch(55% 0.3 280));
           color: white;
@@ -532,6 +602,18 @@ export default class TravelForm extends HTMLElement {
           <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
         </div>
       </form>
+
+      <!-- Modal UI -->
+      <div id="location-modal" class="modal-overlay">
+        <div class="modal-container">
+          <div class="modal-header">
+            <span class="modal-title" data-i18n="searchLocation">장소 검색</span>
+            <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
+          </div>
+          <gmp-place-autocomplete id="modal-gmp-autocomplete" data-i18n-placeholder="searchLocation" placeholder="장소를 검색하세요"></gmp-place-autocomplete>
+          <button type="button" id="modal-quick-btn" class="modal-quick-btn"></button>
+        </div>
+      </div>
     `;
   }
 
@@ -604,15 +686,12 @@ export default class TravelForm extends HTMLElement {
           </div>
           <div class="row-2">
             <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem;">
-                <label data-i18n="startLocation" style="margin-bottom: 0;">Start Location (e.g., Hotel)</label>
-                ${i >= 2 ? `<button type="button" class="btn-bring-prev" data-day="${i}" style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer;">⬇️ 전날 종료 장소 가져오기</button>` : ''}
-              </div>
-              <gmp-place-autocomplete class="daily-start-location" id="start-location-day-${i}" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
+              <label data-i18n="startLocation">Start Location (e.g., Hotel)</label>
+              <input type="text" class="daily-start-location location-input" id="start-location-day-${i}" data-day="${i}" data-type="start" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}" readonly />
             </div>
             <div class="form-group">
               <label data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
-              <gmp-place-autocomplete class="daily-end-location" id="end-location-day-${i}" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
+              <input type="text" class="daily-end-location location-input" id="end-location-day-${i}" data-day="${i}" data-type="end" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}" readonly />
             </div>
           </div>
           <div class="form-section" style="margin-top: 1.5rem; margin-bottom: 0;">
@@ -642,21 +721,6 @@ export default class TravelForm extends HTMLElement {
         this.triggerSave();
       });
     }
-
-    // 렌더링 직후 모든 gmp-place-autocomplete에 gmp-placeselect 직접 부착 (사용자 지침 1)
-    const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
-    autocompletes.forEach(ac => {
-        ac.addEventListener('gmp-placeselect', (event) => {
-            const target = event.target;
-            if (target && target.place) {
-                const placeData = this.extractPlaceData(target.place);
-                if (placeData) {
-                    this.placesMap.set(target.id, placeData);
-                    this.triggerSave();
-                }
-            }
-        });
-    });
 
     this.updateTexts();
   }
@@ -689,7 +753,7 @@ export default class TravelForm extends HTMLElement {
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
-          <gmp-place-autocomplete class="anchor-location" id="loc-${id}" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}"></gmp-place-autocomplete>
+          <input type="text" class="anchor-location location-input" id="loc-${id}" data-day="${dayIndex}" data-type="anchor" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}" readonly />
         </div>
       </div>
     `;
@@ -701,21 +765,6 @@ export default class TravelForm extends HTMLElement {
       this.placesMap.delete(`loc-${id}`);
       this.triggerSave();
     });
-    
-    const ac = template.querySelector('.anchor-location');
-    if (ac) {
-        // 동적으로 추가된 컴포넌트에도 직접 부착 (사용자 지침 1)
-        ac.addEventListener('gmp-placeselect', (event) => {
-            const target = event.target;
-            if (target && target.place) {
-                const placeData = this.extractPlaceData(target.place);
-                if (placeData) {
-                    this.placesMap.set(target.id, placeData);
-                    this.triggerSave();
-                }
-            }
-        });
-    }
     
     if (data) {
       template.querySelector('.anchor-name').value = data.name || '';
@@ -912,52 +961,80 @@ export default class TravelForm extends HTMLElement {
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
 
-    // gmp-placeselect 이벤트는 위임하지 않고 renderDaysUI 등에서 각 컴포넌트에 직접 부착합니다. (사용자 지침 1)
-
-    // 전날 장소 가져오기 버튼 Event Delegation (사용자 지침 1, 3)
+    // Readonly input click to open modal
     form.addEventListener('click', (event) => {
-      const bringBtn = event.target.closest('.btn-bring-prev');
-      if (bringBtn) {
-          const dayIndex = parseInt(bringBtn.getAttribute('data-day'), 10);
-          if (dayIndex >= 2) {
-              const prevDay = dayIndex - 1;
-              const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
-              
-              // 값이 비어있거나 온전한 Place 객체(location/좌표 포함)가 아니라면 차단 (사용자 지침 3)
-              if (!prevEndLoc || !prevEndLoc.location) {
-                  alert("이전 날짜의 종료 장소를 검색 목록에서 정확히 선택해 주세요.");
-                  return;
-              }
-              
-              const startAc = this.shadowRoot.getElementById(`start-location-day-${dayIndex}`);
-              if (startAc) {
-                  const deepCopied = JSON.parse(JSON.stringify(prevEndLoc));
-                  this.placesMap.set(`start-location-day-${dayIndex}`, deepCopied);
-                  
-                  startAc.value = deepCopied.displayName;
-                  
-                  const lightInput = startAc.querySelector('input');
-                  if (lightInput) lightInput.value = deepCopied.displayName;
-                  
-                  const innerInput = startAc.shadowRoot?.querySelector('input');
-                  if (innerInput) {
-                      innerInput.value = deepCopied.displayName;
-                      innerInput.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                      innerInput.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-                  }
-                  
-                  this.triggerSave();
-              }
-          }
+      const locInput = event.target.closest('.location-input');
+      if (locInput) {
+          this.openModal(locInput);
       }
     });
+
+    // Modal close logic
+    const modalCloseBtn = this.shadowRoot.getElementById('modal-close-btn');
+    const modalOverlay = this.shadowRoot.getElementById('location-modal');
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', () => this.closeModal());
+    }
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) this.closeModal();
+        });
+    }
+
+    // Modal quick button (Bring previous day end location)
+    const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
+    if (quickBtn) {
+        quickBtn.addEventListener('click', () => {
+            if (!this.modalTargetId || !this.modalTargetDay) return;
+            const prevDay = parseInt(this.modalTargetDay, 10) - 1;
+            const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
+            
+            if (prevEndLoc && prevEndLoc.location) {
+                const deepCopied = JSON.parse(JSON.stringify(prevEndLoc));
+                this.placesMap.set(this.modalTargetId, deepCopied);
+                
+                const targetInput = this.shadowRoot.getElementById(this.modalTargetId);
+                if (targetInput) {
+                    targetInput.value = deepCopied.displayName;
+                    this.triggerSave();
+                }
+                this.closeModal();
+            }
+        });
+    }
+
+    // Modal GMP Placeselect
+    const modalAutocomplete = this.shadowRoot.getElementById('modal-gmp-autocomplete');
+    if (modalAutocomplete) {
+        modalAutocomplete.addEventListener('gmp-placeselect', (event) => {
+            const target = event.target;
+            if (target && target.place && this.modalTargetId) {
+                const placeData = this.extractPlaceData(target.place);
+                if (placeData) {
+                    this.placesMap.set(this.modalTargetId, placeData);
+                    const targetInput = this.shadowRoot.getElementById(this.modalTargetId);
+                    if (targetInput) {
+                        targetInput.value = placeData.displayName;
+                        this.triggerSave();
+                    }
+                    this.closeModal();
+                }
+            }
+        });
+    }
 
     this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
       form.reset();
       this.placesMap.clear();
       
-      const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
-      autocompletes.forEach(ac => ac.value = '');
+      const locationInputs = this.shadowRoot.querySelectorAll('.location-input');
+      locationInputs.forEach(input => input.value = '');
+      
+      if (modalAutocomplete) {
+          modalAutocomplete.value = '';
+          const inner = modalAutocomplete.shadowRoot?.querySelector('input');
+          if (inner) inner.value = '';
+      }
 
       for (let i = 1; i <= 10; i++) {
          const container = this.shadowRoot.getElementById(`anchors-container-day-${i}`);
@@ -1044,6 +1121,51 @@ export default class TravelForm extends HTMLElement {
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
     }
+  }
+
+  openModal(targetInput) {
+      this.modalTargetId = targetInput.id;
+      this.modalTargetDay = targetInput.dataset.day;
+      this.modalTargetType = targetInput.dataset.type;
+      
+      const modal = this.shadowRoot.getElementById('location-modal');
+      const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
+      const autocomplete = this.shadowRoot.getElementById('modal-gmp-autocomplete');
+      
+      if (autocomplete) {
+          autocomplete.value = '';
+          const innerInput = autocomplete.shadowRoot?.querySelector('input');
+          if (innerInput) innerInput.value = '';
+      }
+      
+      if (this.modalTargetType === 'start' && parseInt(this.modalTargetDay, 10) > 1) {
+          const prevDay = parseInt(this.modalTargetDay, 10) - 1;
+          const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
+          if (prevEndLoc && prevEndLoc.location && prevEndLoc.displayName) {
+              quickBtn.textContent = `✨ 전날 종료 장소(${prevEndLoc.displayName})로 설정`;
+              quickBtn.classList.add('show');
+          } else {
+              quickBtn.classList.remove('show');
+          }
+      } else {
+          quickBtn.classList.remove('show');
+      }
+      
+      modal.classList.add('open');
+      
+      // Delay focus slightly to let display: flex apply
+      setTimeout(() => {
+         const innerInput = autocomplete?.shadowRoot?.querySelector('input');
+         if (innerInput) innerInput.focus();
+      }, 50);
+  }
+
+  closeModal() {
+      this.modalTargetId = null;
+      this.modalTargetDay = null;
+      this.modalTargetType = null;
+      const modal = this.shadowRoot.getElementById('location-modal');
+      if (modal) modal.classList.remove('open');
   }
 }
 
