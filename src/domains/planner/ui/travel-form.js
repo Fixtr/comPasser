@@ -628,6 +628,12 @@ export default class TravelForm extends HTMLElement {
         </div>
       </form>
 
+      ${this.renderModal()}
+    `;
+  }
+
+  renderModal() {
+    return `
       <!-- Modal UI -->
       <div id="location-modal" class="modal-overlay">
         <div class="modal-container">
@@ -1011,14 +1017,6 @@ export default class TravelForm extends HTMLElement {
         });
     }
 
-    const applyVisualFeedback = (targetInput) => {
-        if (!targetInput) return;
-        targetInput.classList.remove('highlight-pulse');
-        void targetInput.offsetWidth; // trigger reflow
-        targetInput.classList.add('highlight-pulse');
-        targetInput.focus();
-    };
-
     // Modal quick button (Bring previous day end location)
     const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
     if (quickBtn) {
@@ -1035,7 +1033,7 @@ export default class TravelForm extends HTMLElement {
                 if (targetInput) {
                     targetInput.value = deepCopied.displayName;
                     this.triggerSave();
-                    applyVisualFeedback(targetInput);
+                    this._applyVisualFeedback(targetInput);
                 }
                 this.closeModal();
             }
@@ -1050,13 +1048,18 @@ export default class TravelForm extends HTMLElement {
             if (target && target.place && this.modalTargetId) {
                 const placeData = this.extractPlaceData(target.place);
                 if (placeData) {
+                    // 1. 상태 저장 (placesMap이 내부 상태의 근간)
                     this.placesMap.set(this.modalTargetId, placeData);
+                    
+                    // 2. 메인 화면 UI 즉시 업데이트 및 피드백
                     const targetInput = this.shadowRoot.getElementById(this.modalTargetId);
                     if (targetInput) {
                         targetInput.value = placeData.displayName;
                         this.triggerSave();
-                        applyVisualFeedback(targetInput);
+                        this._applyVisualFeedback(targetInput);
                     }
+                    
+                    // 3. 모달 자동 종료
                     this.closeModal();
                 }
             }
@@ -1164,6 +1167,8 @@ export default class TravelForm extends HTMLElement {
   }
 
   openModal(targetInput) {
+      if (!targetInput) return;
+      
       this.modalTargetId = targetInput.id;
       this.modalTargetDay = targetInput.dataset.day;
       this.modalTargetType = targetInput.dataset.type;
@@ -1172,12 +1177,14 @@ export default class TravelForm extends HTMLElement {
       const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
       const autocomplete = this.shadowRoot.getElementById('modal-gmp-autocomplete');
       
+      // 모달 초기화: 이전 검색어 삭제
       if (autocomplete) {
           autocomplete.value = '';
           const innerInput = autocomplete.shadowRoot?.querySelector('input');
           if (innerInput) innerInput.value = '';
       }
       
+      // '전날 장소 가져오기' 퀵 버튼 노출 로직
       if (this.modalTargetType === 'start' && parseInt(this.modalTargetDay, 10) > 1) {
           const prevDay = parseInt(this.modalTargetDay, 10) - 1;
           const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
@@ -1193,19 +1200,38 @@ export default class TravelForm extends HTMLElement {
       
       modal.classList.add('open');
       
-      // Delay focus slightly to let display: flex apply
+      // 모달 오픈 후 검색창에 자동 포커스 (UX 향상)
       setTimeout(() => {
          const innerInput = autocomplete?.shadowRoot?.querySelector('input');
-         if (innerInput) innerInput.focus();
-      }, 50);
+         if (innerInput) {
+             innerInput.focus();
+             // iOS/Android 키보드 대응을 위해 살짝 스크롤 처리
+             innerInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+         }
+      }, 100);
   }
 
   closeModal() {
+      const modal = this.shadowRoot.getElementById('location-modal');
+      if (modal) modal.classList.remove('open');
+      
+      // 상태 초기화
       this.modalTargetId = null;
       this.modalTargetDay = null;
       this.modalTargetType = null;
-      const modal = this.shadowRoot.getElementById('location-modal');
-      if (modal) modal.classList.remove('open');
+  }
+
+  /**
+   * 장소 선택 완료 시 메인 화면 인풋에 시각적 피드백 제공
+   */
+  _applyVisualFeedback(targetInput) {
+      if (!targetInput) return;
+      targetInput.classList.remove('highlight-pulse');
+      void targetInput.offsetWidth; // 브라우저 리플로우 강제 트리거 (애니메이션 재시작)
+      targetInput.classList.add('highlight-pulse');
+      
+      // 유저가 어디가 바뀌었는지 인지할 수 있도록 잠시 포커스
+      targetInput.focus();
   }
 }
 
