@@ -197,7 +197,7 @@ export default class ItineraryView extends HTMLElement {
             objectType: 'feed',
             content: {
               title: "✈️ 나만의 스마트한 여행 일정이 도착했어요!",
-              description: "Compasser에서 만든 완벽한 여행 타임라인과 지도를 지금 바로 확인해 보세요.",
+              description: "ComPasser에서 만든 완벽한 여행 타임라인과 지도를 지금 바로 확인해 보세요.",
               imageUrl: "https://images.unsplash.com/photo-1488646953014-c8c2eb5f2b2b",
               link: {
                 mobileWebUrl: shareUrl,

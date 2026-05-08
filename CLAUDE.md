@@ -1,4 +1,4 @@
-# System Rules for Compasser Harness
+# System Rules for ComPasser Harness
 
 CRITICAL: DATA INTEGRITY
 You must strictly adhere to `docs/Schema.md`. The 'Anchor Event' structure (including `isFixed`) and AI generative schema (`top3Recommendations`, `localTip`) must never be arbitrarily modified.

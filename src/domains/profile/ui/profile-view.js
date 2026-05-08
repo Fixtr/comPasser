@@ -758,7 +758,7 @@ class ProfileView extends HTMLElement {
                     <div class="header-banner">
                         <img id="user-photo-hero" class="photo-hero" src="" alt="Profile" />
                         <h1 id="header-name">반가워요!</h1>
-                        <p>Compasser에서 당신의 정보를 안전하게 관리하세요.</p>
+                        <p>ComPasser에서 당신의 정보를 안전하게 관리하세요.</p>
                     </div>
 
                     <div id="personal" class="content-section active">
@@ -832,7 +832,7 @@ class ProfileView extends HTMLElement {
                         <div class="card danger-section">
                             <div class="card-header danger-header">
                                 <h2>계정 삭제</h2>
-                                <p>Compasser 계정을 영구적으로 삭제합니다. 모든 일정이 삭제됩니다.</p>
+                                <p>ComPasser 계정을 영구적으로 삭제합니다. 모든 일정이 삭제됩니다.</p>
                             </div>
                             <button id="btn-delete-account-trigger" class="btn-danger-trigger">탈퇴 진행하기</button>
                         </div>

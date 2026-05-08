@@ -202,7 +202,7 @@ function showWelcomeOverlay() {
                 font-size: 1.5rem;
                 cursor: pointer;
             ">✖</button>
-            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🧭 Compasser</h1>
+            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🧭 ComPasser</h1>
             <p style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 2rem;">
                 당신의 소중한 일정을 중심으로<br>AI가 최적의 여행 경로를 설계해 드립니다.
             </p>

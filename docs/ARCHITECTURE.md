@@ -1,7 +1,7 @@
 # System Architecture
 
 ## Overview
-Compasser is built as a serverless web and mobile application utilizing Vanilla JS and Capacitor. It fully adopts Domain-Driven Design (DDD).
+ComPasser is built as a serverless web and mobile application utilizing Vanilla JS and Capacitor. It fully adopts Domain-Driven Design (DDD).
 
 ## Domain Structure
 1. `auth/`: Firebase Google/Email Auth, Profile management.

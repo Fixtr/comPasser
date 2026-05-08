@@ -1,7 +1,7 @@
 # Architecture Decision Record (ADR)
 
 ## Context
-We need to select an AI Model, an Authentication Provider, a Frontend Framework Strategy, and a Mobile Packaging solution for Compasser.
+We need to select an AI Model, an Authentication Provider, a Frontend Framework Strategy, and a Mobile Packaging solution for ComPasser.
 
 ## Decision 1: AI Model - Gemini 2.5 Flash Lite
 **Status:** Accepted

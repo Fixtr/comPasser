@@ -1,6 +1,6 @@
 const dictionary = {
     ko: {
-        heroTitle: "Smart Travel AI",
+        heroTitle: "ComPasser",
         heroSubtitle: "원하는 주요 일정(Anchor)을 중심으로 최적의 여행 경로를 그려보세요.",
         darkMode: "🌙 다크 모드",
         lightMode: "☀️ 라이트 모드",
@@ -88,7 +88,7 @@ const dictionary = {
         no_preference: "⚙️ 선택 없음"
     },
     en: {
-        heroTitle: "Smart Travel AI",
+        heroTitle: "ComPasser",
         heroSubtitle: "Optimize your itinerary seamlessly around your must-attend anchor events.",
         darkMode: "🌙 Dark Mode",
         lightMode: "☀️ Light Mode",

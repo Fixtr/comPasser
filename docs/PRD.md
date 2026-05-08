@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD)
 
-## Project: Compasser
+## Project: ComPasser
 **Target User:** Anyone traveling in South Korea (locals and foreigners).
 **Core Value Proposition:** Fill empty time slots around fixed schedules ('Anchor Events') with optimal travel routes.
 
