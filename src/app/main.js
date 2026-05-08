@@ -323,9 +323,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (user && (path === '/login' || path === '/join')) {
-            // 이미 preference를 선택했으면 /plan으로, 아니면 /preference로
+            // 이미 preference를 선택했으면 /plan으로, 아니면 /preference/1로
             const hasPreference = sessionStorage.getItem('userPreference');
-            const targetPath = hasPreference ? '/plan' : '/preference';
+            const targetPath = hasPreference ? '/plan' : '/preference/1';
             console.log(`[Router] Authenticated user at login/join, redirecting to ${targetPath}.`);
             window.navigate(targetPath);
             return;
@@ -397,8 +397,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.navigate('/plan');
                 }
             }
-        } else if (path === '/preference') {
+        } else if (path.startsWith('/preference')) {
+            if (path === '/preference/2') {
+                const savedPrefs = sessionStorage.getItem('userPreference');
+                let hasDates = false;
+                if (savedPrefs) {
+                    try {
+                        const parsed = JSON.parse(savedPrefs);
+                        if (parsed.date && parsed.date.length > 0) hasDates = true;
+                    } catch (e) {}
+                }
+                if (!hasDates) {
+                    console.log('[Router] Missing Step 1 data, redirecting to /preference/1.');
+                    window.navigate('/preference/1');
+                    return;
+                }
+            } else if (path === '/preference') {
+                window.navigate('/preference/1');
+                return;
+            }
+
             if (pagePreference) pagePreference.style.display = 'flex';
+            
+            const prefView = document.querySelector('preference-view');
+            if (prefView && typeof prefView.setStep === 'function') {
+                const step = path.endsWith('/2') ? 2 : 1;
+                if (prefView.shadowRoot) {
+                    prefView.setStep(step);
+                } else {
+                    setTimeout(() => prefView.setStep(step), 50);
+                }
+            }
         } else if (path === '/plan') {
             if (!localStorage.getItem('hasSeenTutorial')) {
                 showWelcomeOverlay();

@@ -66,7 +66,7 @@ const dictionary = {
         inAppBrowserTitle: "⚠️ 외부 브라우저에서 열어주세요",
         inAppBrowserDesc: "카카오톡 등 인앱 브라우저에서는 보안 정책으로 인해 구글 로그인이 제한됩니다. 아래 안내를 따라 외부 브라우저에서 다시 접속해 주세요.",
         // Preference Date & Duration
-        pref_date_title: "여행 시작일과 기간을 선택해 주세요",
+        pref_date_title: "여행 시작일을 선택해 주세요",
         date_today: "오늘",
         date_tomorrow: "내일",
         date_weekend: "이번 주말",

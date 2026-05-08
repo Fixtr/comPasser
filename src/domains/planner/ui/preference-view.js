@@ -432,53 +432,66 @@ export default class PreferenceView extends HTMLElement {
       </style>
 
       <div class="preference-header">
-        <span class="step-badge">Step 1 / 2</span>
+        <div class="progress-bar-container" style="max-width: 200px; height: 6px; background: #e5e7eb; border-radius: 3px; margin: 0 auto 1.5rem; overflow: hidden;">
+          <div id="progress-bar" style="width: 50%; height: 100%; background: linear-gradient(135deg, var(--accent-primary, #7c3aed), oklch(55% 0.3 280)); transition: width 0.3s ease;"></div>
+        </div>
+        <span class="step-badge" id="step-badge">Step 1 / 2</span>
         <h2>나만의 여행 스타일 선택</h2>
         <p>어떤 여행을 꿈꾸고 계신가요?<br>날짜, 테마, 예산을 선택하면 AI가 맞춤 동선을 설계해 드려요.</p>
       </div>
 
-      <!-- Date Selection -->
-      <div class="section-title">
-        <span class="icon">📅</span> <span data-i18n="pref_date_title">${t('pref_date_title')}</span>
-      </div>
-      
-      <div class="date-chip-container" id="date-chip-container">
-        <!-- '이번 주말' 버튼 유지 (Combo Action) -->
-        <div class="date-chip" data-date-type="weekend">
-          <span data-i18n="date_weekend">${t('date_weekend')}</span>
+      <div id="step1-container" class="step-container">
+        <!-- Date Selection -->
+        <div class="section-title">
+          <span class="icon">📅</span> <span data-i18n="pref_date_title">${t('pref_date_title')}</span>
         </div>
-        <div class="date-chip" data-date-type="today">
-          <span data-i18n="date_today">${t('date_today')}</span>
+        
+        <div class="date-chip-container" id="date-chip-container">
+          <!-- '이번 주말' 버튼 유지 (Combo Action) -->
+          <div class="date-chip" data-date-type="weekend">
+            <span data-i18n="date_weekend">${t('date_weekend')}</span>
+          </div>
+          <div class="date-chip" data-date-type="today">
+            <span data-i18n="date_today">${t('date_today')}</span>
+          </div>
+          <div class="date-chip" data-date-type="tomorrow">
+            <span data-i18n="date_tomorrow">${t('date_tomorrow')}</span>
+          </div>
+          <div class="date-chip custom-date-wrapper" data-date-type="custom">
+            <span class="custom-date-text" id="custom-date-text" data-i18n="date_custom">${t('date_custom')}</span>
+            <input type="date" id="custom-date-input" class="hidden-date-input">
+          </div>
         </div>
-        <div class="date-chip" data-date-type="tomorrow">
-          <span data-i18n="date_tomorrow">${t('date_tomorrow')}</span>
+
+        <!-- Duration Selection -->
+        <div class="section-title" style="margin-top: 1.5rem;">
+          <span class="icon">⏳</span> <span data-i18n="pref_duration_title">${t('pref_duration_title')}</span>
         </div>
-        <div class="date-chip custom-date-wrapper" data-date-type="custom">
-          <span class="custom-date-text" id="custom-date-text" data-i18n="date_custom">${t('date_custom')}</span>
-          <input type="date" id="custom-date-input" class="hidden-date-input">
+        <div class="date-chip-container" id="duration-chip-container">
+          <div class="date-chip" data-duration="1">
+            <span data-i18n="duration_1">${t('duration_1')}</span>
+          </div>
+          <div class="date-chip" data-duration="2">
+            <span data-i18n="duration_2">${t('duration_2')}</span>
+          </div>
+          <div class="date-chip" data-duration="3">
+            <span data-i18n="duration_3">${t('duration_3')}</span>
+          </div>
+          <div class="date-chip" data-duration="4">
+            <span data-i18n="duration_4">${t('duration_4')}</span>
+          </div>
+        </div>
+
+        <!-- Step 1 Submit -->
+        <div class="submit-section">
+          <button class="next-btn" id="next-step-btn" disabled>
+            다음으로 →
+          </button>
+          <p class="helper-text" id="step1-helper-text">시작일과 기간을 선택해 주세요</p>
         </div>
       </div>
 
-      <!-- Duration Selection -->
-      <div class="section-title" style="margin-top: 1.5rem;">
-        <span class="icon">⏳</span> <span data-i18n="pref_duration_title">${t('pref_duration_title')}</span>
-      </div>
-      <div class="date-chip-container" id="duration-chip-container">
-        <div class="date-chip" data-duration="1">
-          <span data-i18n="duration_1">${t('duration_1')}</span>
-        </div>
-        <div class="date-chip" data-duration="2">
-          <span data-i18n="duration_2">${t('duration_2')}</span>
-        </div>
-        <div class="date-chip" data-duration="3">
-          <span data-i18n="duration_3">${t('duration_3')}</span>
-        </div>
-        <div class="date-chip" data-duration="4">
-          <span data-i18n="duration_4">${t('duration_4')}</span>
-        </div>
-      </div>
-
-      <div id="preference-content" class="preference-content dimmed">
+      <div id="step2-container" class="step-container" style="display: none;">
         <!-- Theme Selection -->
         <div class="section-title">
           <span class="icon">🎨</span> 여행 테마
@@ -536,11 +549,25 @@ export default class PreferenceView extends HTMLElement {
         </div>
 
         <!-- Submit -->
-        <div class="submit-section">
-          <button class="next-btn" id="next-btn" disabled>
-            다음으로 →
-          </button>
-          <p class="helper-text" id="helper-text">모든 항목을 선택해 주세요</p>
+        <div class="submit-section" style="display: flex; flex-direction: column; align-items: center;">
+          <div style="display: flex; gap: 1rem; width: 100%; max-width: 400px;">
+            <button id="prev-step-btn" style="
+              flex: 1;
+              background: transparent;
+              color: var(--text-secondary, #4b5563);
+              border: 2px solid #e5e7eb;
+              padding: 1rem;
+              font-size: 1.1rem;
+              font-weight: 700;
+              border-radius: 14px;
+              cursor: pointer;
+              transition: all 0.2s;
+            ">이전으로</button>
+            <button class="next-btn" id="submit-btn" disabled style="flex: 2; margin: 0; max-width: none;">
+              일정 생성하기 ✨
+            </button>
+          </div>
+          <p class="helper-text" id="step2-helper-text">테마와 예산을 모두 선택해 주세요</p>
           <button class="skip-link" id="skip-btn">선택 없이 바로 일정 짜기 →</button>
         </div>
       </div>
@@ -559,85 +586,56 @@ export default class PreferenceView extends HTMLElement {
     const durationChipContainer = this.shadowRoot.getElementById('duration-chip-container');
     const customDateInput = this.shadowRoot.getElementById('custom-date-input');
     const customDateText = this.shadowRoot.getElementById('custom-date-text');
-    const preferenceContent = this.shadowRoot.getElementById('preference-content');
     const themeGrid = this.shadowRoot.getElementById('theme-grid');
     const budgetGrid = this.shadowRoot.getElementById('budget-grid');
-    const nextBtn = this.shadowRoot.getElementById('next-btn');
+    
+    const nextStepBtn = this.shadowRoot.getElementById('next-step-btn');
+    const prevStepBtn = this.shadowRoot.getElementById('prev-step-btn');
+    const submitBtn = this.shadowRoot.getElementById('submit-btn');
     const skipBtn = this.shadowRoot.getElementById('skip-btn');
-    const helperText = this.shadowRoot.getElementById('helper-text');
+    
+    const step1Helper = this.shadowRoot.getElementById('step1-helper-text');
+    const step2Helper = this.shadowRoot.getElementById('step2-helper-text');
 
     // Date init
     const todayStr = this.getLocalDateString(new Date());
     customDateInput.min = todayStr;
 
-    // Expand step 2
-    const expandStep2 = () => {
-      preferenceContent.classList.add('active');
-    };
-
-    const collapseStep2 = () => {
-      preferenceContent.classList.remove('active');
-    };
-
-    // Initialize to expanded if already has date
-    if (this.selectedDates && this.selectedDates.length > 0) {
-      expandStep2();
-    } else {
-      collapseStep2(); // start hidden
-    }
-
     const computeDateArray = () => {
-      // 1. 상태 초기화 방어: 누적 방지를 위해 무조건 빈 배열로 시작
       this.selectedDates = [];
 
       if (!this.startDateValue || !this.duration) {
-        collapseStep2();
-        this._updateButtonState(nextBtn, helperText);
+        this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
         
-        // 실시간 동기화 (Clear)
         try {
           const prefs = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
           prefs.date = this.selectedDates;
           sessionStorage.setItem('userPreference', JSON.stringify(prefs));
-          console.log("[Storage Sync] Cleared Dates:", this.selectedDates);
-        } catch(e) {
-          console.error("[Storage Sync] Failed to clear dates:", e);
-        }
+        } catch(e) {}
         return;
       }
       
       const parts = this.startDateValue.split('-');
-      // Native JS Date construction (Noon 기준)으로 타임존 밀림 현상 방지
       const startDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
 
       for (let i = 0; i < this.duration; i++) {
-        // [핵심] 반드시 독립된 복사본을 만든 뒤 날짜를 더함 (Mutation 방지)
         const nextDate = new Date(startDate.getTime());
         nextDate.setDate(nextDate.getDate() + i);
-        
-        // [Timezone 주의] getLocalDateString은 내부적으로 getFullYear, getMonth, getDate를 사용하여 로컬 시간 보존
         this.selectedDates.push(this.getLocalDateString(nextDate));
       }
       
-      expandStep2();
-      this._updateButtonState(nextBtn, helperText);
+      this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
 
-      // 실시간 저장소 동기화: 최종 버튼 누르기 전이라도 최신화
       try {
         const prefs = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
         prefs.date = this.selectedDates;
         sessionStorage.setItem('userPreference', JSON.stringify(prefs));
-        console.log("[Storage Sync] Updated Dates:", this.selectedDates);
-      } catch(e) {
-        console.error("[Storage Sync] Failed to update dates:", e);
-      }
+      } catch(e) {}
     };
 
-    // Date selection
     const applyDateSelection = (type, customValue = null, isToggleClick = false) => {
       const chip = dateChipContainer.querySelector(`[data-date-type="${type}"]`);
       
-      // Toggle off mechanism
       if (isToggleClick && chip && chip.classList.contains('selected')) {
         chip.classList.remove('selected');
         this.startDateType = null;
@@ -657,7 +655,6 @@ export default class PreferenceView extends HTMLElement {
         this.startDateValue = todayStr;
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
-        // Unset combo if not weekend
         durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('combo-locked'));
       } else if (type === 'tomorrow') {
         const d = new Date();
@@ -667,12 +664,11 @@ export default class PreferenceView extends HTMLElement {
         customDateText.setAttribute('data-i18n', 'date_custom');
         durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('combo-locked'));
       } else if (type === 'weekend') {
-        // [이번 주말 Combo Action]
         const sat = new Date();
         const currentDay = sat.getDay();
         let addDays = 6 - currentDay;
-        if (currentDay === 6) addDays = 7; // Next Saturday
-        else if (currentDay === 0) addDays = 6; // Next Saturday
+        if (currentDay === 6) addDays = 7; 
+        else if (currentDay === 0) addDays = 6; 
 
         sat.setDate(sat.getDate() + addDays);
         this.startDateValue = this.getLocalDateString(sat);
@@ -680,10 +676,7 @@ export default class PreferenceView extends HTMLElement {
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
         
-        // Auto-select duration: 1N2D
-        durationChipContainer.querySelectorAll('.date-chip').forEach(c => {
-           c.classList.remove('selected');
-        });
+        durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
         const targetDuration = durationChipContainer.querySelector(`[data-duration="2"]`);
         if (targetDuration) {
           targetDuration.classList.add('selected');
@@ -700,9 +693,7 @@ export default class PreferenceView extends HTMLElement {
       computeDateArray();
     };
 
-    // Duration selection
     durationChipContainer.addEventListener('click', (e) => {
-      // 날짜 배열 생성 및 초기화 보장 (이전 데이터 간섭 원천 차단)
       this.selectedDates = [];
 
       const chip = e.target.closest('.date-chip');
@@ -710,7 +701,6 @@ export default class PreferenceView extends HTMLElement {
 
       const durValue = parseInt(chip.dataset.duration);
       
-      // Toggle off mechanism
       if (chip.classList.contains('selected')) {
         chip.classList.remove('selected');
         this.duration = null;
@@ -730,7 +720,6 @@ export default class PreferenceView extends HTMLElement {
       if (!chip) return;
 
       const type = chip.dataset.dateType;
-      // Do not handle 'custom' clicks here, let the input 'change' event handle exact date choices.
       if (type !== 'custom') {
         applyDateSelection(type, null, true);
       }
@@ -741,9 +730,7 @@ export default class PreferenceView extends HTMLElement {
         if (typeof customDateInput.showPicker === 'function') {
           customDateInput.showPicker();
         }
-      } catch (err) {
-        console.warn('[Calendar] showPicker() failed or not supported:', err);
-      }
+      } catch (err) { }
     });
 
     customDateInput.addEventListener('change', (e) => {
@@ -752,7 +739,6 @@ export default class PreferenceView extends HTMLElement {
       }
     });
 
-    // Theme card selection
     themeGrid.addEventListener('click', (e) => {
       const card = e.target.closest('.preference-card');
       if (!card) return;
@@ -768,10 +754,9 @@ export default class PreferenceView extends HTMLElement {
         this.selectedTheme = card.dataset.value;
       }
       
-      this._updateButtonState(nextBtn, helperText);
+      this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     });
 
-    // Budget card selection
     budgetGrid.addEventListener('click', (e) => {
       const card = e.target.closest('.preference-card');
       if (!card) return;
@@ -787,16 +772,14 @@ export default class PreferenceView extends HTMLElement {
         this.selectedBudget = card.dataset.value;
       }
 
-      this._updateButtonState(nextBtn, helperText);
+      this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     });
 
-    // Restore previous selections
     if (this.selectedDates && Array.isArray(this.selectedDates) && this.selectedDates.length > 0) {
       let isStandard = false;
       const firstDate = this.selectedDates[0];
       const length = this.selectedDates.length;
 
-      // Restore duration
       if (length >= 1 && length <= 4) {
         this.duration = length;
         const durChip = durationChipContainer.querySelector(`[data-duration="${length}"]`);
@@ -838,13 +821,34 @@ export default class PreferenceView extends HTMLElement {
       const budgetCard = budgetGrid.querySelector(`[data-value="${this.selectedBudget}"]`);
       if (budgetCard) budgetCard.classList.add('selected');
     }
-    this._updateButtonState(nextBtn, helperText);
+    this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
 
-    // Next button
-    nextBtn.addEventListener('click', () => {
-      // Submit 시점의 완벽한 덮어쓰기 보장 (100% 새로 계산)
+    // [Step 1] Next Button
+    nextStepBtn.addEventListener('click', () => {
       computeDateArray();
+      if (!this.selectedDates || this.selectedDates.length === 0) return;
+      
+      // Save Step 1 state
+      const currentPref = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
+      currentPref.date = this.selectedDates;
+      sessionStorage.setItem('userPreference', JSON.stringify(currentPref));
+      
+      // Navigate to Step 2
+      if (window.navigate) {
+        window.navigate('/preference/2');
+      }
+    });
 
+    // [Step 2] Prev Button
+    prevStepBtn.addEventListener('click', () => {
+      // Navigate to Step 1 without losing state
+      if (window.navigate) {
+        window.navigate('/preference/1');
+      }
+    });
+
+    // [Step 2] Submit Button
+    submitBtn.addEventListener('click', () => {
       if (!this.selectedTheme || !this.selectedBudget || !this.selectedDates) return;
 
       const preference = {
@@ -861,11 +865,16 @@ export default class PreferenceView extends HTMLElement {
       }
     });
 
-    // Skip button
+    // [Step 2] Skip Button
     skipBtn.addEventListener('click', () => {
-      // Save defaults / no preference
-      sessionStorage.setItem('userPreference', JSON.stringify({ date: null, theme: null, budget: null }));
-      console.log('[Preference] Skipped — no preference set.');
+      // Save what we have in Step 1, but null for theme/budget
+      const preference = {
+        date: this.selectedDates,
+        theme: null,
+        budget: null
+      };
+      sessionStorage.setItem('userPreference', JSON.stringify(preference));
+      console.log('[Preference] Skipped theme/budget — continuing to plan.');
 
       if (window.navigate) {
         window.navigate('/plan');
@@ -873,20 +882,46 @@ export default class PreferenceView extends HTMLElement {
     });
   }
 
-  _updateButtonState(nextBtn, helperText) {
-    if (this.selectedDates && this.selectedTheme && this.selectedBudget) {
-      nextBtn.disabled = false;
+  _updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper) {
+    // Step 1 check
+    if (this.selectedDates && this.selectedDates.length > 0) {
+      nextStepBtn.disabled = false;
+      step1Helper.textContent = '날짜가 선택되었습니다. 다음으로 이동하세요.';
+    } else {
+      nextStepBtn.disabled = true;
+      step1Helper.textContent = '시작일과 기간을 선택해 주세요';
+    }
 
+    // Step 2 check
+    if (this.selectedTheme && this.selectedBudget) {
+      submitBtn.disabled = false;
       const themeLabels = { food: '맛집 탐방', activity: '액티비티', healing: '휴식/힐링', photo: '인생샷' };
       const budgetLabels = { flex: '플렉스', standard: '스탠다드', budget: '짠내투어' };
-      helperText.textContent = `✨ ${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 AI가 맞춤 설계합니다`;
+      step2Helper.textContent = `✨ ${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 설계합니다`;
     } else {
-      nextBtn.disabled = true;
-      if (!this.selectedDates) {
-        helperText.textContent = '시작일과 기간을 선택해 주세요';
-      } else {
-        helperText.textContent = '테마와 예산을 모두 선택해 주세요';
-      }
+      submitBtn.disabled = true;
+      step2Helper.textContent = '테마와 예산을 모두 선택해 주세요';
+    }
+  }
+
+  setStep(step) {
+    const step1 = this.shadowRoot.getElementById('step1-container');
+    const step2 = this.shadowRoot.getElementById('step2-container');
+    const badge = this.shadowRoot.getElementById('step-badge');
+    const progress = this.shadowRoot.getElementById('progress-bar');
+    
+    if (!step1 || !step2) return;
+
+    if (step === 1) {
+      step1.style.display = 'block';
+      step2.style.display = 'none';
+      if (badge) badge.textContent = 'Step 1 / 2';
+      if (progress) progress.style.width = '50%';
+    } else {
+      step1.style.display = 'none';
+      step2.style.display = 'block';
+      if (badge) badge.textContent = 'Step 2 / 2';
+      if (progress) progress.style.width = '100%';
     }
   }
 
