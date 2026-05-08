@@ -635,46 +635,29 @@ export default class TravelForm extends HTMLElement {
         });
       }
 
-      if (i >= 2) {
-          const bringBtn = dayWrapper.querySelector('.btn-bring-prev');
-          if (bringBtn) {
-              bringBtn.addEventListener('click', () => {
-                  const prevDay = i - 1;
-                  const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
-                  
-                  if (!prevEndLoc || !prevEndLoc.displayName) {
-                      alert("전날 종료 장소를 먼저 입력해 주세요.");
-                      return;
-                  }
-                  
-                  const startAc = dayWrapper.querySelector(`#start-location-day-${i}`);
-                  if (startAc) {
-                      const deepCopied = JSON.parse(JSON.stringify(prevEndLoc));
-                      this.placesMap.set(`start-location-day-${i}`, deepCopied);
-                      
-                      startAc.value = deepCopied.displayName;
-                      
-                      const lightInput = startAc.querySelector('input');
-                      if (lightInput) lightInput.value = deepCopied.displayName;
-                      
-                      const innerInput = startAc.shadowRoot?.querySelector('input');
-                      if (innerInput) {
-                          innerInput.value = deepCopied.displayName;
-                          innerInput.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                          innerInput.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-                      }
-                      
-                      this.triggerSave();
-                  }
-              });
-          }
-      }
+      // '전날 종료 장소 가져오기' 수동 버튼 로직은 setupEventListeners의 Event Delegation으로 이동되었습니다.
       
       dayWrapper.querySelector('.add-anchor-btn').addEventListener('click', () => {
         this.addAnchorToDay(i);
         this.triggerSave();
       });
     }
+
+    // 렌더링 직후 모든 gmp-place-autocomplete에 gmp-placeselect 직접 부착 (사용자 지침 1)
+    const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
+    autocompletes.forEach(ac => {
+        ac.addEventListener('gmp-placeselect', (event) => {
+            const target = event.target;
+            if (target && target.place) {
+                const placeData = this.extractPlaceData(target.place);
+                if (placeData) {
+                    this.placesMap.set(target.id, placeData);
+                    this.triggerSave();
+                }
+            }
+        });
+    });
+
     this.updateTexts();
   }
 
@@ -720,7 +703,19 @@ export default class TravelForm extends HTMLElement {
     });
     
     const ac = template.querySelector('.anchor-location');
-    // Event Delegation 적용으로 직접 리스너 추가 제거됨
+    if (ac) {
+        // 동적으로 추가된 컴포넌트에도 직접 부착 (사용자 지침 1)
+        ac.addEventListener('gmp-placeselect', (event) => {
+            const target = event.target;
+            if (target && target.place) {
+                const placeData = this.extractPlaceData(target.place);
+                if (placeData) {
+                    this.placesMap.set(target.id, placeData);
+                    this.triggerSave();
+                }
+            }
+        });
+    }
     
     if (data) {
       template.querySelector('.anchor-name').value = data.name || '';
@@ -847,14 +842,17 @@ export default class TravelForm extends HTMLElement {
         const startAc = this.shadowRoot.getElementById(`start-location-day-${i}`);
         const endAc = this.shadowRoot.getElementById(`end-location-day-${i}`);
         
+        // 타이핑 파편 방지: gmp-placeselect로 획득한 온전한 객체만 사용 (사용자 지침 2)
         let startLocData = this.placesMap.get(`start-location-day-${i}`) || { displayName: startAc ? startAc.value : '' };
-        if (startAc && startAc.value !== startLocData.displayName) {
-             startLocData = { displayName: startAc.value };
+        if (startAc && !startAc.value) {
+             startLocData = { displayName: '' };
+             this.placesMap.delete(`start-location-day-${i}`);
         }
         
         let endLocData = this.placesMap.get(`end-location-day-${i}`) || { displayName: endAc ? endAc.value : '' };
-        if (endAc && endAc.value !== endLocData.displayName) {
-             endLocData = { displayName: endAc.value }; 
+        if (endAc && !endAc.value) {
+             endLocData = { displayName: '' };
+             this.placesMap.delete(`end-location-day-${i}`);
         }
 
         const anchors = [];
@@ -862,8 +860,9 @@ export default class TravelForm extends HTMLElement {
         anchorItems.forEach(item => {
            const ac = item.querySelector('.anchor-location');
            let locData = this.placesMap.get(ac?.id) || { displayName: ac ? ac.value : '' };
-           if (ac && ac.value !== locData.displayName) {
-               locData = { displayName: ac.value };
+           if (ac && !ac.value) {
+               locData = { displayName: '' };
+               this.placesMap.delete(ac.id);
            }
            anchors.push({
                name: item.querySelector('.anchor-name').value,
@@ -902,16 +901,55 @@ export default class TravelForm extends HTMLElement {
     const form = this.shadowRoot.getElementById('travel-form');
 
     form.addEventListener('input', (event) => {
-      // 수동 장소 변경 시 placesMap 업데이트 방어 로직
+      // 오직 입력창이 완전히 비워졌을 때만 상태 갱신
       const target = event.target;
       if (target && target.tagName && target.tagName.toLowerCase() === 'gmp-place-autocomplete') {
-          const query = target.value;
-          if (query && !this.placesMap.has(target.id)) {
-              this.placesMap.set(target.id, { displayName: query });
+          if (!target.value) {
+              this.placesMap.delete(target.id);
           }
       }
       
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+    });
+
+    // gmp-placeselect 이벤트는 위임하지 않고 renderDaysUI 등에서 각 컴포넌트에 직접 부착합니다. (사용자 지침 1)
+
+    // 전날 장소 가져오기 버튼 Event Delegation (사용자 지침 1, 3)
+    form.addEventListener('click', (event) => {
+      const bringBtn = event.target.closest('.btn-bring-prev');
+      if (bringBtn) {
+          const dayIndex = parseInt(bringBtn.getAttribute('data-day'), 10);
+          if (dayIndex >= 2) {
+              const prevDay = dayIndex - 1;
+              const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
+              
+              // 값이 비어있거나 온전한 Place 객체(location/좌표 포함)가 아니라면 차단 (사용자 지침 3)
+              if (!prevEndLoc || !prevEndLoc.location) {
+                  alert("이전 날짜의 종료 장소를 검색 목록에서 정확히 선택해 주세요.");
+                  return;
+              }
+              
+              const startAc = this.shadowRoot.getElementById(`start-location-day-${dayIndex}`);
+              if (startAc) {
+                  const deepCopied = JSON.parse(JSON.stringify(prevEndLoc));
+                  this.placesMap.set(`start-location-day-${dayIndex}`, deepCopied);
+                  
+                  startAc.value = deepCopied.displayName;
+                  
+                  const lightInput = startAc.querySelector('input');
+                  if (lightInput) lightInput.value = deepCopied.displayName;
+                  
+                  const innerInput = startAc.shadowRoot?.querySelector('input');
+                  if (innerInput) {
+                      innerInput.value = deepCopied.displayName;
+                      innerInput.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                      innerInput.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                  }
+                  
+                  this.triggerSave();
+              }
+          }
+      }
     });
 
     this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
