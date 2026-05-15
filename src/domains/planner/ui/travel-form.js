@@ -2,6 +2,8 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 
+
+
 export default class TravelForm extends HTMLElement {
   constructor() {
     super();
@@ -9,15 +11,17 @@ export default class TravelForm extends HTMLElement {
     this.anchorCount = 0;
     this.isSubmitting = false;
     this.loader = getMapsLoader();
-    this.placesMap = new Map();
   }
 
   connectedCallback() {
     this.render();
+    if (this.anchorCount === 0) {
+      // 앵커 자동 생성 로직 제거 (Opt-in)
+      // this.addAnchor();
+    }
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
     this.initPlaces();
-    
     // SPA 캐싱 대응: 화면 표시 감지 옵저버 설정
     this._visibilityObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -50,9 +54,13 @@ export default class TravelForm extends HTMLElement {
     });
   }
 
+  /**
+   * 컴포넌트가 다시 화면에 나타날 때마다 저장소에서 최신 데이터를 강제로 리페치합니다.
+   */
   refreshFromStorage() {
     this.renderPreferenceBadges();
 
+    // Restore Form Data on load if we are not locked in Phase 3
     const savedPhase = sessionStorage.getItem('currentPhase');
     const savedForm = sessionStorage.getItem('currentFormData');
     const savedPrefStr = sessionStorage.getItem('userPreference');
@@ -70,12 +78,14 @@ export default class TravelForm extends HTMLElement {
       } catch (e) {}
     }
 
+    // 폼 입력 데이터 찌꺼기 방어를 위해 reset() 호출 (populateForm 내부에서도 호출되지만 이중 방어)
     const form = this.shadowRoot.getElementById('travel-form');
     if (form) form.reset();
 
     if (savedPhase !== '3' && savedForm) {
       try {
         const formData = JSON.parse(savedForm);
+        // 데이터 수신부 강제 초기화: 무조건 최신 userPreference 값으로 덮어씌움
         if (prefDate) formData.date = prefDate;
         if (prefTheme) formData.theme = prefTheme;
         if (prefBudget) formData.budget = prefBudget;
@@ -85,15 +95,22 @@ export default class TravelForm extends HTMLElement {
         console.error('Form parse error', e);
       }
     } else {
+      // 저장된 폼이 없을 경우, preference에서 가져온 데이터로 초기 폼 세팅
       this.populateForm({ date: prefDate, theme: prefTheme, budget: prefBudget });
     }
   }
 
+  /**
+   * sessionStorage의 userPreference를 읽어
+   * 헤더의 #preference-chips-container에 칩(Badge) UI를 렌더링합니다.
+   * 값이 없으면 컨테이너가 빈 채로 숨겨집니다.
+   */
   renderPreferenceBadges() {
     try {
       const container = this.shadowRoot.getElementById('preference-chips-container');
       if (!container) return;
 
+      // 기존 DOM 찌꺼기 완벽 초기화 방어 로직 (잔상 방지)
       container.innerHTML = '';
 
       const makeChip = (key) => {
@@ -116,9 +133,12 @@ export default class TravelForm extends HTMLElement {
             budget = pref.budget || null;
             date = pref.date || null;
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn('Failed to parse userPreference from sessionStorage', e);
+        }
       }
 
+      // 선택값이 하나도 없으면 '선택 없음' 배지 노출
       if (!theme && !budget && !date) {
         container.style.display = 'flex';
         container.appendChild(makeChip('no_preference'));
@@ -133,11 +153,13 @@ export default class TravelForm extends HTMLElement {
           if (date.length > 1) {
             const nights = date.length - 1;
             const days = date.length;
+            // i18n에 정의된 duration_n 키 사용 시도, 없으면 폴백
             const durationKey = `duration_${days}`;
             const durationText = t(durationKey) !== durationKey 
               ? t(durationKey) 
               : (getLang() === 'ko' ? `${nights}박 ${days}일` : `${nights}N ${days}D`);
             
+            // [렌더링 점검] ${dateArray[0]} ~ ${dateArray[last]} (N박 M일) 형태 준수
             displayDate = `${date[0]} ~ ${date[date.length - 1]} (${durationText})`;
           } else {
             displayDate = date[0];
@@ -149,7 +171,7 @@ export default class TravelForm extends HTMLElement {
         if (displayDate) {
           const dateChip = document.createElement('span');
           dateChip.className = 'pref-chip';
-          dateChip.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+          dateChip.style.background = 'linear-gradient(135deg, #10b981, #059669)'; // Date 배지는 초록
           dateChip.innerHTML = `<span class="chip-icon">📅</span> ${displayDate}`;
           container.appendChild(dateChip);
         }
@@ -177,6 +199,7 @@ export default class TravelForm extends HTMLElement {
       }
     });
 
+    // placeholder 전용 업데이트 로직 추가
     const placeholders = this.shadowRoot.querySelectorAll('[data-i18n-placeholder]');
     placeholders.forEach(el => {
       const key = el.getAttribute('data-i18n-placeholder');
@@ -245,16 +268,23 @@ export default class TravelForm extends HTMLElement {
           box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
         }
 
+        /* Google Maps Autocomplete 컴포넌트 스타일링 */
         gmp-place-autocomplete {
           display: block;
           width: 100%;
           box-sizing: border-box;
-          overflow: visible;
-          --gmpx-color-surface: #ffffff !important;
-          --gmpx-color-on-surface: #111827 !important;
-          --gmpx-color-on-surface-variant: #6b7280 !important;
+          overflow: visible; /* 💎 드롭다운 잘림 방지 💎 */
+
+          /* 💎 다크모드 무시 & 라이트 테마 강제 고정 💎 */
+          --gmpx-color-surface: #ffffff !important;             /* 폼/드롭다운 배경 무조건 흰색 */
+          --gmpx-color-on-surface: #111827 !important;          /* 입력 글씨 무조건 검은색 */
+          --gmpx-color-on-surface-variant: #6b7280 !important;   /* 상세 주소 무조건 진회색 */
           color: #111827 !important;
-          --gmp-place-autocomplete-icon-padding: 0px;
+          
+          /* 💎 핵심 2: 'X' 버튼 검은 원 크기 축소 (Padding 조절) 💎 */
+          --gmp-place-autocomplete-icon-padding: 0px; /* 아이콘 패딩을 없애서 뱃지 크기 최소화 */
+
+          /* 기존 폼 UI와 동일한 외형 */
           border: 1px solid #e5e7eb; 
           border-radius: 8px; 
           min-height: 48px; 
@@ -264,110 +294,17 @@ export default class TravelForm extends HTMLElement {
           z-index: 10;
         }
 
+        /* 앵커(Anchor) 박스 내부의 장소 입력창 전용 */
         .anchor-item gmp-place-autocomplete, 
         .anchor-schedule-item gmp-place-autocomplete {
+          /* 앵커 박스 배경에 자연스럽게 묻히도록 투명하게 처리 */
           --gmpx-color-surface: transparent; 
-          border: 1px solid #d1d5db;
+          border: 1px solid #d1d5db; /* 앵커 내부의 다른 인풋과 같은 테두리 색상 */
         }
 
         gmp-place-autocomplete:focus-within {
           border-color: var(--accent-primary);
           box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
-        }
-
-        .location-input {
-          cursor: pointer;
-        }
-
-        /* === Modal Styles === */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(4px);
-          z-index: 9999;
-          display: none;
-          align-items: center;
-          justify-content: center;
-        }
-        .modal-overlay.open {
-          display: flex;
-        }
-        .modal-container {
-          background: var(--bg-primary, #fff);
-          width: 90%;
-          max-width: 500px;
-          border-radius: 16px;
-          padding: 2rem;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-          position: relative;
-        }
-        .modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-        }
-        .modal-title {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-        .modal-close {
-          background: none;
-          border: none;
-          font-size: 1.5rem;
-          cursor: pointer;
-          color: var(--text-secondary);
-        }
-        .modal-quick-btn {
-          width: 100%;
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-          border: none;
-          padding: 1rem;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 1rem;
-          margin-top: 1rem;
-          cursor: pointer;
-          display: none;
-          transition: transform 0.2s;
-        }
-        .modal-quick-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        .modal-quick-btn.show {
-          display: block;
-        }
-        
-        .modal-cancel-btn {
-          width: 100%;
-          background: var(--bg-secondary);
-          color: var(--text-secondary);
-          border: 1px solid oklch(90% 0.02 260);
-          padding: 0.8rem;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 0.95rem;
-          margin-top: 0.75rem;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .modal-cancel-btn:hover {
-          background: oklch(95% 0.02 260);
-        }
-        
-        .highlight-pulse {
-          animation: inputPulse 1s ease-out;
-        }
-        @keyframes inputPulse {
-          0% { background-color: rgba(16, 185, 129, 0.15); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4); border-color: #10b981; }
-          100% { background-color: var(--bg-primary); box-shadow: none; border-color: oklch(90% 0.02 260); }
         }
 
         .primary-btn {
@@ -442,6 +379,7 @@ export default class TravelForm extends HTMLElement {
           stroke-linecap: round;
           stroke-linejoin: round;
         }
+
         
         .secondary-btn {
           background: oklch(95% 0.02 260);
@@ -461,6 +399,7 @@ export default class TravelForm extends HTMLElement {
           background: oklch(92% 0.02 260);
         }
 
+        /* ====== Preference Badges ====== */
         .preference-chips {
           display: flex;
           align-items: center;
@@ -491,6 +430,11 @@ export default class TravelForm extends HTMLElement {
           box-shadow: 0 6px 16px rgba(124, 58, 237, 0.3);
         }
 
+        .pref-chip .chip-icon {
+          font-size: 0.9rem;
+          line-height: 1;
+        }
+
         @keyframes chipPop {
           from { opacity: 0; transform: scale(0.7); }
           to   { opacity: 1; transform: scale(1); }
@@ -503,7 +447,7 @@ export default class TravelForm extends HTMLElement {
           border-radius: 12px;
           margin-bottom: 1rem;
           position: relative;
-          box-shadow: var(--shadow-sm);
+          box-shadow: var(--shadow-sm); /* 추가적인 카드 느낌 */
           transition: box-shadow 0.2s ease, transform 0.2s ease;
         }
         
@@ -518,7 +462,7 @@ export default class TravelForm extends HTMLElement {
           right: 1rem;
           background: none;
           border: none;
-          color: oklch(60% 0.15 20);
+          color: oklch(60% 0.15 20); /* Reddish */
           font-size: 1.5rem;
           cursor: pointer;
           line-height: 1;
@@ -544,55 +488,81 @@ export default class TravelForm extends HTMLElement {
           }
         }
 
-        /* === Accordion & Day Container Styles === */
-        .day-wrapper {
-          margin-bottom: 1rem;
-        }
-        .accordion-header {
-          display: flex;
-          justify-content: space-between;
+        /* Toggle Switch Styles */
+        .toggle-container {
+          display: inline-flex;
           align-items: center;
-          padding: 1.2rem 1.5rem;
+          gap: 0.75rem;
+          cursor: pointer;
+          user-select: none;
+          padding: 0.5rem 0;
+        }
+
+        .toggle-container input {
+          display: none;
+        }
+
+        .toggle-switch {
+          position: relative;
+          width: 44px;
+          height: 24px;
+          background-color: #cbd5e1;
+          border-radius: 999px;
+          transition: background-color 0.2s ease;
+        }
+
+        .toggle-switch::after {
+          content: '';
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 20px;
+          height: 20px;
+          background-color: white;
+          border-radius: 50%;
+          transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-container input:checked + .toggle-switch {
+          background-color: var(--accent-primary, #7c3aed);
+        }
+
+        .toggle-container input:checked + .toggle-switch::after {
+          transform: translateX(20px);
+        }
+
+        .toggle-label {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        #daily-times-accordion {
+          transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+          overflow: hidden;
+        }
+
+        .daily-time-row {
           background: oklch(98% 0.01 260);
           border: 1px solid oklch(90% 0.02 260);
           border-radius: 12px;
-          cursor: pointer;
+          padding: 1rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .daily-time-row:last-child {
+          margin-bottom: 0;
+        }
+
+        .daily-time-header {
           font-weight: 700;
+          font-size: 1rem;
           color: var(--accent-primary);
-          transition: background 0.2s, box-shadow 0.2s;
-        }
-        .accordion-header:hover {
-          background: oklch(95% 0.02 260);
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .accordion-content {
-          display: none;
-          padding: 1.5rem;
-          border: 1px dashed oklch(90% 0.02 260);
-          border-top: none;
-          border-bottom-left-radius: 12px;
-          border-bottom-right-radius: 12px;
-          background: var(--bg-primary);
-          margin-top: -5px; /* overlap slighty */
-        }
-        .accordion-content.open {
-          display: block;
-          animation: slideDown 0.3s ease-out forwards;
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        /* Remove border/padding if single day without header */
-        .day-wrapper.single-day .accordion-content {
-          display: block;
-          border: none;
-          padding: 0;
-          background: transparent;
-          margin-top: 0;
-        }
-        .add-anchor-btn {
-           margin-top: 1rem;
+          margin-bottom: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
       </style>
 
@@ -606,17 +576,54 @@ export default class TravelForm extends HTMLElement {
             </div>
             <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">테마/예산 다시 선택하기</button>
           </h2>
-          
-          <div class="form-group" style="margin-bottom: 1.5rem;">
-            <label for="schedule-date" data-i18n="scheduleDate">Date</label>
-            <input type="date" id="schedule-date" required>
+          <div class="row-3" id="global-times-container">
+            <div class="form-group">
+              <label for="schedule-date" data-i18n="scheduleDate">Date</label>
+              <input type="date" id="schedule-date" required>
+            </div>
+            <div class="form-group global-time-input">
+              <label for="start-time" data-i18n="startTime">Start Time</label>
+              <input type="time" id="start-time" required>
+            </div>
+            <div class="form-group global-time-input">
+              <label for="end-time" data-i18n="endTime">End Time</label>
+              <input type="time" id="end-time" required>
+            </div>
           </div>
           
-          <div id="days-container">
-             <!-- Daily accordions will be injected here -->
+          <div id="daily-times-wrapper" style="display: none; margin-top: 1rem;">
+            <label class="toggle-container">
+              <input type="checkbox" id="daily-times-toggle">
+              <span class="toggle-switch"></span>
+              <span class="toggle-label" data-i18n="perDayTimeToggle">일자별로 시간 다르게 설정하기</span>
+            </label>
+            <div id="daily-times-accordion" style="display: none; margin-top: 1rem; border-top: 1px dashed oklch(90% 0.02 260); padding-top: 1rem;">
+              <!-- 동적으로 데일리 타임 폼이 렌더링됨 -->
+            </div>
+          </div>
+          
+          <div class="row-2">
+            <div class="form-group">
+              <label for="start-location" data-i18n="startLocation">Start Location (e.g., Hotel)</label>
+              <gmp-place-autocomplete id="start-location" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
+            </div>
+            <div class="form-group">
+              <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
+              <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
+            </div>
           </div>
         </div>
 
+        <div class="form-section">
+          <h2><span data-i18n="anchorTitle">Anchor Schedules</span> <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
+          <p class="subtitle" data-i18n="anchorSubtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
+          
+          <div id="anchors-container"></div>
+          
+          <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="addAnchor">+ Add Anchor Schedule</button>
+        </div>
+
+        
         <div class="submit-row">
           <button type="button" id="reset-btn" class="reset-btn">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -627,153 +634,101 @@ export default class TravelForm extends HTMLElement {
           <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
         </div>
       </form>
-
-      ${this.renderModal()}
     `;
-  }
 
-  renderModal() {
-    return `
-      <!-- Modal UI -->
-      <div id="location-modal" class="modal-overlay">
-        <div class="modal-container">
-          <div class="modal-header">
-            <span class="modal-title" data-i18n="searchLocation">장소 검색</span>
-            <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
-          </div>
-          <gmp-place-autocomplete id="modal-gmp-autocomplete" data-i18n-placeholder="searchLocation" placeholder="장소를 검색하세요"></gmp-place-autocomplete>
-          <button type="button" id="modal-quick-btn" class="modal-quick-btn"></button>
-          <button type="button" id="modal-cancel-btn" class="modal-cancel-btn" data-i18n="cancelBtn">취소</button>
-        </div>
-      </div>
-    `;
+    // Initialize with 1 empty anchor
+    // this.addAnchor(); // Opt-in 방식으로 변경됨에 따라 주석 처리
   }
 
   async initPlaces() {
     try {
+      // 💎 핵심 1: libraries=['places']가 포함된 로더로부터 places 라이브러리를 명확히 가져옴 💎
       await this.loader.importLibrary("places");
+
+      const startAutocomplete = this.shadowRoot.getElementById('start-location');
+      const endAutocomplete = this.shadowRoot.getElementById('end-location');
+
+      if (startAutocomplete) this.setupAutocompleteListener(startAutocomplete);
+      if (endAutocomplete) this.setupAutocompleteListener(endAutocomplete);
+
+      // Bind to existing anchors if any
+      const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
+      anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
+
     } catch (e) {
       console.error("Failed to load Places API:", e);
     }
   }
 
-  extractPlaceData(place) {
-    if (!place) return null;
-    let lat = null, lng = null;
-    if (place.location) {
-      if (typeof place.location.lat === 'function') {
-        lat = place.location.lat();
-        lng = place.location.lng();
-      } else {
-        lat = place.location.lat;
-        lng = place.location.lng;
-      }
-    }
-    return {
-      displayName: place.displayName || '',
-      formattedAddress: place.formattedAddress || '',
-      id: place.id || '',
-      location: (lat && lng) ? { lat, lng } : null
-    };
-  }
+  setupAutocompleteListener(autocomplete) {
+    if (!autocomplete) return;
 
-  triggerSave() {
-      const form = this.shadowRoot.getElementById('travel-form');
-      if (form) form.dispatchEvent(new Event('input', { bubbles: true }));
-  }
+    // Safety check to prevent duplicate listeners
+    if (autocomplete.dataset.listenerBound) return;
 
-  renderDaysUI(numDays) {
-    const container = this.shadowRoot.getElementById('days-container');
-    if (!container) return;
-    container.innerHTML = '';
-    
-    const isSingleDay = numDays === 1;
+    // 💎 핵심 2: 최신 규격인 gmp-placeselect 이벤트를 사용 💎
+    autocomplete.addEventListener('gmp-placeselect', (event) => {
+      const place = event.place;
 
-    for (let i = 1; i <= numDays; i++) {
-      const dayWrapper = document.createElement('div');
-      dayWrapper.className = 'day-wrapper' + (isSingleDay ? ' single-day' : '');
-      dayWrapper.dataset.day = i;
-
-      let headerHTML = '';
-      if (!isSingleDay) {
-        headerHTML = `
-          <div class="accordion-header" data-day="${i}">
-            <span>Day ${i}</span>
-            <span class="icon">${i === 1 ? '▲' : '▼'}</span>
-          </div>
-        `;
+      // 장소 선택 시 내부 value에 명칭을 동기화 (getFormData에서 읽기 위함)
+      if (place && place.displayName) {
+        // gmp-place-autocomplete는 .value를 프로퍼티로 갖거나 
+        // 혹은 내부 input의 가시적인 값을 string으로 유지합니다.
+        // 선택된 값으로 명시적으로 업데이트
+        autocomplete.value = place.displayName;
       }
 
-      const contentHTML = `
-        <div class="accordion-content ${isSingleDay || i === 1 ? 'open' : ''}" id="day-content-${i}">
-          <div class="row-2">
-            <div class="form-group">
-              <label data-i18n="startTime">Start Time</label>
-              <input type="time" class="daily-start-time" id="start-time-day-${i}" value="09:00" required>
-            </div>
-            <div class="form-group">
-              <label data-i18n="endTime">End Time</label>
-              <input type="time" class="daily-end-time" id="end-time-day-${i}" value="19:00" required>
-            </div>
-          </div>
-          <div class="row-2">
-            <div class="form-group">
-              <label data-i18n="startLocation">Start Location (e.g., Hotel)</label>
-              <input type="text" class="daily-start-location location-input" id="start-location-day-${i}" data-day="${i}" data-type="start" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}" readonly />
-            </div>
-            <div class="form-group">
-              <label data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
-              <input type="text" class="daily-end-location location-input" id="end-location-day-${i}" data-day="${i}" data-type="end" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}" readonly />
-            </div>
-          </div>
-          <div class="form-section" style="margin-top: 1.5rem; margin-bottom: 0;">
-            <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 0.5rem;"><span data-i18n="anchorTitle">Anchor Schedules</span> <span style="font-size: 0.85rem; font-weight: 400;">(Optional)</span></h3>
-            <div id="anchors-container-day-${i}"></div>
-            <button type="button" class="secondary-btn add-anchor-btn" data-day="${i}" data-i18n="addAnchor">+ Add Anchor Schedule</button>
-          </div>
+      // 폼 자동 저장 트리거
+      this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // 사용자가 수동으로 타이핑하는 경우도 반영
+    autocomplete.addEventListener('input', () => {
+      // value가 알아서 업데이트되겠지만 확실히 하기 위해 커스텀 로직 추가 가능
+    });
+
+    autocomplete.dataset.listenerBound = "true";
+  }
+
+  addAnchor(data = null) {
+    this.anchorCount++;
+    const container = this.shadowRoot.getElementById('anchors-container');
+    const id = `anchor-${Date.now()}`;
+
+    let daysCount = 1;
+    try {
+      const savedPrefStr = sessionStorage.getItem('userPreference');
+      if (savedPrefStr) {
+        const pref = JSON.parse(savedPrefStr);
+        if (Array.isArray(pref.date) && pref.date.length > 1) {
+          daysCount = pref.date.length;
+        }
+      }
+    } catch (e) {}
+
+    let daySelectorHTML = '';
+    if (daysCount > 1) {
+      const options = Array.from({ length: daysCount }, (_, i) => `<option value="${i + 1}">Day ${i + 1}</option>`).join('');
+      daySelectorHTML = `
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+          <label data-i18n="anchorDayLabel">일정 일차 (Day)</label>
+          <select class="anchor-day" required style="width: 100%; padding: 0.8rem 1rem; border: 1px solid oklch(90% 0.02 260); border-radius: 8px; font-family: inherit; font-size: 0.95rem;">
+            ${options}
+          </select>
         </div>
       `;
-
-      dayWrapper.innerHTML = headerHTML + contentHTML;
-      container.appendChild(dayWrapper);
-
-      if (!isSingleDay) {
-        const header = dayWrapper.querySelector('.accordion-header');
-        const content = dayWrapper.querySelector('.accordion-content');
-        header.addEventListener('click', () => {
-          content.classList.toggle('open');
-          header.querySelector('.icon').textContent = content.classList.contains('open') ? '▲' : '▼';
-        });
-      }
-
-      // '전날 종료 장소 가져오기' 수동 버튼 로직은 setupEventListeners의 Event Delegation으로 이동되었습니다.
-      
-      dayWrapper.querySelector('.add-anchor-btn').addEventListener('click', () => {
-        this.addAnchorToDay(i);
-        this.triggerSave();
-      });
     }
 
-    this.updateTexts();
-  }
-
-  // setupDailyAutocompleteListener는 Event Delegation으로 대체되어 삭제됨.
-
-  addAnchorToDay(dayIndex, data = null) {
-    const container = this.shadowRoot.getElementById(`anchors-container-day-${dayIndex}`);
-    if (!container) return;
-    
-    const id = `anchor-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const template = document.createElement('div');
     template.className = 'anchor-item';
     template.id = id;
-    
     template.innerHTML = `
-      <button type="button" class="remove-btn">×</button>
+      <button type="button" class="remove-btn" title="Remove Anchor">×</button>
       <div class="form-group">
         <label data-i18n="anchorNameLabel">${t('anchorNameLabel')}</label>
-        <input type="text" class="anchor-name" data-i18n-placeholder="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" required>
+        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" required>
       </div>
+      ${daySelectorHTML}
       <div class="row-3">
         <div class="form-group">
           <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
@@ -785,121 +740,225 @@ export default class TravelForm extends HTMLElement {
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
-          <input type="text" class="anchor-location location-input" id="loc-${id}" data-day="${dayIndex}" data-type="anchor" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}" readonly />
+          <gmp-place-autocomplete class="anchor-location" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}"></gmp-place-autocomplete>
         </div>
       </div>
     `;
-    
-    container.appendChild(template);
-    
+
+    // Setup remove logic
     template.querySelector('.remove-btn').addEventListener('click', () => {
       container.removeChild(template);
-      this.placesMap.delete(`loc-${id}`);
-      this.triggerSave();
+      this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
-    
+
     if (data) {
       template.querySelector('.anchor-name').value = data.name || '';
       template.querySelector('.anchor-time').value = data.time || '';
       template.querySelector('.anchor-end-time').value = data.endTime || '';
-      if (ac) {
-         ac.value = data.location?.displayName || (typeof data.location === 'string' ? data.location : '');
-         if (typeof data.location === 'object' && data.location !== null) {
-             this.placesMap.set(`loc-${id}`, data.location);
-         }
-      }
+      const ac = template.querySelector('.anchor-location');
+      if (ac) ac.value = data.location || '';
+      const daySelect = template.querySelector('.anchor-day');
+      if (daySelect && data.day) daySelect.value = data.day;
     }
-    this.updateTexts();
+
+    container.appendChild(template);
+
+    // Bind autocomplete to the new element
+    const newAutocomplete = template.querySelector('.anchor-location');
+    if (newAutocomplete) {
+      this.setupAutocompleteListener(newAutocomplete);
+    }
   }
 
   populateForm(requestData) {
     if (!requestData) return;
+
     try {
+      // 1. Reset Form
       const form = this.shadowRoot.getElementById('travel-form');
       if (form) form.reset();
-      this.placesMap.clear();
 
-      let dateVal = requestData.date || null;
-      if (!dateVal && sessionStorage.getItem('userPreference')) {
-          try {
-              const pref = JSON.parse(sessionStorage.getItem('userPreference'));
-              dateVal = pref.date || null;
-          } catch(e){}
-      }
+      // 2. Clear old anchors
+      const container = this.shadowRoot.getElementById('anchors-container');
+      if (container) container.innerHTML = '';
+      this.anchorCount = 0;
 
-      const dateInput = this.shadowRoot.getElementById('schedule-date');
-      if (dateInput && dateVal) {
-          if (Array.isArray(dateVal)) {
-              if (dateVal.length > 1) {
-                  const nights = dateVal.length - 1;
-                  const reqDays = dateVal.length;
-                  const durationKey = `duration_${reqDays}`;
-                  const durationText = t(durationKey) !== durationKey ? t(durationKey) : (getLang() === 'ko' ? `${nights}박 ${reqDays}일` : `${nights}N ${reqDays}D`);
-                  dateInput.type = 'text';
-                  dateInput.value = `${dateVal[0]} ~ ${dateVal[dateVal.length - 1]} (${durationText})`;
-                  dateInput.readOnly = true;
-                  dateInput.style.backgroundColor = '#f3f4f6';
-                  dateInput.style.cursor = 'not-allowed';
+      // 3. Inject basic fields safely
+      const setVal = (id, val) => {
+        const el = this.shadowRoot.getElementById(id);
+        if (el && val !== undefined && val !== null) {
+          // If the field is schedule-date and the value is an array
+          if (id === 'schedule-date') {
+            if (Array.isArray(val)) {
+              if (val.length > 1) {
+                // Multi-day
+                const nights = val.length - 1;
+                const reqDays = val.length;
+                const durationKey = `duration_${reqDays}`;
+                const durationText = t(durationKey) !== durationKey 
+                  ? t(durationKey) 
+                  : (getLang() === 'ko' ? `${nights}박 ${reqDays}일` : `${nights}N ${reqDays}D`);
+                el.type = 'text';
+                el.value = `${val[0]} ~ ${val[val.length - 1]} (${durationText})`;
+                el.readOnly = true;
+                el.style.backgroundColor = '#f3f4f6';
+                el.style.cursor = 'not-allowed';
               } else {
-                  dateInput.type = 'date';
-                  dateInput.value = dateVal[0];
-                  dateInput.readOnly = false;
-                  dateInput.style.backgroundColor = '';
-                  dateInput.style.cursor = '';
+                el.type = 'date';
+                el.value = val[0];
+                el.readOnly = false;
+                el.style.backgroundColor = '';
+                el.style.cursor = '';
               }
+            } else {
+              el.type = 'date';
+              el.value = val;
+              el.readOnly = false;
+              el.style.backgroundColor = '';
+              el.style.cursor = '';
+            }
           } else {
-              dateInput.type = 'date';
-              dateInput.value = dateVal;
-              dateInput.readOnly = false;
-              dateInput.style.backgroundColor = '';
-              dateInput.style.cursor = '';
+            el.value = val;
           }
+        }
+      };
+
+      setVal('schedule-date', requestData?.date);
+      setVal('start-time', requestData?.startTime);
+      setVal('end-time', requestData?.endTime);
+      setVal('start-location', requestData?.startLocation);
+      setVal('end-location', requestData?.endLocation);
+
+      // 💎 핵심 3: Autocomplete 컴포넌트의 가시적인 값도 즉시 업데이트 💎
+      const startAC = this.shadowRoot.getElementById('start-location');
+      const endAC = this.shadowRoot.getElementById('end-location');
+      if (startAC) startAC.value = requestData?.startLocation || '';
+      if (endAC) endAC.value = requestData?.endLocation || '';
+
+      // 4. Inject Anchors dynamically safely
+      if (requestData?.anchorSchedules && Array.isArray(requestData.anchorSchedules) && requestData.anchorSchedules.length > 0) {
+        requestData.anchorSchedules.forEach(anchor => {
+          if (anchor) this.addAnchor(anchor);
+        });
       }
 
-      let numDays = 1;
+      // 💎 다일차 로직 처리 💎
+      const dateVal = requestData?.date || requestData?.datePref;
+      const dailyTimesWrapper = this.shadowRoot.getElementById('daily-times-wrapper');
+      const dailyTimesAccordion = this.shadowRoot.getElementById('daily-times-accordion');
+      const dailyTimesToggle = this.shadowRoot.getElementById('daily-times-toggle');
+      const globalInputs = this.shadowRoot.querySelectorAll('.global-time-input');
+      
+      let isMultiDay = false;
+      let daysCount = 1;
+      
       if (Array.isArray(dateVal) && dateVal.length > 1) {
-          numDays = dateVal.length;
+        isMultiDay = true;
+        daysCount = dateVal.length;
+      } else if (typeof dateVal === 'string' && dateVal.includes('~')) {
+        // Fallback for some saved string formats if necessary
+        isMultiDay = true;
+        // Parse days count from string if possible, or leave it. This shouldn't be the case often.
       }
+      
+      if (dailyTimesWrapper) {
+        if (isMultiDay) {
+          dailyTimesWrapper.style.display = 'block';
+          
+          // Render accordion rows
+          dailyTimesAccordion.innerHTML = '';
+          for (let i = 0; i < daysCount; i++) {
+            const dayNum = i + 1;
+            const dRow = document.createElement('div');
+            dRow.className = 'daily-time-row';
+            dRow.dataset.day = dayNum;
+            dRow.innerHTML = `
+              <div class="daily-time-header">Day ${dayNum}</div>
+              <div class="row-2">
+                <div class="form-group">
+                  <label data-i18n="startTime">Start Time</label>
+                  <input type="time" class="daily-start-time" required>
+                </div>
+                <div class="form-group">
+                  <label data-i18n="endTime">End Time</label>
+                  <input type="time" class="daily-end-time" required>
+                </div>
+              </div>
+            `;
+            dailyTimesAccordion.appendChild(dRow);
+          }
+          
+          // Restore dailyTimes if toggled
+          if (requestData?.dailyTimes && Array.isArray(requestData.dailyTimes) && requestData.dailyTimes.length > 0 && requestData.dailyTimes[0].isCustom) {
+            dailyTimesToggle.checked = true;
+            dailyTimesAccordion.style.display = 'block';
+            
+            globalInputs.forEach(el => {
+              el.style.display = 'none';
+              const input = el.querySelector('input');
+              if (input) input.required = false;
+            });
+            
+            const dailyInputs = dailyTimesAccordion.querySelectorAll('input');
+            dailyInputs.forEach(input => input.required = true);
 
-      this.renderDaysUI(numDays);
-
-      if (requestData.dailyData && Array.isArray(requestData.dailyData)) {
-          requestData.dailyData.forEach(dayInfo => {
-              const d = dayInfo.day;
-              const startAc = this.shadowRoot.getElementById(`start-location-day-${d}`);
-              const endAc = this.shadowRoot.getElementById(`end-location-day-${d}`);
-              const startTime = this.shadowRoot.getElementById(`start-time-day-${d}`);
-              const endTime = this.shadowRoot.getElementById(`end-time-day-${d}`);
-
-              if (startTime && dayInfo.startTime) startTime.value = dayInfo.startTime;
-              if (endTime && dayInfo.endTime) endTime.value = dayInfo.endTime;
-              
-              if (startAc && dayInfo.startLocation) {
-                  startAc.value = dayInfo.startLocation.displayName || '';
-                  if (dayInfo.startLocation.displayName) this.placesMap.set(`start-location-day-${d}`, dayInfo.startLocation);
+            const rows = dailyTimesAccordion.querySelectorAll('.daily-time-row');
+            requestData.dailyTimes.forEach((dt, idx) => {
+              if (rows[idx]) {
+                rows[idx].querySelector('.daily-start-time').value = dt.startTime || '';
+                rows[idx].querySelector('.daily-end-time').value = dt.endTime || '';
               }
-              if (endAc && dayInfo.endLocation) {
-                  endAc.value = dayInfo.endLocation.displayName || '';
-                  if (dayInfo.endLocation.displayName) this.placesMap.set(`end-location-day-${d}`, dayInfo.endLocation);
-              }
+            });
+          } else {
+            dailyTimesToggle.checked = false;
+            dailyTimesAccordion.style.display = 'none';
+            
+            const dailyInputs = dailyTimesAccordion.querySelectorAll('input');
+            dailyInputs.forEach(input => input.required = false);
 
-              if (dayInfo.anchors && Array.isArray(dayInfo.anchors)) {
-                  dayInfo.anchors.forEach(a => {
-                      this.addAnchorToDay(d, a);
-                  });
-              }
+            globalInputs.forEach(el => {
+              el.style.display = 'block';
+              const input = el.querySelector('input');
+              if (input) input.required = true;
+            });
+          }
+        } else {
+          dailyTimesWrapper.style.display = 'none';
+          if (dailyTimesToggle) dailyTimesToggle.checked = false;
+          if (dailyTimesAccordion) {
+            dailyTimesAccordion.innerHTML = '';
+            dailyTimesAccordion.style.display = 'none';
+          }
+          globalInputs.forEach(el => {
+            el.style.display = 'block';
+            const input = el.querySelector('input');
+            if (input) input.required = true;
           });
+        }
       }
-      this.updateTexts();
+      this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
       console.error("[Auto-fill Error] Failed to populate form:", error);
     }
   }
 
   getFormData() {
+    const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
+    const anchors = Array.from(anchorsElements).map(el => {
+      const daySelect = el.querySelector('.anchor-day');
+      return {
+        name: el.querySelector('.anchor-name').value,
+        time: el.querySelector('.anchor-time').value,
+        endTime: el.querySelector('.anchor-end-time').value,
+        location: el.querySelector('.anchor-location').value,
+        day: daySelect ? parseInt(daySelect.value, 10) : 1
+      };
+    }).filter(a => a.name || a.time || a.endTime || a.location);
+
+    // /preference 페이지에서 저장한 테마/예산/날짜 데이터 병합
     let theme = null;
     let budget = null;
-    let datePref = null;
+    let datePref = null; // Can be array or string
     try {
       const savedPref = sessionStorage.getItem('userPreference');
       if (savedPref) {
@@ -908,70 +967,61 @@ export default class TravelForm extends HTMLElement {
         budget = pref.budget || null;
         datePref = pref.date || null;
       }
-    } catch (e) {}
+    } catch (e) { /* ignore parse errors */ }
 
+    // Use datePref (which contains the raw array for multi-day trips) if form input is readOnly
     const dateInput = this.shadowRoot.getElementById('schedule-date');
     let finalDate = datePref;
     if (dateInput && !dateInput.readOnly) {
       finalDate = dateInput.value || datePref;
     }
 
-    const dailyData = [];
-    const daysCount = this.shadowRoot.querySelectorAll('.day-wrapper').length || 1;
-
-    for (let i = 1; i <= daysCount; i++) {
-        const startAc = this.shadowRoot.getElementById(`start-location-day-${i}`);
-        const endAc = this.shadowRoot.getElementById(`end-location-day-${i}`);
-        
-        // 타이핑 파편 방지: gmp-placeselect로 획득한 온전한 객체만 사용 (사용자 지침 2)
-        let startLocData = this.placesMap.get(`start-location-day-${i}`) || { displayName: startAc ? startAc.value : '' };
-        if (startAc && !startAc.value) {
-             startLocData = { displayName: '' };
-             this.placesMap.delete(`start-location-day-${i}`);
-        }
-        
-        let endLocData = this.placesMap.get(`end-location-day-${i}`) || { displayName: endAc ? endAc.value : '' };
-        if (endAc && !endAc.value) {
-             endLocData = { displayName: '' };
-             this.placesMap.delete(`end-location-day-${i}`);
-        }
-
-        const anchors = [];
-        const anchorItems = this.shadowRoot.querySelectorAll(`#anchors-container-day-${i} .anchor-item`);
-        anchorItems.forEach(item => {
-           const ac = item.querySelector('.anchor-location');
-           let locData = this.placesMap.get(ac?.id) || { displayName: ac ? ac.value : '' };
-           if (ac && !ac.value) {
-               locData = { displayName: '' };
-               this.placesMap.delete(ac.id);
-           }
-           anchors.push({
-               name: item.querySelector('.anchor-name').value,
-               time: item.querySelector('.anchor-time').value,
-               endTime: item.querySelector('.anchor-end-time').value,
-               location: locData
-           });
-        });
-
-        dailyData.push({
-            day: i,
-            startTime: this.shadowRoot.getElementById(`start-time-day-${i}`)?.value || '09:00',
-            endTime: this.shadowRoot.getElementById(`end-time-day-${i}`)?.value || '19:00',
-            startLocation: startLocData,
-            endLocation: endLocData,
-            anchors: anchors
-        });
+    const globalStartTime = this.shadowRoot.getElementById('start-time').value;
+    const globalEndTime = this.shadowRoot.getElementById('end-time').value;
+    
+    // Check toggle state for daily times
+    const toggle = this.shadowRoot.getElementById('daily-times-toggle');
+    let dailyTimes = null;
+    
+    if (toggle && toggle.checked) {
+      const rows = this.shadowRoot.querySelectorAll('.daily-time-row');
+      if (rows.length > 0) {
+        dailyTimes = Array.from(rows).map(row => ({
+          day: parseInt(row.dataset.day, 10),
+          startTime: row.querySelector('.daily-start-time').value,
+          endTime: row.querySelector('.daily-end-time').value,
+          isCustom: true
+        }));
+      }
+    } else if (Array.isArray(finalDate) && finalDate.length > 1) {
+      // Create identical dailyTimes array based on global if toggled off
+      dailyTimes = finalDate.map((d, idx) => ({
+        day: idx + 1,
+        startTime: globalStartTime,
+        endTime: globalEndTime,
+        isCustom: false
+      }));
     }
 
     return {
       date: finalDate,
+      startTime: globalStartTime,
+      endTime: globalEndTime,
+      dailyTimes: dailyTimes,
+      startLocation: this.shadowRoot.getElementById('start-location').value,
+      endLocation: this.shadowRoot.getElementById('end-location').value,
+      anchorSchedules: anchors,
       theme,
-      budget,
-      dailyData
+      budget
     };
   }
 
   setupEventListeners() {
+    this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
+      this.addAnchor();
+      sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+    });
+
     const preferenceBtn = this.shadowRoot.getElementById('reselect-preference-btn');
     if (preferenceBtn) {
       preferenceBtn.addEventListener('click', () => {
@@ -981,178 +1031,166 @@ export default class TravelForm extends HTMLElement {
 
     const form = this.shadowRoot.getElementById('travel-form');
 
-    form.addEventListener('input', (event) => {
-      // 오직 입력창이 완전히 비워졌을 때만 상태 갱신
-      const target = event.target;
-      if (target && target.tagName && target.tagName.toLowerCase() === 'gmp-place-autocomplete') {
-          if (!target.value) {
-              this.placesMap.delete(target.id);
-          }
-      }
-      
+    // Auto-save form data on any input
+    form.addEventListener('input', () => {
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
+    
+    const dailyToggle = this.shadowRoot.getElementById('daily-times-toggle');
+    const dailyAccordion = this.shadowRoot.getElementById('daily-times-accordion');
+    const globalInputs = this.shadowRoot.querySelectorAll('.global-time-input');
+    
+    if (dailyToggle) {
+      dailyToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          dailyAccordion.style.display = 'block';
+          
+          const dailyInputs = dailyAccordion.querySelectorAll('input');
+          dailyInputs.forEach(input => input.required = true);
 
-    // Readonly input click to open modal
-    form.addEventListener('click', (event) => {
-      const locInput = event.target.closest('.location-input');
-      if (locInput) {
-          this.openModal(locInput);
-      }
-    });
+          globalInputs.forEach(el => {
+            el.style.display = 'none';
+            const input = el.querySelector('input');
+            if (input) input.required = false;
+          });
+        } else {
+          dailyAccordion.style.display = 'none';
 
-    // Modal close logic
-    const modalCloseBtn = this.shadowRoot.getElementById('modal-close-btn');
-    const modalCancelBtn = this.shadowRoot.getElementById('modal-cancel-btn');
-    const modalOverlay = this.shadowRoot.getElementById('location-modal');
-    if (modalCloseBtn) {
-        modalCloseBtn.addEventListener('click', () => this.closeModal());
-    }
-    if (modalCancelBtn) {
-        modalCancelBtn.addEventListener('click', () => this.closeModal());
-    }
-    if (modalOverlay) {
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) this.closeModal();
-        });
-    }
+          const dailyInputs = dailyAccordion.querySelectorAll('input');
+          dailyInputs.forEach(input => input.required = false);
 
-    // Modal quick button (Bring previous day end location)
-    const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
-    if (quickBtn) {
-        quickBtn.addEventListener('click', () => {
-            if (!this.modalTargetId || !this.modalTargetDay) return;
-            const prevDay = parseInt(this.modalTargetDay, 10) - 1;
-            const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
-            
-            if (prevEndLoc && prevEndLoc.location) {
-                const deepCopied = JSON.parse(JSON.stringify(prevEndLoc));
-                this.placesMap.set(this.modalTargetId, deepCopied);
-                
-                const targetInput = this.shadowRoot.getElementById(this.modalTargetId);
-                if (targetInput) {
-                    targetInput.value = deepCopied.displayName;
-                    this.triggerSave();
-                    this._applyVisualFeedback(targetInput);
-                }
-                this.closeModal();
-            }
-        });
+          globalInputs.forEach(el => {
+            el.style.display = 'block';
+            const input = el.querySelector('input');
+            if (input) input.required = true;
+          });
+        }
+        form.dispatchEvent(new Event('input', { bubbles: true }));
+      });
     }
 
-    // Modal GMP Placeselect
-    const modalAutocomplete = this.shadowRoot.getElementById('modal-gmp-autocomplete');
-    if (modalAutocomplete) {
-        modalAutocomplete.addEventListener('gmp-placeselect', (event) => {
-            const target = event.target;
-            if (target && target.place && this.modalTargetId) {
-                const placeData = this.extractPlaceData(target.place);
-                if (placeData) {
-                    // 1. 상태 저장 (placesMap이 내부 상태의 근간)
-                    this.placesMap.set(this.modalTargetId, placeData);
-                    
-                    // 2. 메인 화면 UI 즉시 업데이트 및 피드백
-                    const targetInput = this.shadowRoot.getElementById(this.modalTargetId);
-                    if (targetInput) {
-                        targetInput.value = placeData.displayName;
-                        this.triggerSave();
-                        this._applyVisualFeedback(targetInput);
-                    }
-                    
-                    // 3. 모달 자동 종료
-                    this.closeModal();
-                }
-            }
-        });
-    }
-
+    // Reset Form Event
     this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
+      // 1. Reset standard inputs and clear native validation states
       form.reset();
-      this.placesMap.clear();
-      
-      const locationInputs = this.shadowRoot.querySelectorAll('.location-input');
-      locationInputs.forEach(input => input.value = '');
-      
-      if (modalAutocomplete) {
-          modalAutocomplete.value = '';
-          const inner = modalAutocomplete.shadowRoot?.querySelector('input');
-          if (inner) inner.value = '';
-      }
 
-      for (let i = 1; i <= 10; i++) {
-         const container = this.shadowRoot.getElementById(`anchors-container-day-${i}`);
-         if (container) container.innerHTML = '';
-      }
+      // 2. Clear Google Autocomplete values
+      const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
+      autocompletes.forEach(ac => ac.value = '');
 
+      // 3. Clear dynamic anchors entirely (Opt-in)
+      const container = this.shadowRoot.getElementById('anchors-container');
+      container.innerHTML = '';
+      this.anchorCount = 0;
+
+      // 4. Clear specific error classes or inline borders just in case
+      const allInputs = this.shadowRoot.querySelectorAll('input');
+      allInputs.forEach(input => {
+        input.classList.remove('error');
+        input.style.borderColor = '';
+      });
+
+      // 5. Purge the internal storage backup
       sessionStorage.removeItem('currentFormData');
     });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      if (this.isSubmitting) return;
+      if (this.isSubmitting) {
+        console.log('Already submitting, preventing duplicate request...');
+        return;
+      }
+
+      
+
       this.isSubmitting = true;
       const btn = this.shadowRoot.querySelector('.primary-btn');
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Planning... ⏳';
         btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
       }
 
       const plannerRequest = this.getFormData();
 
-      for (let day of plannerRequest.dailyData) {
-          const d = day.day;
-          if (!day.startLocation.displayName || !day.endLocation.displayName) {
-              const content = this.shadowRoot.getElementById(`day-content-${d}`);
-              if (content && !content.classList.contains('open')) {
-                  content.classList.add('open');
-                  const headerIcon = this.shadowRoot.querySelector(`.accordion-header[data-day="${d}"] .icon`);
-                  if (headerIcon) headerIcon.textContent = '▲';
-              }
-              if (!day.startLocation.displayName) {
-                  alert(`[Day ${d}] 시작 장소를 입력해주세요.`);
-                  this.shadowRoot.getElementById(`start-location-day-${d}`)?.focus();
-              } else {
-                  alert(`[Day ${d}] 종료 장소를 입력해주세요.`);
-                  this.shadowRoot.getElementById(`end-location-day-${d}`)?.focus();
-              }
-              this._resetSubmitButton(btn);
-              this.isSubmitting = false;
-              return;
-          }
+      // --- Time Validation Logic ---
+      const tripStart = plannerRequest.startTime;
+      const tripEnd = plannerRequest.endTime;
 
-          if (day.startTime >= day.endTime) {
-              alert(`[Day ${d}] ` + t('basicTimeValidationError'));
-              this._resetSubmitButton(btn);
-              this.isSubmitting = false;
-              return;
+      if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.some(dt => dt.isCustom)) {
+        for (const dt of plannerRequest.dailyTimes) {
+          if (!dt.startTime || !dt.endTime) {
+            alert(`[Day ${dt.day}] ` + t('emptyTimeValidationError'));
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
           }
-
-          for (let anchor of day.anchors) {
-              if (!anchor.time || !anchor.endTime) continue;
-              if (anchor.time >= anchor.endTime) {
-                  alert(`[Day ${d}] ` + t('invalidAnchorTime').replace('{0}', anchor.name || 'Anchor'));
-                  this._resetSubmitButton(btn);
-                  this.isSubmitting = false;
-                  return;
-              }
-              if (anchor.time < day.startTime || anchor.endTime > day.endTime) {
-                  alert(`[Day ${d}] ` + t('timeValidationError').replace('{0}', anchor.name || 'Anchor').replace('{1}', day.startTime).replace('{2}', day.endTime));
-                  this._resetSubmitButton(btn);
-                  this.isSubmitting = false;
-                  return;
-              }
+          if (dt.startTime >= dt.endTime) {
+            alert(`[Day ${dt.day}] ` + t('basicTimeValidationError'));
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
           }
+        }
+      } else {
+        if (!tripStart || !tripEnd) {
+          alert(t('emptyTimeValidationError'));
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+        // Rule D: Basic Trip Start Time >= Basic Trip End Time
+        if (tripStart >= tripEnd) {
+          alert(t('basicTimeValidationError'));
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
       }
 
+      for (const anchor of plannerRequest.anchorSchedules) {
+        // Skip empty anchors if they aren't filled yet
+        if (!anchor.time || !anchor.endTime) continue;
+
+        // Rule C: Anchor Start Time >= Anchor End Time
+        if (anchor.time >= anchor.endTime) {
+          const msg = t('invalidAnchorTime').replace('{0}', anchor.name || 'Anchor');
+          alert(msg);
+          this._resetSubmitButton(btn);
+          this.isSubmitting = false;
+          return;
+        }
+
+        // Rule A & B: We only apply global time constraint if daily times are NOT custom.
+        // If daily times are custom, anchor time bounds check is relaxed since we don't know the exact day.
+        if (!plannerRequest.dailyTimes || !plannerRequest.dailyTimes[0]?.isCustom) {
+          if (anchor.time < tripStart || anchor.endTime > tripEnd) {
+            const msg = t('timeValidationError')
+              .replace('{0}', anchor.name || 'Anchor')
+              .replace('{1}', tripStart)
+              .replace('{2}', tripEnd);
+            alert(msg);
+            this._resetSubmitButton(btn);
+            this.isSubmitting = false;
+            return;
+          }
+        }
+      }
+      // --- End Validation ---
+
+      
+
       console.log('Dispatching generation event:', plannerRequest);
+      
       trackEvent('generate_itinerary_click');
 
+      // Dispatch custom event reaching up through the DOM
       this.dispatchEvent(new CustomEvent('generate-itinerary', {
         detail: plannerRequest,
         bubbles: true,
-        composed: true
+        composed: true // Allows event to pass through shadow DOM boundary
       }));
     });
   }
@@ -1166,73 +1204,6 @@ export default class TravelForm extends HTMLElement {
     }
   }
 
-  openModal(targetInput) {
-      if (!targetInput) return;
-      
-      this.modalTargetId = targetInput.id;
-      this.modalTargetDay = targetInput.dataset.day;
-      this.modalTargetType = targetInput.dataset.type;
-      
-      const modal = this.shadowRoot.getElementById('location-modal');
-      const quickBtn = this.shadowRoot.getElementById('modal-quick-btn');
-      const autocomplete = this.shadowRoot.getElementById('modal-gmp-autocomplete');
-      
-      // 모달 초기화: 이전 검색어 삭제
-      if (autocomplete) {
-          autocomplete.value = '';
-          const innerInput = autocomplete.shadowRoot?.querySelector('input');
-          if (innerInput) innerInput.value = '';
-      }
-      
-      // '전날 장소 가져오기' 퀵 버튼 노출 로직
-      if (this.modalTargetType === 'start' && parseInt(this.modalTargetDay, 10) > 1) {
-          const prevDay = parseInt(this.modalTargetDay, 10) - 1;
-          const prevEndLoc = this.placesMap.get(`end-location-day-${prevDay}`);
-          if (prevEndLoc && prevEndLoc.location && prevEndLoc.displayName) {
-              quickBtn.textContent = `✨ 전날 종료 장소(${prevEndLoc.displayName})로 설정`;
-              quickBtn.classList.add('show');
-          } else {
-              quickBtn.classList.remove('show');
-          }
-      } else {
-          quickBtn.classList.remove('show');
-      }
-      
-      modal.classList.add('open');
-      
-      // 모달 오픈 후 검색창에 자동 포커스 (UX 향상)
-      setTimeout(() => {
-         const innerInput = autocomplete?.shadowRoot?.querySelector('input');
-         if (innerInput) {
-             innerInput.focus();
-             // iOS/Android 키보드 대응을 위해 살짝 스크롤 처리
-             innerInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-         }
-      }, 100);
   }
-
-  closeModal() {
-      const modal = this.shadowRoot.getElementById('location-modal');
-      if (modal) modal.classList.remove('open');
-      
-      // 상태 초기화
-      this.modalTargetId = null;
-      this.modalTargetDay = null;
-      this.modalTargetType = null;
-  }
-
-  /**
-   * 장소 선택 완료 시 메인 화면 인풋에 시각적 피드백 제공
-   */
-  _applyVisualFeedback(targetInput) {
-      if (!targetInput) return;
-      targetInput.classList.remove('highlight-pulse');
-      void targetInput.offsetWidth; // 브라우저 리플로우 강제 트리거 (애니메이션 재시작)
-      targetInput.classList.add('highlight-pulse');
-      
-      // 유저가 어디가 바뀌었는지 인지할 수 있도록 잠시 포커스
-      targetInput.focus();
-  }
-}
 
 customElements.define('travel-form', TravelForm);
