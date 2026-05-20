@@ -276,7 +276,7 @@ ${anchorRule}
             type: "attraction",
             title: isKo ? "출발지" : "Start Location",
             description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
-            location: constraints.dailyData ? (constraints.dailyData[index]?.startLocation?.displayName || "Unknown Location") : "Unknown Location",
+            location: constraints.dailyData ? (constraints.dailyData[index]?.startLocation?.displayName || "Seoul, South Korea") : "Seoul, South Korea",
             duration: "1h",
             googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
             practicalInfo: {
@@ -308,7 +308,7 @@ ${anchorRule}
             type: "attraction",
             title: isKo ? "도착지" : "End Location",
             description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
-            location: constraints.dailyData ? (constraints.dailyData[index]?.endLocation?.displayName || "Unknown Location") : "Unknown Location",
+            location: constraints.dailyData ? (constraints.dailyData[index]?.endLocation?.displayName || "Seoul, South Korea") : "Seoul, South Korea",
             duration: "1h",
             googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
             practicalInfo: {
