@@ -269,11 +269,13 @@ export default class TravelForm extends HTMLElement {
         }
 
         /* Google Maps Autocomplete 컴포넌트 스타일링 */
-        gmp-place-autocomplete {
+        gmp-place-autocomplete,
+        gmp-basic-place-autocomplete {
           display: block;
           width: 100%;
           box-sizing: border-box;
           overflow: visible; /* 💎 드롭다운 잘림 방지 💎 */
+          color-scheme: light !important; /* 💎 OS 다크모드 무시하고 라이트 테마 강제 고정 💎 */
 
           /* 💎 다크모드 무시 & 라이트 테마 강제 고정 💎 */
           --gmpx-color-surface: #ffffff !important;             /* 폼/드롭다운 배경 무조건 흰색 */
