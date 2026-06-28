@@ -8,6 +8,7 @@
 - **Included:** 
   - Google Auth & Email Auth via Firebase.
   - Anchor-based itinerary generation using Gemini 2.5 Flash Lite.
+  - Exact preservation of user-selected departure, destination, day boundary times, and Anchor schedules through deterministic validation.
   - Hybrid Map Strategy (Google Maps as Viewer, Local Deep Linking (Naver/Kakao) for Navigation).
   - Multi-language (i18n) support (ko/en).
   - User Preference Flow (Theme, Budget).

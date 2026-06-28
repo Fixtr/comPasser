@@ -1,12 +1,19 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { getLang } from "../../../utils/i18n.js";
+import {
+  enforcePlannerConstraints,
+  formatLocationForPrompt,
+  getLocationName,
+  normalizePlannerRequest
+} from "./planner-constraints.mjs";
 
 /**
  * Calls the real Gemini API to generate an optimized itinerary.
  * Uses GEMINI_API_KEY Exposed through Vite Configuration.
  */
 export async function generateOptimizedItinerary(plannerRequest) {
-  console.log("Calling Gemini AI Optimizer with constraints:", plannerRequest);
+  const normalizedRequest = normalizePlannerRequest(plannerRequest);
+  console.log("Calling Gemini AI Optimizer with constraints:", normalizedRequest);
 
   const apiKey = import.meta.env.GEMINI_API_KEY;
 
@@ -79,11 +86,11 @@ export async function generateOptimizedItinerary(plannerRequest) {
   };
 
   const allAnchors = [];
-  if (plannerRequest.dailyData) {
-    plannerRequest.dailyData.forEach(day => {
+  if (normalizedRequest.dailyData) {
+    normalizedRequest.dailyData.forEach(day => {
       if (day.anchors && day.anchors.length > 0) {
         day.anchors.forEach(a => {
-          const locName = a.location?.displayName || a.location || "Unknown";
+          const locName = getLocationName(a.location) || "Unknown";
           allAnchors.push({ day: day.day, name: a.name, time: a.time, endTime: a.endTime, location: locName });
         });
       }
@@ -91,7 +98,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
   }
 
   const anchorText = allAnchors.length > 0
-    ? allAnchors.map((a, i) => `${i + 1}. [Day ${a.day}] "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\\n')
+    ? allAnchors.map((a, i) => `${i + 1}. [Day ${a.day}] "${a.name}" at ${a.time} to ${a.endTime} (Location: "${a.location}")`).join('\n')
     : "No fixed AnchorSchedules provided. Free to plan the entire day.";
 
   const anchorRule = allAnchors.length > 0
@@ -160,8 +167,8 @@ export async function generateOptimizedItinerary(plannerRequest) {
   - Minimize overall estimated spending per person.`
   };
 
-  const userTheme = plannerRequest.theme || null;
-  const userBudget = plannerRequest.budget || null;
+  const userTheme = normalizedRequest.theme || null;
+  const userBudget = normalizedRequest.budget || null;
 
   let stylePromptBlock = '';
   if (userTheme || userBudget) {
@@ -176,16 +183,16 @@ export async function generateOptimizedItinerary(plannerRequest) {
   }
 
   let datesContext = '';
-  let dateText = plannerRequest.date; // fallback if string
+  let dateText = normalizedRequest.date; // fallback if string
   let numDays = 1;
 
-  if (Array.isArray(plannerRequest.date)) {
-    numDays = plannerRequest.date.length;
+  if (Array.isArray(normalizedRequest.date)) {
+    numDays = normalizedRequest.date.length;
     if (numDays > 1) {
-      dateText = `${plannerRequest.date[0]} to ${plannerRequest.date[numDays - 1]}`;
-      datesContext = `You MUST plan a ${numDays}-day itinerary for the dates: ${plannerRequest.date.join(', ')}.`;
+      dateText = `${normalizedRequest.date[0]} to ${normalizedRequest.date[numDays - 1]}`;
+      datesContext = `You MUST plan a ${numDays}-day itinerary for the dates: ${normalizedRequest.date.join(', ')}.`;
     } else {
-      dateText = plannerRequest.date[0];
+      dateText = normalizedRequest.date[0];
       datesContext = `Plan a 1-day itinerary for the date ${dateText}.`;
     }
   } else {
@@ -193,16 +200,12 @@ export async function generateOptimizedItinerary(plannerRequest) {
   }
 
   let timeAndLocationParams = '';
-  if (plannerRequest.dailyData && plannerRequest.dailyData.length > 0) {
-    timeAndLocationParams = plannerRequest.dailyData.map(day => {
-      const startLoc = day.startLocation?.formattedAddress 
-          ? `${day.startLocation.displayName} (${day.startLocation.formattedAddress})` 
-          : (day.startLocation?.displayName || "Unknown");
-      const endLoc = day.endLocation?.formattedAddress 
-          ? `${day.endLocation.displayName} (${day.endLocation.formattedAddress})` 
-          : (day.endLocation?.displayName || "Unknown");
+  if (normalizedRequest.dailyData && normalizedRequest.dailyData.length > 0) {
+    timeAndLocationParams = normalizedRequest.dailyData.map(day => {
+      const startLoc = formatLocationForPrompt(day.startLocation) || "Unknown";
+      const endLoc = formatLocationForPrompt(day.endLocation) || "Unknown";
       return `- [Day ${day.day}] Time: ${day.startTime} to ${day.endTime} | Start Location: "${startLoc}", End Location: "${endLoc}"`;
-    }).join('\\n');
+    }).join('\n');
   }
 
   const prompt = `
@@ -272,13 +275,14 @@ ${anchorRule}
         scheduleItems: [
           {
             time: constraints.dailyData ? constraints.dailyData[index]?.startTime : "09:00",
-            endTime: "10:00",
-            type: "attraction",
+            endTime: "",
+            type: "departure",
             title: isKo ? "출발지" : "Start Location",
             description: isKo ? "일정을 시작합니다." : "Start of the itinerary.",
-            location: constraints.dailyData ? (constraints.dailyData[index]?.startLocation?.displayName || "Seoul, South Korea") : "Seoul, South Korea",
-            duration: "1h",
-            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.startLocation || "Seoul")}`,
+            location: constraints.dailyData ? (getLocationName(constraints.dailyData[index]?.startLocation) || "Seoul, South Korea") : "Seoul, South Korea",
+            duration: isKo ? "출발" : "Departure",
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationName(constraints.dailyData?.[index]?.startLocation) || "Seoul")}`,
+            transitInfo: "",
             practicalInfo: {
               estimatedCost: "Free",
               operatingHours: "24/7",
@@ -292,9 +296,10 @@ ${anchorRule}
             type: "AnchorSchedule",
             title: a.name,
             description: isKo ? "예정된 일정입니다." : "Scheduled event.",
-            location: a.location,
+            location: getLocationName(a.location),
             duration: "Varies",
-            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.location)}`,
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationName(a.location))}`,
+            transitInfo: "",
             practicalInfo: {
               estimatedCost: "N/A",
               operatingHours: "N/A",
@@ -303,14 +308,15 @@ ${anchorRule}
             }
           }))),
           {
-            time: "18:00",
-            endTime: constraints.dailyData ? constraints.dailyData[index]?.endTime : "19:00",
-            type: "attraction",
+            time: constraints.dailyData ? constraints.dailyData[index]?.endTime : "19:00",
+            endTime: "",
+            type: "arrival",
             title: isKo ? "도착지" : "End Location",
             description: isKo ? "일정을 마무리합니다." : "End of the itinerary.",
-            location: constraints.dailyData ? (constraints.dailyData[index]?.endLocation?.displayName || "Seoul, South Korea") : "Seoul, South Korea",
-            duration: "1h",
-            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(constraints.endLocation || "Seoul")}`,
+            location: constraints.dailyData ? (getLocationName(constraints.dailyData[index]?.endLocation) || "Seoul, South Korea") : "Seoul, South Korea",
+            duration: isKo ? "도착" : "Arrival",
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationName(constraints.dailyData?.[index]?.endLocation) || "Seoul")}`,
+            transitInfo: "",
             practicalInfo: {
               estimatedCost: "Free",
               operatingHours: "24/7",
@@ -324,7 +330,7 @@ ${anchorRule}
 
     return {
       request: constraints,
-      days: mockDays
+      days: enforcePlannerConstraints(mockDays, constraints, currentLang)
     };
   };
 
@@ -375,7 +381,7 @@ ${anchorRule}
       alert("API 일일 할당량이 초과되어 임시 데이터로 일정을 생성했습니다.");
     }, 500);
     
-    return getMockItinerary(plannerRequest);
+    return getMockItinerary(normalizedRequest);
   }
 
   try {
@@ -394,8 +400,8 @@ ${anchorRule}
     }
 
     const safePlan = {
-      request: plannerRequest,
-      days: parsedJson.days
+      request: normalizedRequest,
+      days: enforcePlannerConstraints(parsedJson.days, normalizedRequest, currentLang)
     };
     return safePlan;
   } catch (err) {
@@ -406,7 +412,7 @@ ${anchorRule}
       alert("API 일일 할당량이 초과되어 임시 데이터로 일정을 생성했습니다.");
     }, 500);
     
-    return getMockItinerary(plannerRequest);
+    return getMockItinerary(normalizedRequest);
   }
 }
 

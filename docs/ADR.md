@@ -26,3 +26,11 @@ We need to select an AI Model, an Authentication Provider, a Frontend Framework 
 **Trade-offs:**
 - **Given Up:** True native UX fluidity in highly complex animations compared to Swift/Kotlin native.
 - **Gained:** A single codebase for Web, iOS, and Android without writing cross-platform framework codes like Flutter/React Native.
+
+## Decision 5: Deterministic Enforcement for AI Hard Constraints
+**Status:** Accepted (2026-06-28)
+**Context:** Prompt instructions alone did not guarantee that Gemini preserved the selected departure, destination, boundary times, or anchor schedules. The form and optimizer also used incompatible flat/per-day request shapes.
+**Decision:** Normalize all planner requests into canonical `dailyData` before prompt creation, then reconcile Gemini output with the original user constraints before rendering, mapping, or persistence.
+**Trade-offs:**
+- **Given Up:** Treating the model response as an immediately renderable source of truth.
+- **Gained:** Stable route endpoints, exact anchor preservation, backward-compatible request handling, and testable behavior independent of model variance.

@@ -306,3 +306,32 @@
 ### 3. 해결
 - **IntersectionObserver 도입**: `travel-form` 컴포넌트 자체에 가시성 감지 옵저버를 부착하여, 라우터에 의해 화면에 표시되는 순간(`isIntersecting`)을 감지.
 - **강제 리페치(Refresh)**: 화면 노출 시점에 `refreshFromStorage()`를 호출하여 `sessionStorage`의 최신 데이터를 읽어오고 `renderPreferenceBadges()`를 강제로 재실행하여 UI 동기화 100% 달성.
+
+---
+
+## [Planner Contract] 입력한 출발지·도착지·Anchor와 다른 일정이 생성되는 문제
+
+**이슈 해결:** 2026-06-28
+**관련 컴포넌트:** `TravelForm`, `GeminiOptimizer`, `planner-constraints.mjs`
+
+### 1. 증상
+- 신라호텔을 출발지, 인천공항을 도착지로 입력해도 결과가 서울숲 등 전혀 다른 장소에서 시작하거나 끝남.
+- 입력한 필수 방문 일정이 결과에서 누락될 수 있음.
+
+### 2. 원인
+- `travel-form.js`는 `startLocation`, `endLocation`, `anchorSchedules`를 가진 평면형 요청을 생성했지만, `gemini-optimizer.js`는 `dailyData[].startLocation`, `dailyData[].endLocation`, `dailyData[].anchors`만 읽고 있었음.
+- 결과적으로 핵심 제약이 Gemini 프롬프트에서 빠졌고, 프롬프트 지시를 검증하는 후처리도 없었음.
+
+### 3. 해결
+1. `normalizePlannerRequest()`로 평면형/레거시 요청을 일자별 `dailyData`로 통합.
+2. 정규화된 출발지, 도착지, 시간 및 Anchor만 사용해 프롬프트 생성.
+3. `enforcePlannerConstraints()`로 AI 응답의 첫/마지막 지점과 Anchor를 원래 입력값에 맞게 결정적으로 보정.
+4. 문자열과 Google Place 객체를 동일하게 처리하도록 장소명 추출 로직 통합.
+5. 단일/다일 일정, AI 제약 위반, 중복 방지를 자동 테스트로 검증.
+
+### 4. 회귀 검증
+
+```bash
+npm test
+npm run build
+```
