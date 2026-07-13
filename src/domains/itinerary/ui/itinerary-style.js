@@ -294,6 +294,91 @@ export const itineraryStyles = `
           display: none;
         }
 
+        /* ====== Transit Segment Card (per-step breakdown) ====== */
+        .transit-seg-card {
+          width: 100%;
+          border: 1px solid #a7f3d0;
+          background: #ecfdf5;
+          border-radius: 12px;
+          padding: 0.6rem 0.9rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          box-sizing: border-box;
+        }
+
+        .transit-seg-card.clickable {
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .transit-seg-card.clickable:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .transit-seg-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 0.5rem;
+          font-weight: 800;
+          font-size: 0.8rem;
+          color: #065f46;
+        }
+
+        .transit-seg-total {
+          font-weight: 700;
+          font-size: 0.78rem;
+          color: #047857;
+          white-space: nowrap;
+        }
+
+        .transit-steps {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .transit-step {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.4rem;
+          font-size: 0.85rem;
+          padding: 0.35rem 0.55rem;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb;
+          background: rgba(255, 255, 255, 0.75);
+        }
+
+        .transit-step .step-icon {
+          font-size: 1rem;
+        }
+
+        .transit-step .step-main {
+          font-weight: 700;
+        }
+
+        .transit-step .step-time {
+          font-weight: 600;
+          font-size: 0.8rem;
+          color: var(--text-primary);
+        }
+
+        .transit-step .step-stops {
+          flex-basis: 100%;
+          font-size: 0.78rem;
+          color: var(--text-secondary);
+          padding-left: 1.6rem;
+        }
+
+        .transit-verify {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #2563eb;
+        }
+
         /* Legacy pill (keep for fallback) */
         .transit-pill {
           background: #f3f4f6;

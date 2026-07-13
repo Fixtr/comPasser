@@ -363,6 +363,55 @@ export default class ItineraryView extends HTMLElement {
     return { icon: '🚌', bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: '대중교통' };
   }
 
+  getTransitModeText(vehicleType, lineName) {
+    const vType = (vehicleType || '').toUpperCase();
+    const name = lineName || '';
+
+    if (vType === 'BUS' || vType === 'INTERCITY_BUS') {
+      const format = t('busFormat');
+      return format ? format.replace('{0}', name) : `${name} Bus`;
+    }
+    if (vType === 'SUBWAY' || vType === 'HEAVY_RAIL' || vType === 'COMMUTER_TRAIN') {
+      const format = t('subwayFormat');
+      return format ? format.replace('{0}', name) : `Line ${name}`;
+    }
+    if (vType === 'TRAIN' || vType === 'HIGH_SPEED_TRAIN') {
+      const format = t('trainFormat');
+      return format ? format.replace('{0}', name) : `Train ${name}`;
+    }
+    return name || t('transitText') || '대중교통';
+  }
+
+  renderTransitStep(step) {
+    if (step.mode === 'TRANSIT') {
+      const style = this.getTransitStyle('TRANSIT', step.vehicleType);
+      const modeText = this.getTransitModeText(step.vehicleType, step.lineName);
+      const stopsFormat = t('stopsCount') || '{0}개 정류장';
+      const stopsCount = step.numStops ? ` · ${stopsFormat.replace('{0}', step.numStops)}` : '';
+      const boarding = t('boarding') || '승차';
+      const alighting = t('alighting') || '하차';
+      const stopsHtml = (step.departureStop && step.arrivalStop)
+        ? `<div class="step-stops">[${boarding}] ${step.departureStop} ➔ [${alighting}] ${step.arrivalStop}</div>`
+        : '';
+
+      return `
+        <div class="transit-step" style="background:${style.bg}; border-color:${style.border};">
+          <span class="step-icon">${style.icon}</span>
+          <span class="step-main" style="color:${style.color};">${modeText}</span>
+          <span class="step-time">${step.duration}${stopsCount}</span>
+          ${stopsHtml}
+        </div>`;
+    }
+
+    // WALKING 및 기타 구간
+    return `
+      <div class="transit-step walk">
+        <span class="step-icon">🚶</span>
+        <span class="step-main">${t('walkText') || '도보'}</span>
+        <span class="step-time">${step.duration}${step.distance ? ` (${step.distance})` : ''}</span>
+      </div>`;
+  }
+
   renderTransitInfo(transitRoutes) {
     // 새 데이터 수신 시 이전 이동 카드 초기화
     this.shadowRoot.querySelectorAll('.transit-info').forEach(el => {
@@ -372,66 +421,68 @@ export default class ItineraryView extends HTMLElement {
 
     transitRoutes.forEach(detail => {
       const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
-      if (el) {
-        // [수정 사항 1] 도보(walk), 자전거, 혹은 이동 시간이 유의미하지 않은 경우 초록 박스 완전히 숨김
-        if (detail.mode === 'WALKING' || detail.mode === 'BICYCLING' || !detail.mode || !detail.duration || detail.duration.includes('0 min') || detail.duration.includes('1 min')) {
-          return;
-        }
+      if (!el) return;
 
-        const style = this.getTransitStyle(detail.mode, detail.vehicleType);
-        let modeText = t('transitText') || style.label;
+      const destIndex = typeof detail.toIndex === 'number' ? detail.toIndex : detail.fromIndex + 1;
 
-        if (detail.mode === 'TRANSIT' && detail.vehicleType) {
-          const vType = detail.vehicleType.toUpperCase();
-          const lineName = detail.lineName || '';
-
-          if (vType === 'BUS' || vType === 'INTERCITY_BUS') {
-            const format = t('busFormat');
-            modeText = format ? format.replace('{0}', lineName) : `${lineName} Bus`;
-          } else if (vType === 'SUBWAY' || vType === 'HEAVY_RAIL' || vType === 'COMMUTER_TRAIN') {
-            const format = t('subwayFormat');
-            modeText = format ? format.replace('{0}', lineName) : `Line ${lineName}`;
-          } else if (vType === 'TRAIN' || vType === 'HIGH_SPEED_TRAIN') {
-            const format = t('trainFormat');
-            modeText = format ? format.replace('{0}', lineName) : `Train ${lineName}`;
-          }
-        } else if (detail.mode === 'WALKING') {
-          modeText = t('walkText') || '도보';
-        }
-
-        let innerHtml = `
-          <div class="transit-card" style="background:${style.bg}; border-color:${style.border};">
-            <div class="transit-icon-badge" style="color:${style.color};">${style.icon}</div>
-            <div class="transit-detail">
-              <span class="transit-mode" style="color:${style.color};">${modeText}</span>
-              <span class="transit-duration">${detail.duration}</span>
-              <span class="transit-distance">${detail.distance}</span>
-            </div>
-          </div>
-        `;
-        
-        if (detail.mode === 'TRANSIT' && detail.transitDetailsExtended) {
-          const ext = detail.transitDetailsExtended;
-          if (ext.departureStop && ext.arrivalStop) {
-            const boarding = t('boarding') || '승차';
-            const alighting = t('alighting') || '하차';
-            
-            innerHtml += `
-              <div class="transit-extended-info">
-                [${boarding}] ${ext.departureStop} ➔ [${alighting}] ${ext.arrivalStop}
-              </div>
-            `;
-          }
-        }
-        
-        el.innerHTML = innerHtml;
-        el.classList.remove('hidden');
-
-        // 실제 경로 데이터가 표시되면 같은 구간의 Gemini 추정 안내문은 숨김
-        const destIndex = typeof detail.toIndex === 'number' ? detail.toIndex : detail.fromIndex + 1;
-        const geminiPill = this.shadowRoot.querySelector(`.schedule-card[data-index="${destIndex + 1}"] .gemini-transit`);
-        if (geminiPill) geminiPill.style.display = 'none';
+      // 실제 경로 데이터가 도착한 구간은 Gemini 추정치(안내문/이동시간)를 감춤
+      const destCard = this.shadowRoot.querySelector(`.schedule-card[data-index="${destIndex + 1}"]`);
+      if (destCard) {
+        destCard.querySelectorAll('.gemini-transit, .gemini-transit-meta').forEach(node => {
+          node.style.display = 'none';
+        });
       }
+
+      // 어느 카드 사이의 이동인지 명시 (핀 번호 = 카드 번호와 동일 체계)
+      const headerFormat = t('transitSegHeader') || '{0}번 → {1}번 이동';
+      const headerText = headerFormat
+        .replace('{0}', detail.fromIndex + 1)
+        .replace('{1}', destIndex + 1);
+
+      const steps = Array.isArray(detail.steps) ? detail.steps : [];
+      let stepsHtml = '';
+      if (steps.length > 0) {
+        stepsHtml = steps.map(step => this.renderTransitStep(step)).join('');
+      } else if (detail.mode === 'WALKING') {
+        stepsHtml = this.renderTransitStep({ mode: 'WALKING', duration: detail.duration || '', distance: detail.distance || '' });
+      } else {
+        // 구버전 데이터 폴백: 단일 요약 스텝
+        stepsHtml = this.renderTransitStep({
+          mode: 'TRANSIT',
+          duration: detail.duration || '',
+          distance: detail.distance || '',
+          vehicleType: detail.vehicleType,
+          lineName: detail.lineName,
+          departureStop: detail.transitDetailsExtended?.departureStop || '',
+          arrivalStop: detail.transitDetailsExtended?.arrivalStop || '',
+          numStops: null
+        });
+      }
+
+      const totalFormat = t('transitTotal') || '총 {0}';
+      const totalText = detail.duration
+        ? `${totalFormat.replace('{0}', detail.duration)}${detail.distance ? ` · ${detail.distance}` : ''}`
+        : '';
+
+      el.innerHTML = `
+        <div class="transit-seg-card">
+          <div class="transit-seg-header">
+            <span>${headerText}</span>
+            ${totalText ? `<span class="transit-seg-total">${totalText}</span>` : ''}
+          </div>
+          <div class="transit-steps">${stepsHtml}</div>
+          ${detail.directionsUrl ? `<div class="transit-verify">${t('transitVerify') || '🔎 구글 지도에서 경로 확인'}</div>` : ''}
+        </div>
+      `;
+
+      // 카드 클릭 → 구글 지도 대중교통 길찾기로 해당 구간 검증
+      if (detail.directionsUrl) {
+        const card = el.querySelector('.transit-seg-card');
+        card.classList.add('clickable');
+        card.addEventListener('click', () => window.open(detail.directionsUrl, '_blank', 'noopener'));
+      }
+
+      el.classList.remove('hidden');
     });
   }
 
@@ -730,7 +781,7 @@ export default class ItineraryView extends HTMLElement {
                 const transitTime = timeMatch[0];
                 // 전체 소요 시간과 이동 시간이 다른 경우 혹은 이동 관련 키워드가 있는 경우에만 표시
                 if (scheduleItem.duration !== transitTime || info.includes('이동') || info.includes('도보')) {
-                   return ` <span style="opacity: 0.8; font-weight: normal; font-size: 0.85em;">(이동시간: ${transitTime})</span>`;
+                   return ` <span class="gemini-transit-meta" style="opacity: 0.8; font-weight: normal; font-size: 0.85em;">(이동시간: ${transitTime})</span>`;
                 }
               }
               return '';

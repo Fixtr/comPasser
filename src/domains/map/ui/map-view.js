@@ -1,6 +1,13 @@
 import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
+import { buildTransitDepartureTime } from "../services/transit-time.mjs";
+
+function latLngToString(latLng) {
+  const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
+  const lng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
+  return `${lat},${lng}`;
+}
 
 export class MapView extends HTMLElement {
   constructor() {
@@ -194,7 +201,7 @@ export class MapView extends HTMLElement {
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
         this.setLoading(true, "Calculating routes...");
-        await this.renderTransitSegments(geocodedItems);
+        await this.renderTransitSegments(geocodedItems, day.date);
       }
     } catch (err) {
       console.error("[Map Rendering Error]", err);
@@ -207,22 +214,33 @@ export class MapView extends HTMLElement {
   async renderMarkers(geocodedItems) {
     const { AdvancedMarkerElement, PinElement } = await this.loader.importLibrary("marker");
 
+    // Same-coordinate stops (e.g. a trip starting and ending at one hotel)
+    // would stack pins and hide all but the last; merge them into one pin.
+    const groups = new Map();
     geocodedItems.forEach((item, index) => {
-      const isAnchor = item.type === 'AnchorSchedule';
-      const displayNumber = item.displayIndex ?? index + 1;
-      const isStart = displayNumber === 1;
+      const [lat, lng] = latLngToString(item.latLng).split(',').map(Number);
+      const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ item, index });
+    });
+
+    groups.forEach(entries => {
+      const numbers = entries.map(({ item, index }) => item.displayIndex ?? index + 1);
+      const isAnchor = entries.some(({ item }) => item.type === 'AnchorSchedule');
+      const isStart = numbers.includes(1);
 
       const pinView = new PinElement({
         background: isAnchor ? "#7c3aed" : (isStart ? "#10b981" : "#3b82f6"),
         borderColor: isAnchor ? "#5b21b6" : (isStart ? "#047857" : "#2563eb"),
         glyphColor: "white",
-        glyph: `${displayNumber}`
+        glyph: numbers.join('·'),
+        scale: numbers.length > 1 ? 1.25 : 1
       });
 
       const marker = new AdvancedMarkerElement({
         map: this.map,
-        position: item.latLng,
-        title: item.title,
+        position: entries[0].item.latLng,
+        title: entries.map(({ item }) => item.title).join(' / '),
         content: pinView.element
       });
 
@@ -230,7 +248,7 @@ export class MapView extends HTMLElement {
     });
   }
 
-  async renderTransitSegments(geocodedItems) {
+  async renderTransitSegments(geocodedItems, dayDate) {
     const { DirectionsRenderer } = await this.loader.importLibrary("routes");
     const { Polyline } = await this.loader.importLibrary("maps");
     const { SymbolPath } = await this.loader.importLibrary("core");
@@ -245,9 +263,16 @@ export class MapView extends HTMLElement {
       // segment to the right cards even when geocoding dropped items.
       const fromIndex = (geocodedItems[i].displayIndex ?? i + 1) - 1;
       const toIndex = (geocodedItems[i + 1].displayIndex ?? i + 2) - 1;
+      // Route for the scheduled departure (origin item's end time), not "now".
+      const departureTime = buildTransitDepartureTime(
+        dayDate,
+        geocodedItems[i].endTime || geocodedItems[i].time
+      );
+      // Same segment in the Google Maps UI, so users can verify the route.
+      const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(latLngToString(origin))}&destination=${encodeURIComponent(latLngToString(destination))}&travelmode=transit`;
 
       // Delegate to RoutingService
-      return this.routingService.getTransitRoute(origin, destination).then(response => {
+      return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {
         const renderer = new DirectionsRenderer({
           map: this.map,
           suppressMarkers: true,
@@ -263,15 +288,40 @@ export class MapView extends HTMLElement {
 
         const leg = response.routes[0]?.legs[0];
         let routeResult = null;
-        
+
         if (leg) {
           let primaryVehicleType = null;
           let primaryLineName = null;
           let transitDetailsExtended = null;
+          let hasTransitStep = false;
+
+          // Full per-step breakdown (walks, waits, each transit line) so the
+          // timeline can show the whole leg instead of one lump sum.
+          const steps = (leg.steps || []).map(s => {
+            if (s.travel_mode === 'TRANSIT' && s.transit) {
+              const line = s.transit.line || {};
+              return {
+                mode: 'TRANSIT',
+                duration: s.duration?.text || '',
+                distance: s.distance?.text || '',
+                vehicleType: line.vehicle?.type || 'TRANSIT',
+                lineName: line.short_name || line.name || '',
+                departureStop: s.transit.departure_stop?.name || '',
+                arrivalStop: s.transit.arrival_stop?.name || '',
+                numStops: s.transit.num_stops || null
+              };
+            }
+            return {
+              mode: s.travel_mode || 'WALKING',
+              duration: s.duration?.text || '',
+              distance: s.distance?.text || ''
+            };
+          });
 
           // Search steps for the most relevant transit line
           if (leg.steps && leg.steps.length > 0) {
             const transitSteps = leg.steps.filter(s => s.travel_mode === 'TRANSIT' && s.transit);
+            hasTransitStep = transitSteps.length > 0;
 
             if (transitSteps.length > 0) {
               const firstTransit = transitSteps[0].transit;
@@ -298,10 +348,12 @@ export class MapView extends HTMLElement {
             toIndex,
             duration: leg.duration.text,
             distance: leg.distance.text,
-            mode: 'TRANSIT', /* Ubiquitous Language */
+            mode: hasTransitStep ? 'TRANSIT' : 'WALKING', /* Ubiquitous Language */
             vehicleType: primaryVehicleType,
             lineName: primaryLineName,
-            transitDetailsExtended
+            transitDetailsExtended,
+            steps,
+            directionsUrl
           };
         }
         return routeResult;
@@ -325,9 +377,11 @@ export class MapView extends HTMLElement {
         return {
           fromIndex,
           toIndex,
-          duration: 'Short Walk',
-          distance: 'Nearby',
-          mode: 'WALKING'
+          duration: '',
+          distance: '',
+          mode: 'WALKING',
+          steps: [],
+          directionsUrl
         };
       });
     });
