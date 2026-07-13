@@ -172,7 +172,9 @@ export class MapView extends HTMLElement {
 
     try {
       // 1. Delegate Geocoding to GeocodingService
-      const scheduleItems = day.scheduleItems;
+      // Tag every item with its timeline position first: geocoding drops
+      // failures, so array order alone would desync pins from the list below.
+      const scheduleItems = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
       const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
 
       if (geocodedItems.length === 0) {
@@ -207,12 +209,14 @@ export class MapView extends HTMLElement {
 
     geocodedItems.forEach((item, index) => {
       const isAnchor = item.type === 'AnchorSchedule';
+      const displayNumber = item.displayIndex ?? index + 1;
+      const isStart = displayNumber === 1;
 
       const pinView = new PinElement({
-        background: isAnchor ? "#7c3aed" : (index === 0 ? "#10b981" : "#3b82f6"),
-        borderColor: isAnchor ? "#5b21b6" : (index === 0 ? "#047857" : "#2563eb"),
+        background: isAnchor ? "#7c3aed" : (isStart ? "#10b981" : "#3b82f6"),
+        borderColor: isAnchor ? "#5b21b6" : (isStart ? "#047857" : "#2563eb"),
         glyphColor: "white",
-        glyph: `${index + 1}`
+        glyph: `${displayNumber}`
       });
 
       const marker = new AdvancedMarkerElement({
@@ -237,6 +241,10 @@ export class MapView extends HTMLElement {
       const origin = geocodedItems[i].latLng;
       const destination = geocodedItems[i + 1].latLng;
       const segmentColor = PATH_COLORS[i % PATH_COLORS.length];
+      // Timeline positions (0-based) so the itinerary list can attach this
+      // segment to the right cards even when geocoding dropped items.
+      const fromIndex = (geocodedItems[i].displayIndex ?? i + 1) - 1;
+      const toIndex = (geocodedItems[i + 1].displayIndex ?? i + 2) - 1;
 
       // Delegate to RoutingService
       return this.routingService.getTransitRoute(origin, destination).then(response => {
@@ -286,7 +294,8 @@ export class MapView extends HTMLElement {
           }
 
           routeResult = {
-            fromIndex: i,
+            fromIndex,
+            toIndex,
             duration: leg.duration.text,
             distance: leg.distance.text,
             mode: 'TRANSIT', /* Ubiquitous Language */
@@ -314,7 +323,8 @@ export class MapView extends HTMLElement {
         this.fallbackPolylines.push(dashedPolyline);
 
         return {
-          fromIndex: i,
+          fromIndex,
+          toIndex,
           duration: 'Short Walk',
           distance: 'Nearby',
           mode: 'WALKING'

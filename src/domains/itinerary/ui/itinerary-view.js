@@ -25,9 +25,16 @@ export default class ItineraryView extends HTMLElement {
     window.addEventListener('i18n-changed', () => {
       this.updateTexts();
     });
+
+    // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
+    this._transitInfoHandler = (e) => {
+      this.renderTransitInfo(Array.isArray(e.detail) ? e.detail : []);
+    };
+    window.addEventListener('transit-info-ready', this._transitInfoHandler);
   }
 
   disconnectedCallback() {
+    window.removeEventListener('transit-info-ready', this._transitInfoHandler);
     // 3. 컴포넌트 클린업: 유저가 다른 페이지로 이동 시 Light DOM 기반의 광고 컨테이너 제거
     const adWrapper = this.querySelector('.adsense-wrapper');
     if (adWrapper) {
@@ -357,12 +364,17 @@ export default class ItineraryView extends HTMLElement {
   }
 
   renderTransitInfo(transitRoutes) {
+    // 새 데이터 수신 시 이전 이동 카드 초기화
+    this.shadowRoot.querySelectorAll('.transit-info').forEach(el => {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+    });
+
     transitRoutes.forEach(detail => {
       const el = this.shadowRoot.getElementById(`transit-info-${detail.fromIndex}`);
       if (el) {
         // [수정 사항 1] 도보(walk), 자전거, 혹은 이동 시간이 유의미하지 않은 경우 초록 박스 완전히 숨김
         if (detail.mode === 'WALKING' || detail.mode === 'BICYCLING' || !detail.mode || !detail.duration || detail.duration.includes('0 min') || detail.duration.includes('1 min')) {
-          el.style.display = 'none';
           return;
         }
 
@@ -414,6 +426,11 @@ export default class ItineraryView extends HTMLElement {
         
         el.innerHTML = innerHtml;
         el.classList.remove('hidden');
+
+        // 실제 경로 데이터가 표시되면 같은 구간의 Gemini 추정 안내문은 숨김
+        const destIndex = typeof detail.toIndex === 'number' ? detail.toIndex : detail.fromIndex + 1;
+        const geminiPill = this.shadowRoot.querySelector(`.schedule-card[data-index="${destIndex + 1}"] .gemini-transit`);
+        if (geminiPill) geminiPill.style.display = 'none';
       }
     });
   }
@@ -555,6 +572,9 @@ export default class ItineraryView extends HTMLElement {
         this.setError("<div>저장된 세부 일정이 없습니다.</div>");
         return;
       }
+
+      // 새 일정은 항상 1일차부터: 지도(renderRoute)도 days[0]을 그리므로 둘을 일치시킨다
+      this.activeDayIndex = 0;
 
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) saveBtn.style.display = 'block';
@@ -698,7 +718,7 @@ export default class ItineraryView extends HTMLElement {
             const skipKeywords = ['없음', '이동 완료', '정보 없음', 'null', 'undefined'];
             if (trimmedInfo === '' || skipKeywords.some(k => trimmedInfo.includes(k))) return '';
             
-            return `<div class="schedule-desc" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${trimmedInfo}</div>`;
+            return `<div class="schedule-desc gemini-transit" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${trimmedInfo}</div>`;
           })()}
           <div class="schedule-meta">
             <span class="meta-item">📍 ${locationStr}</span>
@@ -808,6 +828,14 @@ export default class ItineraryView extends HTMLElement {
       }
 
       container.appendChild(item);
+
+      // 카드 사이 이동 정보 슬롯: 지도(map-view)가 계산한 실제 경로가 채워진다
+      if (idx < items.length - 1) {
+        const transitSlot = document.createElement('div');
+        transitSlot.className = 'transit-info hidden';
+        transitSlot.id = `transit-info-${idx}`;
+        container.appendChild(transitSlot);
+      }
     });
 
       // Fade In

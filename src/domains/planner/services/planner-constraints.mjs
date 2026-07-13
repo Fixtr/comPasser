@@ -133,6 +133,41 @@ function minutes(time) {
   return (hours * 60) + mins;
 }
 
+function titlesLooselyMatch(a, b) {
+  const left = normalizeForComparison(a);
+  const right = normalizeForComparison(b);
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+
+function isSameTime(a, b) {
+  const left = minutes(a);
+  const right = minutes(b);
+  return left !== Number.MAX_SAFE_INTEGER && left === right;
+}
+
+/**
+ * Gemini rarely echoes the anchor name verbatim (only time/location are
+ * pinned in the prompt), so an exact title check keeps injecting duplicates.
+ * Treat an item as the anchor's event on corroborating signals instead.
+ */
+function matchesAnchor(item, anchor) {
+  const sameTitle = titlesLooselyMatch(item.title, anchor.name);
+  const sameTime = isSameTime(item.time, anchor.time);
+  const samePlace = isSameLocation(item.location, anchor.location);
+
+  if (item.type === 'AnchorSchedule') return sameTitle || sameTime || samePlace;
+  return (sameTime && samePlace) || (sameTime && sameTitle) || (sameTitle && samePlace);
+}
+
+function anchorAffinity(item, anchor) {
+  let score = 0;
+  if (item.type === 'AnchorSchedule') score += 4;
+  if (isSameTime(item.time, anchor.time)) score += 2;
+  if (titlesLooselyMatch(item.title, anchor.name)) score += 1;
+  return score;
+}
+
 /**
  * LLM instructions are probabilistic. This deterministic boundary makes the
  * selected departure, destination and anchors authoritative in the result.
@@ -149,21 +184,51 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     if (!constraints) return day;
 
     let scheduleItems = Array.isArray(day.scheduleItems) ? [...day.scheduleItems] : [];
+    const anchors = constraints.anchors || [];
 
-    for (const anchor of constraints.anchors || []) {
-      const expectedTitle = asNonEmptyString(anchor.name);
-      const anchorIndex = scheduleItems.findIndex(item => (
-        item.type === 'AnchorSchedule'
-        && (!expectedTitle || asNonEmptyString(item.title) === expectedTitle)
-      ));
+    for (const anchor of anchors) {
       const requiredAnchor = makeAnchorItem(anchor, isKo);
+      const matchedIndexes = [];
+      scheduleItems.forEach((item, itemIndex) => {
+        if (matchesAnchor(item, anchor)) matchedIndexes.push(itemIndex);
+      });
 
-      if (anchorIndex >= 0) {
-        scheduleItems[anchorIndex] = { ...scheduleItems[anchorIndex], ...requiredAnchor };
-      } else {
+      if (matchedIndexes.length === 0) {
         scheduleItems.push(requiredAnchor);
+        continue;
       }
+
+      const primaryIndex = matchedIndexes.reduce((best, candidate) => (
+        anchorAffinity(scheduleItems[candidate], anchor) > anchorAffinity(scheduleItems[best], anchor)
+          ? candidate
+          : best
+      ), matchedIndexes[0]);
+
+      // Anchor fields are authoritative; keep the AI's richer copy elsewhere.
+      const primary = scheduleItems[primaryIndex];
+      scheduleItems[primaryIndex] = {
+        ...primary,
+        ...requiredAnchor,
+        endTime: asNonEmptyString(requiredAnchor.endTime) || asNonEmptyString(primary.endTime),
+        description: asNonEmptyString(primary.description) || requiredAnchor.description,
+        duration: asNonEmptyString(primary.duration) || requiredAnchor.duration,
+        transitInfo: asNonEmptyString(primary.transitInfo) || requiredAnchor.transitInfo,
+        officialWebsiteUrl: asNonEmptyString(primary.officialWebsiteUrl) || requiredAnchor.officialWebsiteUrl
+      };
+
+      matchedIndexes
+        .filter(itemIndex => itemIndex !== primaryIndex)
+        .sort((a, b) => b - a)
+        .forEach(itemIndex => scheduleItems.splice(itemIndex, 1));
     }
+
+    // Only user-selected anchors may carry the AnchorSchedule type; demote
+    // hallucinated ones so summaries count exactly what the user picked.
+    scheduleItems = scheduleItems.map(item => {
+      if (item.type !== 'AnchorSchedule') return item;
+      const belongsToUser = anchors.some(anchor => matchesAnchor(item, anchor));
+      return belongsToUser ? item : { ...item, type: 'attraction' };
+    });
 
     scheduleItems.sort((a, b) => minutes(a.time) - minutes(b.time));
 
