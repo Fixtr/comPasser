@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+> 📌 **요약본(English)** · 스코프 크리프 방지용 Non-Goals 기준 문서입니다. 사람이 읽는 상세 기획은 [`../PRD.md`](../PRD.md) 를 보세요.
+
 ## Project: ComPasser
 **Target User:** Anyone traveling in South Korea (locals and foreigners).
 **Core Value Proposition:** Fill empty time slots around fixed schedules ('Anchor Events') with optimal travel routes.

@@ -1,11 +1,35 @@
-firebase-debug.log
-.idx/
-.vscode/
+# --- Dependencies & build output ---
 node_modules/
 dist/
+functions/node_modules/
 
-# Local env files
+# --- Local env files (절대 커밋 금지) ---
 .env
 .env.local
 .env.*.local
+functions/.env
+functions/.env.local
+
+# --- Logs ---
+firebase-debug.log
+firebase-debug.*.log
+*.log
+
+# --- Editor / OS ---
+.DS_Store
+**/.DS_Store
+.idea/
+.idx/
+.vscode/
+
+# --- Python (scripts/) ---
+__pycache__/
+*.py[cod]
+
+# --- Harness runtime state ---
 phases/
+
+# --- 문서 생성 산출물 & 임시 작업 폴더 ---
+output/
+.codex_tmp/
+_to_delete/

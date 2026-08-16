@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+> 📌 **상세본(한국어)** · 스코프 가드레일이 담긴 영문 요약본은 [`docs/PRD.md`](docs/PRD.md) 입니다. 범위를 바꾸면 두 문서를 함께 갱신하세요.
+
 ## 1. Product Overview (제품 개요)
 **제품명**: ComPasser (컴패서)  
 **한 줄 소개**: "한국을 여행하는 사람들을 위한 AI 기반 다국어 로컬 동선 최적화 플래너"
