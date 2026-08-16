@@ -2,6 +2,7 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
+import { getFormData } from './travel-form-data.js';
 
 
 
@@ -590,97 +591,8 @@ export default class TravelForm extends HTMLElement {
     }
   }
 
-  _getAutocompleteValue(element) {
-    if (!element) return '';
-    // 만약 element.value가 문자열이고 비어있지 않다면 리턴
-    if (typeof element.value === 'string' && element.value.trim() !== '') {
-      return element.value.trim();
-    }
-    // Shadow DOM 내부의 input 요소에서 실제 텍스트 값 추출 시도
-    const shadowInput = element.shadowRoot?.querySelector('input');
-    if (shadowInput && shadowInput.value) {
-      return shadowInput.value.trim();
-    }
-    // 일반 자식으로 존재할 수 있는 input 확인
-    const normalInput = element.querySelector('input');
-    if (normalInput && normalInput.value) {
-      return normalInput.value.trim();
-    }
-    return '';
-  }
-
   getFormData() {
-    const anchorsElements = this.shadowRoot.querySelectorAll('.anchor-item');
-    const anchors = Array.from(anchorsElements).map(el => {
-      const daySelect = el.querySelector('.anchor-day');
-      return {
-        name: el.querySelector('.anchor-name').value,
-        time: el.querySelector('.anchor-time').value,
-        endTime: el.querySelector('.anchor-end-time').value,
-        location: this._getAutocompleteValue(el.querySelector('.anchor-location')),
-        day: daySelect ? parseInt(daySelect.value, 10) : 1
-      };
-    }).filter(a => a.name || a.time || a.endTime || a.location);
-
-    // /preference 페이지에서 저장한 테마/예산/날짜 데이터 병합
-    let theme = null;
-    let budget = null;
-    let datePref = null; // Can be array or string
-    try {
-      const savedPref = sessionStorage.getItem('userPreference');
-      if (savedPref) {
-        const pref = JSON.parse(savedPref);
-        theme = pref.theme || null;
-        budget = pref.budget || null;
-        datePref = pref.date || null;
-      }
-    } catch (e) { /* ignore parse errors */ }
-
-    // Use datePref (which contains the raw array for multi-day trips) if form input is readOnly
-    const dateInput = this.shadowRoot.getElementById('schedule-date');
-    let finalDate = datePref;
-    if (dateInput && !dateInput.readOnly) {
-      finalDate = dateInput.value || datePref;
-    }
-
-    const globalStartTime = this.shadowRoot.getElementById('start-time').value;
-    const globalEndTime = this.shadowRoot.getElementById('end-time').value;
-    
-    // Check toggle state for daily times
-    const toggle = this.shadowRoot.getElementById('daily-times-toggle');
-    let dailyTimes = null;
-    
-    if (toggle && toggle.checked) {
-      const rows = this.shadowRoot.querySelectorAll('.daily-time-row');
-      if (rows.length > 0) {
-        dailyTimes = Array.from(rows).map(row => ({
-          day: parseInt(row.dataset.day, 10),
-          startTime: row.querySelector('.daily-start-time').value,
-          endTime: row.querySelector('.daily-end-time').value,
-          isCustom: true
-        }));
-      }
-    } else if (Array.isArray(finalDate) && finalDate.length > 1) {
-      // Create identical dailyTimes array based on global if toggled off
-      dailyTimes = finalDate.map((d, idx) => ({
-        day: idx + 1,
-        startTime: globalStartTime,
-        endTime: globalEndTime,
-        isCustom: false
-      }));
-    }
-
-    return {
-      date: finalDate,
-      startTime: globalStartTime,
-      endTime: globalEndTime,
-      dailyTimes: dailyTimes,
-      startLocation: this._getAutocompleteValue(this.shadowRoot.getElementById('start-location')),
-      endLocation: this._getAutocompleteValue(this.shadowRoot.getElementById('end-location')),
-      anchorSchedules: anchors,
-      theme,
-      budget
-    };
+    return getFormData(this.shadowRoot);
   }
 
   setupEventListeners() {
