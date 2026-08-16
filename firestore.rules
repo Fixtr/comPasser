@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users/{uid}: 프로필 문서. phoneNumber, birthday 등 PII 포함 (src/domains/profile/ui/profile-view.js)
+    // 본인만 읽고 쓸 수 있다.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // itineraries/{id}: 로그인 사용자가 저장한 개인 일정. userId 필드로 소유자를 식별한다.
+    // (src/domains/itinerary/services/firestore-service.js: saveItinerary/getUserItineraries/deleteItinerary)
+    match /itineraries/{itineraryId} {
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // 앱에 수정(update) 로직이 없으므로 명시적으로 막아 우회 경로를 없앤다.
+      allow update: if false;
+    }
+
+    // shared_itineraries/{id}: 공유 링크로 배포되는 일정. 비로그인 게스트도 조회 가능해야 한다
+    // (PRD Non-Goals: "Itinerary sharing is read-only for guests").
+    // 생성은 로그인 사용자만 가능 (generateItinerary 자체가 로그인 필수이므로 공유 버튼 노출 시점엔 항상 인증됨).
+    // 생성 후에는 불변 — 수정/삭제 불가.
+    match /shared_itineraries/{sharedId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // 정의되지 않은 모든 경로는 기본 차단.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
