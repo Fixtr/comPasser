@@ -1,5 +1,7 @@
 # ARCHITECTURE
 
+> 📌 **상세본(한국어)** · AI 하네스가 규칙 검증에 사용하는 영문 요약본은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 입니다. 구조를 바꾸면 두 문서를 함께 갱신하세요.
+
 ## 1. 개요 (Overview)
 외국인 방문객을 위한 '이벤트(Anchor) 중심 AI 여행 일정 추천 웹 서비스'입니다.
 이 문서는 시스템의 주요 아키텍처, 기술 스택, 그리고 핵심 로직인 동선 최적화 알고리즘에 대해 설명합니다.
@@ -14,6 +16,7 @@
 *   **Backend & DB**:
     *   **Firebase**: Firestore (인프라 및 사용자 일정 데이터베이스), Cloud Functions (LLM 프롬프트 생성 및 외부 API 라우팅).
     *   서버리스 생태계를 통해 API 키 노출 방지 및 빠른 백엔드 구현.
+    *   **Gemini 키 격리**: LLM 호출은 전적으로 `generateItinerary` Cloud Function 에서 수행되며, 키는 Secret Manager(`defineSecret`)에만 존재합니다. Vite `envPrefix` 는 `VITE_` 만 허용하므로 브라우저 번들에는 키가 포함되지 않습니다. 클라이언트는 프롬프트가 아니라 구조화된 제약 조건만 전송하고, 서버는 이를 sanitize(일수 최대 4일 / 앵커 10개 / 문자열 200자, theme·budget 화이트리스트)한 뒤 프롬프트를 구성합니다. 함수는 인증된 사용자만 호출할 수 있습니다.
 *   **AI Engine & Map API**:
     *   **AI (LLM)**: Google Gemini API (또는 OpenAI API) 기반으로 자연어 일정 생성.
     *   **Maps API**: Google Maps Platform (Maps JS API, Places API, Directions API).

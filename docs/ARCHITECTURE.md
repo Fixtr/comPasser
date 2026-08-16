@@ -1,5 +1,7 @@
 # System Architecture
 
+> 📌 **요약본(English)** · `CLAUDE.md` 와 `/review` 커맨드가 참조하는 규칙 기준 문서입니다. 사람이 읽는 상세 설계는 [`../ARCHITECTURE.md`](../ARCHITECTURE.md) 를 보세요.
+
 ## Overview
 ComPasser is built as a serverless web and mobile application utilizing Vanilla JS and Capacitor. It fully adopts Domain-Driven Design (DDD).
 
@@ -12,7 +14,9 @@ ComPasser is built as a serverless web and mobile application utilizing Vanilla 
 
 ## Flow & Integration Layer
 `User -> Vite App (Web/PWA/Capacitor) -> Firebase Auth -> Firestore Database`
-`Planner UI -> plannerRequest normalization -> dailyData -> Gemini 2.5 -> deterministic constraint enforcement -> Itinerary UI -> Map View`
+`Planner UI -> plannerRequest normalization -> dailyData -> [Cloud Function: generateItinerary] sanitize -> prompt -> Gemini 2.5 -> deterministic constraint enforcement (client) -> Itinerary UI -> Map View`
+
+> **Secret boundary**: The Gemini API key lives only in Secret Manager and is read by the `generateItinerary` callable function. Vite `envPrefix` is restricted to `VITE_`, so no LLM key is ever bundled. The client sends structured constraints, never a raw prompt, and the function requires an authenticated caller.
 
 ### Planner constraint boundary
 
