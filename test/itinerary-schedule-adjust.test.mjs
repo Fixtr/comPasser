@@ -70,6 +70,31 @@ test('unknown transit duration (failed segment) leaves that boundary untouched',
   assert.equal(b.endTime, '11:00');
 });
 
+test('a missing single hop mid-chain no longer lets a later item show an earlier time than the one before it', () => {
+  // 실제 사용자 제보 재현: A -> B 구간은 실제 이동시간이 40분으로 밝혀져
+  // B가 뒤로 밀리는데, B -> C 구간(예: "공항으로 이동 준비"처럼 지오코딩이
+  // 안 되는 모호한 장소)은 Directions 결과가 아예 없다. 이 경우에도 C가
+  // B보다 앞선 시각에 남아있으면 안 된다.
+  const scheduleItems = [
+    { time: '09:00', endTime: '10:00', title: 'A' },
+    { time: '10:00', endTime: '10:30', title: 'B' },
+    { time: '10:05', endTime: '10:35', title: 'C (이동시간 데이터 없음)' }
+  ];
+  const transitRoutes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 40 } // A -> B 만 실제 데이터 있음
+    // B -> C 구간은 지오코딩 실패로 아예 transitRoutes에 없음
+  ];
+
+  const [a, b, c] = applyTransitDelays(scheduleItems, transitRoutes);
+
+  assert.equal(a.time, '09:00');
+  assert.equal(b.time, '10:40'); // 10:00 + 40분
+  assert.equal(b.endTime, '11:10');
+  // B가 11:10에 끝나므로, 이동시간을 모르더라도 C는 최소 11:10 이후여야 한다.
+  assert.equal(c.time, '11:10');
+  assert.equal(c.endTime, '11:40'); // 원래 30분 체류가 유지된 채 뒤로 밀림
+});
+
 test('malformed time strings are skipped instead of throwing', () => {
   const scheduleItems = [
     { time: '', endTime: '', title: 'A' },

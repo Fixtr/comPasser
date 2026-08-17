@@ -49,14 +49,18 @@ export function applyTransitDelays(scheduleItems, transitRoutes) {
 
   for (let i = 1; i < result.length; i++) {
     const prev = result[i - 1];
-    const transitMinutes = transitMinutesByFromIndex.get(i - 1);
-    if (typeof transitMinutes !== 'number') continue; // 실제 소요시간을 모르면 건드리지 않는다
-
     const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
     const originalStart = minutesOf(result[i].time);
     if (prevEnd === null || originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
 
-    const earliestArrival = prevEnd + transitMinutes;
+    // 실제 소요시간을 알면 그만큼, 모르면(지오코딩 실패 등으로 이 구간만
+    // Directions 결과가 없는 경우) 최소한 "겹치지 않는" 정도(0분)는 보장한다.
+    // 모른다고 완전히 건너뛰면, 앞선 구간이 실제 이동시간 때문에 뒤로
+    // 밀렸을 때 이 항목만 원래(더 이른) 시각에 남아 시간이 역전될 수 있다.
+    const transitMinutes = transitMinutesByFromIndex.get(i - 1);
+    const requiredGap = typeof transitMinutes === 'number' ? transitMinutes : 0;
+
+    const earliestArrival = prevEnd + requiredGap;
     if (earliestArrival <= originalStart) continue; // 이미 여유가 있으면 그대로 둔다
 
     const delay = earliestArrival - originalStart;
