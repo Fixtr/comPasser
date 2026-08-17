@@ -306,6 +306,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleRouteChange(); // Immediately trigger route change logic
     };
 
+    // handleRouteChange 는 popstate/navigate 뿐 아니라 Firebase
+    // onAuthStateChanged(토큰 확정 시 재발화 등)에서도 호출된다. /view 는
+    // 이동시간 보정(applyTransitDelays)이 반영된 뒤 sessionStorage 는
+    // 갱신되지 않으므로, 매 재호출마다 showResults/renderRoute 를 다시
+    // 부르면 원본(보정 전) 시각으로 되돌아간다. 같은 데이터를 이미
+    // 로드했다면 재호출을 건너뛴다.
+    let lastLoadedStaticViewData = null;
+    let lastLoadedViewId = null;
+
     async function handleRouteChange() {
         const path = window.location.pathname;
         const user = getCurrentUser();
@@ -360,27 +369,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (idMatch && idMatch[1]) {
                 const docId = idMatch[1];
-                console.log(`[Router] Dynamic route detected with ID: ${docId}`);
-                
-                try {
-                    const itineraryView = document.querySelector('itinerary-view');
-                    if (itineraryView && typeof itineraryView.loadItineraryById === 'function') {
-                        // 기존에 삽입되어 있는 컴포넌트에 명시적으로 로드 명령 하달
-                        itineraryView.loadItineraryById(docId);
-                    } else {
-                        throw new Error('ItineraryView 컴포넌트가 DOM에 존재하지 않거나 loadItineraryById 메서드가 없습니다.');
+
+                // 이미 이 id 를 로드한 상태면 재호출하지 않는다(예: 인증 상태
+                // 재발화로 handleRouteChange 가 다시 실행되는 경우). 그대로
+                // 다시 부르면 지도가 재계산한 이동시간 보정이 초기화된다.
+                if (docId !== lastLoadedViewId) {
+                    lastLoadedViewId = docId;
+                    console.log(`[Router] Dynamic route detected with ID: ${docId}`);
+
+                    try {
+                        const itineraryView = document.querySelector('itinerary-view');
+                        if (itineraryView && typeof itineraryView.loadItineraryById === 'function') {
+                            // 기존에 삽입되어 있는 컴포넌트에 명시적으로 로드 명령 하달
+                            itineraryView.loadItineraryById(docId);
+                        } else {
+                            throw new Error('ItineraryView 컴포넌트가 DOM에 존재하지 않거나 loadItineraryById 메서드가 없습니다.');
+                        }
+                    } catch (error) {
+                        console.error('🔥 라우팅/마운트 에러:', error);
                     }
-                } catch (error) {
-                    console.error('🔥 라우팅/마운트 에러:', error);
                 }
             } else if (path === '/view') {
                 // Case: /view (Temporary memory-based itinerary or just generated)
                 console.log('[Router] Static /view route: Looking for memory state.');
-                
+
                 const savedPhase = sessionStorage.getItem('currentPhase');
                 if (savedPhase === '3') {
                     const rawData = sessionStorage.getItem('savedItineraryData');
-                    if (rawData) {
+                    // 같은 데이터를 이미 로드했다면 재호출하지 않는다(위와 같은 이유).
+                    if (rawData && rawData !== lastLoadedStaticViewData) {
+                        lastLoadedStaticViewData = rawData;
                         try {
                             const parsedItinerary = JSON.parse(rawData);
                             setTimeout(() => {
