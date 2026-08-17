@@ -232,6 +232,21 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
 
     scheduleItems.sort((a, b) => minutes(a.time) - minutes(b.time));
 
+    // Gemini sometimes appends an extra item past the requested end time
+    // (e.g. a bogus "moving to the airport" stop that runs past midnight)
+    // instead of ending the day exactly at endLocation/endTime. If left in
+    // place, the end-location fix below can't find a matching last item and
+    // pushes the real arrival after it — producing a non-chronological
+    // order where the pushed (earlier-time) arrival sits after a
+    // later-time item. Drop anything the AI scheduled at/after the day's
+    // end time first, so the array's last item is always a legitimate one.
+    const endTimeMinutes = minutes(constraints.endTime);
+    if (endTimeMinutes !== Number.MAX_SAFE_INTEGER) {
+      scheduleItems = scheduleItems.filter(item => (
+        item.type === 'AnchorSchedule' || minutes(item.time) < endTimeMinutes
+      ));
+    }
+
     const startLocation = getLocationName(constraints.startLocation);
     if (startLocation) {
       const requiredStart = makeBoundaryItem('departure', startLocation, constraints.startTime, isKo);

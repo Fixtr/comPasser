@@ -177,3 +177,62 @@ test('an AI endpoint that already matches is corrected instead of duplicated', (
   assert.equal(day.scheduleItems[0].time, '09:06');
   assert.equal(day.scheduleItems[1].endTime, '21:06');
 });
+
+test('an AI item scheduled past the day end time is dropped instead of leaving the arrival out of order', () => {
+  // Reproduces a real report: the AI appended a bogus "moving to the
+  // airport" leisure stop after dinner, running past midnight, instead of
+  // ending the day at endLocation/endTime. Because its location text never
+  // matched endLocation, the old code just pushed the forced arrival after
+  // it — putting a 21:56 item after a 23:40 one.
+  const request = {
+    ...flatRequest,
+    endTime: '21:56',
+    anchorSchedules: []
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '20:27', endTime: '21:57', type: 'dining', title: '이태원 저녁 식사', location: '서울 이태원' },
+      { time: '23:40', endTime: '02:36', type: 'leisure', title: '인천국제공항 이동', location: '인천공항 이동경로' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const bogus = day.scheduleItems.find(item => item.title === '인천국제공항 이동');
+  assert.equal(bogus, undefined, 'the overflow item should be dropped, not just pushed past');
+
+  const last = day.scheduleItems.at(-1);
+  assert.equal(last.type, 'arrival');
+  assert.equal(last.time, '21:56');
+  assert.equal(last.location, request.endLocation);
+
+  // Chronological order holds for every remaining item.
+  for (let i = 1; i < day.scheduleItems.length; i++) {
+    const prevTime = day.scheduleItems[i - 1].time;
+    const currTime = day.scheduleItems[i].time;
+    assert.ok(prevTime <= currTime, `expected ${prevTime} <= ${currTime} at index ${i}`);
+  }
+});
+
+test('an anchor scheduled at/after the day end time survives the overflow trim', () => {
+  const request = {
+    ...flatRequest,
+    endTime: '21:56',
+    anchorSchedules: [
+      { day: 1, name: '심야 이벤트', time: '22:30', endTime: '23:30', location: '서울 어딘가' }
+    ]
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '22:30', endTime: '23:30', type: 'AnchorSchedule', title: '심야 이벤트', location: '서울 어딘가' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const anchor = day.scheduleItems.find(item => item.type === 'AnchorSchedule');
+  assert.ok(anchor, 'user-selected anchors must never be dropped by the overflow trim');
+  assert.equal(anchor.time, '22:30');
+});
