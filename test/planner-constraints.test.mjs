@@ -277,3 +277,91 @@ test('an anchor scheduled at/after the day end time survives the overflow trim',
   assert.ok(anchor, 'user-selected anchors must never be dropped by the overflow trim');
   assert.equal(anchor.time, '22:30');
 });
+
+test('trailing "moving to X" narration items are dropped so arrival follows the last real visit directly', () => {
+  // 실제 재현: 저녁 식사 다음 "서울역으로 이동" -> "인천국제공항으로 이동"
+  // 두 개의 가짜 이동 항목이 붙어 있었다. 둘 다 목적지(인천공항) 자체가
+  // 아니고, 실제 다구간 여정을 항목으로 쪼갠 것뿐이라 전부 제거하고
+  // 도착 항목이 마지막 실제 방문 바로 다음에 오게 한다.
+  const request = {
+    ...flatRequest,
+    endTime: '21:56',
+    anchorSchedules: []
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '19:56', endTime: '21:26', type: 'dining', title: '광화문 근처에서 저녁 식사', location: '광화문' },
+      { time: '21:43', endTime: '22:13', type: 'leisure', title: '서울역으로 이동', location: '서울역' },
+      { time: '23:31', endTime: '03:27', type: 'leisure', title: '인천국제공항으로 이동', location: '인천국' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const narrationItems = day.scheduleItems.filter(item => /이동/.test(item.title) && item.type !== 'departure' && item.type !== 'arrival');
+  assert.deepEqual(narrationItems, [], 'no leftover "이동" narration items should remain');
+
+  const last = day.scheduleItems.at(-1);
+  assert.equal(last.type, 'arrival');
+  assert.equal(last.time, '21:56');
+
+  const dinnerIndex = day.scheduleItems.findIndex(item => item.title === '광화문 근처에서 저녁 식사');
+  assert.equal(dinnerIndex, day.scheduleItems.length - 2, 'arrival must sit immediately after the last real visit');
+});
+
+test('a genuine trailing leisure visit that is not transit narration survives', () => {
+  const request = {
+    ...flatRequest,
+    endTime: '21:56',
+    anchorSchedules: []
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '19:56', endTime: '20:26', type: 'dining', title: '저녁 식사', location: '광화문' },
+      { time: '20:40', endTime: '21:10', type: 'leisure', title: '광화문 야경 감상', location: '광화문' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const nightView = day.scheduleItems.find(item => item.title === '광화문 야경 감상');
+  assert.ok(nightView, 'a real leisure stop without "이동" wording must not be stripped');
+});
+
+test('each day of a multi-day trip is capped by its own end time, independent of the others', () => {
+  const request = {
+    date: ['2026-08-18', '2026-08-19'],
+    dailyData: [
+      { day: 1, date: '2026-08-18', startTime: '09:00', endTime: '22:00', startLocation: '서울역 근처 호텔', endLocation: '서울역 근처 호텔' },
+      { day: 2, date: '2026-08-19', startTime: '09:00', endTime: '15:00', startLocation: '서울역 근처 호텔', endLocation: '인천국제공항' }
+    ],
+    anchorSchedules: []
+  };
+  const generatedDays = [
+    {
+      day: 1,
+      scheduleItems: [
+        { time: '09:00', endTime: '20:00', type: 'attraction', title: '1일차 관광', location: '경복궁' },
+        { time: '23:50', endTime: '01:00', type: 'leisure', title: '1일차 심야 이동', location: '어딘가' }
+      ]
+    },
+    {
+      day: 2,
+      scheduleItems: [
+        { time: '09:00', endTime: '13:00', type: 'attraction', title: '2일차 관광', location: '경복궁' }
+      ]
+    }
+  ];
+
+  const days = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const day1Last = days[0].scheduleItems.at(-1);
+  assert.equal(day1Last.type, 'arrival');
+  assert.equal(day1Last.time, '22:00'); // 1일차 종료 시각 — 2일차(15:00)와 섞이지 않는다
+
+  const day2Last = days[1].scheduleItems.at(-1);
+  assert.equal(day2Last.type, 'arrival');
+  assert.equal(day2Last.time, '15:00'); // 2일차는 자기 자신의 종료 시각을 쓴다
+});

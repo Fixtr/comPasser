@@ -284,6 +284,26 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       ));
     }
 
+    // Gemini는 종종 마지막 이동을 "서울역으로 이동" -> "인천국제공항으로
+    // 이동"처럼 여러 개의 가짜 "이동" 항목으로 서술한다(실제로는 하나의
+    // 다구간 여정일 뿐이고, transitInfo/지도 레이어가 이미 환승 정보를
+    // 카드로 보여준다). 목적지에 아직 도착하지 않은(=endLocation과 다른)
+    // 이런 항목들을 배열 끝에서부터 제거해, 마지막 실제 방문 다음에 바로
+    // 도착 항목이 오도록 한다.
+    const endLocationForCleanup = getLocationName(constraints.endLocation);
+    if (endLocationForCleanup) {
+      const looksLikeTransitNarration = (item) => (
+        item.type !== 'AnchorSchedule' &&
+        item.type !== 'departure' &&
+        item.type !== 'arrival' &&
+        /(?:으로\s*이동|이동\s*(?:준비|중)?)\s*$/.test(asNonEmptyString(item.title)) &&
+        !isSameLocation(item.location, endLocationForCleanup)
+      );
+      while (scheduleItems.length > 0 && looksLikeTransitNarration(scheduleItems[scheduleItems.length - 1])) {
+        scheduleItems.pop();
+      }
+    }
+
     const startLocation = getLocationName(constraints.startLocation);
     if (startLocation) {
       const requiredStart = makeBoundaryItem('departure', startLocation, constraints.startTime, isKo);
