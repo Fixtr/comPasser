@@ -27,9 +27,14 @@ function formatMinutes(totalMinutes) {
 /**
  * @param {Array<{time?: string, endTime?: string}>} scheduleItems 표시 순서대로 정렬된 하루치 일정
  * @param {Array<{fromIndex: number, durationMinutes?: number|null}>} transitRoutes map-view.js 가 계산한 구간별 실제 소요시간
+ * @param {string} [dayEndTime] 사용자가 지정한 그 날의 종료 시각("HH:MM"). 주어지면
+ *   마지막 항목(도착 지점, enforcePlannerConstraints 가 이 시각으로 고정해 둔 값)이
+ *   실제 이동시간 보정으로 이 시각을 넘기지 않도록 상한을 건다 — 일찍 끝나는 건
+ *   괜찮지만 사용자가 지정한 종료 시각을 넘기면 안 되기 때문. 중간 항목들은
+ *   여전히 정상적으로 뒤로 밀린다.
  * @returns {Array} 시각이 보정된 새 scheduleItems 배열 (입력은 변경하지 않음)
  */
-export function applyTransitDelays(scheduleItems, transitRoutes) {
+export function applyTransitDelays(scheduleItems, transitRoutes, dayEndTime) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return scheduleItems;
   if (!Array.isArray(transitRoutes) || transitRoutes.length === 0) return scheduleItems;
 
@@ -71,6 +76,19 @@ export function applyTransitDelays(scheduleItems, transitRoutes) {
       // 체류 시간(원래 endTime - time)을 그대로 유지한 채 뒤로 민다
       result[i].endTime = formatMinutes(originalEnd + delay);
     }
+  }
+
+  // 마지막 항목(도착 지점)만 사용자가 지정한 종료 시각을 상한으로 건다.
+  // 앞선 보정이 이 항목까지 종료 시각 너머로 밀었더라도 여기서 눌러준다.
+  const ceilingMinutes = minutesOf(dayEndTime);
+  if (ceilingMinutes !== null) {
+    const lastIndex = result.length - 1;
+    const clampToCeiling = (value) => {
+      const valueMinutes = minutesOf(value);
+      return valueMinutes !== null && valueMinutes > ceilingMinutes ? formatMinutes(ceilingMinutes) : value;
+    };
+    result[lastIndex].time = clampToCeiling(result[lastIndex].time);
+    result[lastIndex].endTime = clampToCeiling(result[lastIndex].endTime);
   }
 
   return result;

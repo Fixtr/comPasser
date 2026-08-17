@@ -95,6 +95,56 @@ test('a missing single hop mid-chain no longer lets a later item show an earlier
   assert.equal(c.endTime, '11:40'); // 원래 30분 체류가 유지된 채 뒤로 밀림
 });
 
+test('the final arrival item never gets pushed past the user-set end time, even when earlier delays cascade into it', () => {
+  // 사용자 제보: 시작 시간은 지키지만 종료 시각을 넘겨서 끝나는 경우가
+  // 있었다. enforcePlannerConstraints 가 도착 항목을 정확히 21:56 으로
+  // 고정해도, 앞선 저녁식사가 실제 이동시간 때문에 크게 밀리면 그 뒤를
+  // 따라 도착 항목까지 21:56 을 넘겨 밀렸다. 일찍 끝나는 건 괜찮지만
+  // 종료 시각을 넘기면 안 된다.
+  const scheduleItems = [
+    { time: '20:27', endTime: '21:27', title: '저녁 식사' },
+    { time: '21:56', endTime: '', title: '도착', type: 'arrival' } // enforcePlannerConstraints 가 고정한 값
+  ];
+  const transitRoutes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 45 } // 21:27 + 45분 = 22:12, 21:56 을 넘김
+  ];
+
+  const [dinner, arrival] = applyTransitDelays(scheduleItems, transitRoutes, '21:56');
+
+  assert.equal(dinner.time, '20:27'); // 첫 항목은 그대로
+  // 도착 항목은 계산상 22:12 가 되어야 하지만, 사용자가 지정한 종료 시각(21:56)을 넘지 않는다.
+  assert.equal(arrival.time, '21:56');
+  assert.equal(arrival.endTime, '');
+});
+
+test('the final item can still be pushed later as long as it stays within the day end time', () => {
+  const scheduleItems = [
+    { time: '20:00', endTime: '20:30', title: 'A' },
+    { time: '20:40', endTime: '', title: '도착', type: 'arrival' }
+  ];
+  const transitRoutes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 20 } // 20:30 + 20분 = 20:50, 21:56 안쪽
+  ];
+
+  const [, arrival] = applyTransitDelays(scheduleItems, transitRoutes, '21:56');
+
+  assert.equal(arrival.time, '20:50'); // 종료 시각(21:56) 안쪽이라 정상적으로 밀림
+});
+
+test('without a dayEndTime argument, the final item is pushed with no ceiling (backward compatible)', () => {
+  const scheduleItems = [
+    { time: '20:00', endTime: '20:30', title: 'A' },
+    { time: '20:40', endTime: '', title: '도착', type: 'arrival' }
+  ];
+  const transitRoutes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 90 } // 20:30 + 90분 = 22:00
+  ];
+
+  const [, arrival] = applyTransitDelays(scheduleItems, transitRoutes);
+
+  assert.equal(arrival.time, '22:00'); // dayEndTime을 안 넘겼으니 상한 없이 그대로 밀림
+});
+
 test('malformed time strings are skipped instead of throwing', () => {
   const scheduleItems = [
     { time: '', endTime: '', title: 'A' },

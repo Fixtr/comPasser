@@ -377,7 +377,18 @@ export default class ItineraryView extends HTMLElement {
     const dayData = safePlan?.days?.[this.activeDayIndex];
     if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
 
-    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes);
+    // 사용자가 지정한 그 날의 종료 시각 — generateOptimizedItinerary()가 반환한
+    // { request, days } 형태 그대로 저장/로드되므로, 저장된 일정을 불러온
+    // 경우에도 this.currentItinerary.request 에 남아있다. 이동시간 보정이
+    // 도착 항목을 이 시각 너머로 밀지 않도록 그대로 전달한다.
+    const dayNumber = this.activeDayIndex + 1;
+    const requestDailyData = this.currentItinerary?.request?.dailyData;
+    const dayConstraints = Array.isArray(requestDailyData)
+      ? (requestDailyData.find(d => Number(d.day) === dayNumber) || requestDailyData[this.activeDayIndex])
+      : null;
+    const dayEndTime = dayConstraints?.endTime;
+
+    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes, dayEndTime);
     dayData.scheduleItems = adjustedItems;
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
