@@ -133,6 +133,31 @@ function minutes(time) {
   return (hours * 60) + mins;
 }
 
+/**
+ * 자정을 넘기는 일정(예: 밤 11시 저녁 다음 새벽 1시 공항 이동)의 마지막
+ * 항목을 Gemini는 그냥 "01:33"처럼 그날 이른 시각과 구분 안 되는 값으로
+ * 준다. 그대로 시각 숫자만 비교하면 "01:33"이 "21:56"보다 이르다고
+ * 착각해 정렬도, 종료 시각 초과 판정도 다 틀어진다.
+ *
+ * AI가 만든(정렬 전) 원래 순서를 기준으로, 직전 항목보다 1시간 넘게
+ * 이른 것처럼 보이는 시각은 자정을 넘긴 것으로 간주해 24시간(1440분)을
+ * 더한 값으로 취급한다. 실제 time 문자열은 바꾸지 않고, 정렬/비교에만
+ * 쓰는 값이다.
+ */
+function toChronologicalMinutes(items) {
+  let dayOffset = 0;
+  let prevRaw = null;
+  return items.map(item => {
+    const raw = minutes(item.time);
+    if (raw === Number.MAX_SAFE_INTEGER) return raw;
+    if (prevRaw !== null && raw < prevRaw - 60) {
+      dayOffset += 1;
+    }
+    prevRaw = raw;
+    return raw + (dayOffset * 1440);
+  });
+}
+
 function titlesLooselyMatch(a, b) {
   const left = normalizeForComparison(a);
   const right = normalizeForComparison(b);
@@ -230,20 +255,32 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       return belongsToUser ? item : { ...item, type: 'attraction' };
     });
 
-    scheduleItems.sort((a, b) => minutes(a.time) - minutes(b.time));
+    // 정렬은 AI가 낸(자정 넘김을 그냥 "01:33"처럼 표기한) 원래 순서를
+    // 기준으로 자정 넘김을 판단해야 한다 — 이미 뒤섞인 뒤에는 판단 기준이
+    // 없다. decorate-sort-undecorate로 원래 인덱스에 계산된 정렬키를
+    // 붙여서 정렬한다.
+    const chronoKeys = toChronologicalMinutes(scheduleItems);
+    scheduleItems = scheduleItems
+      .map((item, idx) => ({ item, key: chronoKeys[idx] }))
+      .sort((a, b) => a.key - b.key)
+      .map(({ item }) => item);
 
     // Gemini sometimes appends an extra item past the requested end time
-    // (e.g. a bogus "moving to the airport" stop that runs past midnight)
-    // instead of ending the day exactly at endLocation/endTime. If left in
-    // place, the end-location fix below can't find a matching last item and
-    // pushes the real arrival after it — producing a non-chronological
-    // order where the pushed (earlier-time) arrival sits after a
-    // later-time item. Drop anything the AI scheduled at/after the day's
-    // end time first, so the array's last item is always a legitimate one.
+    // (e.g. a bogus "moving to the airport" stop that runs past midnight —
+    // e.g. "01:33" the next morning) instead of ending the day exactly at
+    // endLocation/endTime. If left in place, the end-location fix below
+    // can't find a matching last item and pushes the real arrival after
+    // it — producing a non-chronological order where the pushed
+    // (earlier-time) arrival sits after a later-time item. Drop anything
+    // the AI scheduled at/after the day's end time first, so the array's
+    // last item is always a legitimate one. Now-sorted order lets
+    // toChronologicalMinutes correctly treat any post-midnight time as
+    // "next day" rather than mistaking it for early morning.
     const endTimeMinutes = minutes(constraints.endTime);
     if (endTimeMinutes !== Number.MAX_SAFE_INTEGER) {
-      scheduleItems = scheduleItems.filter(item => (
-        item.type === 'AnchorSchedule' || minutes(item.time) < endTimeMinutes
+      const sortedChronoKeys = toChronologicalMinutes(scheduleItems);
+      scheduleItems = scheduleItems.filter((item, idx) => (
+        item.type === 'AnchorSchedule' || sortedChronoKeys[idx] < endTimeMinutes
       ));
     }
 

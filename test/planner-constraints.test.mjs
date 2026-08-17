@@ -215,6 +215,47 @@ test('an AI item scheduled past the day end time is dropped instead of leaving t
   }
 });
 
+test('an overflow item whose time wrapped past midnight is still dropped (not mistaken for early morning)', () => {
+  // Real report: the AI's bogus "moving to the airport" item landed at
+  // "01:33" (past midnight) instead of a time like "23:40". Compared as
+  // raw HH:MM minutes, "01:33" (93) looks earlier than "21:56" (1316), so
+  // a naive filter/sort would treat it as an early-morning item instead of
+  // recognizing it rolled into the next day — leaving it in place ahead of
+  // the forced arrival, or sorting it to the very front of the day.
+  const request = {
+    ...flatRequest,
+    endTime: '21:56',
+    anchorSchedules: []
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '20:48', endTime: '21:18', type: 'leisure', title: '광화문 이동', location: '광화문' },
+      { time: '21:33', endTime: '23:03', type: 'dining', title: '광화문 맛집 저녁 식사', location: '광화문' },
+      { time: '01:33', endTime: '02:59', type: 'leisure', title: '인천국제공항 (ICN) 이동', location: '인천공항 이동경로' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  const bogus = day.scheduleItems.find(item => item.title === '인천국제공항 (ICN) 이동');
+  assert.equal(bogus, undefined, 'the post-midnight overflow item should be dropped');
+
+  const last = day.scheduleItems.at(-1);
+  assert.equal(last.type, 'arrival');
+  assert.equal(last.time, '21:56');
+
+  // "광화문 이동" (20:48) must not have been sorted after "01:33" as if the
+  // wrapped time were legitimately earlier in the day — full chronological
+  // order must hold for every remaining item.
+  assert.equal(day.scheduleItems[0].time, flatRequest.startTime);
+  for (let i = 1; i < day.scheduleItems.length; i++) {
+    const prevTime = day.scheduleItems[i - 1].time;
+    const currTime = day.scheduleItems[i].time;
+    assert.ok(prevTime <= currTime, `expected ${prevTime} <= ${currTime} at index ${i}`);
+  }
+});
+
 test('an anchor scheduled at/after the day end time survives the overflow trim', () => {
   const request = {
     ...flatRequest,

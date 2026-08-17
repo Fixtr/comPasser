@@ -145,6 +145,20 @@ test('without a dayEndTime argument, the final item is pushed with no ceiling (b
   assert.equal(arrival.time, '22:00'); // dayEndTime을 안 넘겼으니 상한 없이 그대로 밀림
 });
 
+test('a final item whose time already wrapped past midnight is still clamped to the day end time', () => {
+  // "01:33" 처럼 자정을 넘긴 시각은 숫자로만 보면 "21:56"보다 작아 보여
+  // 상한을 넘지 않은 것처럼 착각하기 쉽다.
+  const scheduleItems = [
+    { time: '21:33', endTime: '23:03', title: '광화문 맛집 저녁 식사' },
+    { time: '01:33', endTime: '02:59', title: '인천국제공항 이동', type: 'arrival' }
+  ];
+
+  const [, arrival] = applyTransitDelays(scheduleItems, [], '21:56');
+
+  assert.equal(arrival.time, '21:56');
+  assert.equal(arrival.endTime, '21:56');
+});
+
 test('malformed time strings are skipped instead of throwing', () => {
   const scheduleItems = [
     { time: '', endTime: '', title: 'A' },

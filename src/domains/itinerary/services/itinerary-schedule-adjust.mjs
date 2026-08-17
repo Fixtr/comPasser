@@ -36,56 +36,73 @@ function formatMinutes(totalMinutes) {
  */
 export function applyTransitDelays(scheduleItems, transitRoutes, dayEndTime) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return scheduleItems;
-  if (!Array.isArray(transitRoutes) || transitRoutes.length === 0) return scheduleItems;
-
-  const transitMinutesByFromIndex = new Map();
-  transitRoutes.forEach(route => {
-    if (
-      route &&
-      typeof route.fromIndex === 'number' &&
-      typeof route.durationMinutes === 'number' &&
-      Number.isFinite(route.durationMinutes)
-    ) {
-      transitMinutesByFromIndex.set(route.fromIndex, route.durationMinutes);
-    }
-  });
 
   const result = scheduleItems.map(item => ({ ...item }));
 
-  for (let i = 1; i < result.length; i++) {
-    const prev = result[i - 1];
-    const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
-    const originalStart = minutesOf(result[i].time);
-    if (prevEnd === null || originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
+  // 실제 이동시간 데이터가 있을 때만 지연 보정 루프를 돈다. 데이터가
+  // 없어도(예: 지도가 아직 계산 전) 아래의 종료 시각 상한은 별개로 계속
+  // 적용한다.
+  if (Array.isArray(transitRoutes) && transitRoutes.length > 0) {
+    const transitMinutesByFromIndex = new Map();
+    transitRoutes.forEach(route => {
+      if (
+        route &&
+        typeof route.fromIndex === 'number' &&
+        typeof route.durationMinutes === 'number' &&
+        Number.isFinite(route.durationMinutes)
+      ) {
+        transitMinutesByFromIndex.set(route.fromIndex, route.durationMinutes);
+      }
+    });
 
-    // 실제 소요시간을 알면 그만큼, 모르면(지오코딩 실패 등으로 이 구간만
-    // Directions 결과가 없는 경우) 최소한 "겹치지 않는" 정도(0분)는 보장한다.
-    // 모른다고 완전히 건너뛰면, 앞선 구간이 실제 이동시간 때문에 뒤로
-    // 밀렸을 때 이 항목만 원래(더 이른) 시각에 남아 시간이 역전될 수 있다.
-    const transitMinutes = transitMinutesByFromIndex.get(i - 1);
-    const requiredGap = typeof transitMinutes === 'number' ? transitMinutes : 0;
+    for (let i = 1; i < result.length; i++) {
+      const prev = result[i - 1];
+      const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
+      const originalStart = minutesOf(result[i].time);
+      if (prevEnd === null || originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
 
-    const earliestArrival = prevEnd + requiredGap;
-    if (earliestArrival <= originalStart) continue; // 이미 여유가 있으면 그대로 둔다
+      // 실제 소요시간을 알면 그만큼, 모르면(지오코딩 실패 등으로 이 구간만
+      // Directions 결과가 없는 경우) 최소한 "겹치지 않는" 정도(0분)는 보장한다.
+      // 모른다고 완전히 건너뛰면, 앞선 구간이 실제 이동시간 때문에 뒤로
+      // 밀렸을 때 이 항목만 원래(더 이른) 시각에 남아 시간이 역전될 수 있다.
+      const transitMinutes = transitMinutesByFromIndex.get(i - 1);
+      const requiredGap = typeof transitMinutes === 'number' ? transitMinutes : 0;
 
-    const delay = earliestArrival - originalStart;
-    const originalEnd = minutesOf(result[i].endTime);
+      const earliestArrival = prevEnd + requiredGap;
+      if (earliestArrival <= originalStart) continue; // 이미 여유가 있으면 그대로 둔다
 
-    result[i].time = formatMinutes(originalStart + delay);
-    if (originalEnd !== null) {
-      // 체류 시간(원래 endTime - time)을 그대로 유지한 채 뒤로 민다
-      result[i].endTime = formatMinutes(originalEnd + delay);
+      const delay = earliestArrival - originalStart;
+      const originalEnd = minutesOf(result[i].endTime);
+
+      result[i].time = formatMinutes(originalStart + delay);
+      if (originalEnd !== null) {
+        // 체류 시간(원래 endTime - time)을 그대로 유지한 채 뒤로 민다
+        result[i].endTime = formatMinutes(originalEnd + delay);
+      }
     }
   }
 
   // 마지막 항목(도착 지점)만 사용자가 지정한 종료 시각을 상한으로 건다.
   // 앞선 보정이 이 항목까지 종료 시각 너머로 밀었더라도 여기서 눌러준다.
+  //
+  // 자정을 넘긴 시각("01:33" 같은)은 숫자로만 보면 종료 시각(예: "21:56")
+  // 보다 작아 보여 상한을 넘지 않은 것처럼 착각하기 쉽다. 직전 항목보다
+  // 1시간 넘게 이른 것처럼 보이면 자정을 넘긴 것으로 보고 24시간을 더한
+  // 뒤 상한과 비교한다.
   const ceilingMinutes = minutesOf(dayEndTime);
-  if (ceilingMinutes !== null) {
+  if (ceilingMinutes !== null && result.length > 0) {
     const lastIndex = result.length - 1;
+    const referenceMinutes = lastIndex > 0
+      ? (minutesOf(result[lastIndex - 1].endTime) ?? minutesOf(result[lastIndex - 1].time))
+      : null;
+
     const clampToCeiling = (value) => {
-      const valueMinutes = minutesOf(value);
-      return valueMinutes !== null && valueMinutes > ceilingMinutes ? formatMinutes(ceilingMinutes) : value;
+      let valueMinutes = minutesOf(value);
+      if (valueMinutes === null) return value;
+      if (referenceMinutes !== null && valueMinutes < referenceMinutes - 60) {
+        valueMinutes += 1440; // 자정을 넘긴 것으로 간주
+      }
+      return valueMinutes > ceilingMinutes ? formatMinutes(ceilingMinutes) : value;
     };
     result[lastIndex].time = clampToCeiling(result[lastIndex].time);
     result[lastIndex].endTime = clampToCeiling(result[lastIndex].endTime);
