@@ -6,6 +6,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
+import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
 import {
   getTransitStyle,
   getTransitModeText,
@@ -36,7 +37,13 @@ export default class ItineraryView extends HTMLElement {
 
     // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
     this._transitInfoHandler = (e) => {
-      this.renderTransitInfo(Array.isArray(e.detail) ? e.detail : []);
+      const transitRoutes = Array.isArray(e.detail) ? e.detail : [];
+      // Gemini가 추정한 시각은 실제 이동시간과 어긋날 수 있다(예: 이동에
+      // 45분이 걸리는데 다음 항목이 이동시간 없이 바로 시작하는 것처럼
+      // 생성되는 경우). 실제 이동시간이 밝혀졌으니 뒤 항목들의 시각을
+      // 필요한 만큼만 보정한다.
+      this.applyTransitDelaysToActiveDay(transitRoutes);
+      this.renderTransitInfo(transitRoutes);
     };
     window.addEventListener('transit-info-ready', this._transitInfoHandler);
   }
@@ -353,6 +360,32 @@ export default class ItineraryView extends HTMLElement {
 
   renderTransitInfo(transitRoutes) {
     renderTransitInfo(this.shadowRoot, transitRoutes);
+  }
+
+  /**
+   * 실제 이동시간(transitRoutes)을 반영해 현재 보고 있는 날짜의
+   * scheduleItems 시각을 보정하고, 이미 그려진 타임라인의 시간 배지만
+   * 갱신한다(전체 재렌더 대신 — renderActiveDay는 페이드 애니메이션 때문에
+   * DOM 반영이 150ms 지연되어 뒤이은 renderTransitInfo와 타이밍이 꼬인다).
+   * currentItinerary 자체를 갱신하므로, 이후 "저장하기"를 눌러도 보정된
+   * 시각이 저장된다.
+   */
+  applyTransitDelaysToActiveDay(transitRoutes) {
+    if (!this.currentItinerary) return;
+
+    const safePlan = this.normalizeData(this.currentItinerary);
+    const dayData = safePlan?.days?.[this.activeDayIndex];
+    if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
+
+    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes);
+    dayData.scheduleItems = adjustedItems;
+
+    const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
+    adjustedItems.forEach((item, idx) => {
+      const badge = badges[idx];
+      if (!badge) return;
+      badge.innerHTML = item.endTime ? `${item.time} -<br>${item.endTime}` : item.time;
+    });
   }
 
   render() {

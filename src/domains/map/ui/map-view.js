@@ -347,6 +347,12 @@ export class MapView extends HTMLElement {
             fromIndex,
             toIndex,
             duration: leg.duration.text,
+            // 실제 이동 소요시간(분, 반올림). 일정 카드 시간을 이동시간만큼
+            // 밀어내는 보정(applyTransitDelays)에 쓰인다. Directions API가
+            // 항상 초 단위 value를 주므로 여기서만 분으로 환산해둔다.
+            durationMinutes: typeof leg.duration.value === 'number'
+              ? Math.round(leg.duration.value / 60)
+              : null,
             distance: leg.distance.text,
             mode: hasTransitStep ? 'TRANSIT' : 'WALKING', /* Ubiquitous Language */
             vehicleType: primaryVehicleType,
@@ -378,6 +384,7 @@ export class MapView extends HTMLElement {
           fromIndex,
           toIndex,
           duration: '',
+          durationMinutes: null, // 실패한 구간은 실제 소요시간을 모르므로 시간 보정에서 제외됨
           distance: '',
           mode: 'WALKING',
           steps: [],
