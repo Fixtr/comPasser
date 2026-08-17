@@ -10,8 +10,7 @@ import {
   getTransitStyle,
   getTransitModeText,
   renderTransitStep,
-  renderTransitInfo,
-  renderTripSummary
+  renderTransitInfo
 } from './itinerary-render-helpers.js';
 
 export default class ItineraryView extends HTMLElement {
@@ -356,11 +355,6 @@ export default class ItineraryView extends HTMLElement {
     renderTransitInfo(this.shadowRoot, transitRoutes);
   }
 
-  // ========== Trip Summary Dashboard ==========
-  renderTripSummary(scheduleItems, date) {
-    renderTripSummary(this.shadowRoot, scheduleItems, date);
-  }
-
   render() {
     this.shadowRoot.innerHTML = `
       <style>
@@ -371,9 +365,6 @@ export default class ItineraryView extends HTMLElement {
 
       <div id="results" style="display: none;">
         <div id="results-content" style="background: white;">
-          <!-- Trip Summary Dashboard -->
-          <div id="trip-summary" class="trip-summary"></div>
-          
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
             <!-- Tabs injected dynamically -->
@@ -423,8 +414,6 @@ export default class ItineraryView extends HTMLElement {
     if (downloadBtn) downloadBtn.style.display = 'none';
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
     if (kakaoBtn) kakaoBtn.style.display = 'none';
-    const summaryEl = this.shadowRoot.getElementById('trip-summary');
-    if (summaryEl) summaryEl.style.display = 'none';
   }
 
   showResults(itineraryData) {

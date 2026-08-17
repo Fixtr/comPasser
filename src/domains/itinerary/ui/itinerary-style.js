@@ -27,115 +27,6 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
-        /* ====== Trip Summary Dashboard ====== */
-        .trip-summary {
-          display: none;
-          background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 50%, #f5f3ff 100%);
-          border: 1px solid #e0e7ff;
-          border-radius: 16px;
-          padding: 1.5rem;
-          margin-bottom: 1.5rem;
-          animation: summaryFadeIn 0.5s ease-out;
-        }
-
-        @keyframes summaryFadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .summary-header {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-
-        .summary-emoji {
-          font-size: 1.3rem;
-        }
-
-        .summary-title {
-          font-size: 1.1rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-        }
-
-        .summary-stat {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.2rem;
-          background: rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(4px);
-          padding: 0.75rem 0.5rem;
-          border-radius: 12px;
-          border: 1px solid rgba(124, 58, 237, 0.08);
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .summary-stat:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
-        }
-
-        .stat-icon {
-          font-size: 1.4rem;
-        }
-
-        .stat-value {
-          font-size: 1.2rem;
-          font-weight: 800;
-          color: var(--accent-primary, #7c3aed);
-        }
-
-        .stat-label {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          font-weight: 500;
-        }
-
-        .summary-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-
-        .summary-tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.3rem;
-          padding: 0.35rem 0.75rem;
-          border-radius: 20px;
-          background: white;
-          border: 1px solid color-mix(in srgb, var(--tag-color) 25%, transparent);
-          font-size: 0.8rem;
-          font-weight: 600;
-          transition: transform 0.15s, box-shadow 0.15s;
-        }
-
-        .summary-tag:hover {
-          transform: scale(1.05);
-          box-shadow: 0 2px 8px color-mix(in srgb, var(--tag-color) 20%, transparent);
-        }
-
-        .tag-icon { font-size: 0.9rem; }
-        .tag-label { color: var(--tag-color); }
-        .tag-count {
-          background: color-mix(in srgb, var(--tag-color) 12%, transparent);
-          color: var(--tag-color);
-          padding: 0 0.4rem;
-          border-radius: 10px;
-          font-size: 0.75rem;
-          font-weight: 700;
-        }
-
         /* ====== Timeline ====== */
         .timeline {
           display: flex;
@@ -670,13 +561,6 @@ export const itineraryStyles = `
           }
           .transit-info {
             padding-left: 2rem;
-          }
-          .summary-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-          }
-          .stat-value {
-            font-size: 1rem;
           }
         }
 
