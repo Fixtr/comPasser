@@ -4,6 +4,7 @@ import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
+import { showConfirm } from '../../../utils/confirm-dialog.js';
 
 class ProfileView extends HTMLElement {
     constructor() {
@@ -375,7 +376,13 @@ class ProfileView extends HTMLElement {
     }
 
     async handleDeleteItinerary(id, cardEl) {
-        if (confirm("정말로 이 여행 일정을 삭제하시겠습니까?")) {
+        const ok = await showConfirm({
+            title: '일정 삭제',
+            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다.',
+            confirmText: '삭제',
+            cancelText: '취소'
+        });
+        if (ok) {
             try {
                 await deleteItinerary(id);
                 cardEl.style.opacity = '0.5';
