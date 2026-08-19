@@ -66,6 +66,20 @@ export const itineraryStyles = `
           line-height: 1.5;
         }
 
+        .end-time-fix-btn {
+          display: inline-block;
+          margin-left: 0.6rem;
+          background: #b45309;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 0.35rem 0.8rem;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .end-time-fix-btn:hover { background: #92400e; }
+
         .cost-summary {
           background: #f0fdf4;
           border: 1px solid #bbf7d0;

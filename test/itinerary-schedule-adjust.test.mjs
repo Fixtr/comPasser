@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
   applyTransitDelays,
-  getEndTimeOverflowMinutes
+  getEndTimeOverflowMinutes,
+  trimScheduleToEndTime
 } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 
 test('a visit that overlaps the real transit time is pushed back, keeping its own duration', () => {
@@ -291,4 +292,69 @@ test('a same-place segment (0 minutes) only enforces no-overlap, never a shift',
   assert.equal(mall.time, '16:07');
   assert.equal(dinner.time, '17:37', '같은 장소면 이동시간 0이므로 그대로 이어져야 한다');
   assert.equal(dinner.endTime, '19:07');
+});
+
+test('trimming shortens the last stop so the day fits its end time', () => {
+  // 경고만 띄우지 말고 그 자리에서 해결할 수 있어야 한다.
+  const items = [
+    { time: '09:00', endTime: '', type: 'departure', title: '출발' },
+    { time: '10:00', endTime: '12:00', type: 'attraction', title: '박물관' },
+    { time: '14:30', endTime: '16:30', type: 'attraction', title: '카페' },
+    { time: '18:00', endTime: '', type: 'arrival', title: '도착' }
+  ];
+
+  const { items: trimmed, shortenedCount, removedTitles, resolved } =
+    trimScheduleToEndTime(items, '17:00');
+
+  assert.equal(resolved, true);
+  assert.equal(shortenedCount, 1);
+  assert.deepEqual(removedTitles, [], '줄여서 맞출 수 있으면 항목을 빼지 않는다');
+  assert.equal(trimmed.at(-2).endTime, '15:30', '마지막 방문지를 60분 줄인다');
+  assert.equal(getEndTimeOverflowMinutes(trimmed, '17:00'), 0);
+});
+
+test('a stop that cannot be shortened enough is dropped instead of left at 5 minutes', () => {
+  const items = [
+    { time: '09:00', endTime: '', type: 'departure', title: '출발' },
+    { time: '10:00', endTime: '15:00', type: 'attraction', title: '메인 관광' },
+    { time: '15:30', endTime: '16:00', type: 'leisure', title: '짧은 산책' },
+    { time: '19:00', endTime: '', type: 'arrival', title: '도착' }
+  ];
+  // 3시간 초과 -> 30분짜리 산책을 20분까지 줄여도 모자라므로 빼야 한다.
+  const { removedTitles } = trimScheduleToEndTime(items, '16:00');
+
+  assert.ok(removedTitles.includes('짧은 산책'), '의미 없는 5분짜리로 남기지 않는다');
+});
+
+test('user-selected anchors and boundaries are never trimmed', () => {
+  const items = [
+    { time: '09:00', endTime: '', type: 'departure', title: '출발' },
+    { time: '10:00', endTime: '16:00', type: 'AnchorSchedule', title: '예약된 공연' },
+    { time: '19:00', endTime: '', type: 'arrival', title: '도착' }
+  ];
+
+  const { items: trimmed, removedTitles, shortenedCount, resolved } =
+    trimScheduleToEndTime(items, '17:00');
+
+  assert.deepEqual(removedTitles, []);
+  assert.equal(shortenedCount, 0);
+  assert.equal(resolved, false, '건드릴 수 없으면 해결하지 못했다고 알린다');
+  assert.equal(trimmed.find(i => i.type === 'AnchorSchedule').endTime, '16:00');
+});
+
+test('a day that already fits is returned untouched', () => {
+  const items = [
+    { time: '09:00', endTime: '10:00', type: 'attraction', title: 'A' },
+    { time: '11:00', endTime: '', type: 'arrival', title: '도착' }
+  ];
+  const result = trimScheduleToEndTime(items, '18:00');
+
+  assert.equal(result.items, items, '바꿀 게 없으면 원본을 그대로 돌려준다');
+  assert.equal(result.resolved, true);
+});
+
+test('trimming handles empty and malformed input without throwing', () => {
+  assert.doesNotThrow(() => trimScheduleToEndTime([], '18:00'));
+  assert.doesNotThrow(() => trimScheduleToEndTime(null, '18:00'));
+  assert.doesNotThrow(() => trimScheduleToEndTime([{ time: 'x' }], '18:00'));
 });

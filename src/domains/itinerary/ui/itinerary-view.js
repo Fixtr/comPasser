@@ -8,6 +8,7 @@ import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
+import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -452,6 +453,42 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * 종료 시각을 넘긴 일정을 실제로 줄여서 맞춘다.
+   *
+   * 표시 시각을 눌러 속이는 게 아니라 체류 시간을 깎거나 항목을 빼는 것이라,
+   * 줄인 뒤에도 화면의 시각은 계속 사실이다. 무엇을 줄였는지 토스트로 알린다.
+   */
+  trimActiveDayToEndTime() {
+    const plan = this.normalizeData(this.currentItinerary);
+    const dayData = plan?.days?.[this.activeDayIndex];
+    if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
+
+    const { endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex);
+    if (!endTime) return;
+
+    const { items, removedTitles, shortenedCount, resolved } =
+      trimScheduleToEndTime(dayData.scheduleItems, endTime);
+
+    if (removedTitles.length === 0 && shortenedCount === 0) {
+      showGlobalToast(t('trimNothingToDo') || '더 줄일 수 있는 일정이 없습니다.', { tone: 'warning' });
+      return;
+    }
+
+    dayData.scheduleItems = items;
+    this.renderActiveDay(plan);
+
+    const parts = [];
+    if (shortenedCount > 0) parts.push(`${shortenedCount}곳 체류 시간 단축`);
+    if (removedTitles.length > 0) parts.push(`${removedTitles.length}곳 제외(${removedTitles.join(', ')})`);
+    const summary = parts.join(' · ');
+
+    showGlobalToast(
+      resolved ? `일정을 종료 시각에 맞췄습니다 — ${summary}` : `${summary} — 그래도 종료 시각을 넘습니다`,
+      { tone: resolved ? 'success' : 'warning', duration: 5000 }
+    );
+  }
+
+  /**
    * 지금 보고 있는 날짜의 1인 예상 비용을 합산해 보여준다.
    *
    * estimatedCost 는 자유 문자열이라 일부는 금액을 읽어낼 수 없다. 합계만
@@ -529,7 +566,20 @@ export default class ItineraryView extends HTMLElement {
       ? (mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`)
       : `${mins}분`;
 
-    box.textContent = `⚠️ 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다. 마지막 일정을 줄이거나 빼는 것을 권장합니다.`;
+    // 경고만 띄우면 사용자가 직접 폼으로 돌아가 다시 만들어야 한다.
+    // 그 자리에서 해결할 수 있는 버튼을 함께 준다.
+    box.innerHTML = '';
+    const text = document.createElement('span');
+    text.textContent = `⚠️ 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다.`;
+    box.appendChild(text);
+
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'end-time-fix-btn';
+    action.textContent = t('trimScheduleBtn') || '마지막 일정 줄여서 맞추기';
+    action.addEventListener('click', () => this.trimActiveDayToEndTime());
+    box.appendChild(action);
+
     box.style.display = 'block';
   }
 

@@ -129,3 +129,117 @@ export function getEndTimeOverflowMinutes(scheduleItems, dayEndTime) {
 
   return Math.max(0, lastMinutes - ceilingMinutes);
 }
+
+/**
+ * 종료 시각을 넘긴 일정을 실제로 줄여서 맞춘다.
+ *
+ * 경고만 띄우면 사용자가 직접 폼으로 돌아가 다시 만들어야 한다. 초과분은
+ * 대개 "마지막 방문지에 너무 오래 머무는" 데서 오므로, 뒤에서부터 체류
+ * 시간을 깎아 도착이 종료 시각에 맞도록 한다. 시각을 눌러 속이는 게 아니라
+ * 실제로 일정을 줄이는 것이라 표시된 시각은 계속 사실이다.
+ *
+ * 규칙
+ *  - 마지막 방문지부터 거슬러 올라가며 줄인다(늦게 잡힌 일정이 먼저 희생).
+ *  - 한 항목의 체류 시간은 최소 MIN_STAY_MINUTES 까지만 줄인다. 그보다 더
+ *    줄여야 하면 그 항목을 통째로 뺀다 — 5분짜리 방문은 의미가 없다.
+ *  - 사용자가 지정한 필수 일정(AnchorSchedule)과 출발/도착은 건드리지 않는다.
+ *  - 그래도 못 맞추면 할 수 있는 만큼만 줄이고 남은 초과를 알린다.
+ *
+ * @param {Array} scheduleItems 보정이 끝난 하루치 일정
+ * @param {string} dayEndTime 사용자가 지정한 종료 시각("HH:MM")
+ * @returns {{items: Array, removedTitles: string[], shortenedCount: number, resolved: boolean}}
+ */
+const MIN_STAY_MINUTES = 20;
+
+export function trimScheduleToEndTime(scheduleItems, dayEndTime) {
+  const unchanged = { items: scheduleItems, removedTitles: [], shortenedCount: 0, resolved: true };
+  if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return unchanged;
+
+  let overflow = getEndTimeOverflowMinutes(scheduleItems, dayEndTime);
+  if (overflow <= 0) return unchanged;
+
+  // 항목 사이 간격(=이동시간)을 미리 기록해 둔다. 줄이거나 뺀 뒤에 원본을
+  // 다시 읽으면 이미 바뀐 값이라 얼마나 당길 수 있는지 알 수 없다.
+  const items = scheduleItems.map((item, i) => {
+    let gapBefore = 0;
+    if (i > 0) {
+      const prev = scheduleItems[i - 1];
+      const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
+      const start = minutesOf(item.time);
+      if (prevEnd !== null && start !== null) gapBefore = Math.max(0, start - prevEnd);
+    }
+    return { ...item, __gapBefore: gapBefore };
+  });
+  const removedTitles = [];
+  let shortenedCount = 0;
+
+  const isTrimmable = (item) => (
+    item.type !== 'AnchorSchedule' && item.type !== 'departure' && item.type !== 'arrival'
+  );
+
+  // 마지막 방문지부터 거슬러 올라간다(도착 항목은 제외).
+  for (let i = items.length - 1; i >= 0 && overflow > 0; i--) {
+    const item = items[i];
+    if (!isTrimmable(item)) continue;
+
+    const start = minutesOf(item.time);
+    const end = minutesOf(item.endTime);
+    if (start === null || end === null || end <= start) continue;
+
+    const stay = end - start;
+    const canShorten = Math.max(0, stay - MIN_STAY_MINUTES);
+
+    if (canShorten >= overflow) {
+      item.endTime = formatMinutes(end - overflow);
+      shortenedCount += 1;
+      overflow = 0;
+      break;
+    }
+
+    // 최소 체류 시간까지 줄여도 모자라면 이 항목은 빼는 편이 낫다.
+    removedTitles.push(item.title || '');
+    items.splice(i, 1);
+    overflow -= stay;
+  }
+
+  // 앞 항목을 줄이거나 뺀 만큼 뒤 항목들을 당겨온다.
+  const shifted = pullForward(items);
+
+  // 내부용 필드는 화면/저장 데이터에 남기지 않는다.
+  const cleaned = shifted.map(({ __gapBefore, ...item }) => item);
+
+  return {
+    items: cleaned,
+    removedTitles,
+    shortenedCount,
+    resolved: getEndTimeOverflowMinutes(cleaned, dayEndTime) <= 0
+  };
+}
+
+/**
+ * 앞 항목이 줄어든 만큼 뒤 항목들을 앞으로 당긴다.
+ * 각 항목의 체류 시간과 항목 사이 간격(이동시간)은 그대로 유지한다.
+ */
+function pullForward(items) {
+  const result = items.map(item => ({ ...item }));
+
+  for (let i = 1; i < result.length; i++) {
+    const prevEnd = minutesOf(result[i - 1].endTime) ?? minutesOf(result[i - 1].time);
+    const start = minutesOf(result[i].time);
+    if (prevEnd === null || start === null) continue;
+
+    // 원래 간격(이동시간)만큼은 반드시 남긴다. 앞이 줄어든 만큼만 당긴다.
+    const nextStart = prevEnd + (result[i].__gapBefore || 0);
+    if (nextStart >= start) continue; // 당길 여지가 없다
+
+    const shift = start - nextStart;
+    const end = minutesOf(result[i].endTime);
+    result[i].time = formatMinutes(start - shift);
+    if (end !== null) result[i].endTime = formatMinutes(end - shift);
+  }
+
+  // 도착 시각을 종료 시각으로 눌러 담지 않는다. 줄일 수 없어 여전히 늦는다면
+  // 그 사실을 그대로 보여주고 resolved: false 로 알리는 게 맞다
+  // (표시 시각을 속이면 실제로 그 시각에 도착하는 것처럼 오해하게 된다).
+  return result;
+}
