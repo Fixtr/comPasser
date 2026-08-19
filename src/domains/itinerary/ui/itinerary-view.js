@@ -6,8 +6,11 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
-import { applyTransitDelays, getEndTimeOverflowMinutes } from '../services/itinerary-schedule-adjust.mjs';
-import { enforcePlannerConstraints } from '../../planner/services/planner-constraints.mjs';
+import {
+  buildItineraryViewModel,
+  reconcileWithConstraints,
+  getEndTimeWarning
+} from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
   getTransitModeText,
@@ -126,29 +129,11 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
-   * Firestore/공유 링크에서 읽어온 일정에도 확정적 가드레일을 다시 적용한다.
-   *
-   * enforcePlannerConstraints 는 원래 생성 시점(gemini-optimizer.js)에만
-   * 호출됐다. 그래서 저장/공유된 일정을 열면 저장 당시 상태 그대로
-   * 렌더링됐고, 이후 가드레일이 개선돼도 기존 일정에는 전혀 반영되지
-   * 않았다(종료 시각 초과, 가짜 "OO로 이동" 항목 등이 그대로 남음).
-   *
-   * 저장 데이터는 { request, days } 형태라 사용자가 실제로 입력했던 제약
-   * 조건을 그대로 갖고 있으므로, 열 때마다 같은 보정을 재적용할 수 있다.
-   * request 가 없는 아주 예전 데이터는 보정 기준이 없으므로 원본을 그대로 둔다.
+   * 저장/공유로 읽어온 일정에도 확정적 가드레일을 다시 적용한다.
+   * 실제 계산은 itinerary-view-model.mjs 가 담당한다(테스트 가능한 순수 모듈).
    */
   reconcileWithConstraints(rawData) {
-    const safePlan = normalizeData(rawData);
-    const request = rawData?.request;
-    if (!safePlan || !Array.isArray(safePlan.days) || !request) return rawData;
-
-    const correctedDays = enforcePlannerConstraints(safePlan.days, request, getLang());
-
-    // 원본이 { itineraryPlan: {...} } 로 감싸져 있던 구버전 형태면 그 껍데기를 유지한다.
-    if (rawData.itineraryPlan && Array.isArray(rawData.itineraryPlan.days)) {
-      return { ...rawData, itineraryPlan: { ...rawData.itineraryPlan, days: correctedDays } };
-    }
-    return { ...rawData, days: correctedDays };
+    return reconcileWithConstraints(rawData, getLang());
   }
 
   async loadItineraryById(id) {
@@ -408,18 +393,11 @@ export default class ItineraryView extends HTMLElement {
    * 그대로 남아있어, 저장된 일정을 불러온 경우에도 읽을 수 있다.
    */
   refreshEndTimeWarning() {
-    const safePlan = this.normalizeData(this.currentItinerary);
-    const dayData = safePlan?.days?.[this.activeDayIndex];
-    const requestDailyData = this.currentItinerary?.request?.dailyData;
-    const dayNumber = this.activeDayIndex + 1;
-    const dayConstraints = Array.isArray(requestDailyData)
-      ? (requestDailyData.find(d => Number(d.day) === dayNumber) || requestDailyData[this.activeDayIndex])
-      : null;
-
-    this.renderEndTimeWarning(
-      getEndTimeOverflowMinutes(dayData?.scheduleItems, dayConstraints?.endTime),
-      dayConstraints?.endTime
-    );
+    // currentItinerary 에는 이미 이동시간 보정이 반영돼 있다. buildItineraryViewModel
+    // 을 쓰면 reconcile 이 다시 돌아 초과분이 정규화돼 사라지므로, 현재 상태만
+    // 보고 판단하는 getEndTimeWarning 을 쓴다.
+    const { overflowMinutes, endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex);
+    this.renderEndTimeWarning(overflowMinutes, endTime);
   }
 
   /**
@@ -450,17 +428,24 @@ export default class ItineraryView extends HTMLElement {
   applyTransitDelaysToActiveDay(transitRoutes) {
     if (!this.currentItinerary) return;
 
-    const safePlan = this.normalizeData(this.currentItinerary);
-    const dayData = safePlan?.days?.[this.activeDayIndex];
-    if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
+    const { scheduleItems } = buildItineraryViewModel({
+      rawItinerary: this.currentItinerary,
+      activeDayIndex: this.activeDayIndex,
+      transitRoutes,
+      language: getLang()
+    });
+    if (!scheduleItems.length) return;
 
-    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes);
-    dayData.scheduleItems = adjustedItems;
+    // 보정 결과를 currentItinerary 에 반영해 저장/공유에도 그대로 담기게 한다.
+    const plan = this.normalizeData(this.currentItinerary);
+    const dayData = plan?.days?.[this.activeDayIndex];
+    if (!dayData) return;
+    dayData.scheduleItems = scheduleItems;
 
     this.refreshEndTimeWarning();
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
-    adjustedItems.forEach((item, idx) => {
+    scheduleItems.forEach((item, idx) => {
       const badge = badges[idx];
       if (!badge) return;
       badge.innerHTML = item.endTime ? `${item.time} -<br>${item.endTime}` : item.time;
