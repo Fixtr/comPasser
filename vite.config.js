@@ -6,4 +6,27 @@ export default defineConfig({
   // `generateItinerary` Cloud Function 에서만 사용됩니다. 여기에 다시 추가하면
   // 키가 브라우저 번들에 그대로 노출됩니다.
   envPrefix: ['VITE_'],
+
+  build: {
+    rollupOptions: {
+      output: {
+        // 전체가 단일 청크(670KB+)라 배포할 때마다 브라우저가 Firebase SDK까지
+        // 통째로 다시 받아야 했다. 자주 바뀌는 앱 코드와 거의 바뀌지 않는
+        // 벤더 코드를 갈라 두면 재배포 시 앱 청크만 무효화되고, 첫 로드에서도
+        // 청크들을 병렬로 받을 수 있다.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+
+          // Firestore 는 저장/조회 화면에서만, Functions 는 일정 생성에서만
+          // 쓰이므로 인증과 분리해 두면 캐시 무효화 범위가 좁아진다.
+          if (id.includes('@firebase/firestore') || id.includes('firebase/firestore')) return 'vendor-firestore';
+          if (id.includes('@firebase/functions') || id.includes('firebase/functions')) return 'vendor-functions';
+          if (id.includes('@firebase/auth') || id.includes('firebase/auth')) return 'vendor-auth';
+          if (id.includes('@firebase') || id.includes('firebase')) return 'vendor-firebase-core';
+          if (id.includes('@googlemaps')) return 'vendor-maps';
+          return 'vendor';
+        }
+      }
+    }
+  }
 });
