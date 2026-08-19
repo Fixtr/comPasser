@@ -6,6 +6,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
+import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -115,7 +116,8 @@ export default class ItineraryView extends HTMLElement {
         try {
           saveBtn.disabled = true;
           saveBtn.textContent = t('savingStateBtn') || '저장 중...';
-          const newId = await saveItinerary(user.uid, this.currentItinerary);
+          const title = buildItineraryTitle(this.currentItinerary, getLang());
+          const newId = await saveItinerary(user.uid, this.currentItinerary, title);
           this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다! 🎉");
           
           // 🚀 [Routing] URL 업데이트: /view/:id 로 이동

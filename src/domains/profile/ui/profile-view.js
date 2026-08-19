@@ -1,6 +1,7 @@
 import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, deleteAllUserItineraries } from '../../itinerary/services/firestore-service.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
+import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 
 class ProfileView extends HTMLElement {
@@ -262,12 +263,15 @@ class ProfileView extends HTMLElement {
             const dateObj = item.createdAt?.toDate() || new Date();
             const dateString = dateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
             const anchorsCount = item.itineraryPlan?.days?.reduce((acc, day) => acc + (day.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0), 0) || 0;
+            // 저장 시 기록해 둔 제목을 쓰고, 그전에 저장된 문서는 지금 계산해 채운다.
+            const tripTitle = item.title || buildItineraryTitle(item.itineraryPlan);
+            const anchorSuffix = anchorsCount > 0 ? ` · 필수 ${anchorsCount}곳` : '';
 
             const card = document.createElement('div');
             card.className = 'trip-card';
             card.innerHTML = `
                 <div class="trip-info">
-                    <div class="trip-title">여행 일정 (${anchorsCount}개의 핵심 장소)</div>
+                    <div class="trip-title">${tripTitle}${anchorSuffix}</div>
                     <div class="trip-date">저장일: ${dateString}</div>
                 </div>
                 <div class="trip-actions">

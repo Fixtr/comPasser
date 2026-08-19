@@ -1,6 +1,6 @@
 import { loadFirestore } from "../../../lib/firestore-lazy.mjs";
 
-export async function saveItinerary(userId, itineraryPlan) {
+export async function saveItinerary(userId, itineraryPlan, title) {
     try {
         const { db, collection, addDoc, getDocs, query, where, orderBy,
                 serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
@@ -8,6 +8,9 @@ export async function saveItinerary(userId, itineraryPlan) {
         const docRef = await addDoc(itinerariesRef, {
             userId: userId,
             itineraryPlan: itineraryPlan,
+            // 목록에서 서로 구분할 수 있도록 여행 날짜/방문지 기반 제목을 함께 남긴다.
+            // 예전 문서에는 없으므로 읽는 쪽에서 폴백을 계산한다.
+            title: typeof title === 'string' && title.trim() ? title.trim() : null,
             createdAt: serverTimestamp()
         });
         return docRef.id;
