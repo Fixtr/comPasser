@@ -365,3 +365,73 @@ test('each day of a multi-day trip is capped by its own end time, independent of
   assert.equal(day2Last.type, 'arrival');
   assert.equal(day2Last.time, '15:00'); // 2일차는 자기 자신의 종료 시각을 쓴다
 });
+
+test('a transit-narration item is removed even when it is not the last item', () => {
+  // 실제 제보 재현: AI 가 "인천국제공항 이동" 뒤에 "인천 도착"을 하나 더
+  // 붙이는 바람에 가짜 이동 항목이 마지막이 아니게 됐고, 배열 끝에서부터만
+  // 제거하던 기존 로직이 이를 놓쳤다.
+  const request = {
+    ...flatRequest,
+    startTime: '15:48',
+    endTime: '21:48',
+    startLocation: '서울특별시 용산구 한강대로23길 아이파크몰 용산점',
+    endLocation: '인천광역시 구 공항로 인천공항 (ICN)',
+    anchorSchedules: []
+  };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '16:14', endTime: '18:26', type: 'attraction', title: '국립중앙박물관', location: '서울특별시 용산구 서빙고로 137' },
+      { time: '18:50', endTime: '20:20', type: 'dining', title: '용산역 맛집 탐방', location: '서울특별시 용산구 한강대로23길' },
+      { time: '20:30', endTime: '21:18', type: 'leisure', title: '인천국제공항 이동', location: '인천광역시 중구 공항로 271' },
+      { time: '21:20', endTime: '21:40', type: 'leisure', title: '인천 도착', location: '인천' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  assert.equal(
+    day.scheduleItems.some(item => item.title === '인천국제공항 이동'),
+    false,
+    '마지막이 아니어도 이동 서술 항목은 제거돼야 한다'
+  );
+
+  const last = day.scheduleItems.at(-1);
+  assert.equal(last.type, 'arrival', '목적지에 붙은 AI 항목은 도착 지점으로 승격돼야 한다');
+  assert.equal(last.endTime, '21:48');
+  assert.equal(last.location, request.endLocation);
+});
+
+test('a matched departure item is promoted to the departure type', () => {
+  const request = { ...flatRequest, anchorSchedules: [] };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '09:30', endTime: '10:00', type: 'attraction', title: '호텔에서 출발', location: flatRequest.startLocation },
+      { time: '20:00', endTime: '20:30', type: 'attraction', title: '공항 도착', location: flatRequest.endLocation }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  assert.equal(day.scheduleItems.length, 2);
+  assert.equal(day.scheduleItems[0].type, 'departure');
+  assert.equal(day.scheduleItems[0].time, flatRequest.startTime);
+  assert.equal(day.scheduleItems.at(-1).type, 'arrival');
+});
+
+test('a genuine stop whose name merely contains 이동 is not stripped', () => {
+  const request = { ...flatRequest, anchorSchedules: [] };
+  const generatedDays = [{
+    day: 1,
+    scheduleItems: [
+      { time: '12:00', endTime: '13:00', type: 'dining', title: '이동갈비 맛집', location: '경기도 포천시' },
+      { time: '15:00', endTime: '16:00', type: 'attraction', title: '이동면 자연휴양림', location: '경기도 포천시 이동면' }
+    ]
+  }];
+
+  const [day] = enforcePlannerConstraints(generatedDays, request, 'ko');
+
+  assert.ok(day.scheduleItems.some(i => i.title === '이동갈비 맛집'));
+  assert.ok(day.scheduleItems.some(i => i.title === '이동면 자연휴양림'));
+});

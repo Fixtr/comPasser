@@ -284,12 +284,15 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       ));
     }
 
-    // Gemini는 종종 마지막 이동을 "서울역으로 이동" -> "인천국제공항으로
-    // 이동"처럼 여러 개의 가짜 "이동" 항목으로 서술한다(실제로는 하나의
-    // 다구간 여정일 뿐이고, transitInfo/지도 레이어가 이미 환승 정보를
-    // 카드로 보여준다). 목적지에 아직 도착하지 않은(=endLocation과 다른)
-    // 이런 항목들을 배열 끝에서부터 제거해, 마지막 실제 방문 다음에 바로
-    // 도착 항목이 오도록 한다.
+    // Gemini 는 종종 이동 자체를 하나의 일정처럼 만들어낸다("서울역으로 이동",
+    // "인천국제공항 이동", "공항으로 이동 준비"). 실제로는 하나의 다구간 여정일
+    // 뿐이고 앱이 두 일정 사이의 실제 경로를 이미 카드로 그려준다.
+    //
+    // 처음에는 배열 끝에서부터만 제거했는데, AI 가 "인천국제공항 이동" 다음에
+    // "인천 도착" 같은 항목을 하나 더 붙이면 가짜 항목이 마지막이 아니게 되어
+    // 그대로 남았다(실제 제보 화면). 목적지에 아직 도달하지 않은 이동 서술
+    // 항목은 위치에 상관없이 전부 제거한다. 사용자가 지정한 앵커와 출발/도착
+    // 항목은 절대 건드리지 않는다.
     const endLocationForCleanup = getLocationName(constraints.endLocation);
     if (endLocationForCleanup) {
       const looksLikeTransitNarration = (item) => (
@@ -299,9 +302,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
         /(?:으로\s*이동|이동\s*(?:준비|중)?)\s*$/.test(asNonEmptyString(item.title)) &&
         !isSameLocation(item.location, endLocationForCleanup)
       );
-      while (scheduleItems.length > 0 && looksLikeTransitNarration(scheduleItems[scheduleItems.length - 1])) {
-        scheduleItems.pop();
-      }
+      scheduleItems = scheduleItems.filter(item => !looksLikeTransitNarration(item));
     }
 
     const startLocation = getLocationName(constraints.startLocation);
@@ -310,6 +311,9 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       if (scheduleItems[0] && isSameLocation(scheduleItems[0].location, startLocation)) {
         scheduleItems[0] = {
           ...scheduleItems[0],
+          // AI 가 만든 항목을 출발 지점으로 승격한다. type 까지 맞춰야
+          // 타임라인이 다른 방문지가 아니라 경계 항목으로 렌더링한다.
+          type: 'departure',
           time: constraints.startTime || scheduleItems[0].time,
           location: startLocation,
           googleMapsUrl: mapsSearchUrl(startLocation)
@@ -326,6 +330,9 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       if (scheduleItems[lastIndex] && isSameLocation(scheduleItems[lastIndex].location, endLocation)) {
         scheduleItems[lastIndex] = {
           ...scheduleItems[lastIndex],
+          // 위와 같은 이유로 도착 지점으로 승격한다("인천 도착" 처럼 AI 가
+          // 목적지에 붙여 놓은 항목이 일반 카드로 남지 않게 한다).
+          type: 'arrival',
           endTime: constraints.endTime || scheduleItems[lastIndex].endTime,
           location: endLocation,
           googleMapsUrl: mapsSearchUrl(endLocation)
