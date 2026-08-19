@@ -105,6 +105,21 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
       .replace('{0}', detail.fromIndex + 1)
       .replace('{1}', destIndex + 1);
 
+    // 같은 장소에서 이어지는 일정은 이동 자체가 없다. "도보 0분" 같은
+    // 빈 카드 대신 그 사실을 그대로 알려준다.
+    if (detail.samePlace) {
+      el.innerHTML = `
+        <div class="transit-seg-card">
+          <div class="transit-seg-header">
+            <span>${headerText}</span>
+            <span class="transit-seg-total">${t('samePlaceLabel') || '같은 장소 · 이동 없음'}</span>
+          </div>
+        </div>
+      `;
+      el.classList.remove('hidden');
+      return;
+    }
+
     const steps = Array.isArray(detail.steps) ? detail.steps : [];
     let stepsHtml = '';
     if (steps.length > 0) {

@@ -263,3 +263,17 @@ test('a single-stop day needs no transit verification', () => {
   assert.deepEqual(getTransitCoverage([{ time: '09:00' }], []), { expected: 0, resolved: 0, status: 'verified' });
   assert.deepEqual(getTransitCoverage([], []), { expected: 0, resolved: 0, status: 'verified' });
 });
+
+test('a zero-duration same-place segment counts as verified, not as a failure', () => {
+  // 쇼핑몰 방문 -> 그 몰 안에서 저녁 식사처럼 좌표가 같은 구간은 지도가
+  // Directions 를 호출하지 않고 소요시간 0 으로 확정한다. 이걸 미확인으로
+  // 세면 "일부 구간만 확인됨" 안내가 잘못 뜬다.
+  const items = [{ time: '15:48' }, { time: '16:07' }, { time: '17:37' }, { time: '21:48' }];
+  const routes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 19 },
+    { fromIndex: 1, toIndex: 2, durationMinutes: 0, samePlace: true },
+    { fromIndex: 2, toIndex: 3, durationMinutes: 93 }
+  ];
+
+  assert.deepEqual(getTransitCoverage(items, routes), { expected: 3, resolved: 3, status: 'verified' });
+});

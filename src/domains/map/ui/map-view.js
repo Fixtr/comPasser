@@ -9,6 +9,17 @@ function latLngToString(latLng) {
   return `${lat},${lng}`;
 }
 
+/**
+ * 두 좌표가 사실상 같은 지점인지 판정한다(소수점 5자리 ≈ 1m).
+ * 마커 병합과 같은 기준을 쓰므로 "핀은 하나인데 경로는 요청" 같은 불일치가 없다.
+ */
+function isSameCoordinate(a, b) {
+  if (!a || !b) return false;
+  const [aLat, aLng] = latLngToString(a).split(',').map(Number);
+  const [bLat, bLng] = latLngToString(b).split(',').map(Number);
+  return aLat.toFixed(5) === bLat.toFixed(5) && aLng.toFixed(5) === bLng.toFixed(5);
+}
+
 export class MapView extends HTMLElement {
   constructor() {
     super();
@@ -289,6 +300,26 @@ export class MapView extends HTMLElement {
       );
       // Same segment in the Google Maps UI, so users can verify the route.
       const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(latLngToString(origin))}&destination=${encodeURIComponent(latLngToString(destination))}&travelmode=transit`;
+
+      // 같은 장소에서 이어지는 일정(예: 쇼핑몰 방문 -> 그 몰 안에서 저녁 식사)은
+      // 출발지와 목적지 좌표가 같다. Directions API 에 그대로 요청하면
+      // ZERO_RESULTS 가 떨어져 "실패한 구간"으로 잡히고, 그 결과 타임라인에
+      // "일부 구간만 확인됨" 안내가 뜨며 콘솔에도 오류가 쌓인다. 애초에
+      // 이동이 없는 구간이므로 요청하지 않고 소요시간 0으로 확정한다.
+      // (마커 병합도 같은 기준으로 좌표를 비교한다.)
+      if (isSameCoordinate(origin, destination)) {
+        return Promise.resolve({
+          fromIndex,
+          toIndex,
+          duration: '',
+          durationMinutes: 0,
+          distance: '',
+          mode: 'SAME_PLACE',
+          samePlace: true,
+          steps: [],
+          directionsUrl
+        });
+      }
 
       // Delegate to RoutingService
       return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {

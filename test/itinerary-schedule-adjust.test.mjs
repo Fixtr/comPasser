@@ -277,3 +277,18 @@ test('legacy routes without toIndex still behave as contiguous segments', () => 
 
   assert.equal(b.time, '10:45'); // toIndex 가 없으면 fromIndex + 1 로 간주
 });
+
+test('a same-place segment (0 minutes) only enforces no-overlap, never a shift', () => {
+  const scheduleItems = [
+    { time: '16:07', endTime: '17:37', title: '용산 아이파크몰' },
+    { time: '17:37', endTime: '19:07', title: '몰 안에서 저녁 식사' }
+  ];
+
+  const [mall, dinner] = applyTransitDelays(scheduleItems, [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 0, samePlace: true }
+  ]);
+
+  assert.equal(mall.time, '16:07');
+  assert.equal(dinner.time, '17:37', '같은 장소면 이동시간 0이므로 그대로 이어져야 한다');
+  assert.equal(dinner.endTime, '19:07');
+});
