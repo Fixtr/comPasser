@@ -1,12 +1,13 @@
 import { saveItinerary, createSharedItinerary, getItineraryById } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-import { t } from '../../../utils/i18n.js';
+import { t, getLang } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
+import { enforcePlannerConstraints } from '../../planner/services/planner-constraints.mjs';
 import {
   getTransitStyle,
   getTransitModeText,
@@ -124,6 +125,32 @@ export default class ItineraryView extends HTMLElement {
     return normalizeData(rawData);
   }
 
+  /**
+   * Firestore/공유 링크에서 읽어온 일정에도 확정적 가드레일을 다시 적용한다.
+   *
+   * enforcePlannerConstraints 는 원래 생성 시점(gemini-optimizer.js)에만
+   * 호출됐다. 그래서 저장/공유된 일정을 열면 저장 당시 상태 그대로
+   * 렌더링됐고, 이후 가드레일이 개선돼도 기존 일정에는 전혀 반영되지
+   * 않았다(종료 시각 초과, 가짜 "OO로 이동" 항목 등이 그대로 남음).
+   *
+   * 저장 데이터는 { request, days } 형태라 사용자가 실제로 입력했던 제약
+   * 조건을 그대로 갖고 있으므로, 열 때마다 같은 보정을 재적용할 수 있다.
+   * request 가 없는 아주 예전 데이터는 보정 기준이 없으므로 원본을 그대로 둔다.
+   */
+  reconcileWithConstraints(rawData) {
+    const safePlan = normalizeData(rawData);
+    const request = rawData?.request;
+    if (!safePlan || !Array.isArray(safePlan.days) || !request) return rawData;
+
+    const correctedDays = enforcePlannerConstraints(safePlan.days, request, getLang());
+
+    // 원본이 { itineraryPlan: {...} } 로 감싸져 있던 구버전 형태면 그 껍데기를 유지한다.
+    if (rawData.itineraryPlan && Array.isArray(rawData.itineraryPlan.days)) {
+      return { ...rawData, itineraryPlan: { ...rawData.itineraryPlan, days: correctedDays } };
+    }
+    return { ...rawData, days: correctedDays };
+  }
+
   async loadItineraryById(id) {
     try {
       this.clear();
@@ -145,8 +172,10 @@ export default class ItineraryView extends HTMLElement {
 
       this.showResults(data);
 
-      // Dispatch event for map to update
-      const safePlan = this.normalizeData(data);
+      // Dispatch event for map to update. showResults 가 가드레일을 재적용한
+      // 결과(this.currentItinerary)를 쓴다 — 원본을 그대로 넘기면 지도만
+      // 보정 전 항목(가짜 "OO로 이동" 등)을 그리게 된다.
+      const safePlan = this.normalizeData(this.currentItinerary || data);
       if (safePlan) {
         window.dispatchEvent(new CustomEvent('render-map-route', { detail: safePlan }));
       }
@@ -462,10 +491,13 @@ export default class ItineraryView extends HTMLElement {
 
   showResults(itineraryData) {
     try {
-      this.currentItinerary = itineraryData;
+      // 저장/공유로 불러온 일정도 최신 가드레일을 통과시킨 뒤 화면·저장·
+      // 지도에 쓰이도록, 보정된 결과를 currentItinerary 로 삼는다.
+      const reconciled = this.reconcileWithConstraints(itineraryData);
+      this.currentItinerary = reconciled;
       this.setLoading(false);
 
-      const safePlan = this.normalizeData(itineraryData);
+      const safePlan = this.normalizeData(reconciled);
 
       if (!safePlan || !Array.isArray(safePlan.days) || safePlan.days.length === 0) {
         this.setError("<div>저장된 세부 일정이 없습니다.</div>");
