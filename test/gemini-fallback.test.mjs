@@ -95,3 +95,19 @@ test('isValidGeneratedDays rejects anything that is not a non-empty array', () =
   assert.equal(isValidGeneratedDays('not-an-array'), false);
   assert.equal(isValidGeneratedDays({ days: [] }), false);
 });
+
+test('a fallback itinerary is marked so the UI can never pass it off as a real one', () => {
+  // 예전에는 alert 한 번 띄우고 Mock 일정을 정상 결과와 똑같이 렌더링했다.
+  // 표식이 없으면 화면에서 구분할 방법이 없어 사용자가 저장·공유까지 하게 된다.
+  const constraints = normalizePlannerRequest(flatRequest);
+
+  const quota = buildMockItinerary(constraints, 'ko', 'quota');
+  assert.equal(quota.isFallback, true);
+  assert.equal(quota.fallbackReason, 'quota');
+
+  const failed = buildMockItinerary(constraints, 'ko', 'error');
+  assert.equal(failed.fallbackReason, 'error');
+
+  // 이유를 안 넘기면 일반 실패로 본다.
+  assert.equal(buildMockItinerary(constraints, 'ko').fallbackReason, 'error');
+});

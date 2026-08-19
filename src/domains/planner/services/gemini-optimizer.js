@@ -57,15 +57,12 @@ export async function generateOptimizedItinerary(plannerRequest) {
 
     console.error("[generateItinerary] Cloud Function call failed. Falling back to Mock Data.", error);
 
-    setTimeout(() => {
-      alert(
-        error?.code === "functions/resource-exhausted"
-          ? "API 일일 할당량이 초과되어 임시 데이터로 일정을 생성했습니다."
-          : "일정 생성에 실패하여 임시 데이터로 일정을 생성했습니다."
-      );
-    }, 500);
-
-    return buildMockItinerary(normalizedRequest, currentLang);
+    // 예전에는 alert 한 번 띄우고 Mock 일정을 정상 결과와 똑같이 렌더링했다.
+    // alert 을 닫는 순간 화면에는 가짜 일정만 남아, 사용자가 그걸 진짜로 믿고
+    // 저장·공유까지 할 수 있었다. 이제는 표식을 함께 넘겨 화면이 상시 경고를
+    // 띄우고 저장/공유를 막는다.
+    const fallbackReason = error?.code === "functions/resource-exhausted" ? "quota" : "error";
+    return buildMockItinerary(normalizedRequest, currentLang, fallbackReason);
   }
 }
 

@@ -419,6 +419,36 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * AI 일정 생성이 실패해 임시(Mock) 일정이 표시되고 있음을 알린다.
+   *
+   * 예전에는 alert 한 번만 띄우고 임시 일정을 정상 결과와 똑같이 보여줬다.
+   * alert 을 닫으면 화면에는 "출발 -> 도착"만 있는 가짜 일정이 남고, 사용자가
+   * 그걸 진짜로 믿고 저장·공유까지 할 수 있었다. 임시 일정임을 상시 표시하고
+   * 저장/공유 버튼은 숨겨 잘못된 일정이 퍼지지 않게 한다.
+   *
+   * @returns {boolean} 임시 일정이면 true
+   */
+  refreshFallbackWarning() {
+    const box = this.shadowRoot.getElementById('fallback-warning');
+    const isFallback = Boolean(this.currentItinerary?.isFallback);
+    if (!box) return isFallback;
+
+    if (!isFallback) {
+      box.style.display = 'none';
+      box.textContent = '';
+      return false;
+    }
+
+    const reason = this.currentItinerary?.fallbackReason === 'quota'
+      ? (t('fallbackReasonQuota') || 'AI 일일 사용량을 모두 소진했습니다.')
+      : (t('fallbackReasonError') || 'AI 일정 생성에 실패했습니다.');
+
+    box.textContent = `🚨 ${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`;
+    box.style.display = 'block';
+    return true;
+  }
+
+  /**
    * 표시된 시각이 실제 이동시간으로 검증된 것인지 안내한다.
    *
    * 지도가 실패하면 예전에는 아무 표시 없이 AI 추정 시각만 남아, 사용자는
@@ -514,6 +544,7 @@ export default class ItineraryView extends HTMLElement {
 
       <div id="results" style="display: none;">
         <div id="results-content" style="background: white;">
+          <div id="fallback-warning" class="fallback-warning" style="display: none;"></div>
           <div id="transit-notice" class="transit-notice" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
@@ -570,6 +601,8 @@ export default class ItineraryView extends HTMLElement {
     this.transitUnavailable = false;
     const notice = this.shadowRoot.getElementById('transit-notice');
     if (notice) notice.style.display = 'none';
+    const fallback = this.shadowRoot.getElementById('fallback-warning');
+    if (fallback) fallback.style.display = 'none';
   }
 
   showResults(itineraryData) {
@@ -590,14 +623,18 @@ export default class ItineraryView extends HTMLElement {
       // 새 일정은 항상 1일차부터: 지도(renderRoute)도 days[0]을 그리므로 둘을 일치시킨다
       this.activeDayIndex = 0;
 
+    // 임시(Mock) 일정은 저장·공유를 막는다. 가짜 일정이 Firestore 에 남거나
+    // 공유 링크로 퍼지면 되돌릴 방법이 없다.
+    const isFallback = this.refreshFallbackWarning();
+
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
-    if (saveBtn) saveBtn.style.display = 'block';
+    if (saveBtn) saveBtn.style.display = isFallback ? 'none' : 'block';
 
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
-    if (shareBtn) shareBtn.style.display = 'block';
+    if (shareBtn) shareBtn.style.display = isFallback ? 'none' : 'block';
 
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
-    if (kakaoBtn) kakaoBtn.style.display = 'block';
+    if (kakaoBtn) kakaoBtn.style.display = isFallback ? 'none' : 'block';
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';

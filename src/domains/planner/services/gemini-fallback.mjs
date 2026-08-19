@@ -7,8 +7,15 @@ import { enforcePlannerConstraints, getLocationName } from "./planner-constraint
  * firebase 의존성이 없는 순수 함수로 분리되어 있어 `gemini-optimizer.js`
  * (Firebase 앱 초기화 부작용 때문에 plain Node 환경에서 직접 import 할 수 없음)
  * 없이도 단독으로 테스트할 수 있다.
+ *
+ * 결과에는 isFallback 표식을 남긴다. 이게 없으면 화면에서 정상 결과와
+ * 구분할 수 없어, 사용자가 임시 일정을 진짜로 믿고 저장·공유하게 된다.
+ *
+ * @param {object} constraints 정규화된 plannerRequest
+ * @param {string} lang 'ko' | 'en'
+ * @param {string} [fallbackReason] 'quota' | 'error' — 화면 안내 문구를 고르는 데 쓴다
  */
-export function buildMockItinerary(constraints, lang) {
+export function buildMockItinerary(constraints, lang, fallbackReason = 'error') {
   const isKo = lang === "ko";
 
   let dates = ["Unknown Date"];
@@ -91,7 +98,9 @@ export function buildMockItinerary(constraints, lang) {
 
   return {
     request: constraints,
-    days: enforcePlannerConstraints(mockDays, constraints, lang)
+    days: enforcePlannerConstraints(mockDays, constraints, lang),
+    isFallback: true,
+    fallbackReason
   };
 }
 

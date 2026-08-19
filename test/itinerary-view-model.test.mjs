@@ -277,3 +277,19 @@ test('a zero-duration same-place segment counts as verified, not as a failure', 
 
   assert.deepEqual(getTransitCoverage(items, routes), { expected: 3, resolved: 3, status: 'verified' });
 });
+
+test('the fallback marker survives reconciliation so the warning persists on reload', () => {
+  const fallback = {
+    isFallback: true,
+    fallbackReason: 'quota',
+    request: airportRequest,
+    days: [{ day: 1, scheduleItems: [
+      { time: '10:00', endTime: '11:00', type: 'attraction', title: '임시', location: '경복궁' }
+    ] }]
+  };
+
+  const vm = buildItineraryViewModel({ rawItinerary: fallback });
+
+  assert.equal(vm.itinerary.isFallback, true, '보정을 거쳐도 임시 일정 표식이 남아야 한다');
+  assert.equal(vm.itinerary.fallbackReason, 'quota');
+});
