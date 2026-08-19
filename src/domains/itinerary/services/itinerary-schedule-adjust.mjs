@@ -27,21 +27,14 @@ function formatMinutes(totalMinutes) {
 /**
  * @param {Array<{time?: string, endTime?: string}>} scheduleItems 표시 순서대로 정렬된 하루치 일정
  * @param {Array<{fromIndex: number, durationMinutes?: number|null}>} transitRoutes map-view.js 가 계산한 구간별 실제 소요시간
- * @param {string} [dayEndTime] 사용자가 지정한 그 날의 종료 시각("HH:MM"). 주어지면
- *   마지막 항목(도착 지점, enforcePlannerConstraints 가 이 시각으로 고정해 둔 값)이
- *   실제 이동시간 보정으로 이 시각을 넘기지 않도록 상한을 건다 — 일찍 끝나는 건
- *   괜찮지만 사용자가 지정한 종료 시각을 넘기면 안 되기 때문. 중간 항목들은
- *   여전히 정상적으로 뒤로 밀린다.
  * @returns {Array} 시각이 보정된 새 scheduleItems 배열 (입력은 변경하지 않음)
  */
-export function applyTransitDelays(scheduleItems, transitRoutes, dayEndTime) {
+export function applyTransitDelays(scheduleItems, transitRoutes) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return scheduleItems;
 
   const result = scheduleItems.map(item => ({ ...item }));
 
-  // 실제 이동시간 데이터가 있을 때만 지연 보정 루프를 돈다. 데이터가
-  // 없어도(예: 지도가 아직 계산 전) 아래의 종료 시각 상한은 별개로 계속
-  // 적용한다.
+  // 실제 이동시간 데이터가 있을 때만 지연 보정 루프를 돈다.
   if (Array.isArray(transitRoutes) && transitRoutes.length > 0) {
     const transitMinutesByFromIndex = new Map();
     transitRoutes.forEach(route => {
@@ -82,31 +75,39 @@ export function applyTransitDelays(scheduleItems, transitRoutes, dayEndTime) {
     }
   }
 
-  // 마지막 항목(도착 지점)만 사용자가 지정한 종료 시각을 상한으로 건다.
-  // 앞선 보정이 이 항목까지 종료 시각 너머로 밀었더라도 여기서 눌러준다.
-  //
-  // 자정을 넘긴 시각("01:33" 같은)은 숫자로만 보면 종료 시각(예: "21:56")
-  // 보다 작아 보여 상한을 넘지 않은 것처럼 착각하기 쉽다. 직전 항목보다
-  // 1시간 넘게 이른 것처럼 보이면 자정을 넘긴 것으로 보고 24시간을 더한
-  // 뒤 상한과 비교한다.
-  const ceilingMinutes = minutesOf(dayEndTime);
-  if (ceilingMinutes !== null && result.length > 0) {
-    const lastIndex = result.length - 1;
-    const referenceMinutes = lastIndex > 0
-      ? (minutesOf(result[lastIndex - 1].endTime) ?? minutesOf(result[lastIndex - 1].time))
-      : null;
+  return result;
+}
 
-    const clampToCeiling = (value) => {
-      let valueMinutes = minutesOf(value);
-      if (valueMinutes === null) return value;
-      if (referenceMinutes !== null && valueMinutes < referenceMinutes - 60) {
-        valueMinutes += 1440; // 자정을 넘긴 것으로 간주
-      }
-      return valueMinutes > ceilingMinutes ? formatMinutes(ceilingMinutes) : value;
-    };
-    result[lastIndex].time = clampToCeiling(result[lastIndex].time);
-    result[lastIndex].endTime = clampToCeiling(result[lastIndex].endTime);
+/**
+ * 마지막 항목(도착 지점)이 사용자가 지정한 종료 시각을 몇 분 넘겼는지 돌려준다.
+ *
+ * 예전에는 이 상황에서 도착 시각 자체를 종료 시각으로 눌러버렸는데, 그러면
+ * "20:07 에 일정이 끝나고 94분을 이동했는데 20:51 도착"처럼 사실과 다른
+ * 시각이 표시된다. 시각은 실제 계산 결과(21:41) 그대로 두고, 초과했다는
+ * 사실만 이 함수로 알려 UI가 경고를 띄우게 한다.
+ *
+ * @param {Array<{time?: string, endTime?: string}>} scheduleItems 보정이 끝난 하루치 일정
+ * @param {string} dayEndTime 사용자가 지정한 종료 시각("HH:MM")
+ * @returns {number} 초과한 분(0이면 초과 없음)
+ */
+export function getEndTimeOverflowMinutes(scheduleItems, dayEndTime) {
+  const ceilingMinutes = minutesOf(dayEndTime);
+  if (ceilingMinutes === null) return 0;
+  if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return 0;
+
+  const lastIndex = scheduleItems.length - 1;
+  const last = scheduleItems[lastIndex];
+  let lastMinutes = minutesOf(last.endTime) ?? minutesOf(last.time);
+  if (lastMinutes === null) return 0;
+
+  // 자정을 넘긴 시각("01:33")은 숫자만 보면 종료 시각보다 작아 보인다.
+  // 직전 항목보다 1시간 넘게 이르면 자정을 넘긴 것으로 보고 24시간을 더한다.
+  const referenceMinutes = lastIndex > 0
+    ? (minutesOf(scheduleItems[lastIndex - 1].endTime) ?? minutesOf(scheduleItems[lastIndex - 1].time))
+    : null;
+  if (referenceMinutes !== null && lastMinutes < referenceMinutes - 60) {
+    lastMinutes += 1440;
   }
 
-  return result;
+  return Math.max(0, lastMinutes - ceilingMinutes);
 }

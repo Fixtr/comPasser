@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
+import {
+  applyTransitDelays,
+  getEndTimeOverflowMinutes
+} from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 
 test('a visit that overlaps the real transit time is pushed back, keeping its own duration', () => {
   // 사용자가 보고한 정확한 케이스: 10:47 출발, 45분 이동, 그런데 다음 항목이
@@ -95,68 +98,82 @@ test('a missing single hop mid-chain no longer lets a later item show an earlier
   assert.equal(c.endTime, '11:40'); // 원래 30분 체류가 유지된 채 뒤로 밀림
 });
 
-test('the final arrival item never gets pushed past the user-set end time, even when earlier delays cascade into it', () => {
-  // 사용자 제보: 시작 시간은 지키지만 종료 시각을 넘겨서 끝나는 경우가
-  // 있었다. enforcePlannerConstraints 가 도착 항목을 정확히 21:56 으로
-  // 고정해도, 앞선 저녁식사가 실제 이동시간 때문에 크게 밀리면 그 뒤를
-  // 따라 도착 항목까지 21:56 을 넘겨 밀렸다. 일찍 끝나는 건 괜찮지만
-  // 종료 시각을 넘기면 안 된다.
+test('the final arrival keeps its true computed time even when it exceeds the user-set end time', () => {
+  // 사용자 제보: 예전에는 이 상황에서 도착 시각을 종료 시각으로 눌러
+  // 표시했는데, 그러면 "20:07 에 끝나고 94분 이동했는데 20:51 도착" 같은
+  // 사실과 다른 시각이 나왔다. 시각은 계산 결과 그대로 두고, 초과했다는
+  // 사실은 getEndTimeOverflowMinutes 로 따로 알린다.
   const scheduleItems = [
     { time: '20:27', endTime: '21:27', title: '저녁 식사' },
-    { time: '21:56', endTime: '', title: '도착', type: 'arrival' } // enforcePlannerConstraints 가 고정한 값
+    { time: '21:56', endTime: '', title: '도착', type: 'arrival' }
   ];
   const transitRoutes = [
-    { fromIndex: 0, toIndex: 1, durationMinutes: 45 } // 21:27 + 45분 = 22:12, 21:56 을 넘김
+    { fromIndex: 0, toIndex: 1, durationMinutes: 45 } // 21:27 + 45분 = 22:12
   ];
 
-  const [dinner, arrival] = applyTransitDelays(scheduleItems, transitRoutes, '21:56');
+  const [dinner, arrival] = applyTransitDelays(scheduleItems, transitRoutes);
 
   assert.equal(dinner.time, '20:27'); // 첫 항목은 그대로
-  // 도착 항목은 계산상 22:12 가 되어야 하지만, 사용자가 지정한 종료 시각(21:56)을 넘지 않는다.
-  assert.equal(arrival.time, '21:56');
+  assert.equal(arrival.time, '22:12'); // 눌러 담지 않고 사실대로
   assert.equal(arrival.endTime, '');
+
+  // 종료 시각(21:56) 대비 16분 초과 -> UI 가 경고를 띄울 수 있다.
+  assert.equal(getEndTimeOverflowMinutes([dinner, arrival], '21:56'), 16);
 });
 
-test('the final item can still be pushed later as long as it stays within the day end time', () => {
+test('the reported screenshot case yields the honest arrival time and its overflow', () => {
+  // 카페 19:07~20:07, 실제 이동 94분, 종료 예정 20:51
+  const scheduleItems = [
+    { time: '19:07', endTime: '20:07', title: '간식 및 카페' },
+    { time: '20:51', endTime: '', title: '도착 · 인천공항', type: 'arrival' }
+  ];
+
+  const [, arrival] = applyTransitDelays(scheduleItems, [{ fromIndex: 0, durationMinutes: 94 }]);
+
+  assert.equal(arrival.time, '21:41'); // 20:07 + 94분 — 강제로 20:51 로 눌리지 않는다
+  assert.equal(getEndTimeOverflowMinutes([{ time: '19:07', endTime: '20:07' }, arrival], '20:51'), 50);
+});
+
+test('no overflow is reported when the day genuinely fits', () => {
+  const items = [
+    { time: '19:00', endTime: '19:30', title: 'A' },
+    { time: '20:00', endTime: '', title: '도착', type: 'arrival' }
+  ];
+  assert.equal(getEndTimeOverflowMinutes(items, '20:51'), 0);
+});
+
+test('overflow detection handles a missing or malformed end time', () => {
+  const items = [{ time: '19:00', endTime: '19:30' }, { time: '23:00', endTime: '' }];
+  assert.equal(getEndTimeOverflowMinutes(items, undefined), 0);
+  assert.equal(getEndTimeOverflowMinutes(items, 'nonsense'), 0);
+  assert.equal(getEndTimeOverflowMinutes([], '20:00'), 0);
+});
+
+test('the final item is pushed by the real transit time like any other item', () => {
   const scheduleItems = [
     { time: '20:00', endTime: '20:30', title: 'A' },
     { time: '20:40', endTime: '', title: '도착', type: 'arrival' }
   ];
   const transitRoutes = [
-    { fromIndex: 0, toIndex: 1, durationMinutes: 20 } // 20:30 + 20분 = 20:50, 21:56 안쪽
-  ];
-
-  const [, arrival] = applyTransitDelays(scheduleItems, transitRoutes, '21:56');
-
-  assert.equal(arrival.time, '20:50'); // 종료 시각(21:56) 안쪽이라 정상적으로 밀림
-});
-
-test('without a dayEndTime argument, the final item is pushed with no ceiling (backward compatible)', () => {
-  const scheduleItems = [
-    { time: '20:00', endTime: '20:30', title: 'A' },
-    { time: '20:40', endTime: '', title: '도착', type: 'arrival' }
-  ];
-  const transitRoutes = [
-    { fromIndex: 0, toIndex: 1, durationMinutes: 90 } // 20:30 + 90분 = 22:00
+    { fromIndex: 0, toIndex: 1, durationMinutes: 20 } // 20:30 + 20분 = 20:50
   ];
 
   const [, arrival] = applyTransitDelays(scheduleItems, transitRoutes);
 
-  assert.equal(arrival.time, '22:00'); // dayEndTime을 안 넘겼으니 상한 없이 그대로 밀림
+  assert.equal(arrival.time, '20:50');
+  assert.equal(getEndTimeOverflowMinutes([{ time: '20:00', endTime: '20:30' }, arrival], '21:56'), 0);
 });
 
-test('a final item whose time already wrapped past midnight is still clamped to the day end time', () => {
-  // "01:33" 처럼 자정을 넘긴 시각은 숫자로만 보면 "21:56"보다 작아 보여
-  // 상한을 넘지 않은 것처럼 착각하기 쉽다.
+test('overflow detection recognizes a time that wrapped past midnight', () => {
+  // "02:59" 는 숫자만 보면 "21:56"보다 작아 초과가 아닌 것처럼 보이지만,
+  // 직전 항목(23:03)보다 이르므로 자정을 넘긴 다음날 시각이다.
   const scheduleItems = [
     { time: '21:33', endTime: '23:03', title: '광화문 맛집 저녁 식사' },
-    { time: '01:33', endTime: '02:59', title: '인천국제공항 이동', type: 'arrival' }
+    { time: '01:33', endTime: '02:59', title: '인천국제공항', type: 'arrival' }
   ];
 
-  const [, arrival] = applyTransitDelays(scheduleItems, [], '21:56');
-
-  assert.equal(arrival.time, '21:56');
-  assert.equal(arrival.endTime, '21:56');
+  // 02:59(+1일) = 1619분, 21:56 = 1316분 -> 303분 초과
+  assert.equal(getEndTimeOverflowMinutes(scheduleItems, '21:56'), 303);
 });
 
 test('malformed time strings are skipped instead of throwing', () => {

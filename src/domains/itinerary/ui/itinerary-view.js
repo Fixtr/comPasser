@@ -6,7 +6,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
-import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
+import { applyTransitDelays, getEndTimeOverflowMinutes } from '../services/itinerary-schedule-adjust.mjs';
 import { enforcePlannerConstraints } from '../../planner/services/planner-constraints.mjs';
 import {
   getTransitStyle,
@@ -399,6 +399,31 @@ export default class ItineraryView extends HTMLElement {
    * currentItinerary 자체를 갱신하므로, 이후 "저장하기"를 눌러도 보정된
    * 시각이 저장된다.
    */
+  /**
+   * 실제 이동시간을 반영한 결과 도착이 사용자가 지정한 종료 시각을 넘겼을 때
+   * 띄우는 경고. 시각 자체는 사실대로 두고, 얼마나 초과했는지만 알려서
+   * 사용자가 직접 일정을 조정할 수 있게 한다.
+   */
+  renderEndTimeWarning(overflowMinutes, dayEndTime) {
+    const box = this.shadowRoot.getElementById('end-time-warning');
+    if (!box) return;
+
+    if (!overflowMinutes || overflowMinutes <= 0) {
+      box.style.display = 'none';
+      box.textContent = '';
+      return;
+    }
+
+    const hours = Math.floor(overflowMinutes / 60);
+    const mins = overflowMinutes % 60;
+    const amount = hours > 0
+      ? (mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`)
+      : `${mins}분`;
+
+    box.textContent = `⚠️ 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다. 마지막 일정을 줄이거나 빼는 것을 권장합니다.`;
+    box.style.display = 'block';
+  }
+
   applyTransitDelaysToActiveDay(transitRoutes) {
     if (!this.currentItinerary) return;
 
@@ -406,19 +431,24 @@ export default class ItineraryView extends HTMLElement {
     const dayData = safePlan?.days?.[this.activeDayIndex];
     if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
 
-    // 사용자가 지정한 그 날의 종료 시각 — generateOptimizedItinerary()가 반환한
-    // { request, days } 형태 그대로 저장/로드되므로, 저장된 일정을 불러온
-    // 경우에도 this.currentItinerary.request 에 남아있다. 이동시간 보정이
-    // 도착 항목을 이 시각 너머로 밀지 않도록 그대로 전달한다.
+    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes);
+    dayData.scheduleItems = adjustedItems;
+
+    // 실제 이동시간을 반영하면 도착이 사용자가 지정한 종료 시각을 넘길 수
+    // 있다. 예전에는 도착 시각을 종료 시각으로 눌러 표시했지만 그러면
+    // 사실과 다른 시각이 나온다(20:07 종료 + 94분 이동인데 20:51 도착).
+    // 시각은 계산 결과 그대로 두고, 초과 사실만 경고로 알린다.
+    // 종료 시각은 generateOptimizedItinerary()가 반환한 { request, days }
+    // 형태에 그대로 남아있어 저장된 일정을 불러온 경우에도 읽을 수 있다.
     const dayNumber = this.activeDayIndex + 1;
     const requestDailyData = this.currentItinerary?.request?.dailyData;
     const dayConstraints = Array.isArray(requestDailyData)
       ? (requestDailyData.find(d => Number(d.day) === dayNumber) || requestDailyData[this.activeDayIndex])
       : null;
-    const dayEndTime = dayConstraints?.endTime;
-
-    const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes, dayEndTime);
-    dayData.scheduleItems = adjustedItems;
+    this.renderEndTimeWarning(
+      getEndTimeOverflowMinutes(adjustedItems, dayConstraints?.endTime),
+      dayConstraints?.endTime
+    );
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
     adjustedItems.forEach((item, idx) => {
@@ -438,6 +468,7 @@ export default class ItineraryView extends HTMLElement {
 
       <div id="results" style="display: none;">
         <div id="results-content" style="background: white;">
+          <div id="end-time-warning" class="end-time-warning" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
             <!-- Tabs injected dynamically -->
