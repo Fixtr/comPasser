@@ -4,6 +4,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { getFormData } from './travel-form-data.js';
 import { showErrorToast } from '../../../utils/toast.js';
+import { findPastDate, todayString } from '../services/trip-date.mjs';
 
 
 
@@ -60,7 +61,19 @@ export default class TravelForm extends HTMLElement {
   /**
    * 컴포넌트가 다시 화면에 나타날 때마다 저장소에서 최신 데이터를 강제로 리페치합니다.
    */
+  /**
+   * 날짜 입력의 min 을 오늘로 맞춘다. 컴포넌트가 다시 보일 때마다 갱신해야
+   * 탭을 열어둔 채 자정을 넘겨도 어제 날짜를 고를 수 없다.
+   */
+  syncDateFloor() {
+    const dateInput = this.shadowRoot?.getElementById('schedule-date');
+    // 여러 날 일정은 읽기 전용 텍스트로 바뀌므로 min 이 의미가 없다.
+    if (!dateInput || dateInput.type !== 'date') return;
+    dateInput.min = todayString();
+  }
+
   refreshFromStorage() {
+    this.syncDateFloor();
     this.renderPreferenceBadges();
 
     // Restore Form Data on load if we are not locked in Phase 3
@@ -474,6 +487,7 @@ export default class TravelForm extends HTMLElement {
       };
 
       setVal('schedule-date', requestData?.date);
+      this.syncDateFloor();
       setVal('start-time', requestData?.startTime);
       setVal('end-time', requestData?.endTime);
       setVal('start-location', requestData?.startLocation);
@@ -694,6 +708,17 @@ export default class TravelForm extends HTMLElement {
       }
 
       const plannerRequest = this.getFormData();
+
+      // --- Date Validation ---
+      // 과거 날짜로 만들면 화면 날짜와 실제 계산되는 경로가 어긋난다
+      // (transit-time.mjs 가 지난 출발 시각을 다음 주로 밀어 조회한다).
+      const pastDate = findPastDate(plannerRequest.date);
+      if (pastDate) {
+        showErrorToast(t('pastDateValidationError').replace('{0}', pastDate));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
 
       // --- Time Validation Logic ---
       const tripStart = plannerRequest.startTime;
