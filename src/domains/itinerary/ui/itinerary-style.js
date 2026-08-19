@@ -27,7 +27,7 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
-.fallback-warning {
+        .fallback-warning {
           background: #fef2f2;
           border: 1px solid #fca5a5;
           border-left: 4px solid #dc2626;
@@ -712,25 +712,6 @@ export const itineraryStyles = `
           transform: none;
         }
 
-        .toast {
-          position: fixed;
-          bottom: 2rem;
-          left: 50%;
-          transform: translateX(-50%) translateY(100px);
-          background: #10b981;
-          color: white;
-          padding: 1rem 2rem;
-          border-radius: 30px;
-          font-weight: 600;
-          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          z-index: 1000;
-          opacity: 0;
-        }
 
-        .toast.show {
-          transform: translateX(-50%) translateY(0);
-          opacity: 1;
-        }
       
 `;

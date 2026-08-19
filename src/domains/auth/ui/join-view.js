@@ -1,6 +1,7 @@
 import { signUpWithEmail } from '../services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
+import { showToast } from '../../../utils/toast.js';
 
 export default class JoinView extends HTMLElement {
   constructor() {
@@ -311,7 +312,7 @@ export default class JoinView extends HTMLElement {
       try {
         await signUpWithEmail(email, password);
         // Do not redirect, just alert user as requested.
-        alert('이메일로 인증 링크가 발송되었습니다.');
+        showToast('이메일로 인증 링크가 발송되었습니다.', { tone: 'success' });
         passwordInput.value = '';
         emailInput.value = '';
         passwordStrength.textContent = '';

@@ -3,6 +3,7 @@ import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { getFormData } from './travel-form-data.js';
+import { showErrorToast } from '../../../utils/toast.js';
 
 
 
@@ -701,13 +702,13 @@ export default class TravelForm extends HTMLElement {
       if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.some(dt => dt.isCustom)) {
         for (const dt of plannerRequest.dailyTimes) {
           if (!dt.startTime || !dt.endTime) {
-            alert(`[Day ${dt.day}] ` + t('emptyTimeValidationError'));
+            showErrorToast(`[Day ${dt.day}] ` + t('emptyTimeValidationError'));
             this._resetSubmitButton(btn);
             this.isSubmitting = false;
             return;
           }
           if (dt.startTime >= dt.endTime) {
-            alert(`[Day ${dt.day}] ` + t('basicTimeValidationError'));
+            showErrorToast(`[Day ${dt.day}] ` + t('basicTimeValidationError'));
             this._resetSubmitButton(btn);
             this.isSubmitting = false;
             return;
@@ -715,14 +716,14 @@ export default class TravelForm extends HTMLElement {
         }
       } else {
         if (!tripStart || !tripEnd) {
-          alert(t('emptyTimeValidationError'));
+          showErrorToast(t('emptyTimeValidationError'));
           this._resetSubmitButton(btn);
           this.isSubmitting = false;
           return;
         }
         // Rule D: Basic Trip Start Time >= Basic Trip End Time
         if (tripStart >= tripEnd) {
-          alert(t('basicTimeValidationError'));
+          showErrorToast(t('basicTimeValidationError'));
           this._resetSubmitButton(btn);
           this.isSubmitting = false;
           return;
@@ -736,7 +737,7 @@ export default class TravelForm extends HTMLElement {
         // Rule C: Anchor Start Time >= Anchor End Time
         if (anchor.time >= anchor.endTime) {
           const msg = t('invalidAnchorTime').replace('{0}', anchor.name || 'Anchor');
-          alert(msg);
+          showErrorToast(msg);
           this._resetSubmitButton(btn);
           this.isSubmitting = false;
           return;
@@ -750,7 +751,7 @@ export default class TravelForm extends HTMLElement {
               .replace('{0}', anchor.name || 'Anchor')
               .replace('{1}', tripStart)
               .replace('{2}', tripEnd);
-            alert(msg);
+            showErrorToast(msg);
             this._resetSubmitButton(btn);
             this.isSubmitting = false;
             return;

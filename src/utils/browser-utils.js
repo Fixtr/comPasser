@@ -1,3 +1,4 @@
+import { showToast } from './toast.js';
 
 /**
  * Detects if the current user agent is an in-app browser (KakaoTalk, Instagram, Line, etc.)
@@ -40,6 +41,7 @@ export function handleInAppBrowserEscape(translate) {
     } else if (isIOS()) {
         const msg = translate('inAppBrowserIOSAlert') || 
             "카카오톡 내장 브라우저에서는 구글 로그인이 보안상 제한됩니다. 우측 하단의 [ ⠇ ] 버튼을 눌러 '다른 브라우저로 열기'를 선택해 주세요.";
-        alert(msg);
+        // 인앱 브라우저 탈출 안내는 읽고 따라 해야 하므로 조금 더 오래 보여준다.
+        showToast(msg, { tone: 'warning', duration: 8000 });
     }
 }

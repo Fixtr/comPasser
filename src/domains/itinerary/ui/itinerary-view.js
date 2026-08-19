@@ -19,6 +19,7 @@ import {
   renderTransitStep,
   renderTransitInfo
 } from './itinerary-render-helpers.js';
+import { showToast as showGlobalToast } from '../../../utils/toast.js';
 
 export default class ItineraryView extends HTMLElement {
   constructor() {
@@ -213,7 +214,7 @@ export default class ItineraryView extends HTMLElement {
           const shareUrl = window.location.origin + '/view/' + docId;
 
           await navigator.clipboard.writeText(shareUrl);
-          alert(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!");
+          showGlobalToast(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
         } catch (error) {
           console.error("Share error:", error);
           this.showToast("링크 생성 중 오류가 발생했습니다.", true);
@@ -369,14 +370,13 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
+  /**
+   * 컴포넌트 안에 따로 두던 토스트를 앱 공용 토스트로 위임한다.
+   * Shadow DOM 안에 있으면 이 컴포넌트가 화면에 없을 때 알림을 띄울 수 없고,
+   * 다른 화면의 알림과 위치·모양이 제각각이 된다.
+   */
   showToast(message, isError = false) {
-    const toast = this.shadowRoot.getElementById('toast');
-    toast.textContent = message;
-    toast.style.background = isError ? '#ef4444' : '#10b981';
-    toast.classList.add('show');
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
+    showGlobalToast(message, { tone: isError ? 'error' : 'success' });
   }
 
   // ========== 이동 수단 시각화 (업그레이드) ==========
@@ -565,7 +565,6 @@ export default class ItineraryView extends HTMLElement {
         </div>
       </div>
 
-      <div id="toast" class="toast" data-i18n="itinerarySaveToast">일정이 저장되었습니다! 🎉</div>
     `;
   }
 

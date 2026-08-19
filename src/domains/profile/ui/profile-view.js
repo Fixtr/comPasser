@@ -3,6 +3,7 @@ import { getUserItineraries, deleteItinerary, deleteAllUserItineraries, renameIt
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
+import { showToast, showErrorToast } from '../../../utils/toast.js';
 
 class ProfileView extends HTMLElement {
     constructor() {
@@ -168,7 +169,7 @@ class ProfileView extends HTMLElement {
 
     handleCertification() {
         if (!window.IMP) {
-            alert("인증 모듈을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            showToast("인증 모듈을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
             return;
         }
 
@@ -184,7 +185,7 @@ class ProfileView extends HTMLElement {
                 this.showCertificationInput = true;
                 this.updateExtendedProfileUI();
             } else {
-                alert("본인인증에 실패했습니다: " + rsp.error_msg);
+                showErrorToast("본인인증에 실패했습니다: " + rsp.error_msg);
             }
         });
     }
@@ -226,7 +227,7 @@ class ProfileView extends HTMLElement {
             this.updateExtendedProfileUI();
         } catch (error) {
             console.error("Failed to save data:", error);
-            alert("저장에 실패했습니다.");
+            showErrorToast("저장에 실패했습니다.");
         }
     }
 
@@ -385,7 +386,7 @@ class ProfileView extends HTMLElement {
                     if (this.itineraries.length === 0) this.renderItineraries();
                 }, 300);
             } catch (error) {
-                alert("일정 삭제에 실패했습니다.");
+                showErrorToast("일정 삭제에 실패했습니다.");
             }
         }
     }
@@ -448,10 +449,10 @@ class ProfileView extends HTMLElement {
                 } catch (err) {
                     console.error("Account deletion failed:", err);
                     if (err.code === 'auth/requires-recent-login') {
-                        alert('보안을 위해 다시 로그인한 후 탈퇴를 진행해 주세요.');
+                        showErrorToast('보안을 위해 다시 로그인한 후 탈퇴를 진행해 주세요.', { duration: 5000 });
                         await logout();
                     } else {
-                        alert('회원 탈퇴 처리 중 오류가 발생했습니다.');
+                        showErrorToast('회원 탈퇴 처리 중 오류가 발생했습니다.');
                     }
                     confirmBtn.disabled = false;
                     confirmBtn.textContent = '회원 탈퇴 확정';

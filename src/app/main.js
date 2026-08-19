@@ -13,6 +13,7 @@ import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../doma
 import { t, getLang, setLang } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
+import { showErrorToast } from '../utils/toast.js';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
 
@@ -711,7 +712,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
 
                 if (error.message.includes("429")) {
-                    alert('⏳ ' + error.message);
+                    showErrorToast('⏳ ' + error.message);
                 }
             } finally {
                 stopBannerCarousel();

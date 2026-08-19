@@ -3,6 +3,7 @@ import { getAuth, signInWithCustomToken } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
+import { showErrorToast } from '../../../utils/toast.js';
 
 const auth = getAuth(app);
 const functions = getFunctions(app);
@@ -602,20 +603,20 @@ export default class LoginView extends HTMLElement {
       } catch (err) {
         console.error(err);
         if (err.message === 'EMAIL_NOT_VERIFIED') {
-          alert('이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.');
+          showErrorToast('이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.');
         } else {
           switch (err.code) {
             case 'auth/user-not-found':
-              alert("가입되지 않은 이메일입니다.");
+              showErrorToast("가입되지 않은 이메일입니다.");
               break;
             case 'auth/wrong-password':
-              alert("비밀번호가 틀립니다.");
+              showErrorToast("비밀번호가 틀립니다.");
               break;
             case 'auth/invalid-credential':
-              alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+              showErrorToast("이메일 또는 비밀번호가 올바르지 않습니다.");
               break;
             case 'auth/too-many-requests':
-              alert("비밀번호를 여러 번 틀려 계정이 잠겼습니다. 나중에 다시 시도하거나 비밀번호를 재설정해주세요.");
+              showErrorToast("비밀번호를 여러 번 틀려 계정이 잠겼습니다. 나중에 다시 시도하거나 비밀번호를 재설정해주세요.", { duration: 5000 });
               break;
             default:
               errorMsg.textContent = '로그인에 실패했습니다: ' + err.message;
