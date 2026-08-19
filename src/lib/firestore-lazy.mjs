@@ -12,11 +12,36 @@ import { app } from '../domains/auth/services/firebase-auth.js';
  */
 let pending = null;
 
+/**
+ * IndexedDB 캐시를 켠 Firestore 인스턴스를 만든다.
+ *
+ * 여행지에서 데이터가 끊기는 건 흔한 상황이라, 한 번 본 일정은 오프라인에서도
+ * 열려야 한다. persistentLocalCache 를 쓰면 읽은 문서가 로컬에 남아 네트워크가
+ * 없어도 같은 쿼리가 캐시에서 응답한다. 여러 탭을 동시에 열어도 안전하도록
+ * persistentMultipleTabManager 를 함께 쓴다.
+ *
+ * 사파리 프라이빗 모드처럼 IndexedDB 를 못 쓰는 환경에서는 initializeFirestore
+ * 가 실패할 수 있는데, 그때는 캐시 없이 기본 인스턴스로 넘어간다 — 오프라인
+ * 지원을 못 할 뿐 앱은 정상 동작해야 한다.
+ */
+function createDb(firestore) {
+  try {
+    return firestore.initializeFirestore(app, {
+      localCache: firestore.persistentLocalCache({
+        tabManager: firestore.persistentMultipleTabManager()
+      })
+    });
+  } catch (error) {
+    console.warn('[Firestore] 오프라인 캐시를 켜지 못해 기본 설정으로 실행합니다.', error);
+    return firestore.getFirestore(app);
+  }
+}
+
 export function loadFirestore() {
   if (!pending) {
     pending = import('firebase/firestore').then(firestore => ({
       ...firestore,
-      db: firestore.getFirestore(app)
+      db: createDb(firestore)
     })).catch(error => {
       // 실패한 Promise 를 캐시해두면 이후 호출이 영구히 같은 에러를 받는다.
       pending = null;
