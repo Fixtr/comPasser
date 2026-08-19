@@ -241,7 +241,15 @@ export const profileStyles = `
                     transition: all 0.2s;
                 }
                 .trip-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-                .trip-title { font-weight: 700; color: var(--accent-primary); margin-bottom: 0.25rem; }
+                .trip-title-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
+                .trip-title { font-weight: 700; color: var(--accent-primary); }
+                .trip-anchor-suffix { font-size: 0.85rem; color: var(--text-secondary); }
+                .btn-rename { background: transparent; border: none; cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 6px; font-size: 0.85rem; opacity: 0.55; transition: opacity 0.15s, background 0.15s; }
+                .btn-rename:hover, .btn-rename:focus-visible { opacity: 1; background: rgba(124, 58, 237, 0.1); }
+                .rename-input { flex: 1; min-width: 10rem; padding: 0.35rem 0.6rem; border: 1px solid var(--accent-primary); border-radius: 6px; font-family: inherit; font-size: 0.95rem; font-weight: 600; }
+                .btn-rename-save { background: var(--accent-primary); color: white; border: none; padding: 0.35rem 0.8rem; border-radius: 6px; font-weight: 700; cursor: pointer; }
+                .btn-rename-save:disabled { opacity: 0.6; cursor: default; }
+                .btn-rename-cancel { background: transparent; color: var(--text-secondary); border: 1px solid #d1d5db; padding: 0.35rem 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
                 .trip-date { font-size: 0.85rem; color: var(--text-secondary); }
                 .trip-actions { display: flex; gap: 0.75rem; }
 

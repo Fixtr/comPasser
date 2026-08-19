@@ -1,5 +1,5 @@
 import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
-import { getUserItineraries, deleteItinerary, deleteAllUserItineraries } from '../../itinerary/services/firestore-service.js';
+import { getUserItineraries, deleteItinerary, deleteAllUserItineraries, renameItinerary } from '../../itinerary/services/firestore-service.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
@@ -271,7 +271,11 @@ class ProfileView extends HTMLElement {
             card.className = 'trip-card';
             card.innerHTML = `
                 <div class="trip-info">
-                    <div class="trip-title">${tripTitle}${anchorSuffix}</div>
+                    <div class="trip-title-row">
+                        <span class="trip-title">${tripTitle}</span>
+                        <span class="trip-anchor-suffix">${anchorSuffix}</span>
+                        <button class="btn-rename" title="이름 바꾸기" aria-label="일정 이름 바꾸기">✏️</button>
+                    </div>
                     <div class="trip-date">저장일: ${dateString}</div>
                 </div>
                 <div class="trip-actions">
@@ -288,9 +292,77 @@ class ProfileView extends HTMLElement {
                 e.stopPropagation();
                 this.handleDeleteItinerary(item.id, card);
             };
+            card.querySelector('.btn-rename').onclick = (e) => {
+                e.stopPropagation();
+                this.startRename(item, card, tripTitle);
+            };
 
             listContainer.appendChild(card);
         });
+    }
+
+    /**
+     * 카드의 제목을 인라인 입력으로 바꿔 이름을 편집한다.
+     *
+     * 별도 화면이나 prompt() 없이 그 자리에서 고치게 한다. 저장은 title
+     * 한 필드만 수정하므로 일정 내용은 그대로 유지된다(firestore.rules 도
+     * 같은 조건으로 제한한다).
+     */
+    startRename(item, card, currentTitle) {
+        const row = card.querySelector('.trip-title-row');
+        if (!row || row.dataset.editing === 'true') return;
+        row.dataset.editing = 'true';
+
+        const original = row.innerHTML;
+        row.innerHTML = `
+            <input class="rename-input" type="text" maxlength="100" aria-label="일정 이름">
+            <button class="btn-rename-save">저장</button>
+            <button class="btn-rename-cancel">취소</button>
+        `;
+
+        const input = row.querySelector('.rename-input');
+        input.value = currentTitle;
+        input.focus();
+        input.select();
+
+        const restore = () => {
+            row.innerHTML = original;
+            row.dataset.editing = 'false';
+            card.querySelector('.btn-rename').onclick = (e) => {
+                e.stopPropagation();
+                this.startRename(item, card, card.querySelector('.trip-title').textContent);
+            };
+        };
+
+        const commit = async () => {
+            const next = input.value.trim();
+            if (!next || next === currentTitle) return restore();
+
+            const saveBtn = row.querySelector('.btn-rename-save');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '저장 중...';
+            try {
+                await renameItinerary(item.id, next);
+                item.title = next; // 다시 불러오지 않아도 목록 상태가 최신이 되도록
+                restore();
+                card.querySelector('.trip-title').textContent = next;
+            } catch (error) {
+                console.error('Rename failed:', error);
+                saveBtn.disabled = false;
+                saveBtn.textContent = '저장';
+                input.setCustomValidity(error.message || '이름을 바꾸지 못했습니다.');
+                input.reportValidity();
+                setTimeout(() => input.setCustomValidity(''), 0);
+            }
+        };
+
+        row.querySelector('.btn-rename-save').onclick = (e) => { e.stopPropagation(); commit(); };
+        row.querySelector('.btn-rename-cancel').onclick = (e) => { e.stopPropagation(); restore(); };
+        input.onclick = (e) => e.stopPropagation();
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') { e.preventDefault(); restore(); }
+        };
     }
 
     viewTrip(item) {

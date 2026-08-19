@@ -14,8 +14,16 @@ service cloud.firestore {
     match /itineraries/{itineraryId} {
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // 앱에 수정(update) 로직이 없으므로 명시적으로 막아 우회 경로를 없앤다.
-      allow update: if false;
+
+      // 목록에서 일정 이름을 바꿀 수 있어야 하지만 그 외의 수정은 계속 막는다.
+      // 소유자가 title 한 필드만 바꾸는 경우로 한정해, 저장된 일정 내용
+      // (itineraryPlan)이나 소유자(userId)는 건드릴 수 없게 한다.
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 100;
     }
 
     // shared_itineraries/{id}: 공유 링크로 배포되는 일정. 비로그인 게스트도 조회 가능해야 한다
