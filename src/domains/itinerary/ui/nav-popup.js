@@ -17,6 +17,10 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     // ── 2. 팝업 DOM 생성 ────────────────────────────────
     const popup = document.createElement('div');
     popup.id = 'nav-popup-global';
+    // 모달 성격의 팝업이라 스크린리더가 이름과 역할을 읽을 수 있어야 한다.
+    popup.setAttribute('role', 'dialog');
+    popup.setAttribute('aria-modal', 'true');
+    popup.setAttribute('aria-label', `${locationName} 길찾기`);
 
     // 기본 스타일 (JS inline — body 레벨이므로 Shadow DOM CSS 영향 없음)
     Object.assign(popup.style, {
@@ -149,7 +153,7 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
       <div class="nav-inner ${arrowClass}">
         <div class="popup-header">
           <span class="popup-title">🗺️ 길찾기</span>
-          <button class="popup-close" id="nav-popup-close-btn">✕</button>
+          <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="길찾기 창 닫기">✕</button>
         </div>
         <p class="popup-location" title="${locationName}">${locationName}</p>
         <div class="popup-options">
@@ -169,9 +173,45 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     document.body.appendChild(popup);
 
     // ── 5. 이벤트 처리 ──────────────────────────────────
-    const closePopup = () => popup.remove();
+    // 팝업을 연 버튼으로 포커스를 돌려줘야 키보드 사용자가 흐름을 잃지 않는다.
+    const previouslyFocused = anchorEl && typeof anchorEl.focus === 'function' ? anchorEl : null;
+
+    const closePopup = () => {
+      if (!popup.isConnected) return;
+      popup.remove();
+      document.removeEventListener('keydown', keyHandler, true);
+      if (previouslyFocused) previouslyFocused.focus();
+    };
+
+    // Escape 로 닫고, Tab 은 팝업 안에서 순환시킨다(모달 밖으로 새지 않도록).
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePopup();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusables = popup.querySelectorAll('a[href], button:not([disabled])');
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', keyHandler, true);
 
     popup.querySelector('#nav-popup-close-btn').addEventListener('click', closePopup);
+
+    // 열리면 첫 항목으로 포커스를 옮겨 키보드만으로 바로 선택할 수 있게 한다.
+    const firstOption = popup.querySelector('.pop-opt');
+    if (firstOption) firstOption.focus();
 
     // 바깥 클릭 시 닫기 (click 이벤트 버블링 방지 필요)
     const outsideHandler = (e) => {

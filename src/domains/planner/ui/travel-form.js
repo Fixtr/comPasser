@@ -386,10 +386,10 @@ export default class TravelForm extends HTMLElement {
     template.className = 'anchor-item';
     template.id = id;
     template.innerHTML = `
-      <button type="button" class="remove-btn" title="Remove Anchor">×</button>
+      <button type="button" class="remove-btn" title="${t('removeAnchorLabel')}" aria-label="${t('removeAnchorLabel')}">×</button>
       <div class="form-group">
         <label data-i18n="anchorNameLabel">${t('anchorNameLabel')}</label>
-        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" required>
+        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" aria-label="${t('anchorNameLabel')}" required>
       </div>
       ${daySelectorHTML}
       <div class="row-3">

@@ -185,9 +185,11 @@
         <travel-form id="travel-form-view" class="fade-transition"></travel-form>
 
         <!-- Phase 2: Full Screen Loading / Waiting View -->
+        <!-- 일정 생성 진행 상황은 텍스트가 계속 바뀌므로 라이브 리전으로 알린다. -->
         <div id="loading-transition-view" class="fade-transition hidden-view"
+          role="status" aria-live="polite"
           style="display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center;">
-          <div id="loading-spinner" class="large-spinner"></div>
+          <div id="loading-spinner" class="large-spinner" aria-hidden="true"></div>
           <h2 id="loading-text" style="margin-top: 1.5rem; color: var(--accent-primary);" data-i18n="loadingText">AI가
             최적의
             경로를 분석하고 있습니다...</h2>

@@ -175,6 +175,10 @@ function showWelcomeOverlay() {
 
     const overlay = document.createElement('div');
     overlay.id = 'welcome-overlay';
+    // 화면 전체를 덮는 모달이므로 역할과 이름을 알려준다.
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'ComPasser 시작 안내');
     overlay.style.cssText = `
         position: fixed;
         inset: 0;
@@ -193,7 +197,7 @@ function showWelcomeOverlay() {
     overlay.innerHTML = `
         
         <div style="max-width: 500px; animation: fadeIn 0.5s ease-out; position: relative;">
-            <button id="close-x-btn" style="
+            <button id="close-x-btn" type="button" aria-label="안내 닫기" style="
                 position: absolute;
                 top: -20px;
                 right: -20px;
@@ -234,6 +238,7 @@ function showWelcomeOverlay() {
     const closeXBtn = overlay.querySelector('#close-x-btn');
 
     const closeModal = () => {
+        document.removeEventListener('keydown', escHandler, true);
         overlay.classList.add('fade-out');
         setTimeout(() => {
             overlay.remove();
@@ -241,8 +246,20 @@ function showWelcomeOverlay() {
         }, 300);
     };
 
+    // Escape 로도 닫히지 않으면 키보드 사용자는 모달에 갇힌다.
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeModal();
+        }
+    };
+    document.addEventListener('keydown', escHandler, true);
+
     closeBtn.addEventListener('click', closeModal);
     if (closeXBtn) closeXBtn.addEventListener('click', closeModal);
+
+    // 모달이 열리면 포커스를 안으로 옮겨 바로 조작할 수 있게 한다.
+    closeBtn.focus();
 
 
     closeBtn.addEventListener('mouseover', () => closeBtn.style.transform = 'scale(1.05)');

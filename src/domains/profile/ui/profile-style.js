@@ -47,6 +47,8 @@ export const profileStyles = `
                 }
 
                 .nav-item {
+                    /* button 으로 바꾸면서 브라우저 기본 스타일을 지운다 */
+                    appearance: none; background: transparent; border: none; font: inherit; text-align: left; width: 100%;
                     display: flex;
                     align-items: center;
                     gap: 1rem;

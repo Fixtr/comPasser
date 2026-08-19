@@ -546,9 +546,9 @@ export default class ItineraryView extends HTMLElement {
 
       <div id="results" style="display: none;">
         <div id="results-content" style="background: white;">
-          <div id="fallback-warning" class="fallback-warning" style="display: none;"></div>
-          <div id="transit-notice" class="transit-notice" style="display: none;"></div>
-          <div id="end-time-warning" class="end-time-warning" style="display: none;"></div>
+          <div id="fallback-warning" class="fallback-warning" role="alert" style="display: none;"></div>
+          <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
+          <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
             <!-- Tabs injected dynamically -->

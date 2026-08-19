@@ -476,6 +476,9 @@ class ProfileView extends HTMLElement {
         tabs.forEach(t => {
             const isActive = t.dataset.tab === tabId;
             t.classList.toggle('active', isActive);
+            // 시각적 강조만으로는 스크린리더가 현재 위치를 알 수 없다.
+            if (isActive) t.setAttribute('aria-current', 'page');
+            else t.removeAttribute('aria-current');
             if (isActive) found = true;
         });
 
@@ -499,19 +502,19 @@ class ProfileView extends HTMLElement {
             </style>
 
             <div class="profile-wrapper">
-                <nav class="sidebar">
+                <nav class="sidebar" aria-label="프로필 메뉴">
                     <button id="btn-back-home" class="btn-back-home">
                         <span>←</span> <span>홈으로 돌아가기</span>
                     </button>
-                    <div class="nav-item active" data-tab="personal">
-                        <span class="nav-icon">👤</span> <span>개인 정보</span>
-                    </div>
-                    <div class="nav-item" data-tab="trips">
-                        <span class="nav-icon">🗺️</span> <span>내 여행 일정</span>
-                    </div>
-                    <div class="nav-item" data-tab="security">
-                        <span class="nav-icon">🛡️</span> <span>보안 및 계정</span>
-                    </div>
+                    <button type="button" class="nav-item active" data-tab="personal" aria-current="page">
+                        <span class="nav-icon" aria-hidden="true">👤</span> <span>개인 정보</span>
+                    </button>
+                    <button type="button" class="nav-item" data-tab="trips">
+                        <span class="nav-icon" aria-hidden="true">🗺️</span> <span>내 여행 일정</span>
+                    </button>
+                    <button type="button" class="nav-item" data-tab="security">
+                        <span class="nav-icon" aria-hidden="true">🛡️</span> <span>보안 및 계정</span>
+                    </button>
                 </nav>
 
                 <main class="main-content">
