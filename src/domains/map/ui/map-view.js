@@ -152,8 +152,23 @@ export class MapView extends HTMLElement {
     this.clearMapLayers();
   }
 
+  /**
+   * 지도가 실제 이동시간을 구하지 못했음을 타임라인에 알린다.
+   *
+   * 예전에는 지오코딩/Directions 실패 시 그냥 return 해버려서, 타임라인에는
+   * AI 추정 시각이 검증된 것처럼 남고 사용자는 그 사실을 알 수 없었다.
+   * @param {string} reason 로그용 사유
+   */
+  notifyTransitUnavailable(reason) {
+    console.warn(`[Map] 실제 이동시간을 계산하지 못했습니다: ${reason}`);
+    window.dispatchEvent(new CustomEvent('transit-unavailable', { detail: { reason } }));
+  }
+
   async renderRoute(itineraryPlan) {
-    if (!this.map) return;
+    if (!this.map) {
+      this.notifyTransitUnavailable('지도를 초기화하지 못했습니다.');
+      return;
+    }
 
     // Ensure map container is visible
     const mapContainer = this.shadowRoot.getElementById('map-container');
@@ -173,6 +188,7 @@ export class MapView extends HTMLElement {
 
     const day = itineraryPlan.days[0];
     if (!day || !day.scheduleItems) {
+      this.notifyTransitUnavailable('일정에 표시할 항목이 없습니다.');
       this.setLoading(false);
       return;
     }
@@ -185,6 +201,7 @@ export class MapView extends HTMLElement {
       const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
 
       if (geocodedItems.length === 0) {
+        this.notifyTransitUnavailable('장소를 좌표로 변환하지 못했습니다.');
         this.setLoading(false);
         return;
       }
@@ -202,10 +219,12 @@ export class MapView extends HTMLElement {
       if (geocodedItems.length > 1) {
         this.setLoading(true, "Calculating routes...");
         await this.renderTransitSegments(geocodedItems, day.date);
+      } else {
+        this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.');
       }
     } catch (err) {
       console.error("[Map Rendering Error]", err);
-      // Optional: Dispatch event to notify itinerary-view to display error message
+      this.notifyTransitUnavailable(err?.message || '지도 렌더링 중 오류가 발생했습니다.');
     } finally {
       this.setLoading(false);
     }

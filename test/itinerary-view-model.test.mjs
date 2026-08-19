@@ -5,7 +5,8 @@ import {
   buildItineraryViewModel,
   reconcileWithConstraints,
   getDayConstraints,
-  getEndTimeWarning
+  getEndTimeWarning,
+  getTransitCoverage
 } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 
 /**
@@ -225,4 +226,40 @@ test('getEndTimeWarning is day-aware and safe on malformed input', () => {
   assert.equal(getEndTimeWarning(multi, 1).overflowMinutes, 0);
   assert.deepEqual(getEndTimeWarning(null, 0), { endTime: null, overflowMinutes: 0 });
   assert.deepEqual(getEndTimeWarning({}, 0), { endTime: null, overflowMinutes: 0 });
+});
+
+test('transit coverage distinguishes verified, partial, and unavailable states', () => {
+  const items = [{ time: '09:00' }, { time: '10:00' }, { time: '11:00' }]; // 구간 2개
+
+  assert.deepEqual(
+    getTransitCoverage(items, [{ fromIndex: 0, durationMinutes: 20 }, { fromIndex: 1, durationMinutes: 30 }]),
+    { expected: 2, resolved: 2, status: 'verified' }
+  );
+
+  assert.deepEqual(
+    getTransitCoverage(items, [{ fromIndex: 0, durationMinutes: 20 }]),
+    { expected: 2, resolved: 1, status: 'partial' }
+  );
+
+  // Directions 실패 폴백은 durationMinutes 가 null 이라 검증된 것으로 세지 않는다.
+  assert.deepEqual(
+    getTransitCoverage(items, [{ fromIndex: 0, durationMinutes: null }, { fromIndex: 1, durationMinutes: null }]),
+    { expected: 2, resolved: 0, status: 'none' }
+  );
+
+  assert.equal(getTransitCoverage(items, []).status, 'none');
+  assert.equal(getTransitCoverage(items, null).status, 'none');
+});
+
+test('transit coverage reports "none" when the map explicitly failed, even with routes present', () => {
+  const items = [{ time: '09:00' }, { time: '10:00' }];
+  const routes = [{ fromIndex: 0, durationMinutes: 20 }];
+
+  assert.equal(getTransitCoverage(items, routes, false).status, 'verified');
+  assert.equal(getTransitCoverage(items, routes, true).status, 'none', '지도가 실패를 알리면 검증됐다고 하면 안 된다');
+});
+
+test('a single-stop day needs no transit verification', () => {
+  assert.deepEqual(getTransitCoverage([{ time: '09:00' }], []), { expected: 0, resolved: 0, status: 'verified' });
+  assert.deepEqual(getTransitCoverage([], []), { expected: 0, resolved: 0, status: 'verified' });
 });

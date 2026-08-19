@@ -27,6 +27,19 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
+.transit-notice {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-left: 4px solid #3b82f6;
+          color: #1e40af;
+          border-radius: 8px;
+          padding: 0.85rem 1rem;
+          margin-bottom: 0.75rem;
+          font-size: 0.88rem;
+          font-weight: 600;
+          line-height: 1.5;
+        }
+
         .end-time-warning {
           background: #fffbeb;
           border: 1px solid #fcd34d;

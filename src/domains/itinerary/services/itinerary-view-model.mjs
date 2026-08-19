@@ -77,6 +77,34 @@ export function getDayConstraints(rawItinerary, activeDayIndex) {
 }
 
 /**
+ * 표시된 시각이 "실제 이동시간으로 검증된 것"인지 "AI 추정치일 뿐"인지 판정한다.
+ *
+ * 지도(map-view)는 지오코딩/Directions 실패 시 조용히 빠져나가기 때문에,
+ * 화면에는 AI 추정 시각이 마치 확정된 것처럼 남는다. 사용자가 그 차이를
+ * 알 수 있도록 구간별 실제 소요시간이 몇 개나 확보됐는지 계산한다.
+ *
+ * @param {Array} scheduleItems 하루치 일정(항목 N개 -> 구간 N-1개)
+ * @param {Array} transitRoutes map-view 가 넘긴 구간별 경로
+ * @param {boolean} [mapFailed] 지도가 실패를 명시적으로 알린 경우
+ * @returns {{expected:number, resolved:number, status:'none'|'partial'|'verified'}}
+ */
+export function getTransitCoverage(scheduleItems, transitRoutes, mapFailed = false) {
+  const items = Array.isArray(scheduleItems) ? scheduleItems : [];
+  const expected = Math.max(0, items.length - 1);
+
+  const resolved = (Array.isArray(transitRoutes) ? transitRoutes : []).filter(route => (
+    route &&
+    typeof route.durationMinutes === 'number' &&
+    Number.isFinite(route.durationMinutes)
+  )).length;
+
+  // 구간이 아예 없는 일정(항목 1개 이하)은 검증할 것도 없다.
+  if (expected === 0) return { expected, resolved, status: 'verified' };
+  if (mapFailed || resolved === 0) return { expected, resolved, status: 'none' };
+  return { expected, resolved, status: resolved >= expected ? 'verified' : 'partial' };
+}
+
+/**
  * 이미 화면에 반영된 일정을 기준으로 종료 시각 초과 여부만 다시 계산한다.
  *
  * 주의: 여기서 절대 reconcile(enforcePlannerConstraints)을 다시 돌리면 안 된다.

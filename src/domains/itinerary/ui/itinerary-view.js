@@ -9,7 +9,8 @@ import { normalizeData } from '../services/itinerary-normalize.mjs';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
-  getEndTimeWarning
+  getEndTimeWarning,
+  getTransitCoverage
 } from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
@@ -24,6 +25,10 @@ export default class ItineraryView extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.currentItinerary = null;
     this.activeDayIndex = 0;
+    // 지도가 실제 이동시간을 구했는지 추적한다. 실패를 조용히 넘기면 화면에는
+    // AI 추정 시각이 검증된 것처럼 남는다.
+    this.lastTransitRoutes = [];
+    this.transitUnavailable = false;
   }
 
   connectedCallback() {
@@ -42,6 +47,11 @@ export default class ItineraryView extends HTMLElement {
     // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
     this._transitInfoHandler = (e) => {
       const transitRoutes = Array.isArray(e.detail) ? e.detail : [];
+      this.lastTransitRoutes = transitRoutes;
+      // 유효한 경로가 하나라도 오면 실패 상태를 푼다(지도가 재계산에 성공한 경우).
+      if (transitRoutes.some(r => typeof r?.durationMinutes === 'number')) {
+        this.transitUnavailable = false;
+      }
       // Gemini가 추정한 시각은 실제 이동시간과 어긋날 수 있다(예: 이동에
       // 45분이 걸리는데 다음 항목이 이동시간 없이 바로 시작하는 것처럼
       // 생성되는 경우). 실제 이동시간이 밝혀졌으니 뒤 항목들의 시각을
@@ -50,10 +60,18 @@ export default class ItineraryView extends HTMLElement {
       this.renderTransitInfo(transitRoutes);
     };
     window.addEventListener('transit-info-ready', this._transitInfoHandler);
+
+    // 지도가 실제 이동시간을 구하지 못했을 때(지오코딩/Directions 실패 등)
+    this._transitUnavailableHandler = () => {
+      this.transitUnavailable = true;
+      this.refreshTransitNotice();
+    };
+    window.addEventListener('transit-unavailable', this._transitUnavailableHandler);
   }
 
   disconnectedCallback() {
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
+    window.removeEventListener('transit-unavailable', this._transitUnavailableHandler);
     // 3. 컴포넌트 클린업: 유저가 다른 페이지로 이동 시 Light DOM 기반의 광고 컨테이너 제거
     const adWrapper = this.querySelector('.adsense-wrapper');
     if (adWrapper) {
@@ -401,6 +419,39 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * 표시된 시각이 실제 이동시간으로 검증된 것인지 안내한다.
+   *
+   * 지도가 실패하면 예전에는 아무 표시 없이 AI 추정 시각만 남아, 사용자는
+   * 그 시각이 검증된 줄 알았다. 검증되지 않았다는 사실 자체를 알려준다.
+   */
+  refreshTransitNotice() {
+    const box = this.shadowRoot.getElementById('transit-notice');
+    if (!box) return;
+
+    const plan = this.normalizeData(this.currentItinerary);
+    const items = plan?.days?.[this.activeDayIndex]?.scheduleItems;
+    if (!Array.isArray(items) || items.length === 0) {
+      box.style.display = 'none';
+      return;
+    }
+
+    const { expected, resolved, status } = getTransitCoverage(
+      items, this.lastTransitRoutes, this.transitUnavailable
+    );
+
+    if (status === 'verified') {
+      box.style.display = 'none';
+      box.textContent = '';
+      return;
+    }
+
+    box.textContent = status === 'none'
+      ? 'ℹ️ 실제 대중교통 소요시간을 확인하지 못했습니다. 아래 시각은 AI 추정치이며 실제와 다를 수 있습니다.'
+      : `ℹ️ 전체 ${expected}개 구간 중 ${resolved}개만 실제 소요시간이 확인됐습니다. 나머지 구간의 시각은 AI 추정치입니다.`;
+    box.style.display = 'block';
+  }
+
+  /**
    * 실제 이동시간을 반영한 결과 도착이 사용자가 지정한 종료 시각을 넘겼을 때
    * 띄우는 경고. 시각 자체는 사실대로 두고, 얼마나 초과했는지만 알려서
    * 사용자가 직접 일정을 조정할 수 있게 한다.
@@ -443,6 +494,7 @@ export default class ItineraryView extends HTMLElement {
     dayData.scheduleItems = scheduleItems;
 
     this.refreshEndTimeWarning();
+    this.refreshTransitNotice();
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
     scheduleItems.forEach((item, idx) => {
@@ -462,6 +514,7 @@ export default class ItineraryView extends HTMLElement {
 
       <div id="results" style="display: none;">
         <div id="results-content" style="background: white;">
+          <div id="transit-notice" class="transit-notice" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
@@ -513,6 +566,10 @@ export default class ItineraryView extends HTMLElement {
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
     if (kakaoBtn) kakaoBtn.style.display = 'none';
     this.renderEndTimeWarning(0);
+    this.lastTransitRoutes = [];
+    this.transitUnavailable = false;
+    const notice = this.shadowRoot.getElementById('transit-notice');
+    if (notice) notice.style.display = 'none';
   }
 
   showResults(itineraryData) {
@@ -603,8 +660,9 @@ export default class ItineraryView extends HTMLElement {
     const container = this.shadowRoot.getElementById('timeline-container');
     if (!container) return;
 
-    // 날짜를 바꾸면 경고도 그 날짜 기준으로 다시 계산해야 한다.
+    // 날짜를 바꾸면 경고/안내도 그 날짜 기준으로 다시 계산해야 한다.
     this.refreshEndTimeWarning();
+    this.refreshTransitNotice();
     
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
