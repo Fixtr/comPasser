@@ -1,7 +1,6 @@
 import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, deleteAllUserItineraries } from '../../itinerary/services/firestore-service.js';
-import { db } from '../../../lib/firebase-config.js';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { profileStyles } from './profile-style.js';
 
 class ProfileView extends HTMLElement {
@@ -54,6 +53,7 @@ class ProfileView extends HTMLElement {
 
             // 2. Fetch Firestore Data
             try {
+                const { db, doc, getDoc } = await loadFirestore();
                 const userDocRef = doc(db, "users", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
 
@@ -206,6 +206,7 @@ class ProfileView extends HTMLElement {
         if (!user) return;
 
         try {
+            const { db, doc, setDoc } = await loadFirestore();
             const userDocRef = doc(db, "users", user.uid);
             const updateData = { [field]: newValue };
             if (isVerifiedUpdate) {
@@ -361,6 +362,7 @@ class ProfileView extends HTMLElement {
                     await deleteAllUserItineraries(user.uid);
 
                     // 2. Delete user document from Firestore
+                    const { db, doc, deleteDoc } = await loadFirestore();
                     await deleteDoc(doc(db, "users", user.uid));
 
                     // 3. Delete Auth account

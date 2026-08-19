@@ -1,10 +1,9 @@
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { app } from "../../auth/services/firebase-auth.js";
-
-const db = getFirestore(app);
+import { loadFirestore } from "../../../lib/firestore-lazy.mjs";
 
 export async function saveItinerary(userId, itineraryPlan) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const itinerariesRef = collection(db, "itineraries");
         const docRef = await addDoc(itinerariesRef, {
             userId: userId,
@@ -20,6 +19,8 @@ export async function saveItinerary(userId, itineraryPlan) {
 
 export async function getUserItineraries(userId) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const itinerariesRef = collection(db, "itineraries");
         const q = query(itinerariesRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
@@ -41,6 +42,8 @@ export async function getUserItineraries(userId) {
 
 export async function deleteItinerary(documentId) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const docRef = doc(db, "itineraries", documentId);
         await deleteDoc(docRef);
         console.log(`Itinerary ${documentId} successfully deleted.`);
@@ -52,6 +55,8 @@ export async function deleteItinerary(documentId) {
 
 export async function deleteAllUserItineraries(userId) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const itinerariesRef = collection(db, "itineraries");
         const q = query(itinerariesRef, where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
@@ -71,6 +76,8 @@ export async function deleteAllUserItineraries(userId) {
 
 export async function createSharedItinerary(itineraryPlan) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const sharedRef = collection(db, "shared_itineraries");
         const docRef = await addDoc(sharedRef, {
             itineraryPlan: itineraryPlan,
@@ -85,6 +92,8 @@ export async function createSharedItinerary(itineraryPlan) {
 
 export async function getSharedItinerary(documentId) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         const docRef = doc(db, "shared_itineraries", documentId);
         const docSnap = await getDoc(docRef);
         
@@ -101,6 +110,8 @@ export async function getSharedItinerary(documentId) {
 }
 export async function getItineraryById(documentId) {
     try {
+        const { db, collection, addDoc, getDocs, query, where, orderBy,
+                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
         // 1. 먼저 프라이빗 itineraries 컬렉션 조회 시도
         const docRef = doc(db, "itineraries", documentId);
         const docSnap = await getDoc(docRef);
