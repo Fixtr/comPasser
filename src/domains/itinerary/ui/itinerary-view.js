@@ -8,6 +8,8 @@ import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
+import { removeScheduleItem, moveScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
+import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import {
   buildItineraryViewModel,
@@ -453,6 +455,47 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * 타임라인 항목을 옮기거나 뺀다.
+   *
+   * 계산은 itinerary-edit.mjs 가 하고 여기서는 결과를 반영해 다시 그린다.
+   * 편집 결과는 currentItinerary 에 남으므로 이어서 저장/공유해도 그대로다.
+   * 삭제는 되돌릴 수 없으니 확인을 받는다.
+   */
+  async handleItemEdit(action, index) {
+    const plan = this.normalizeData(this.currentItinerary);
+    const dayData = plan?.days?.[this.activeDayIndex];
+    if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
+
+    if (action === 'remove') {
+      const target = dayData.scheduleItems[index];
+      const ok = await showConfirm({
+        title: '일정에서 빼기',
+        message: `"${target?.title || '이 항목'}"을 일정에서 뺄까요? 뒤 일정의 시각이 앞으로 당겨집니다.`,
+        confirmText: '빼기'
+      });
+      if (!ok) return;
+
+      const { items, removed } = removeScheduleItem(dayData.scheduleItems, index);
+      if (!removed) return;
+      dayData.scheduleItems = items;
+      showGlobalToast(`"${removed.title}"을 일정에서 뺐습니다.`, { tone: 'success' });
+    } else {
+      const { items, moved } = moveScheduleItem(dayData.scheduleItems, index, action === 'up' ? -1 : 1);
+      if (!moved) {
+        showGlobalToast('더 옮길 수 없습니다.', { tone: 'warning' });
+        return;
+      }
+      dayData.scheduleItems = items;
+    }
+
+    this.renderActiveDay(plan);
+    // 지도와 이동시간을 새 순서로 다시 계산하게 한다.
+    window.dispatchEvent(new CustomEvent('render-map-route', {
+      detail: { ...plan, days: [dayData] }
+    }));
+  }
+
+  /**
    * 종료 시각을 넘긴 일정을 실제로 줄여서 맞춘다.
    *
    * 표시 시각을 눌러 속이는 게 아니라 체류 시간을 깎거나 항목을 빼는 것이라,
@@ -833,6 +876,15 @@ export default class ItineraryView extends HTMLElement {
         : (scheduleItem.location ? JSON.stringify(scheduleItem.location) : '');
       const gmapsStr = typeof scheduleItem.googleMapsUrl === 'string' ? scheduleItem.googleMapsUrl : '';
 
+      // 출발/도착은 사용자가 폼에서 지정한 경계라 편집 대상이 아니다.
+      const editHtml = isEditableItem(scheduleItem) ? `
+        <div class="item-edit-actions">
+          <button class="item-edit-btn" data-edit="up" data-idx="${idx}" aria-label="${scheduleItem.title} 앞으로 옮기기" title="앞으로">↑</button>
+          <button class="item-edit-btn" data-edit="down" data-idx="${idx}" aria-label="${scheduleItem.title} 뒤로 옮기기" title="뒤로">↓</button>
+          <button class="item-edit-btn danger" data-edit="remove" data-idx="${idx}" aria-label="${scheduleItem.title} 일정에서 빼기" title="빼기">✕</button>
+        </div>
+      ` : '';
+
       const linksHtml = `
         <div class="action-links">
           ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" class="action-link-badge">🌐 홈페이지</a>` : ''}
@@ -844,7 +896,10 @@ export default class ItineraryView extends HTMLElement {
       item.innerHTML = `
         <div class="time-badge">${timeDisplay}</div>
         <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
-          <div class="schedule-title">${scheduleItem.title}</div>
+          <div class="schedule-title-row">
+            <span class="schedule-title">${scheduleItem.title}</span>
+            ${editHtml}
+          </div>
           ${(function() {
             const info = scheduleItem.transitInfo;
             if (!info) return '';
@@ -952,6 +1007,14 @@ export default class ItineraryView extends HTMLElement {
       `;
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
+      item.querySelectorAll('.item-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleItemEdit(btn.dataset.edit, Number(btn.dataset.idx));
+        });
+      });
+
       const navBtn = item.querySelector('.nav-btn');
       if (navBtn) {
         navBtn.addEventListener('click', (e) => {

@@ -66,6 +66,24 @@ export const itineraryStyles = `
           line-height: 1.5;
         }
 
+        .schedule-title-row {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 0.5rem; margin-bottom: 0.35rem;
+        }
+        .item-edit-actions { display: flex; gap: 0.2rem; flex-shrink: 0; }
+        .item-edit-btn {
+          background: transparent; border: 1px solid #e5e7eb; color: #6b7280;
+          border-radius: 6px; width: 1.65rem; height: 1.65rem; line-height: 1;
+          font-size: 0.8rem; cursor: pointer; padding: 0;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .item-edit-btn:hover, .item-edit-btn:focus-visible {
+          background: #f3f4f6; color: #111827; border-color: #d1d5db;
+        }
+        .item-edit-btn.danger:hover, .item-edit-btn.danger:focus-visible {
+          background: #fef2f2; color: #b91c1c; border-color: #fca5a5;
+        }
+
         .end-time-fix-btn {
           display: inline-block;
           margin-left: 0.6rem;
