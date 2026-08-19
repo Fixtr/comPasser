@@ -400,6 +400,29 @@ export default class ItineraryView extends HTMLElement {
    * 시각이 저장된다.
    */
   /**
+   * 현재 보고 있는 날짜 기준으로 종료 시각 초과 여부를 다시 계산해 경고를
+   * 갱신한다. 이동시간 보정 직후뿐 아니라 날짜 탭을 바꿀 때도 불러야 한다 —
+   * 그러지 않으면 1일차에서 뜬 경고가 2일차 화면에 그대로 남는다.
+   *
+   * 종료 시각은 generateOptimizedItinerary()가 반환한 { request, days } 형태에
+   * 그대로 남아있어, 저장된 일정을 불러온 경우에도 읽을 수 있다.
+   */
+  refreshEndTimeWarning() {
+    const safePlan = this.normalizeData(this.currentItinerary);
+    const dayData = safePlan?.days?.[this.activeDayIndex];
+    const requestDailyData = this.currentItinerary?.request?.dailyData;
+    const dayNumber = this.activeDayIndex + 1;
+    const dayConstraints = Array.isArray(requestDailyData)
+      ? (requestDailyData.find(d => Number(d.day) === dayNumber) || requestDailyData[this.activeDayIndex])
+      : null;
+
+    this.renderEndTimeWarning(
+      getEndTimeOverflowMinutes(dayData?.scheduleItems, dayConstraints?.endTime),
+      dayConstraints?.endTime
+    );
+  }
+
+  /**
    * 실제 이동시간을 반영한 결과 도착이 사용자가 지정한 종료 시각을 넘겼을 때
    * 띄우는 경고. 시각 자체는 사실대로 두고, 얼마나 초과했는지만 알려서
    * 사용자가 직접 일정을 조정할 수 있게 한다.
@@ -434,21 +457,7 @@ export default class ItineraryView extends HTMLElement {
     const adjustedItems = applyTransitDelays(dayData.scheduleItems, transitRoutes);
     dayData.scheduleItems = adjustedItems;
 
-    // 실제 이동시간을 반영하면 도착이 사용자가 지정한 종료 시각을 넘길 수
-    // 있다. 예전에는 도착 시각을 종료 시각으로 눌러 표시했지만 그러면
-    // 사실과 다른 시각이 나온다(20:07 종료 + 94분 이동인데 20:51 도착).
-    // 시각은 계산 결과 그대로 두고, 초과 사실만 경고로 알린다.
-    // 종료 시각은 generateOptimizedItinerary()가 반환한 { request, days }
-    // 형태에 그대로 남아있어 저장된 일정을 불러온 경우에도 읽을 수 있다.
-    const dayNumber = this.activeDayIndex + 1;
-    const requestDailyData = this.currentItinerary?.request?.dailyData;
-    const dayConstraints = Array.isArray(requestDailyData)
-      ? (requestDailyData.find(d => Number(d.day) === dayNumber) || requestDailyData[this.activeDayIndex])
-      : null;
-    this.renderEndTimeWarning(
-      getEndTimeOverflowMinutes(adjustedItems, dayConstraints?.endTime),
-      dayConstraints?.endTime
-    );
+    this.refreshEndTimeWarning();
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
     adjustedItems.forEach((item, idx) => {
@@ -518,6 +527,7 @@ export default class ItineraryView extends HTMLElement {
     if (downloadBtn) downloadBtn.style.display = 'none';
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
     if (kakaoBtn) kakaoBtn.style.display = 'none';
+    this.renderEndTimeWarning(0);
   }
 
   showResults(itineraryData) {
@@ -607,6 +617,9 @@ export default class ItineraryView extends HTMLElement {
   renderActiveDay(safePlan) {
     const container = this.shadowRoot.getElementById('timeline-container');
     if (!container) return;
+
+    // 날짜를 바꾸면 경고도 그 날짜 기준으로 다시 계산해야 한다.
+    this.refreshEndTimeWarning();
     
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
