@@ -35,33 +35,51 @@ export function applyTransitDelays(scheduleItems, transitRoutes) {
   const result = scheduleItems.map(item => ({ ...item }));
 
   // 실제 이동시간 데이터가 있을 때만 지연 보정 루프를 돈다.
+  //
+  // 경로는 fromIndex 가 아니라 toIndex 로 색인한다. 지오코딩에 실패한 항목은
+  // 지도에서 빠지므로 구간이 연속이라는 보장이 없다. 예: A,B,C,D 중 C가
+  // 실패하면 지도는 A→B(0→1)와 B→D(1→3) 두 구간만 계산한다. 이때
+  // fromIndex 로 "i-1 구간"을 찾으면 B→D 의 소요시간이 C 에 붙어버려
+  // C 가 D 의 자리로 밀리고 D 는 거기서 또 밀린다(실측 1시간 이상 오차).
+  // "이 항목에 도착하는 경로"를 toIndex 로 찾으면 건너뛴 구간도 정확해진다.
   if (Array.isArray(transitRoutes) && transitRoutes.length > 0) {
-    const transitMinutesByFromIndex = new Map();
+    const routeByToIndex = new Map();
     transitRoutes.forEach(route => {
       if (
         route &&
-        typeof route.fromIndex === 'number' &&
         typeof route.durationMinutes === 'number' &&
-        Number.isFinite(route.durationMinutes)
+        Number.isFinite(route.durationMinutes) &&
+        typeof route.fromIndex === 'number'
       ) {
-        transitMinutesByFromIndex.set(route.fromIndex, route.durationMinutes);
+        // toIndex 가 없는 예전 데이터는 연속 구간(fromIndex + 1)으로 본다.
+        const toIndex = typeof route.toIndex === 'number' ? route.toIndex : route.fromIndex + 1;
+        routeByToIndex.set(toIndex, { fromIndex: route.fromIndex, durationMinutes: route.durationMinutes });
       }
     });
 
     for (let i = 1; i < result.length; i++) {
-      const prev = result[i - 1];
-      const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
       const originalStart = minutesOf(result[i].time);
-      if (prevEnd === null || originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
+      if (originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
 
-      // 실제 소요시간을 알면 그만큼, 모르면(지오코딩 실패 등으로 이 구간만
-      // Directions 결과가 없는 경우) 최소한 "겹치지 않는" 정도(0분)는 보장한다.
-      // 모른다고 완전히 건너뛰면, 앞선 구간이 실제 이동시간 때문에 뒤로
-      // 밀렸을 때 이 항목만 원래(더 이른) 시각에 남아 시간이 역전될 수 있다.
-      const transitMinutes = transitMinutesByFromIndex.get(i - 1);
-      const requiredGap = typeof transitMinutes === 'number' ? transitMinutes : 0;
+      const route = routeByToIndex.get(i);
+      let earliestArrival = null;
 
-      const earliestArrival = prevEnd + requiredGap;
+      if (route && route.fromIndex >= 0 && route.fromIndex < i) {
+        // 이 항목으로 오는 실제 경로가 있다: 출발 항목의 종료 시각 + 소요시간
+        const origin = result[route.fromIndex];
+        const originEnd = minutesOf(origin.endTime) ?? minutesOf(origin.time);
+        if (originEnd !== null) earliestArrival = originEnd + route.durationMinutes;
+      }
+
+      if (earliestArrival === null) {
+        // 실제 소요시간을 모르는 항목(지오코딩 실패 등)이라도 최소한 앞 항목과
+        // 겹치거나 시간이 역전되지는 않게 한다.
+        const prev = result[i - 1];
+        const prevEnd = minutesOf(prev.endTime) ?? minutesOf(prev.time);
+        if (prevEnd === null) continue;
+        earliestArrival = prevEnd;
+      }
+
       if (earliestArrival <= originalStart) continue; // 이미 여유가 있으면 그대로 둔다
 
       const delay = earliestArrival - originalStart;

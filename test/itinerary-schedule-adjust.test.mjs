@@ -219,3 +219,61 @@ test('the input array is not mutated', () => {
   applyTransitDelays(scheduleItems, [{ fromIndex: 0, durationMinutes: 45 }]);
   assert.deepEqual(scheduleItems, frozenCopy);
 });
+
+test('a skipped (ungeocoded) stop no longer receives the travel time of the segment that bypassed it', () => {
+  // 지오코딩에 실패한 항목은 지도에서 빠지므로 구간이 연속이 아니다.
+  // A,B,C,D 중 C가 실패하면 지도는 A→B(0→1)와 B→D(1→3)만 계산한다.
+  // 예전에는 fromIndex 로 "i-1 구간"을 찾아 B→D 의 90분이 C 에 붙었고,
+  // C 가 D 의 자리(12:30)로 밀린 뒤 D 는 13:20 까지 밀렸다.
+  const scheduleItems = [
+    { time: '09:00', endTime: '10:00', title: 'A' },
+    { time: '10:10', endTime: '11:00', title: 'B' },
+    { time: '11:10', endTime: '12:00', title: 'C (지오코딩 실패)' },
+    { time: '12:10', endTime: '13:00', title: 'D' }
+  ];
+  const transitRoutes = [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 10 },
+    { fromIndex: 1, toIndex: 3, durationMinutes: 90 } // C를 건너뛴 실제 경로
+  ];
+
+  const [a, b, c, d] = applyTransitDelays(scheduleItems, transitRoutes);
+
+  assert.equal(a.time, '09:00');
+  assert.equal(b.time, '10:10');
+  // C는 실제 소요시간을 모르므로 겹치지만 않으면 원래 시각을 지킨다.
+  assert.equal(c.time, '11:10', 'C가 D의 자리로 밀리면 안 된다');
+  assert.equal(c.endTime, '12:00');
+  // D는 출발지인 B의 종료(11:00)에 실제 90분을 더한 값이어야 한다.
+  assert.equal(d.time, '12:30');
+  assert.equal(d.endTime, '13:20');
+});
+
+test('routes are matched by toIndex, so out-of-order route arrays still land correctly', () => {
+  const scheduleItems = [
+    { time: '09:00', endTime: '10:00', title: 'A' },
+    { time: '10:05', endTime: '11:00', title: 'B' },
+    { time: '11:05', endTime: '12:00', title: 'C' }
+  ];
+  // 일부러 뒤섞어 전달
+  const transitRoutes = [
+    { fromIndex: 1, toIndex: 2, durationMinutes: 40 },
+    { fromIndex: 0, toIndex: 1, durationMinutes: 30 }
+  ];
+
+  const [, b, c] = applyTransitDelays(scheduleItems, transitRoutes);
+
+  assert.equal(b.time, '10:30'); // A 종료(10:00) + 30분
+  assert.equal(b.endTime, '11:25'); // 25분 밀렸으므로 체류 55분 유지
+  assert.equal(c.time, '12:05'); // 밀린 B의 종료(11:25) + 40분
+});
+
+test('legacy routes without toIndex still behave as contiguous segments', () => {
+  const scheduleItems = [
+    { time: '09:00', endTime: '10:00', title: 'A' },
+    { time: '10:00', endTime: '11:00', title: 'B' }
+  ];
+
+  const [, b] = applyTransitDelays(scheduleItems, [{ fromIndex: 0, durationMinutes: 45 }]);
+
+  assert.equal(b.time, '10:45'); // toIndex 가 없으면 fromIndex + 1 로 간주
+});
