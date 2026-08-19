@@ -7,6 +7,7 @@ import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
+import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -451,6 +452,30 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * 지금 보고 있는 날짜의 1인 예상 비용을 합산해 보여준다.
+   *
+   * estimatedCost 는 자유 문자열이라 일부는 금액을 읽어낼 수 없다. 합계만
+   * 보여주면 실제보다 적은 금액을 확정된 것처럼 알리게 되므로, 못 읽은
+   * 항목 수를 함께 표시한다.
+   */
+  refreshCostSummary() {
+    const box = this.shadowRoot.getElementById('cost-summary');
+    if (!box) return;
+
+    const plan = this.normalizeData(this.currentItinerary);
+    const items = plan?.days?.[this.activeDayIndex]?.scheduleItems;
+    const text = formatCostSummary(summarizeCosts(items), getLang());
+
+    if (!text) {
+      box.style.display = 'none';
+      box.textContent = '';
+      return;
+    }
+    box.textContent = `💰 ${text}`;
+    box.style.display = 'block';
+  }
+
+  /**
    * 표시된 시각이 실제 이동시간으로 검증된 것인지 안내한다.
    *
    * 지도가 실패하면 예전에는 아무 표시 없이 AI 추정 시각만 남아, 사용자는
@@ -527,6 +552,7 @@ export default class ItineraryView extends HTMLElement {
 
     this.refreshEndTimeWarning();
     this.refreshTransitNotice();
+    this.refreshCostSummary();
 
     const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
     scheduleItems.forEach((item, idx) => {
@@ -549,6 +575,7 @@ export default class ItineraryView extends HTMLElement {
           <div id="fallback-warning" class="fallback-warning" role="alert" style="display: none;"></div>
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
+          <div id="cost-summary" class="cost-summary" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
             <!-- Tabs injected dynamically -->
@@ -604,6 +631,8 @@ export default class ItineraryView extends HTMLElement {
     if (notice) notice.style.display = 'none';
     const fallback = this.shadowRoot.getElementById('fallback-warning');
     if (fallback) fallback.style.display = 'none';
+    const cost = this.shadowRoot.getElementById('cost-summary');
+    if (cost) cost.style.display = 'none';
   }
 
   showResults(itineraryData) {
@@ -698,9 +727,10 @@ export default class ItineraryView extends HTMLElement {
     const container = this.shadowRoot.getElementById('timeline-container');
     if (!container) return;
 
-    // 날짜를 바꾸면 경고/안내도 그 날짜 기준으로 다시 계산해야 한다.
+    // 날짜를 바꾸면 경고/안내/비용도 그 날짜 기준으로 다시 계산해야 한다.
     this.refreshEndTimeWarning();
     this.refreshTransitNotice();
+    this.refreshCostSummary();
     
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');

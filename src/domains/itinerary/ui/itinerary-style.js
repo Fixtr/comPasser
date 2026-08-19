@@ -66,6 +66,18 @@ export const itineraryStyles = `
           line-height: 1.5;
         }
 
+        .cost-summary {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-left: 4px solid #16a34a;
+          color: #166534;
+          border-radius: 8px;
+          padding: 0.8rem 1rem;
+          margin-bottom: 1.25rem;
+          font-size: 0.92rem;
+          font-weight: 700;
+        }
+
         /* ====== Timeline ====== */
         .timeline {
           display: flex;
