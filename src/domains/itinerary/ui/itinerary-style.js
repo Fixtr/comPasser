@@ -114,6 +114,25 @@ export const itineraryStyles = `
           border-left: 3px solid var(--accent-primary);
         }
 
+        .resolved-place {
+          font-size: 0.78rem;
+          color: var(--text-secondary);
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          padding: 0.3rem 0.55rem;
+          margin-bottom: 0.5rem;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+        /* 적어둔 이름과 다른 곳을 찾았으면 눈에 띄게 */
+        .resolved-place.mismatch {
+          background: #fffbeb;
+          border-color: #fcd34d;
+          color: #92400e;
+          font-weight: 600;
+        }
+
         .schedule-title-row {
           display: flex; align-items: center; justify-content: space-between;
           gap: 0.5rem; margin-bottom: 0.35rem;

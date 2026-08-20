@@ -226,6 +226,20 @@ export class MapView extends HTMLElement {
       // 3. Render Markers on Map
       await this.renderMarkers(geocodedItems);
 
+      // 지도가 실제로 어떤 장소를 찾았는지 타임라인에 알린다. 화면에는 AI 가
+      // 쓴 문자열이 그대로 떠 있어서, 엉뚱한 곳으로 매칭돼도 사용자가 알
+      // 방법이 없었다. displayIndex 로 위치를 맞춰 보낸다(지오코딩에 실패한
+      // 항목은 빠지므로 배열 순서만으로는 어긋난다).
+      window.dispatchEvent(new CustomEvent('places-resolved', {
+        detail: geocodedItems
+          .filter(item => item.resolvedName || item.resolvedAddress)
+          .map(item => ({
+            index: (item.displayIndex ?? 0) - 1,
+            name: item.resolvedName || '',
+            address: item.resolvedAddress || ''
+          }))
+      }));
+
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
         this.setLoading(true, "Calculating routes...");

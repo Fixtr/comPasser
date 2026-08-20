@@ -11,6 +11,7 @@ import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mj
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
+import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -24,6 +25,28 @@ import {
   renderTransitInfo
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
+
+/**
+ * duration 이 없는 항목(사용자가 넣었거나 구버전 데이터)에 쓸 표시값.
+ * 그냥 두면 화면에 "undefined" 가 그대로 노출된다.
+ */
+function fallbackDuration(item) {
+  const toMinutes = (time) => {
+    if (!/^\d{2}:\d{2}$/.test(time || '')) return null;
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const start = toMinutes(item?.time);
+  const end = toMinutes(item?.endTime);
+  if (start === null || end === null || end <= start) return '';
+
+  const total = end - start;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  if (hours && mins) return `${hours}시간 ${mins}분`;
+  if (hours) return `${hours}시간`;
+  return `${mins}분`;
+}
 
 export default class ItineraryView extends HTMLElement {
   constructor() {
@@ -73,11 +96,18 @@ export default class ItineraryView extends HTMLElement {
       this.refreshTransitNotice();
     };
     window.addEventListener('transit-unavailable', this._transitUnavailableHandler);
+
+    // 지도가 실제로 찾은 장소를 화면에 반영한다(오매칭이 드러나도록).
+    this._placesResolvedHandler = (e) => {
+      this.applyResolvedPlaces(Array.isArray(e.detail) ? e.detail : []);
+    };
+    window.addEventListener('places-resolved', this._placesResolvedHandler);
   }
 
   disconnectedCallback() {
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
     window.removeEventListener('transit-unavailable', this._transitUnavailableHandler);
+    window.removeEventListener('places-resolved', this._placesResolvedHandler);
     // 3. 컴포넌트 클린업: 유저가 다른 페이지로 이동 시 Light DOM 기반의 광고 컨테이너 제거
     const adWrapper = this.querySelector('.adsense-wrapper');
     if (adWrapper) {
@@ -452,6 +482,52 @@ export default class ItineraryView extends HTMLElement {
     box.textContent = `🚨 ${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`;
     box.style.display = 'block';
     return true;
+  }
+
+  /**
+   * 지도가 해석한 장소 이름/주소를 카드에 반영한다.
+   *
+   * 카드에는 AI 가 쓴 문자열("서울 경복궁")이 떠 있는데, 지도가 실제로 찾은
+   * 곳과 다를 수 있다. 실제로 찾은 이름이 다르면 함께 보여줘서 오매칭이
+   * 눈에 띄게 한다. 같으면 굳이 덧붙이지 않는다.
+   */
+  applyResolvedPlaces(resolved) {
+    if (!Array.isArray(resolved) || resolved.length === 0) return;
+
+    const plan = this.normalizeData(this.currentItinerary);
+    const items = plan?.days?.[this.activeDayIndex]?.scheduleItems;
+    if (!Array.isArray(items)) return;
+
+    const cards = this.shadowRoot.querySelectorAll('#timeline-container .schedule-card');
+
+    resolved.forEach(({ index, name, address }) => {
+      const item = items[index];
+      const card = cards[index];
+      if (!item || !card) return;
+
+      // 저장/공유에도 남도록 항목에도 기록해 둔다.
+      item.resolvedName = name;
+      item.resolvedAddress = address;
+
+      const target = card.querySelector('.resolved-place');
+      if (!target) return;
+
+      const { visible, mismatch, detail } = describeResolvedPlace({
+        written: item.location,
+        name,
+        address,
+      });
+
+      if (!visible) {
+        target.style.display = 'none';
+        return;
+      }
+
+      target.textContent = `🔎 ${t('resolvedPlaceLabel') || '지도에서 찾은 곳'}: ${detail}`;
+      target.style.display = 'block';
+      // 적어둔 이름과 다르면 눈에 띄게 표시한다.
+      target.classList.toggle('mismatch', mismatch);
+    });
   }
 
   /**
@@ -1015,9 +1091,10 @@ export default class ItineraryView extends HTMLElement {
             
             return `<div class="schedule-desc gemini-transit" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${trimmedInfo}</div>`;
           })()}
+          <div class="resolved-place" style="display: none;"></div>
           <div class="schedule-meta">
             <span class="meta-item">📍 ${locationStr}</span>
-            <span class="meta-item">⏱ ${scheduleItem.duration}${(function() {
+            <span class="meta-item">⏱ ${scheduleItem.duration || fallbackDuration(scheduleItem)}${(function() {
               const info = scheduleItem.transitInfo || '';
               // 시간 정보 추출 정규식 (예: 약 15분, 1시간 10분 등)
               const timeMatch = info.match(/(?:약\s*)?(\d+\s*시간)?\s*(\d+\s*분)/);
