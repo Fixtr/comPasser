@@ -72,12 +72,32 @@ export default class TravelForm extends HTMLElement {
     dateInput.min = todayString();
   }
 
+  /**
+   * 다음에 폼이 보일 때 채울 데이터를 예약한다.
+   *
+   * populateForm() 을 직접 부르고 곧바로 /plan 으로 이동하면, 폼이 보이는
+   * 순간 refreshFromStorage() 가 form.reset() 후 sessionStorage 값으로 다시
+   * 채우면서 방금 넣은 값을 지운다. 그래서 "무엇으로 채울지"를 예약해 두고
+   * refreshFromStorage() 가 그것을 우선 쓰도록 한다.
+   */
+  setPendingFormData(requestData) {
+    this._pendingFormData = requestData || null;
+  }
+
   refreshFromStorage() {
     this.syncDateFloor();
     this.renderPreferenceBadges();
 
-    // Restore Form Data on load if we are not locked in Phase 3
-    const savedPhase = sessionStorage.getItem('currentPhase');
+    // 예약된 데이터가 있으면 그것으로 채우고 한 번 쓰고 버린다.
+    if (this._pendingFormData) {
+      const pending = this._pendingFormData;
+      this._pendingFormData = null;
+      const form = this.shadowRoot.getElementById('travel-form');
+      if (form) form.reset();
+      this.populateForm(pending);
+      return;
+    }
+
     const savedForm = sessionStorage.getItem('currentFormData');
     const savedPrefStr = sessionStorage.getItem('userPreference');
     
@@ -98,7 +118,10 @@ export default class TravelForm extends HTMLElement {
     const form = this.shadowRoot.getElementById('travel-form');
     if (form) form.reset();
 
-    if (savedPhase !== '3' && savedForm) {
+    // 예전에는 currentPhase 가 '3'(생성 완료)이면 상세 입력을 복원하지 않아,
+    // /view 에서 폼으로 돌아오면 출발지·도착지·시간·필수 일정이 통째로
+    // 비워졌다. 돌아왔을 때 입력이 남아 있어야 하므로 phase 는 보지 않는다.
+    if (savedForm) {
       try {
         const formData = JSON.parse(savedForm);
         // 데이터 수신부 강제 초기화: 무조건 최신 userPreference 값으로 덮어씌움

@@ -588,12 +588,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // [UI Events & Actions]
     // ----------------------------------------------------
 
-    // 1. [← 이전 화면으로] 버튼: Hash 변경만으로 폼 보존
+    // 1. [← 폼으로 돌아가기] 버튼
+    //    마지막으로 "입력하던" 폼(currentFormData)으로 돌아간다. 예약값을
+    //    비워 두면 travel-form 이 sessionStorage 에서 복원한다.
     const goBackBtn = document.getElementById('go-back-btn');
     if (goBackBtn) {
         goBackBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[Routing] "Go Back" clicked: Moving to /plan (Data preserved seamlessly).');
+            console.log('[Routing] "Go Back": 마지막으로 입력하던 폼으로 복귀');
+            if (travelFormView && travelFormView.setPendingFormData) {
+                travelFormView.setPendingFormData(null);
+            }
             window.navigate('/plan');
         });
     }
@@ -616,10 +621,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            if (travelFormView && travelFormView.populateForm && requestData) {
-                travelFormView.populateForm(requestData);
+            // populateForm 을 직접 부르면 /plan 으로 이동한 뒤 폼이 보이는 순간
+            // refreshFromStorage() 가 form.reset() 후 sessionStorage 값으로 다시
+            // 채우면서 방금 넣은 값을 덮어썼다(그래서 이 버튼이 '이전 화면으로'와
+            // 똑같이 동작했다). 무엇으로 채울지 예약해 두고 이동한다.
+            if (travelFormView && travelFormView.setPendingFormData && requestData) {
+                travelFormView.setPendingFormData(requestData);
             } else {
-                console.warn('[Auto-fill] Failed to find existing requestData to populate.');
+                console.warn('[Auto-fill] 지금 보고 있는 일정의 조건을 찾지 못했습니다.');
             }
             window.navigate('/plan');
         });
