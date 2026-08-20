@@ -109,3 +109,89 @@ function shiftFrom(items, fromIndex, offset) {
     return next;
   });
 }
+
+/** 새로 넣는 장소의 기본 체류 시간(분). 앞뒤 여유가 부족하면 줄어든다. */
+export const DEFAULT_STAY_MINUTES = 60;
+
+/**
+ * 지정한 위치에 장소를 새로 끼워 넣는다.
+ *
+ * 폼의 "필수 방문 일정(Anchor)" 과 개념은 같지만 시점이 다르다. 앵커는 생성
+ * 전에 AI 에게 넘기는 제약이고, 이건 이미 만들어진 일정을 사용자가 손보는
+ * 것이다. AI 를 다시 부르지 않으므로 동선이 재최적화되지는 않는다 —
+ * 사용자가 고른 자리에 그대로 들어간다.
+ *
+ * 시각은 앞 항목이 끝난 뒤부터 잡는다. 실제 이동시간은 지도가 다시 계산해
+ * 덮어쓰므로 여기서는 최소한의 자리만 만들어 준다. 뒤 항목들은 새 장소가
+ * 차지한 만큼 뒤로 민다.
+ *
+ * @param {Array} scheduleItems
+ * @param {number} insertAt 새 항목이 들어갈 위치(0 이면 맨 앞)
+ * @param {{title: string, location: string, stayMinutes?: number}} place
+ * @returns {{items: Array, inserted: object|null}}
+ */
+export function insertScheduleItem(scheduleItems, insertAt, place) {
+  const items = Array.isArray(scheduleItems) ? scheduleItems.map(item => ({ ...item })) : [];
+  const title = typeof place?.title === 'string' ? place.title.trim() : '';
+  const location = typeof place?.location === 'string' ? place.location.trim() : '';
+  if (!title && !location) return { items: scheduleItems, inserted: null };
+
+  // 출발 앞이나 도착 뒤에는 넣을 수 없다. 그 둘은 사용자가 폼에서 정한 경계다.
+  const index = clampInsertIndex(items, insertAt);
+  if (index === null) return { items: scheduleItems, inserted: null };
+
+  const stay = Math.max(10, Number(place?.stayMinutes) || DEFAULT_STAY_MINUTES);
+  const prev = items[index - 1];
+  const prevEnd = prev ? (minutesOf(prev.endTime) ?? minutesOf(prev.time)) : null;
+  const start = prevEnd !== null ? prevEnd : minutesOf(items[index]?.time) ?? 0;
+
+  const inserted = {
+    time: formatMinutes(start),
+    endTime: formatMinutes(start + stay),
+    type: 'attraction',
+    title: title || location,
+    description: '',
+    location: location || title,
+    duration: `${Math.floor(stay / 60) ? `${Math.floor(stay / 60)}시간 ` : ''}${stay % 60 ? `${stay % 60}분` : ''}`.trim() || `${stay}분`,
+    officialWebsiteUrl: '',
+    googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location || title)}`,
+    transitInfo: '',
+    // 사용자가 직접 넣은 항목임을 남긴다. 화면에서 구분해 표시할 수 있다.
+    addedByUser: true
+  };
+
+  items.splice(index, 0, inserted);
+
+  // 새 항목이 차지한 시간만큼 뒤를 민다. 실제 이동시간은 지도가 다시 계산한다.
+  const shifted = shiftFrom(items, index + 1, stay);
+  return { items: shifted, inserted };
+}
+
+/**
+ * 삽입 가능한 위치로 보정한다.
+ * 출발(맨 앞)과 도착(맨 뒤) 사이에만 넣을 수 있다.
+ */
+function clampInsertIndex(items, requested) {
+  const firstEditable = items.findIndex(isEditableItem);
+  const lastEditable = findLastIndex(items, isEditableItem);
+
+  // 편집 가능한 항목이 하나도 없으면 경계 사이(있다면)에 넣는다.
+  const min = firstEditable === -1
+    ? (items.length > 0 && !isEditableItem(items[0]) ? 1 : 0)
+    : firstEditable;
+  const max = lastEditable === -1
+    ? min
+    : lastEditable + 1;
+
+  const index = Number.isInteger(requested) ? requested : max;
+  if (index < min) return min;
+  if (index > max) return max;
+  return index;
+}
+
+function findLastIndex(list, predicate) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (predicate(list[i])) return i;
+  }
+  return -1;
+}

@@ -66,6 +66,54 @@ export const itineraryStyles = `
           line-height: 1.5;
         }
 
+        .insert-slot {
+          padding-left: calc(100px + 2rem);
+          margin-block: -0.35rem;
+          position: relative;
+          z-index: 1;
+        }
+        .insert-slot-btn {
+          background: transparent;
+          border: 1px dashed #cbd5e1;
+          color: #94a3b8;
+          border-radius: 8px;
+          padding: 0.3rem 0.8rem;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          opacity: 0.5;
+          transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .insert-slot:hover .insert-slot-btn,
+        .insert-slot-btn:focus-visible {
+          opacity: 1;
+          border-color: var(--accent-primary);
+          color: var(--accent-primary);
+        }
+        .insert-form {
+          display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+          background: #f8faff; border: 1px solid var(--accent-primary);
+          border-radius: 10px; padding: 0.6rem 0.75rem;
+        }
+        .insert-input {
+          flex: 1; min-width: 9rem; padding: 0.4rem 0.6rem;
+          border: 1px solid #d1d5db; border-radius: 6px;
+          font-family: inherit; font-size: 0.88rem;
+        }
+        .insert-stay { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-secondary); }
+        .insert-stay-select { padding: 0.35rem 0.4rem; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 0.82rem; }
+        .insert-confirm {
+          background: var(--accent-primary); color: #fff; border: none;
+          border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+        }
+        .insert-cancel {
+          background: transparent; color: var(--text-secondary); border: 1px solid #d1d5db;
+          border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+        }
+        .schedule-card[data-added="true"] {
+          border-left: 3px solid var(--accent-primary);
+        }
+
         .schedule-title-row {
           display: flex; align-items: center; justify-content: space-between;
           gap: 0.5rem; margin-bottom: 0.35rem;

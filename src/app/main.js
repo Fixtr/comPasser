@@ -588,20 +588,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // [UI Events & Actions]
     // ----------------------------------------------------
 
-    // 1. [← 폼으로 돌아가기] 버튼
-    //    마지막으로 "입력하던" 폼(currentFormData)으로 돌아간다. 예약값을
-    //    비워 두면 travel-form 이 sessionStorage 에서 복원한다.
-    const goBackBtn = document.getElementById('go-back-btn');
-    if (goBackBtn) {
-        goBackBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log('[Routing] "Go Back": 마지막으로 입력하던 폼으로 복귀');
-            if (travelFormView && travelFormView.setPendingFormData) {
-                travelFormView.setPendingFormData(null);
-            }
-            window.navigate('/plan');
-        });
-    }
 
     // 2. [일정 수정하기] 버튼: 데이터 불러와서 채우기(Auto-fill) 후 뒤로 가기
     const editItineraryBtn = document.getElementById('edit-itinerary-btn');

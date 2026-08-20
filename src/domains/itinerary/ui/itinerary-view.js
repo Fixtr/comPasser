@@ -8,7 +8,7 @@ import { openNavPopup } from './nav-popup.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
-import { removeScheduleItem, moveScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
+import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import {
@@ -455,6 +455,110 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
+   * "여기에 장소 추가" 자리를 만든다. 누르면 그 자리에서 입력 폼으로 바뀐다.
+   */
+  buildInsertSlot(insertAt) {
+    const slot = document.createElement('div');
+    slot.className = 'insert-slot';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'insert-slot-btn';
+    btn.textContent = t('addStopHere') || '+ 여기에 장소 추가';
+    btn.setAttribute('aria-label', t('addStopHere') || '여기에 장소 추가');
+    btn.addEventListener('click', () => this.openInsertForm(slot, insertAt));
+
+    slot.appendChild(btn);
+    return slot;
+  }
+
+  /**
+   * 삽입 자리를 입력 폼으로 바꾼다.
+   *
+   * 장소는 폼과 같은 Google 자동완성을 쓰고 싶지만, 이 컴포넌트는 Shadow DOM
+   * 안이라 gmp-place-autocomplete 를 새로 붙이면 초기화 타이밍이 얽힌다.
+   * 지금은 이름만 받고 지오코딩은 지도가 하도록 맡긴다 — 사용자가 적은
+   * 이름 그대로 지도가 좌표를 찾고, 못 찾으면 이미 있는 "이동시간 미확인"
+   * 안내가 그 사실을 알려 준다.
+   */
+  openInsertForm(slot, insertAt) {
+    if (slot.dataset.editing === 'true') return;
+    slot.dataset.editing = 'true';
+    const original = slot.innerHTML;
+
+    slot.innerHTML = `
+      <div class="insert-form">
+        <input class="insert-input" type="text" maxlength="60"
+               placeholder="${t('addStopPlaceholder') || '장소 이름 (예: 남산서울타워)'}"
+               aria-label="${t('addStopPlaceholder') || '추가할 장소 이름'}">
+        <label class="insert-stay">
+          <span>${t('addStopStay') || '체류'}</span>
+          <select class="insert-stay-select" aria-label="${t('addStopStay') || '체류 시간'}">
+            <option value="30">30분</option>
+            <option value="60" selected>1시간</option>
+            <option value="90">1시간 30분</option>
+            <option value="120">2시간</option>
+          </select>
+        </label>
+        <button type="button" class="insert-confirm">${t('addStopConfirm') || '추가'}</button>
+        <button type="button" class="insert-cancel">${t('cancelBtn') || '취소'}</button>
+      </div>
+    `;
+
+    const input = slot.querySelector('.insert-input');
+    input.focus();
+
+    const restore = () => {
+      slot.innerHTML = original;
+      slot.dataset.editing = 'false';
+      slot.querySelector('.insert-slot-btn')
+        ?.addEventListener('click', () => this.openInsertForm(slot, insertAt));
+    };
+
+    const commit = () => {
+      const name = input.value.trim();
+      if (!name) {
+        showGlobalToast(t('addStopEmpty') || '장소 이름을 입력해 주세요.', { tone: 'warning' });
+        input.focus();
+        return;
+      }
+      const stayMinutes = Number(slot.querySelector('.insert-stay-select').value) || 60;
+      this.insertPlaceAt(insertAt, { title: name, location: name, stayMinutes });
+    };
+
+    slot.querySelector('.insert-confirm').addEventListener('click', commit);
+    slot.querySelector('.insert-cancel').addEventListener('click', restore);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { e.preventDefault(); restore(); }
+    });
+  }
+
+  /**
+   * 사용자가 고른 자리에 장소를 넣고 화면·지도를 다시 그린다.
+   */
+  insertPlaceAt(insertAt, place) {
+    const plan = this.normalizeData(this.currentItinerary);
+    const dayData = plan?.days?.[this.activeDayIndex];
+    if (!dayData || !Array.isArray(dayData.scheduleItems)) return;
+
+    const { items, inserted } = insertScheduleItem(dayData.scheduleItems, insertAt, place);
+    if (!inserted) {
+      showGlobalToast(t('addStopFailed') || '이 위치에는 장소를 추가할 수 없습니다.', { tone: 'warning' });
+      return;
+    }
+
+    dayData.scheduleItems = items;
+    this.renderActiveDay(plan);
+    showGlobalToast(`"${inserted.title}"을 일정에 추가했습니다.`, { tone: 'success' });
+
+    // 새 장소의 좌표와 실제 이동시간을 지도가 다시 계산하게 한다.
+    window.dispatchEvent(new CustomEvent('render-map-route', {
+      detail: { ...plan, days: [dayData] }
+    }));
+  }
+
+  /**
    * 타임라인 항목을 옮기거나 뺀다.
    *
    * 계산은 itinerary-edit.mjs 가 하고 여기서는 결과를 반영해 다시 그린다.
@@ -895,7 +999,7 @@ export default class ItineraryView extends HTMLElement {
 
       item.innerHTML = `
         <div class="time-badge">${timeDisplay}</div>
-        <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}">
+        <div class="schedule-card" data-type="${scheduleItem.type}" data-index="${idx + 1}"${scheduleItem.addedByUser ? ' data-added="true"' : ''}>
           <div class="schedule-title-row">
             <span class="schedule-title">${scheduleItem.title}</span>
             ${editHtml}
@@ -1034,6 +1138,13 @@ export default class ItineraryView extends HTMLElement {
         transitSlot.className = 'transit-info hidden';
         transitSlot.id = `transit-info-${idx}`;
         container.appendChild(transitSlot);
+
+        // 여기에 장소를 끼워 넣을 수 있다는 걸 자리로 보여준다. 도착 뒤에는
+        // 넣을 수 없으므로 마지막 카드 다음에는 만들지 않는다.
+        const nextItem = items[idx + 1];
+        if (isEditableItem(scheduleItem) || isEditableItem(nextItem)) {
+          container.appendChild(this.buildInsertSlot(idx + 1));
+        }
       }
     });
 

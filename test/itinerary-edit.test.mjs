@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { removeScheduleItem, moveScheduleItem, isEditableItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
+import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 
 const day = () => ([
   { time: '09:00', endTime: '', type: 'departure', title: '출발' },
@@ -91,4 +91,52 @@ test('items with malformed times are handled without throwing', () => {
   ];
   assert.doesNotThrow(() => removeScheduleItem(broken, 0));
   assert.doesNotThrow(() => moveScheduleItem(broken, 0, 1));
+});
+
+test('a new stop is inserted at the chosen position and pushes the rest back', () => {
+  const { items, inserted } = insertScheduleItem(day(), 2, { title: '남산타워', location: '서울 남산타워' });
+
+  assert.equal(inserted.title, '남산타워');
+  assert.deepEqual(titles(items), ['출발', 'A', '남산타워', 'B', 'C', '도착']);
+  assert.equal(items[2].time, '11:00', '앞 항목(A)이 끝난 직후부터 잡는다');
+  assert.equal(items[2].endTime, '12:00', '기본 체류 1시간');
+  assert.equal(items[3].time, '12:30', '뒤 항목은 새 장소가 쓴 만큼 밀린다');
+});
+
+test('an inserted stop is marked so the UI can distinguish it', () => {
+  const { inserted } = insertScheduleItem(day(), 2, { title: '남산타워', location: '서울 남산타워' });
+  assert.equal(inserted.addedByUser, true);
+  assert.equal(inserted.type, 'attraction');
+  assert.ok(inserted.googleMapsUrl.includes(encodeURIComponent('서울 남산타워')));
+});
+
+test('a custom stay length is honoured', () => {
+  const { items } = insertScheduleItem(day(), 2, { title: 'X', location: 'X', stayMinutes: 30 });
+  assert.equal(items[2].time, '11:00');
+  assert.equal(items[2].endTime, '11:30');
+});
+
+test('inserting before departure or after arrival is clamped inside the boundaries', () => {
+  // 출발/도착은 사용자가 폼에서 정한 경계라 그 밖에는 넣을 수 없다.
+  const before = insertScheduleItem(day(), 0, { title: 'X', location: 'X' });
+  assert.equal(before.items.findIndex(i => i.title === 'X'), 1, '출발 뒤로 밀려 들어간다');
+
+  const after = insertScheduleItem(day(), 99, { title: 'Y', location: 'Y' });
+  assert.equal(after.items.at(-1).type, 'arrival', '도착은 항상 마지막에 남는다');
+  assert.equal(after.items.at(-2).title, 'Y');
+});
+
+test('an empty place is rejected without changing anything', () => {
+  const original = day();
+  assert.equal(insertScheduleItem(original, 2, { title: '  ', location: '' }).inserted, null);
+  assert.equal(insertScheduleItem(original, 2, {}).inserted, null);
+  assert.equal(insertScheduleItem(original, 2, null).inserted, null);
+  assert.deepEqual(titles(insertScheduleItem(original, 2, null).items), titles(original));
+});
+
+test('inserting never mutates the input array', () => {
+  const original = day();
+  const snapshot = JSON.parse(JSON.stringify(original));
+  insertScheduleItem(original, 2, { title: 'X', location: 'X' });
+  assert.deepEqual(original, snapshot);
 });
