@@ -38,7 +38,6 @@ export async function loginWithGoogle() {
 export async function logout() {
     try {
         sessionStorage.removeItem('currentFormData');
-        sessionStorage.removeItem('currentPhase');
         sessionStorage.removeItem('savedItineraryData');
         await signOut(auth);
     } catch (error) {
@@ -90,7 +89,6 @@ export async function deleteCurrentUser() {
     if (user) {
         localStorage.removeItem('hasSeenTutorial');
         sessionStorage.removeItem('currentFormData');
-        sessionStorage.removeItem('currentPhase');
         sessionStorage.removeItem('savedItineraryData');
         await deleteUser(user);
     }

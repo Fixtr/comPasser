@@ -118,9 +118,9 @@ export default class TravelForm extends HTMLElement {
     const form = this.shadowRoot.getElementById('travel-form');
     if (form) form.reset();
 
-    // 예전에는 currentPhase 가 '3'(생성 완료)이면 상세 입력을 복원하지 않아,
-    // /view 에서 폼으로 돌아오면 출발지·도착지·시간·필수 일정이 통째로
-    // 비워졌다. 돌아왔을 때 입력이 남아 있어야 하므로 phase 는 보지 않는다.
+    // 예전에는 sessionStorage 의 currentPhase 가 '3'(생성 완료)이면 상세 입력을
+    // 복원하지 않아, /view 에서 폼으로 돌아오면 출발지·도착지·시간·필수 일정이
+    // 통째로 비워졌다. 그 플래그는 제거했고, 저장된 폼이 있으면 항상 복원한다.
     if (savedForm) {
       try {
         const formData = JSON.parse(savedForm);

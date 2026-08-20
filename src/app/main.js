@@ -411,26 +411,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Case: /view (Temporary memory-based itinerary or just generated)
                 console.log('[Router] Static /view route: Looking for memory state.');
 
-                const savedPhase = sessionStorage.getItem('currentPhase');
-                if (savedPhase === '3') {
-                    const rawData = sessionStorage.getItem('savedItineraryData');
-                    // 같은 데이터를 이미 로드했다면 재호출하지 않는다(위와 같은 이유).
-                    if (rawData && rawData !== lastLoadedStaticViewData) {
-                        lastLoadedStaticViewData = rawData;
-                        try {
-                            const parsedItinerary = JSON.parse(rawData);
-                            setTimeout(() => {
-                                if (mapView) mapView.renderRoute(parsedItinerary);
-                                if (itineraryView) itineraryView.showResults(parsedItinerary);
-                                window.dispatchEvent(new Event('resize'));
-                            }, 50);
-                        } catch (e) {
-                            console.error("[Router] State parse error", e);
-                            window.navigate('/plan');
-                        }
-                    }
-                } else if (!sessionStorage.getItem('savedItineraryData')) {
+                // 볼 일정이 있느냐만 보면 된다. 예전에는 currentPhase === '3'
+                // 도 함께 요구했는데, /plan 을 한 번 들르면 phase 가 '1' 로
+                // 바뀌어(아래 /plan 분기) 되돌아왔을 때 일정이 있는데도 복원되지
+                // 않고 빈 화면이 남았다(폼으로 돌아갔다가 뒤로 가기).
+                const rawData = sessionStorage.getItem('savedItineraryData');
+                if (!rawData) {
                     window.navigate('/plan');
+                } else if (rawData !== lastLoadedStaticViewData) {
+                    // 같은 데이터를 이미 로드했다면 재호출하지 않는다(위와 같은 이유).
+                    lastLoadedStaticViewData = rawData;
+                    try {
+                        const parsedItinerary = JSON.parse(rawData);
+                        setTimeout(() => {
+                            if (mapView) mapView.renderRoute(parsedItinerary);
+                            if (itineraryView) itineraryView.showResults(parsedItinerary);
+                            window.dispatchEvent(new Event('resize'));
+                        }, 50);
+                    } catch (e) {
+                        console.error("[Router] State parse error", e);
+                        window.navigate('/plan');
+                    }
                 }
             }
         } else if (path.startsWith('/preference')) {
@@ -486,7 +487,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingTransitionView.style.display = 'none';
                 loadingTransitionView.classList.add('hidden-view');
             }
-            sessionStorage.setItem('currentPhase', '1');
         } else if (path === '/home' || path === '/' || path.endsWith('/index.html')) {
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
@@ -700,7 +700,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 itineraryView.showResults(itineraryPlan);
                 if (mapView) mapView.renderRoute(itineraryPlan);
 
-                sessionStorage.setItem('currentPhase', '3');
                 sessionStorage.setItem('savedItineraryData', JSON.stringify(itineraryPlan));
 
                 // Success State! Delay routing so user can process visual cue
