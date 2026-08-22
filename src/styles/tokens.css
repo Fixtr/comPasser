@@ -65,6 +65,13 @@
   --cp-mono:       ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
+/* color-scheme 은 상속되므로 body 에 걸면 그 안의 입력들은 따라온다.
+   다만 문서 캔버스와 루트 스크롤바는 :root 값을 보기 때문에 여기서도
+   한 번 뒤집어 준다(토글 클래스는 body 에 붙는다). */
+:root:has(body.dark) {
+  color-scheme: dark;
+}
+
 body.dark {
   color-scheme: dark;
   --cp-paper:      #121211;

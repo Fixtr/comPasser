@@ -1,57 +1,52 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { itineraryStyles } from '../src/domains/itinerary/ui/itinerary-style.js';
+import { getTransitStyle } from '../src/domains/itinerary/ui/itinerary-render-helpers.js';
+import {
+  stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
+  assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
+  assertNoLegacyTokens, assertTouchTargets,
+} from './helpers/style-contract.mjs';
 
 /**
  * 결과 화면의 형태 규칙을 코드로 붙잡아 둔다.
  *
- * 이 규칙들은 취향이 아니라 세 가지를 동시에 사기 위한 것이다 —
- *  1) 야외 가독성: 낯선 도시를 걸어다니는 사용자가 햇빛 아래에서 읽는다
- *  2) 렌더 비용: Capacitor 로 저사양 안드로이드에도 올라간다
- *  3) 캡처 호환: html2canvas 는 그림자·그라디언트·최신 색 함수를 제대로 못 읽는다
- *     (PRD 3.7 에 color(display-p3) 로 캡처가 깨진 이력이 있다)
+ * 규칙의 근거는 취향이 아니라 셋이다 —
+ *  1) 야외 가독성 2) 저사양 안드로이드 렌더 비용 3) html2canvas 캡처 호환.
  *
  * 스타일은 시간이 지나면 조용히 되돌아간다. 그림자 하나, 하드코딩 색 하나가
  * 늘어나는 건 리뷰에서 잘 안 보이므로 테스트로 막는다.
  */
+const css = stripComments(itineraryStyles);
+const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
+const LABEL = 'itinerary-style';
 
-/** 주석을 지운 스타일 본문. 주석 안의 예시까지 위반으로 잡지 않기 위해. */
-const css = itineraryStyles.replace(/\/\*[\s\S]*?\*\//g, '');
-
-test('그림자를 쓰지 않는다', () => {
-  const hits = css.match(/box-shadow\s*:\s*(?!none)[^;]+/g) || [];
-  assert.deepEqual(hits, [], `그림자 대신 1px 실선으로 경계를 만든다:\n${hits.join('\n')}`);
-});
-
-test('그라디언트를 쓰지 않는다', () => {
-  const hits = css.match(/(linear|radial|conic)-gradient\([^)]*\)/g) || [];
-  assert.deepEqual(hits, [], `캡처에서 사라지는 표현이다:\n${hits.join('\n')}`);
-});
-
-test('색은 전부 토큰에서 온다', () => {
-  const hits = css.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
-  assert.deepEqual(hits, [], `하드코딩된 색은 var(--cp-*) 로 바꾼다:\n${[...new Set(hits)].join(', ')}`);
-});
-
-test('최신 색 함수를 쓰지 않는다', () => {
-  const hits = css.match(/\b(oklch|oklab|lch|lab|color-mix|color)\s*\(/g) || [];
-  assert.deepEqual(hits, [], `html2canvas 가 읽지 못해 공유 이미지가 깨진다:\n${hits.join(', ')}`);
-});
-
-test('라운드는 0 이거나 알약 토큰만 쓴다', () => {
-  const values = (css.match(/border-radius\s*:\s*[^;]+/g) || [])
-    .map(v => v.split(':')[1].trim());
-  const bad = values.filter(v => !/^0$/.test(v) && !v.includes('--cp-pill'));
-  assert.deepEqual(bad, [], `각진 형태가 이 방향의 핵심이다:\n${[...new Set(bad)].join('\n')}`);
-});
+test('그림자를 쓰지 않는다', () => assertNoShadows(css, LABEL));
+test('그라디언트를 쓰지 않는다', () => assertNoGradients(css, LABEL));
+test('색은 전부 토큰에서 온다', () => assertNoHardcodedColors(css, LABEL));
+test('이름 있는 색을 쓰지 않는다', () => assertNoNamedColors(css, LABEL));
+test('캡처가 못 읽는 색 함수를 쓰지 않는다', () => assertNoModernColorFunctions(css, LABEL));
+test('라운드는 0 이거나 알약 토큰이다', () => assertSquareRadius(css, LABEL, tokens));
+test('옛 토큰을 더 이상 읽지 않는다', () => assertNoLegacyTokens(css, LABEL));
 
 test('타임라인과 지도가 같은 색 어휘를 쓴다', () => {
   // 고정 일정 / 첫 장소 / 나머지 — map/COMMAND_GUIDE.md 의 마커 규칙과 같은 토큰.
   assert.ok(css.includes('--cp-anchor'), '고정 일정 색이 지도 핀과 같은 토큰이어야 한다');
 });
 
-import { getTransitStyle } from '../src/domains/itinerary/ui/itinerary-render-helpers.js';
+test('터치 기기에서는 탭 대상을 44px 이상으로 넓힌다', () => {
+  assertTouchTargets(css, LABEL, ['.item-edit-btn', '.nav-btn', '.insert-slot-btn', '.day-tab-btn']);
+});
+
+test('hover 가 없는 기기에서는 숨은 버튼이 드러난다', () => {
+  // "여기에 장소 추가" 는 opacity 0.5 로 두고 hover 때만 드러난다.
+  // 터치에는 hover 가 없으므로 폰에서는 영영 반투명한 채로 남는다.
+  const noHover = css.match(/@media\s*\([^)]*hover:\s*none[^)]*\)\s*\{[\s\S]*?\n        \}/);
+  assert.ok(noHover, '(hover: none) 블록이 있어야 한다');
+  assert.match(noHover[0], /\.insert-slot-btn[\s\S]*opacity\s*:\s*1/, '터치에서는 완전히 보여야 한다');
+});
 
 test('이동 수단 칩은 색을 쓰지 않는다', () => {
   // 색은 지도 마커 규칙(보라=고정 / 초록=첫 장소 / 파랑=나머지)에만 쓴다.
@@ -74,8 +69,6 @@ test('이동 수단 칩은 색을 쓰지 않는다', () => {
 });
 
 test('이동 수단 아이콘은 이모지가 아니라 인라인 SVG 다', () => {
-  // 이모지는 OS 가 정한 자기 색을 갖고 들어와 무채색 규칙을 깨고,
-  // 기기마다 모양이 달라 캡처 결과도 달라진다.
   for (const vt of [null, 'BUS', 'SUBWAY', 'TRAIN', 'TAXI']) {
     const { icon } = getTransitStyle(vt ? 'TRANSIT' : 'WALKING', vt);
     assert.match(icon, /^<svg /, '인라인 SVG 여야 한다');
@@ -85,28 +78,50 @@ test('이동 수단 아이콘은 이모지가 아니라 인라인 SVG 다', () =
 });
 
 /**
- * 아래는 PWA(설치형)로 폰에서 쓰는 상황을 위한 규칙이다.
+ * 스타일 파일만 검사하면 반쪽이다.
  *
- * 데스크톱에서 밀도를 지키는 것과 폰에서 손가락이 닿는 것은 서로 다른
- * 요구다. 둘을 하나의 값으로 타협하면 양쪽 다 잃으므로, 포인터 종류로
- * 갈라서 데스크톱은 그대로 촘촘하게 두고 터치 기기에서만 넓힌다.
+ * 실제로 이 계약이 itinerary-style.js 만 보고 있는 동안, itinerary-view.js
+ * 안의 인라인 스타일에는 일차 탭의 보라 배경(`var(--accent-primary, #7c3aed)`)이
+ * 그대로 남아 있었다. 화면에서 가장 눈에 띄는 자리인데 테스트는 통과했다.
  */
-test('터치 기기에서는 탭 대상을 44px 이상으로 넓힌다', () => {
-  const coarse = css.match(/@media\s*\([^)]*pointer:\s*coarse[^)]*\)\s*\{[\s\S]*?\n        \}/);
-  assert.ok(coarse, '(pointer: coarse) 블록이 있어야 한다');
-  const block = coarse[0];
-  for (const cls of ['.item-edit-btn', '.nav-btn', '.insert-slot-btn']) {
-    assert.ok(block.includes(cls), `${cls} 의 탭 대상이 넓혀지지 않았다`);
-  }
-  const sizes = [...block.matchAll(/min-(?:height|width)\s*:\s*(\d+)px/g)].map(m => Number(m[1]));
-  assert.ok(sizes.length > 0, 'min-height/min-width 로 크기를 보장해야 한다');
-  assert.ok(sizes.every(v => v >= 44), `44px 미만이 있다: ${sizes.filter(v => v < 44).join(', ')}`);
+const view = stripComments(
+  readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8')
+);
+const inlineStyles = [
+  ...view.matchAll(/style\s*=\s*"([^"]*)"/g),
+  ...view.matchAll(/\.style\.[a-zA-Z]+\s*=\s*['"]([^'"]*)['"]/g),
+  ...view.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
+].map(m => m[1]).join('\n');
+
+test('결과 화면의 인라인 스타일에도 옛 색이 없다', () => {
+  assertNoHardcodedColors(inlineStyles, 'itinerary-view(inline)');
+  assertNoNamedColors(inlineStyles, 'itinerary-view(inline)');
+  assertNoModernColorFunctions(inlineStyles, 'itinerary-view(inline)');
+  assertNoShadows(inlineStyles, 'itinerary-view(inline)');
+  assertNoLegacyTokens(inlineStyles, 'itinerary-view(inline)');
+  assertSquareRadius(inlineStyles, 'itinerary-view(inline)', tokens);
 });
 
-test('hover 가 없는 기기에서는 숨은 버튼이 드러난다', () => {
-  // "여기에 장소 추가" 는 opacity 0.5 로 두고 hover 때만 드러난다.
-  // 터치에는 hover 가 없으므로 폰에서는 영영 반투명한 채로 남는다.
-  const noHover = css.match(/@media\s*\([^)]*hover:\s*none[^)]*\)\s*\{[\s\S]*?\n        \}/);
-  assert.ok(noHover, '(hover: none) 블록이 있어야 한다');
-  assert.match(noHover[0], /\.insert-slot-btn[\s\S]*opacity\s*:\s*1/, '터치에서는 완전히 보여야 한다');
+/**
+ * 이미지 저장 경로.
+ *
+ * onclone 안의 색 강제 규칙은 `clonedDoc.querySelector('#results-content')` 로
+ * 대상을 찾는데, 그 요소는 shadow DOM 안에 있어 광명 DOM 검색으로는 잡히지
+ * 않는다. 즉 그 블록은 한 번도 실행된 적이 없는 죽은 코드였고, 담긴 값
+ * (`#f5f3ff` 보라 틴트)은 지금 디자인과도 어긋난다.
+ *
+ * 스타일 태그를 정규식으로 치환하던 우회도 같이 없앤다. 지금은 스타일에
+ * color-mix 가 없다는 것을 위 계약이 보장한다.
+ */
+const capture = view;
+
+test('캡처 경로에 죽은 색 강제 코드가 없다', () => {
+  assert.doesNotMatch(capture, /overrideStyle/, 'onclone 의 색 강제 블록이 남아 있다');
+  assert.doesNotMatch(capture, /#f5f3ff/, '지금 디자인과 어긋나는 보라 틴트가 남아 있다');
+});
+
+test('캡처를 위해 스타일 태그를 정규식으로 고치지 않는다', () => {
+  // 화면을 예쁘게 고칠수록 캡처가 깨지던 구조의 원인이다.
+  assert.doesNotMatch(capture, /styleTag\.textContent\s*=/, '스타일 태그를 런타임에 덮어쓰고 있다');
+  assert.doesNotMatch(capture, /replace\(\/color-mix/, 'color-mix 치환 우회가 남아 있다');
 });

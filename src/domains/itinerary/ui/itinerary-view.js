@@ -201,11 +201,11 @@ export default class ItineraryView extends HTMLElement {
 
       if (!data) {
         this.setError(`
-          <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary); background: var(--bg-secondary); border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: var(--shadow-sm);">
-             <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-             <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">일정을 찾을 수 없거나 접근 권한이 없습니다.</h3>
-             <p style="font-size: 0.9rem; margin-bottom: 2rem;">요청하신 여행 일정이 삭제되었거나, 비공개 상태일 수 있습니다.<br>올바른 링크인지 다시 확인해 주세요.</p>
-             <button onclick="window.navigate('/plan')" style="background: var(--accent-primary); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">새 일정 만들기 🚀</button>
+          <div class="state-block">
+             <div class="state-icon">${icons.search}</div>
+             <h3 class="state-title">일정을 찾을 수 없거나 접근 권한이 없습니다.</h3>
+             <p class="state-desc">요청하신 여행 일정이 삭제되었거나, 비공개 상태일 수 있습니다.<br>올바른 링크인지 다시 확인해 주세요.</p>
+             <button class="state-action" onclick="window.navigate('/plan')">새 일정 만들기</button>
           </div>
         `);
         return;
@@ -223,10 +223,10 @@ export default class ItineraryView extends HTMLElement {
     } catch (error) {
       console.error('🔥 렌더링 치명적 오류:', error);
       this.setError(`
-        <div style="padding: 40px 20px; text-align: center; color: #b91c1c; background: #fef2f2; border-radius: 12px; border: 2px solid #fca5a5;">
-           <div style="font-size: 3rem; margin-bottom: 1rem;">🚨</div>
-           <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">데이터 로딩 오류</h3>
-           <p style="font-size: 0.9rem;">${error.message}</p>
+        <div class="state-block danger">
+           <div class="state-icon">${icons.warn}</div>
+           <h3 class="state-title">데이터 로딩 오류</h3>
+           <p class="state-desc">${error.message}</p>
         </div>
       `);
     } finally {
@@ -321,32 +321,35 @@ export default class ItineraryView extends HTMLElement {
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     const originalText = downloadBtn ? downloadBtn.textContent : '';
     
-    // 1. 임시 컬러 조작을 위한 변수
-    const styleTag = this.shadowRoot.querySelector('style');
-    let originalStyleContent = '';
-    
+    // 캡처 동안 라이트 테마로 고정한다. 다크 모드에서 그대로 찍으면
+    // 공유받은 사람에게 검은 판이 간다. 토큰이 body.dark 로 갈리므로
+    // 클래스 하나만 잠시 떼면 --cp-* 가 전부 라이트 값으로 풀린다.
+    const body = document.body;
+    const wasDark = body.classList.contains('dark');
+
     try {
       if (downloadBtn) {
         downloadBtn.disabled = true;
         downloadBtn.textContent = "이미지 생성 중...";
       }
       
-      // 2. html2canvas 파싱 에러(color-mix 등 최신 CSS 함수) 우회를 위해 안전한 색상으로 치환
-      if (styleTag) {
-        originalStyleContent = styleTag.textContent;
-        // 문제가 되는 color-mix 등 최신 문법을 정적 색상으로 임시 변경
-        styleTag.textContent = styleTag.textContent
-          .replace(/color-mix\([^;}]+\)/g, 'rgba(124, 58, 237, 0.15)')
-          .replace(/color\([^;}]+\)/g, 'rgba(124, 58, 237, 0.15)');
-      }
+      // 예전에는 여기서 <style> 본문을 정규식으로 갈아치웠다. 화면 CSS 에
+      // color-mix() 같은 최신 문법이 있어 캡처가 터졌기 때문인데, 그래서
+      // 화면을 예쁘게 고칠수록 공유 이미지가 깨졌다. 지금은 스타일 계약이
+      // 최신 색 함수를 아예 막고 있으므로 그 우회가 필요 없다.
+      if (wasDark) body.classList.remove('dark');
       
       const target = this.shadowRoot.getElementById('results-content');
       
-      // html2canvas options
+      // 캔버스 바탕도 토큰에서 읽는다. 값을 박아 두면 지면색을 바꿨을 때
+      // 화면과 공유 이미지가 조용히 갈라진다.
+      const paper = getComputedStyle(document.documentElement)
+        .getPropertyValue('--cp-surface').trim() || '#FFFFFF';
+
       const options = {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: paper,
         logging: false,
         // 3. 버튼 등 불필요한 요소 캡처 제외
         ignoreElements: (element) => {
@@ -355,29 +358,10 @@ export default class ItineraryView extends HTMLElement {
           if (element.id && (element.id.includes('-btn') || element.id === 'itinerary-actions')) return true;
           return false;
         },
-        onclone: (clonedDoc) => {
-          const clonedResults = clonedDoc.querySelector('#results-content');
-          if (clonedResults) {
-            clonedResults.style.padding = '40px';
-            clonedResults.style.borderRadius = '0';
-            clonedResults.style.background = '#ffffff';
-
-            // Ensure specific standard colors for capture
-            const overrideStyle = clonedDoc.createElement('style');
-            overrideStyle.textContent = `
-              .timeline::before { background: #e5e7eb !important; }
-              .schedule-card { border-color: #e5e7eb !important; background: #ffffff !important; color: #1f2937 !important; }
-              .schedule-card[data-type="AnchorSchedule"] { border-color: #7c3aed !important; background: #f5f3ff !important; }
-              .time-badge { color: #7c3aed !important; }
-              .schedule-title { color: #1f2937 !important; }
-              .schedule-desc { color: #4b5563 !important; }
-              .schedule-meta { color: #6b7280 !important; }
-              .transit-pill { background: #f3f4f6 !important; border-color: #e5e7eb !important; color: #4b5563 !important; }
-              h2 { color: #1f2937 !important; border-bottom: 2px solid #f3f4f6 !important; margin-bottom: 20px !important; }
-            `;
-            clonedResults.appendChild(overrideStyle);
-          }
-        }
+        // onclone 으로 색을 강제하던 블록이 있었는데,
+        // clonedDoc.querySelector('#results-content') 는 shadow DOM 안의
+        // 요소를 찾지 못한다. 즉 한 번도 실행된 적 없는 죽은 코드였고,
+        // 담긴 값(보라 틴트)은 지금 디자인과도 어긋났다.
       };
       
       const canvas = await html2canvas(target, options);
@@ -394,10 +378,7 @@ export default class ItineraryView extends HTMLElement {
       console.error("[html2canvas] Image generation failed:", error);
       this.showToast("최신 브라우저 환경에서 캡처 기능이 지원되지 않을 수 있습니다.", true);
     } finally {
-      // 5. Cleanup: CSS 원상복구
-      if (styleTag && originalStyleContent) {
-        styleTag.textContent = originalStyleContent;
-      }
+      if (wasDark) body.classList.add('dark');
       if (downloadBtn) {
         downloadBtn.disabled = false;
         downloadBtn.textContent = originalText;
@@ -857,7 +838,7 @@ export default class ItineraryView extends HTMLElement {
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
-          <div id="day-tabs-container" class="day-tabs-container" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6;">
+          <div id="day-tabs-container" class="day-tabs-container" style="display: none;">
             <!-- Tabs injected dynamically -->
           </div>
           <div class="timeline" id="timeline-container" style="transition: opacity 0.3s ease-in-out;">
@@ -886,10 +867,15 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
+  /**
+   * 호출부가 이미 .state-block 을 담은 마크업을 넘긴다.
+   * 예전에는 여기서 다시 <p style="color:red"> 로 감싸서, 빈 상태 카드가
+   * 빨간 글씨 문단 안에 들어가 있었다.
+   */
   setError(msg) {
     this.setLoading(false);
     const container = this.shadowRoot.getElementById('timeline-container');
-    container.innerHTML = `<p style="color: red;">${msg}</p>`;
+    container.innerHTML = msg;
   }
 
   clear() {
@@ -926,7 +912,7 @@ export default class ItineraryView extends HTMLElement {
       const safePlan = this.normalizeData(reconciled);
 
       if (!safePlan || !Array.isArray(safePlan.days) || safePlan.days.length === 0) {
-        this.setError("<div>저장된 세부 일정이 없습니다.</div>");
+        this.setError('<div class="state-block"><p class="state-desc">저장된 세부 일정이 없습니다.</p></div>');
         return;
       }
 
@@ -964,15 +950,9 @@ export default class ItineraryView extends HTMLElement {
         const dayNum = dayData.day || idx + 1;
         const dayLabel = dayLabelTemplate.replace('{0}', dayNum);
         
-        tabBtn.innerHTML = `<strong>${dayLabel}</strong><br><span style="font-size: 0.75rem; font-weight: normal; opacity: 0.8;">${dayData.date}</span>`;
-        tabBtn.style.padding = '0.5rem 1rem';
-        tabBtn.style.border = 'none';
-        tabBtn.style.background = idx === this.activeDayIndex ? 'var(--accent-primary, #7c3aed)' : '#f3f4f6';
-        tabBtn.style.color = idx === this.activeDayIndex ? 'white' : '#4b5563';
-        tabBtn.style.borderRadius = '8px';
-        tabBtn.style.cursor = 'pointer';
-        tabBtn.style.flexShrink = '0';
-        tabBtn.style.transition = 'all 0.2s';
+        // 모양은 전부 itinerary-style.js 의 .day-tab-btn 이 맡는다.
+        // 여기서 인라인으로 칠하던 보라 배경이 계약 밖에 있어 오래 남아 있었다.
+        tabBtn.innerHTML = `<strong>${dayLabel}</strong><span class="tab-date">${dayData.date}</span>`;
         
         tabBtn.addEventListener('click', () => {
           this.activeDayIndex = idx;

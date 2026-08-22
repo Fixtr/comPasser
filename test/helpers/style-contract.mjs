@@ -33,6 +33,23 @@ export function assertNoHardcodedColors(css, label) {
   assert.deepEqual(hits, [], `${label}: 색은 var(--cp-*) 에서 온다\n${[...new Set(hits)].join(', ')}`);
 }
 
+/**
+ * 이름 있는 색(white/black/red …)도 토큰이 아니다.
+ * `color: white` 는 라이트 모드에서만 맞고 다크 모드에서 흰 글씨에 흰 배경을
+ * 만든다. hex 만 막으면 이쪽으로 새어 나간다.
+ */
+const NAMED_COLORS = ['white', 'black', 'red', 'blue', 'green', 'gray', 'grey', 'silver', 'yellow', 'orange', 'purple'];
+
+export function assertNoNamedColors(css, label) {
+  const hits = [];
+  for (const name of NAMED_COLORS) {
+    const re = new RegExp(`(?:^|[^-\\w])(?:color|background|background-color|border-color|fill|stroke)\\s*:\\s*${name}\\b`, 'gi');
+    const found = css.match(re);
+    if (found) hits.push(...found.map(v => v.trim()));
+  }
+  assert.deepEqual(hits, [], `${label}: 이름 있는 색 대신 var(--cp-*) 를 쓴다\n${[...new Set(hits)].join('\n')}`);
+}
+
 export function assertNoModernColorFunctions(css, label) {
   const hits = css.match(/\b(oklch|oklab|lch|lab|color-mix)\s*\(/g) || [];
   assert.deepEqual(hits, [], `${label}: html2canvas 가 읽지 못한다\n${[...new Set(hits)].join(', ')}`);

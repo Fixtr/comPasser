@@ -801,6 +801,135 @@ export const itineraryStyles = `
           to { transform: rotate(360deg); }
         }
 
+        /* ====== 일차 탭 ======
+           예전에는 활성 탭이 보라 알약이었다. 보라는 지도에서 "고정 일정"을
+           뜻하는 색이라, 탭이 그 색을 먼저 쓰면 화면 안에서 보라가 두 가지를
+           뜻하게 된다. 활성 표시는 색이 아니라 반전으로 한다.
+           (스타일이 전부 itinerary-view.js 의 인라인이라 이 계약 밖에 있었다.) */
+        .day-tabs-container {
+          display: flex;
+          gap: 0.5rem;
+          overflow-x: auto;
+          padding-bottom: 0.5rem;
+          margin-bottom: 1rem;
+          border-bottom: var(--cp-hair) solid var(--cp-rule);
+        }
+
+        .day-tab-btn {
+          flex-shrink: 0;
+          padding: 0.5rem 0.9rem;
+          background: var(--cp-surface);
+          color: var(--cp-ink-2);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: 0;
+          font-family: inherit;
+          font-size: 0.9rem;
+          font-weight: 600;
+          line-height: 1.3;
+          text-align: center;
+          cursor: pointer;
+          transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+        }
+
+        .day-tab-btn:hover {
+          border-color: var(--cp-ink);
+          color: var(--cp-ink);
+        }
+
+        .day-tab-btn.active {
+          background: var(--cp-ink);
+          border-color: var(--cp-ink);
+          color: var(--cp-surface);
+        }
+
+        .day-tab-btn .tab-date {
+          display: block;
+          font-family: var(--cp-mono);
+          font-size: 0.72rem;
+          font-weight: 400;
+          opacity: 0.75;
+        }
+
+        /* ====== 빈 상태 · 오류 상태 ======
+           일정을 못 찾았을 때가 이 화면의 첫인상이 되는 경우가 있다.
+           나머지 화면과 다른 표기를 쓰면 그 인상이 앱 전체로 번진다. */
+        .state-block {
+          padding: 2.5rem 1.25rem;
+          text-align: center;
+          background: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: 0;
+          color: var(--cp-ink-2);
+        }
+
+        .state-block.danger {
+          background: var(--cp-danger-bg);
+          border-color: var(--cp-danger);
+          color: var(--cp-danger);
+        }
+
+        .state-icon {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 0.9rem;
+          color: var(--cp-muted);
+        }
+
+        /* 기본 아이콘 크기(15px)는 본문 옆에 놓일 때의 값이다.
+           빈 화면 한가운데서는 너무 작아 보이지 않는다. */
+        .state-icon svg {
+          width: 28px;
+          height: 28px;
+        }
+
+        .state-block.danger .state-icon {
+          color: var(--cp-danger);
+        }
+
+        .state-title {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--cp-ink);
+          margin-bottom: 0.5rem;
+          line-height: 1.45;
+          /* 없으면 폰 폭에서 "접근 권 / 한이" 처럼 낱말 가운데가 끊긴다. */
+          word-break: keep-all;
+        }
+
+        .state-block.danger .state-title {
+          color: var(--cp-danger);
+        }
+
+        .state-desc {
+          font-size: 0.9rem;
+          line-height: 1.6;
+          margin-bottom: 1.5rem;
+          word-break: keep-all;
+        }
+
+        .state-desc:last-child {
+          margin-bottom: 0;
+        }
+
+        .state-action {
+          background: var(--cp-ink);
+          color: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-ink);
+          border-radius: 0;
+          padding: 0.7rem 1.4rem;
+          font-family: inherit;
+          font-size: 0.95rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.12s linear, color 0.12s linear;
+        }
+
+        .state-action:hover,
+        .state-action:focus-visible {
+          background: var(--cp-surface);
+          color: var(--cp-ink);
+        }
+
         /* ====== 터치 기기 ======
            데스크톱의 밀도와 폰에서 손가락이 닿는 것은 서로 다른 요구다.
            하나의 값으로 타협하면 양쪽 다 잃으므로 포인터 종류로 가른다.
@@ -837,6 +966,10 @@ export const itineraryStyles = `
 
           .insert-input,
           .insert-stay-select {
+            min-height: 44px;
+          }
+
+          .day-tab-btn {
             min-height: 44px;
           }
         }
