@@ -18,6 +18,11 @@
  * 못해 공유 이미지가 깨진다(PRD 3.7 에 기록된 이력).
  */
 :root {
+  /* 브라우저가 직접 그리는 부분 — 시간/날짜 입력의 시계 아이콘, select 화살표,
+     스크롤바 — 은 토큰이 아니라 color-scheme 을 본다. 이걸 안 켜 두면
+     다크 모드에서 시계 아이콘이 어두운 배경 위에 어두운 색으로 찍혀 사라진다. */
+  color-scheme: light;
+
   /* ---- 지면 ---- */
   --cp-paper:      #F4F4F1;  /* 화면 바탕 */
   --cp-surface:    #FFFFFF;  /* 카드/패널 */
@@ -61,6 +66,7 @@
 }
 
 body.dark {
+  color-scheme: dark;
   --cp-paper:      #121211;
   --cp-surface:    #1A1A19;
   --cp-sunken:     #232322;

@@ -5,7 +5,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
-import { icons } from './icons.js';
+import { icons } from '../../../ui/icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';

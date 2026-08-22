@@ -2,6 +2,7 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
+import { icons } from '../../../ui/icons.js';
 import { getFormData } from './travel-form-data.js';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
@@ -210,8 +211,17 @@ export default class TravelForm extends HTMLElement {
         if (displayDate) {
           const dateChip = document.createElement('span');
           dateChip.className = 'pref-chip';
-          dateChip.style.background = 'linear-gradient(135deg, #10b981, #059669)'; // Date 배지는 초록
-          dateChip.innerHTML = `<span class="chip-icon">📅</span> ${displayDate}`;
+          // 예전에는 이 배지만 초록 그라디언트였다. 초록은 지도에서 "그날의
+          // 첫 장소"를 뜻하는 색이라, 날짜 배지가 그 색을 먼저 써 버리면
+          // 결과 화면에서 초록의 뜻이 흐려진다. 아이콘으로만 구분한다.
+          // 날짜 문자열은 sessionStorage 에서 온다. textContent 로 넣어
+          // 값이 마크업으로 해석될 여지를 남기지 않는다.
+          const chipIcon = document.createElement('span');
+          chipIcon.className = 'chip-icon';
+          chipIcon.innerHTML = icons.calendar;
+          const chipText = document.createElement('span');
+          chipText.textContent = displayDate;
+          dateChip.append(chipIcon, chipText);
           container.appendChild(dateChip);
         }
       }
@@ -255,12 +265,12 @@ export default class TravelForm extends HTMLElement {
       <form id="travel-form">
         
         <div class="form-section">
-          <h2 style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+          <h2 class="section-head">
+            <div class="section-head-main">
               <span data-i18n="tripBasicsTitle">Trip Basics</span>
               <div class="preference-chips" id="preference-chips-container"></div>
             </div>
-            <button type="button" id="reselect-preference-btn" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">테마/예산 다시 선택하기</button>
+            <button type="button" id="reselect-preference-btn" class="link-btn" data-i18n="reselectPreference">테마/예산 다시 선택하기</button>
           </h2>
           <div class="row-3" id="global-times-container">
             <div class="form-group">
@@ -277,13 +287,13 @@ export default class TravelForm extends HTMLElement {
             </div>
           </div>
           
-          <div id="daily-times-wrapper" style="display: none; margin-top: 1rem;">
+          <div id="daily-times-wrapper" style="display: none;">
             <label class="toggle-container">
               <input type="checkbox" id="daily-times-toggle">
               <span class="toggle-switch"></span>
               <span class="toggle-label" data-i18n="perDayTimeToggle">일자별로 시간 다르게 설정하기</span>
             </label>
-            <div id="daily-times-accordion" style="display: none; margin-top: 1rem; border-top: 1px dashed oklch(90% 0.02 260); padding-top: 1rem;">
+            <div id="daily-times-accordion" style="display: none;">
               <!-- 동적으로 데일리 타임 폼이 렌더링됨 -->
             </div>
           </div>
@@ -301,7 +311,7 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         <div class="form-section">
-          <h2><span data-i18n="anchorTitle">Anchor Schedules</span> <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);">(Optional)</span></h2>
+          <h2><span data-i18n="anchorTitle">Anchor Schedules</span> <span class="optional-note">(Optional)</span></h2>
           <p class="subtitle" data-i18n="anchorSubtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
           
           <div id="anchors-container"></div>
@@ -396,9 +406,9 @@ export default class TravelForm extends HTMLElement {
     if (daysCount > 1) {
       const options = Array.from({ length: daysCount }, (_, i) => `<option value="${i + 1}">Day ${i + 1}</option>`).join('');
       daySelectorHTML = `
-        <div class="form-group" style="margin-bottom: 0.5rem;">
+        <div class="form-group">
           <label data-i18n="anchorDayLabel">일정 일차 (Day)</label>
-          <select class="anchor-day" required style="width: 100%; padding: 0.8rem 1rem; border: 1px solid oklch(90% 0.02 260); border-radius: 8px; font-family: inherit; font-size: 0.95rem;">
+          <select class="anchor-day" required>
             ${options}
           </select>
         </div>
@@ -486,22 +496,18 @@ export default class TravelForm extends HTMLElement {
                   : (getLang() === 'ko' ? `${nights}박 ${reqDays}일` : `${nights}N ${reqDays}D`);
                 el.type = 'text';
                 el.value = `${val[0]} ~ ${val[val.length - 1]} (${durationText})`;
+                // 회색·not-allowed 는 CSS 의 input[readonly] 가 맡는다.
+                // 인라인으로 칠하면 다크 모드에서 흰 글씨 위에 밝은 회색이 남는다.
                 el.readOnly = true;
-                el.style.backgroundColor = '#f3f4f6';
-                el.style.cursor = 'not-allowed';
               } else {
                 el.type = 'date';
                 el.value = val[0];
                 el.readOnly = false;
-                el.style.backgroundColor = '';
-                el.style.cursor = '';
               }
             } else {
               el.type = 'date';
               el.value = val;
               el.readOnly = false;
-              el.style.backgroundColor = '';
-              el.style.cursor = '';
             }
           } else {
             el.value = val;
