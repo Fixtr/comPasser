@@ -2,6 +2,8 @@ import { signUpWithEmail } from '../services/firebase-auth.js';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 import { showToast } from '../../../utils/toast.js';
+import { authStyles } from './auth-style.js';
+import { icons } from '../../../ui/icons.js';
 
 export default class JoinView extends HTMLElement {
   constructor() {
@@ -33,23 +35,12 @@ export default class JoinView extends HTMLElement {
   _showInAppBrowserWarning() {
     const banner = document.createElement('div');
     banner.id = 'inapp-browser-warning';
-    banner.style.cssText = `
-      background: linear-gradient(135deg, #fef3c7, #fde68a);
-      border: 2px solid #f59e0b;
-      border-radius: 16px;
-      padding: 1.5rem 2rem;
-      margin-bottom: 2rem;
-      text-align: center;
-      max-width: 520px;
-      width: 100%;
-      box-sizing: border-box;
-      animation: slideDown 0.4s ease-out;
-    `;
+    banner.className = 'inapp-warning';
     banner.innerHTML = `
-      <div id="inapp-title" style="font-size: 1.3rem; font-weight: 800; color: #92400e; margin-bottom: 0.75rem;">
-        ${t('inAppBrowserTitle') || '⚠️ 외부 브라우저로 접속해주세요'}
+      <div id="inapp-title" class="inapp-title">
+        ${t('inAppBrowserTitle') || '외부 브라우저로 접속해주세요'}
       </div>
-      <div id="inapp-desc" style="font-size: 0.95rem; color: #78350f; line-height: 1.6;">
+      <div id="inapp-desc" class="inapp-desc">
         ${t('inAppBrowserDesc') || '원활한 로그인을 위해 외부 브라우저를 이용해주세요.'}
       </div>
     `;
@@ -64,155 +55,13 @@ export default class JoinView extends HTMLElement {
     if (!banner) return;
     const titleEl = banner.querySelector('#inapp-title');
     const descEl = banner.querySelector('#inapp-desc');
-    if (titleEl) titleEl.textContent = t('inAppBrowserTitle') || '⚠️ 외부 브라우저로 접속해주세요';
+    if (titleEl) titleEl.textContent = t('inAppBrowserTitle') || '외부 브라우저로 접속해주세요';
     if (descEl) descEl.textContent = t('inAppBrowserDesc') || '원활한 로그인을 위해 외부 브라우저를 이용해주세요.';
   }
 
   render() {
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: fit-content;
-          width: 100%;
-          box-sizing: border-box;
-          text-align: center;
-          padding: 3rem 2rem 4rem 2rem !important;
-          background: var(--bg-secondary, #fff);
-          border-radius: var(--radius-lg, 16px);
-          box-shadow: var(--shadow-lg, 0 10px 15px rgba(0,0,0,0.1));
-          margin-top: 2rem;
-          container-type: inline-size;
-        }
-
-        .header-section { margin-bottom: 2.5rem; }
-        h2 { font-size: 2.2rem; color: var(--text-primary); margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.02em; }
-        p.subtitle { color: var(--text-secondary); margin: 0 auto; font-size: 1.1rem; line-height: 1.6; max-width: 600px; }
-
-        .auth-form {
-          width: 100%;
-          max-width: 380px;
-          margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-        }
-
-        .input-group {
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        }
-
-        .auth-input {
-          width: 100%;
-          padding: 1rem 1.25rem;
-          border: 1px solid oklch(85% 0.02 260);
-          border-radius: 12px;
-          font-size: 1rem;
-          font-family: inherit;
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          transition: all 0.2s ease;
-          box-sizing: border-box;
-        }
-
-        .auth-input:focus {
-          outline: none;
-          background: var(--bg-secondary);
-          border-color: var(--accent-primary, #7c3aed);
-          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-        }
-
-        /* Password Wrapper for Eye Icon */
-        .password-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .password-wrapper .auth-input {
-          padding-right: 3rem; /* space for icon */
-        }
-
-        .toggle-password {
-          position: absolute;
-          right: 1rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-size: 1.2rem;
-          color: var(--text-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-        }
-
-        .strength-indicator {
-          margin-top: 0.5rem;
-          font-size: 0.85rem;
-          text-align: right;
-          font-weight: 600;
-          transition: color 0.3s;
-          height: 1rem;
-        }
-
-        .auth-btn {
-          width: 100%;
-          padding: 1rem;
-          font-size: 1.05rem;
-          font-weight: 700;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: none;
-          background: var(--accent-primary, #7c3aed);
-          color: white;
-          box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
-          margin-top: 0.5rem;
-        }
-
-        .auth-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(124, 58, 237, 0.3);
-          background: var(--accent-hover, #6d28d9);
-        }
-
-        .auth-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .login-link {
-          margin-top: 2rem;
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-        }
-
-        .login-link a {
-          color: var(--accent-primary, #7c3aed);
-          font-weight: 700;
-          text-decoration: none;
-          cursor: pointer;
-        }
-        
-        .login-link a:hover {
-          text-decoration: underline;
-        }
-
-        #error-msg {
-          color: #EF4444;
-          margin-top: 0.5rem;
-          font-size: 0.9rem;
-          display: none;
-          text-align: left;
-        }
-      </style>
+      <style>${authStyles}</style>
 
       <div class="header-section">
         <h2>회원가입</h2>
@@ -227,7 +76,7 @@ export default class JoinView extends HTMLElement {
         <div class="input-group">
           <div class="password-wrapper">
             <input type="password" id="password-input" class="auth-input" placeholder="비밀번호" autocomplete="new-password" />
-            <button type="button" id="toggle-password-btn" class="toggle-password" aria-label="비밀번호 숨기기/보이기">👁️</button>
+            <button type="button" id="toggle-password-btn" class="toggle-password" aria-label="비밀번호 숨기기/보이기">${icons.eye}</button>
           </div>
           <div id="password-strength" class="strength-indicator"></div>
         </div>
@@ -261,23 +110,26 @@ export default class JoinView extends HTMLElement {
     togglePasswordBtn.addEventListener('click', () => {
       const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
       passwordInput.setAttribute('type', type);
-      togglePasswordBtn.textContent = type === 'password' ? '👁️' : '🙈';
+      togglePasswordBtn.innerHTML = type === 'password' ? icons.eye : icons.eyeOff;
     });
 
     // Password Strength Indicator
     passwordInput.addEventListener('input', () => {
       const val = passwordInput.value;
+      // 색은 CSS 의 [data-strength] 가 맡는다. 여기서 직접 칠하면
+      // "안전"의 초록(#10B981)이 지도의 "첫 장소" 색과 같아져 버린다.
       if (val.length === 0) {
         passwordStrength.textContent = '';
+        passwordStrength.removeAttribute('data-strength');
       } else if (val.length < 6) {
         passwordStrength.textContent = '위험 (6자 이상 필요)';
-        passwordStrength.style.color = '#EF4444'; // Red
+        passwordStrength.dataset.strength = 'weak';
       } else if (val.length >= 8 && /[A-Za-z]/.test(val) && /[0-9]/.test(val)) {
         passwordStrength.textContent = '안전';
-        passwordStrength.style.color = '#10B981'; // Green
+        passwordStrength.dataset.strength = 'strong';
       } else {
         passwordStrength.textContent = '보통';
-        passwordStrength.style.color = '#F59E0B'; // Orange/Yellow
+        passwordStrength.dataset.strength = 'medium';
       }
     });
 

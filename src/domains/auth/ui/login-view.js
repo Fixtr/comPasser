@@ -4,6 +4,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 import { showErrorToast } from '../../../utils/toast.js';
+import { authStyles } from './auth-style.js';
 
 const auth = getAuth(app);
 const functions = getFunctions(app);
@@ -65,53 +66,21 @@ export default class LoginView extends HTMLElement {
   _showInAppBrowserWarning() {
     const banner = document.createElement('div');
     banner.id = 'inapp-browser-warning';
-    banner.style.cssText = `
-      background: linear-gradient(135deg, #fef3c7, #fde68a);
-      border: 2px solid #f59e0b;
-      border-radius: 16px;
-      padding: 1.5rem 2rem;
-      margin-bottom: 2rem;
-      text-align: center;
-      max-width: 520px;
-      width: 100%;
-      box-sizing: border-box;
-      animation: slideDown 0.4s ease-out;
-    `;
+    // 이 배너 안에 .join-link 규칙이 함께 들어 있었다. 배너는 인앱
+    // 브라우저일 때만 삽입되므로, 일반 브라우저로 들어온 사용자에게는
+    // 회원가입 링크가 아무 스타일 없이 보였다. 규칙은 auth-style.js 로 옮겼다.
+    banner.className = 'inapp-warning';
     banner.innerHTML = `
-      <div id="inapp-title" style="font-size: 1.3rem; font-weight: 800; color: #92400e; margin-bottom: 0.75rem;">
+      <div id="inapp-title" class="inapp-title">
         ${t('inAppBrowserTitle')}
       </div>
-      <div id="inapp-desc" style="font-size: 0.95rem; color: #78350f; line-height: 1.6;">
+      <div id="inapp-desc" class="inapp-desc">
         ${t('inAppBrowserDesc')}
       </div>
-      <div style="margin-top: 1rem; font-size: 0.85rem; color: #92400e; font-weight: 600;">
-        iOS: 우측 하단 [ ⠇ ] → "다른 브라우저로 열기"<br>
+      <div class="inapp-how">
+        iOS: 우측 하단 [ &#10247; ] &rarr; "다른 브라우저로 열기"<br>
         Android: 자동으로 외부 브라우저가 열립니다.
       </div>
-      <style>
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-15px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      
-        .join-link {
-          margin-top: 2.5rem;
-          font-size: 0.95rem;
-          color: #64748b;
-        }
-        .join-link a {
-          color: #7c3aed;
-          font-weight: bold;
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .join-link a:hover {
-          text-decoration: underline;
-          color: #6d28d9;
-        }
-
-      </style>
     `;
 
     // Shadow DOM 내부 최상단에 삽입
@@ -133,261 +102,7 @@ export default class LoginView extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: fit-content;
-          height: auto !important;
-          width: 100%;
-          box-sizing: border-box;
-          text-align: center;
-          padding: 3rem 2rem 4rem 2rem !important;
-          background: var(--bg-secondary, #fff);
-          border-radius: var(--radius-lg, 16px);
-          box-shadow: var(--shadow-lg, 0 10px 15px rgba(0,0,0,0.1));
-          margin-top: 2rem;
-          container-type: inline-size;
-        }
-
-        .header-section { margin-bottom: 3rem; }
-
-        h2 {
-          font-size: 2.5rem;
-          color: var(--text-primary);
-          margin-bottom: 1rem;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-        }
-
-        p.subtitle {
-          color: var(--text-secondary);
-          margin: 0 auto;
-          font-size: 1.2rem;
-          line-height: 1.6;
-          max-width: 600px;
-          text-align: center;
-        }
-
-        .features-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1.5rem;
-          margin: 0 auto 3.5rem auto;
-          width: 100%;
-          max-width: 900px;
-          justify-content: center;
-        }
-
-        .feature-card {
-          background: var(--bg-primary);
-          border: 1px solid oklch(90% 0.02 260);
-          border-radius: 16px;
-          padding: 2rem 1.5rem;
-          transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-        }
-
-        .feature-card:hover {
-          transform: translateY(-8px);
-          box-shadow: var(--shadow-md, 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1));
-          border-color: var(--accent-primary, #7c3aed);
-        }
-
-        .feature-icon {
-          font-size: 2.5rem;
-          margin-bottom: 1rem;
-          background: oklch(95% 0.02 260);
-          width: 70px;
-          height: 70px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-
-        .feature-title {
-          font-size: 1.2rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin-bottom: 0.75rem;
-        }
-
-        .feature-desc {
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-          line-height: 1.5;
-        }
-
-        .auth-form {
-          width: 100%;
-          max-width: 380px;
-          margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .input-group {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .auth-input {
-          width: 100%;
-          padding: 1rem 1.25rem;
-          border: 1px solid oklch(85% 0.02 260);
-          border-radius: 12px;
-          font-size: 1rem;
-          font-family: inherit;
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          transition: all 0.2s ease;
-          box-sizing: border-box;
-        }
-
-        .auth-input:focus {
-          outline: none;
-          background: var(--bg-secondary);
-          border-color: var(--accent-primary, #7c3aed);
-          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-        }
-
-        .btn-group {
-          display: flex;
-          gap: 0.75rem;
-          margin-top: 0.5rem;
-        }
-
-        .auth-btn {
-          flex: 1;
-          padding: 1rem;
-          font-size: 1rem;
-          font-weight: 700;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: none;
-        }
-
-        .login-btn {
-          background: var(--accent-primary, #7c3aed);
-          color: white;
-          box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
-        }
-
-        .login-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(124, 58, 237, 0.3);
-          background: var(--accent-hover, #6d28d9);
-        }
-
-        .signup-btn {
-          background: transparent;
-          color: var(--accent-primary, #7c3aed);
-          border: 1px solid var(--accent-primary, #7c3aed);
-        }
-
-        .signup-btn:hover {
-          background: rgba(124, 58, 237, 0.05);
-          transform: translateY(-2px);
-        }
-
-        .divider {
-          display: flex;
-          align-items: center;
-          text-align: center;
-          margin: 2.5rem 0 1.5rem 0;
-          color: var(--text-secondary);
-          font-size: 0.9rem;
-          font-weight: 500;
-          width: 100%;
-          max-width: 380px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        .divider::before, .divider::after {
-          content: '';
-          flex: 1;
-          border-bottom: 1px solid oklch(90% 0.02 260);
-        }
-
-        .divider::before { margin-right: 1rem; }
-        .divider::after { margin-left: 1rem; }
-
-        .social-login-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-          width: 100%;
-          max-width: 380px;
-          margin: 0 auto;
-        }
-
-        .social-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          padding: 1rem;
-          font-size: 1rem;
-          font-weight: 600;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-          border: none;
-        }
-
-        .social-btn:hover {
-          transform: translateY(-2px);
-        }
-
-        .google-btn {
-          background: #ffffff;
-          color: #3c4043;
-          border: 1px solid #dadce0;
-        }
-
-        .google-btn:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
-
-        .kakao-btn {
-          background: #FEE500;
-          color: #000000;
-        }
-
-        .kakao-btn:hover { box-shadow: 0 4px 12px rgba(254, 229, 0, 0.3); }
-
-        .naver-btn {
-          background: #03C75A;
-          color: #ffffff;
-        }
-
-        .naver-btn:hover { box-shadow: 0 4px 12px rgba(3, 199, 90, 0.3); }
-
-        #error-msg {
-          color: #EA4335;
-          margin-top: 0.5rem;
-          font-size: 0.9rem;
-          display: none;
-        }
-
-        @container (max-width: 800px) {
-          .features-grid {
-            grid-template-columns: 1fr;
-            max-width: 400px;
-          }
-          .btn-group {
-            flex-direction: column;
-          }
-        }
-      </style>
+      <style>${authStyles}</style>
 
       <div class="header-section"><h2>로그인</h2><p class="subtitle">이메일 또는 소셜 계정으로 로그인하세요.</p></div>
       

@@ -18,6 +18,24 @@ export function stripComments(source) {
   return String(source).replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
 }
 
+/**
+ * JS 파일을 검사할 때 쓴다. 블록 주석에 더해 **줄 맨 앞의** `//` 주석도 지운다.
+ *
+ * 필요한 이유: 이 계약들이 잡아낸 값을 주석으로 남겨 두는 일이 많다
+ * ("예전에는 #10B981 이었는데 …"). 그 설명이 다시 위반으로 잡히면
+ * 기록을 지우거나 테스트를 무디게 만드는 선택을 강요받는다.
+ *
+ * 줄 앞만 지우는 것은 의도적이다. 줄 끝의 `//` 까지 지우려면 문자열·정규식
+ * 안의 `//`(예: https://)와 구분해야 하는데, 그건 파서가 할 일이다.
+ * 값이 들어간 설명은 줄 앞 주석으로 쓰면 된다.
+ */
+export function stripSourceComments(source) {
+  return stripComments(source)
+    .split('\n')
+    .map(line => (/^\s*\/\//.test(line) ? '' : line))
+    .join('\n');
+}
+
 export function assertNoShadows(css, label) {
   const hits = css.match(/box-shadow\s*:\s*(?!none)[^;]+/g) || [];
   assert.deepEqual(hits, [], `${label}: 그림자 대신 1px 실선으로 경계를 만든다\n${hits.join('\n')}`);
@@ -79,6 +97,24 @@ export function assertSquareRadius(css, label, tokensCss) {
 export function assertNoLegacyTokens(css, label) {
   const hits = css.match(/var\(\s*--(bg|text|accent|shadow|radius)-[a-z]+/g) || [];
   assert.deepEqual(hits, [], `${label}: 옛 토큰이 남아 있다\n${[...new Set(hits)].join(', ')}`);
+}
+
+/**
+ * `:host` 에 box-sizing: border-box 가 있는지.
+ *
+ * 그림자 DOM 안의 `* { box-sizing: border-box }` 는 호스트에 닿지 않는다.
+ * 그래서 `:host { width: 100%; padding: … }` 를 쓰면 여백만큼 화면 밖으로
+ * 나가고, 폰에서 가로 스크롤이 생긴다. 선호 화면(32px)과 로그인 화면(42px)
+ * 에서 각각 한 번씩 이 방식으로 새어 나갔다.
+ */
+export function assertHostBoxSizing(css, label) {
+  const host = /:host\s*\{([^}]*)\}/.exec(css);
+  assert.ok(host, `${label}: :host 블록이 없다`);
+  const body = host[1];
+  const needsIt = /width\s*:\s*100%/.test(body) && /padding\s*:/.test(body);
+  if (!needsIt) return;
+  assert.match(body, /box-sizing\s*:\s*border-box/,
+    `${label}: :host 가 width:100% + padding 인데 box-sizing 이 없다`);
 }
 
 /**

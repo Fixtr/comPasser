@@ -6,7 +6,7 @@ import { preferenceStyles } from '../src/domains/planner/ui/preference-style.js'
 import {
   stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
-  assertNoLegacyTokens, assertTouchTargets,
+  assertNoLegacyTokens, assertTouchTargets, assertHostBoxSizing,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -25,6 +25,8 @@ test('이름 있는 색을 쓰지 않는다', () => assertNoNamedColors(css, LAB
 test('캡처가 못 읽는 색 함수를 쓰지 않는다', () => assertNoModernColorFunctions(css, LABEL));
 test('라운드는 0 이거나 알약 토큰이다', () => assertSquareRadius(css, LABEL, tokens));
 test('옛 토큰을 더 이상 읽지 않는다', () => assertNoLegacyTokens(css, LABEL));
+
+test('호스트가 여백만큼 화면 밖으로 나가지 않는다', () => assertHostBoxSizing(css, LABEL));
 
 test('터치 기기에서 고르는 대상이 44px 이상이다', () => {
   // 이 화면은 통째로 "고르는" 화면이라 탭 대상이 곧 화면 전체다.
