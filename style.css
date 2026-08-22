@@ -53,8 +53,10 @@ body.dark {
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  /* 액자(.app-container)와 같은 지면색. 바깥쪽만 다른 색이면 가장자리에서
+     띠가 보인다. theme-color 도 이 값에 맞춰져 있다. */
+  background-color: var(--cp-paper);
+  color: var(--cp-ink);
   line-height: 1.5;
   min-height: 100vh;
   display: grid;
@@ -78,63 +80,91 @@ h4 {
 }
 
 /* App Container Layout */
+/* 앱 바깥 액자. 그림자 대신 1px 실선으로 경계를 만든다. */
 .app-container {
   width: 100%;
   max-width: 1200px;
   min-height: 90vh;
   margin: 2rem;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background-color: var(--cp-paper);
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* Hero Section */
+/* 헤더는 /profile 을 뺀 모든 경로에 뜬다(main.js). 여기가 어긋나 있으면
+   어떤 화면을 고쳐도 위쪽에서 계속 부딪히므로 가장 먼저 정리했다.
+   보라 그라디언트 글씨를 없앤 이유는 두 가지다 — 캡처에서 글자가 통째로
+   사라지고(PRD 3.7), "AI 가 만든 앱" 목록의 첫 항목이기도 하다. */
 .hero {
-  padding: 4rem 2rem;
+  padding: 2.5rem 2rem;
   text-align: center;
-  background: linear-gradient(135deg, #f0f4ff, #eef2ff);
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--cp-surface);
+  border-bottom: var(--cp-hair) solid var(--cp-rule);
 }
 
 .hero h1 {
-  font-size: 3rem;
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
   font-weight: 800;
-  background: linear-gradient(90deg, var(--accent-primary), #4f46e5);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+  color: var(--cp-ink);
+  margin-bottom: 0.6rem;
 }
 
 .hero p {
-  font-size: 1.25rem;
-  color: var(--text-secondary);
-  max-width: 600px;
+  font-size: 1.02rem;
+  color: var(--cp-ink-2);
+  max-width: 52ch;
   margin: 0 auto;
+  word-break: keep-all;
 }
 
-/* Header Actions & Avatar */
 .header-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 0.5rem;
+  margin-top: 1.4rem;
   flex-wrap: wrap;
+}
+
+/* 알약 모양은 뱃지·칩에만 허용된 예외다. 헤더 토글은 각진 상자로 둔다. */
+.hdr-btn {
+  background: transparent;
+  color: var(--cp-ink);
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
+  padding: 0.45rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+}
+
+.hdr-btn:hover,
+.hdr-btn:focus-visible {
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+  border-color: var(--cp-ink);
+}
+
+.hdr-btn:focus-visible {
+  outline: 2px solid var(--cp-ink);
+  outline-offset: 2px;
 }
 
 #user-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--cp-pill);
   object-fit: cover;
-  border: 1px solid #e2e8f0;
+  border: var(--cp-hair) solid var(--cp-rule);
+  cursor: pointer;
 }
 
-/* Main Content Tracking - Container Queries */
 .content {
   padding: 3rem 2rem;
   flex: 1;
@@ -145,51 +175,154 @@ h4 {
 /* Responsive */
 
 /* Home Features Grid */
+/* ====== 랜딩 (#page-home) ====== */
+#page-home {
+  display: none;              /* 라우터가 flex 로 켠다 */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.home-intro {
+  margin-bottom: 2.5rem;
+}
+
+.home-intro h2 {
+  font-size: clamp(1.6rem, 4.5vw, 2.3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.8rem;
+  color: var(--cp-ink);
+  word-break: keep-all;
+}
+
+.home-intro p {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--cp-ink-2);
+  word-break: keep-all;
+}
+
 .features-grid {
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;                   /* 카드 사이를 선 하나로. 겹친 테두리가 두꺼워지지 않는다. */
   width: 100%;
+  background: var(--cp-rule);
+  border: var(--cp-hair) solid var(--cp-rule);
+  margin-bottom: 2.5rem;
+}
+
+.feature-card {
+  background: var(--cp-surface);
+  border-radius: var(--cp-radius);
+  padding: 1.8rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--cp-ink);
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
+  margin-bottom: 0.35rem;
+}
+
+.feature-card b {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cp-ink);
+}
+
+.feature-card span:not(.feature-icon) {
+  font-size: 0.92rem;
+  color: var(--cp-ink-2);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* 주 버튼. 그라디언트·그림자 대신 색 반전으로만 상태를 알린다. */
+.primary-btn {
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+  border: var(--cp-hair) solid var(--cp-ink);
+  border-radius: var(--cp-radius);
+  padding: 0.9rem 2.2rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background 0.12s linear, color 0.12s linear;
+}
+
+.primary-btn:hover,
+.primary-btn:focus-visible {
+  background: var(--cp-surface);
+  color: var(--cp-ink);
+}
+
+.primary-btn:focus-visible {
+  outline: 2px solid var(--cp-ink);
+  outline-offset: 2px;
 }
 
 .join-link {
   margin-top: 2.5rem;
   font-size: 0.95rem;
-  color: #64748b;
+  color: var(--cp-muted);
 }
 
 .join-link a {
-  color: #7c3aed;
-  font-weight: bold;
-  text-decoration: none;
+  color: var(--cp-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .join-link a:hover {
-  text-decoration: underline;
-  color: #6d28d9;
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+  text-decoration: none;
 }
 
 @media (max-width: 768px) {
+  /* !important 를 쓰던 자리다. 인라인 style 을 이기려던 건데
+     그 인라인이 사라졌으므로 더 필요 없다. */
   .features-grid {
-    grid-template-columns: 1fr !important;
-    max-width: 400px;
-    margin: 0 auto;
+    grid-template-columns: 1fr;
+    max-width: 420px;
+    margin: 0 auto 2.5rem;
   }
 
   .app-container {
     margin: 0;
     min-height: 100vh;
-    border-radius: 0;
+    border: 0;
   }
 
   .hero {
-    padding: 3rem 1.25rem;
+    padding: 1.9rem 1.25rem;
+  }
+
+  #page-home {
+    padding: 2rem 1.25rem;
   }
 
   .content {
-    padding: 2rem 1rem;
+    padding: 1.5rem 1rem;
   }
 }
 
@@ -208,12 +341,43 @@ h4 {
 }
 
 /* Large Spinner for Phase 2 */
+/* ====== 로딩 화면 ====== */
+#loading-transition-view {
+  display: none;              /* 라우터가 flex 로 켠다 */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+}
+
+#loading-text {
+  margin-top: 1.4rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cp-ink);
+  word-break: keep-all;
+}
+
+#loading-subtext {
+  color: var(--cp-ink-2);
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
+}
+
+#show-results-btn {
+  margin-top: 1.8rem;
+  max-width: 320px;
+  width: 100%;
+}
+
 .large-spinner {
   width: 60px;
   height: 60px;
-  border: 5px solid #f3f4f6;
-  border-top-color: var(--accent-primary);
-  border-radius: 50%;
+  border: 3px solid var(--cp-rule);
+  border-top-color: var(--cp-ink);
+  border-radius: var(--cp-pill);
   animation: spin 1s linear infinite;
 }
 
@@ -264,42 +428,37 @@ h4 {
   position: relative;
 }
 
+/* 광고 배너는 PRD 3.8 의 수익 동선이다. 톤을 맞추되 존재를 지우지는 않는다.
+   배너 배경색은 config/ads.js 가 항목별로 인라인으로 지정하므로 여기서는
+   형태(각진 상자·1px 실선·그림자 없음)만 잡는다. */
 .ad-banner {
   position: relative;
-  padding: 1.5rem 1.5rem 1.5rem 1.25rem;
-  border-radius: 12px;
-  min-height: 100px;
+  padding: 1.1rem 1.2rem;
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
+  min-height: 92px;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.9rem;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: opacity 0.35s linear;
   cursor: pointer;
 }
 
-.ad-banner.fade-in {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.ad-banner.fade-out {
-  opacity: 0;
-  transform: translateY(8px);
-}
+.ad-banner.fade-in { opacity: 1; }
+.ad-banner.fade-out { opacity: 0; }
 
 .ad-banner-icon {
-  font-size: 2.2rem;
+  font-size: 1.9rem;
   flex-shrink: 0;
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
-  overflow: hidden; /* Ensure images don't overflow */
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
+  overflow: hidden;
 }
 
 .ad-banner-icon-inner {
@@ -310,34 +469,37 @@ h4 {
   height: 100%;
 }
 
-.ad-banner-content {
-  flex: 1;
-}
+.ad-banner-content { flex: 1; min-width: 0; }
 
 .ad-banner-title {
   font-weight: 700;
-  font-size: 0.95rem;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  font-size: 0.94rem;
+  color: var(--cp-ink);
+  margin-bottom: 0.2rem;
+  word-break: keep-all;
 }
 
 .ad-banner-desc {
-  font-size: 0.85rem;
-  color: #4b5563;
-  line-height: 1.4;
+  font-size: 0.84rem;
+  color: var(--cp-ink-2);
+  line-height: 1.45;
+  word-break: keep-all;
 }
 
+/* "광고" 표기는 작아도 반드시 읽혀야 한다. 배경 위에 얹히므로 테두리로 띄운다. */
 .ad-badge {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 6px;
+  right: 8px;
+  font-family: var(--cp-mono);
   font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.35);
-  background: rgba(255, 255, 255, 0.5);
-  padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--cp-ink-2);
+  background: var(--cp-surface);
+  border: var(--cp-hair) solid var(--cp-rule);
+  padding: 1px 5px;
+  border-radius: var(--cp-radius);
   user-select: none;
 }
 
@@ -345,59 +507,29 @@ h4 {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin-top: 0.75rem;
+  margin-top: 0.7rem;
 }
 
 .ad-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #d1d5db;
-  transition: all 0.3s ease;
+  width: 14px;
+  height: 3px;
+  border-radius: var(--cp-radius);
+  background: var(--cp-rule);
+  transition: background 0.2s linear;
 }
 
-.ad-dot.active {
-  background: var(--accent-primary);
-  transform: scale(1.3);
-}
-
-/* Dark mode overrides for banner */
-body.dark .ad-banner-title {
-  color: #f3f4f6;
-}
-
-body.dark .ad-banner-desc {
-  color: #d1d5db;
-}
-
-body.dark .ad-banner-icon {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-body.dark .ad-badge {
-  color: rgba(255, 255, 255, 0.45);
-  background: rgba(0, 0, 0, 0.25);
-}
-
-body.dark .ad-banner {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
+.ad-dot.active { background: var(--cp-ink); }
 
 /* ====== End Ad Banner Carousel ====== */
-
-.primary-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow);
-}
 
 /* Fix for Google Maps Places Autocomplete Dropdown z-index */
 .pac-container {
   z-index: 10000 !important;
   font-family: inherit;
-  border-radius: 8px;
-  box-shadow: var(--shadow-md) !important;
-  border: 1px solid #e5e7eb;
-  margin-top: 4px;
+  border-radius: var(--cp-radius);
+  border: var(--cp-hair) solid var(--cp-rule);
+  background: var(--cp-surface);
+  margin-top: 2px;
 }
 
 /* ============================================================
@@ -449,7 +581,15 @@ body.dark .ad-banner {
 
 /* 터치 기기에서는 탭 대상을 44px 이상으로. 데스크톱은 그대로 촘촘하게 둔다. */
 @media (pointer: coarse) {
-  #page-view .view-actions button {
+  #page-view .view-actions button,
+  .hdr-btn,
+  .primary-btn {
     min-height: 44px;
+  }
+
+  /* 아바타는 프로필로 가는 유일한 입구다. 36px 로는 작다. */
+  #user-avatar {
+    width: 44px;
+    height: 44px;
   }
 }

@@ -13,11 +13,19 @@ const CONTAINER_ID = 'app-toast-container';
 const STYLE_ID = 'app-toast-style';
 const DEFAULT_DURATION = 3200;
 
+/**
+ * 토스트 색.
+ *
+ * 알림(info)·완료(success)는 무채색으로 둔다. 이 앱에서 색은 지도 마커
+ * 규칙(보라=고정 일정 / 초록=첫 장소 / 파랑=나머지)에만 쓰기로 했는데,
+ * 초록 토스트가 뜨면 같은 초록이 두 가지를 뜻하게 된다.
+ * 반대로 경고·오류는 상태색이라 색을 유지한다 — 놓치면 안 되는 정보다.
+ */
 const TONE_STYLE = {
-  info: { bg: '#1f2937', border: '#374151' },
-  success: { bg: '#065f46', border: '#047857' },
-  error: { bg: '#991b1b', border: '#b91c1c' },
-  warning: { bg: '#92400e', border: '#b45309' }
+  info: { bg: 'var(--cp-ink)', border: 'var(--cp-ink)', fg: 'var(--cp-surface)' },
+  success: { bg: 'var(--cp-ink)', border: 'var(--cp-ink)', fg: 'var(--cp-surface)' },
+  error: { bg: 'var(--cp-danger)', border: 'var(--cp-danger)', fg: 'var(--cp-surface)' },
+  warning: { bg: 'var(--cp-warn)', border: 'var(--cp-warn)', fg: 'var(--cp-surface)' }
 };
 
 function ensureStyle() {
@@ -42,11 +50,10 @@ function ensureStyle() {
       pointer-events: auto;
       width: 100%;
       box-sizing: border-box;
-      color: #fff;
-      padding: 0.85rem 1.1rem;
-      border-radius: 12px;
-      border: 1px solid transparent;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      color: var(--cp-surface);
+      padding: 0.8rem 1.05rem;
+      border-radius: var(--cp-radius);
+      border: var(--cp-hair) solid transparent;
       font-size: 0.92rem;
       font-weight: 600;
       line-height: 1.5;
@@ -97,6 +104,7 @@ export function showToast(message, options = {}) {
   const palette = TONE_STYLE[tone] || TONE_STYLE.info;
   toast.style.background = palette.bg;
   toast.style.borderColor = palette.border;
+  toast.style.color = palette.fg;
 
   // 탭하면 즉시 닫을 수 있게 한다(모바일에서 화면을 가릴 때).
   toast.addEventListener('click', () => dismiss(toast));

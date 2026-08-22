@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentTheme = localStorage.getItem('theme') || 'light';
     if (currentTheme === 'dark') {
         document.body.classList.add('dark');
-        if (themeToggleBtn) themeToggleBtn.textContent = '☀️ Light Mode';
+        if (themeToggleBtn) themeToggleBtn.textContent = t('lightMode') || 'Light Mode';
     }
 
     if (themeToggleBtn) {
@@ -640,11 +640,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (langToggleBtn) {
-        langToggleBtn.textContent = getLang() === 'ko' ? '🌐 English' : '🌐 한국어';
+        langToggleBtn.textContent = getLang() === 'ko' ? 'English' : '한국어';
         langToggleBtn.addEventListener('click', () => {
             const newLang = getLang() === 'ko' ? 'en' : 'ko';
             setLang(newLang);
-            langToggleBtn.textContent = newLang === 'ko' ? '🌐 English' : '🌐 한국어';
+            langToggleBtn.textContent = newLang === 'ko' ? 'English' : '한국어';
             updateTexts();
             trackEvent('change_language', { language: newLang });
         });

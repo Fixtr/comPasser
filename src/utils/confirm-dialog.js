@@ -24,25 +24,25 @@ function ensureStyle() {
       background: rgba(15, 23, 42, 0.55); padding: 1.25rem;
     }
     #${HOST_ID} .confirm-box {
-      background: #fff; border-radius: 16px; padding: 1.5rem;
-      width: min(92vw, 26rem); box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      background: var(--cp-surface); border: var(--cp-hair) solid var(--cp-rule); border-radius: var(--cp-radius); padding: 1.4rem;
+      width: min(92vw, 26rem);
       font-family: inherit;
     }
     #${HOST_ID} .confirm-title {
-      font-size: 1.05rem; font-weight: 800; color: #111827; margin: 0 0 0.5rem;
+      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; color: var(--cp-ink); margin: 0 0 0.5rem;
     }
     #${HOST_ID} .confirm-message {
-      font-size: 0.92rem; color: #4b5563; line-height: 1.6; margin: 0 0 1.25rem;
+      font-size: 0.92rem; color: var(--cp-ink-2); line-height: 1.6; margin: 0 0 1.25rem; word-break: keep-all;
       word-break: keep-all;
     }
     #${HOST_ID} .confirm-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
     #${HOST_ID} button {
-      border-radius: 8px; padding: 0.55rem 1.1rem; font-size: 0.9rem;
+      border-radius: var(--cp-radius); padding: 0.55rem 1.1rem; font-size: 0.9rem;
       font-weight: 700; cursor: pointer; font-family: inherit;
     }
-    #${HOST_ID} .confirm-cancel { background: #fff; color: #374151; border: 1px solid #d1d5db; }
-    #${HOST_ID} .confirm-ok { background: #dc2626; color: #fff; border: 1px solid #dc2626; }
-    #${HOST_ID} .confirm-ok.neutral { background: var(--accent-primary, #7c3aed); border-color: var(--accent-primary, #7c3aed); }
+    #${HOST_ID} .confirm-cancel { background: var(--cp-surface); color: var(--cp-ink); border: var(--cp-hair) solid var(--cp-rule); }
+    #${HOST_ID} .confirm-ok { background: var(--cp-danger); color: var(--cp-surface); border: var(--cp-hair) solid var(--cp-danger); }
+    #${HOST_ID} .confirm-ok.neutral { background: var(--cp-ink); border-color: var(--cp-ink); }
   `;
   document.head.appendChild(style);
 }
