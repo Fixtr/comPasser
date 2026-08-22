@@ -31,10 +31,10 @@ const dictionary = {
         loadingText: "AI가 최적의 경로를 분석하고 있습니다...",
         loadingSubtext: "잠시만 기다려주세요.",
         generationComplete: "✨ 경로 설계가 완료되었습니다!",
-        showResultsBtn: "✨ 경로 확인하기",
+        showResultsBtn: "경로 확인하기",
         generationFail: "❌ 일정을 생성하지 못했습니다.",
         goBackBtn: "← 폼으로 돌아가기",
-        saveItineraryBtn: "이 일정 저장하기 💾",
+        saveItineraryBtn: "이 일정 저장하기",
         itinerarySaveToast: "일정이 성공적으로 저장되었습니다! 🎉",
         itineraryDeleteToast: "일정이 성공적으로 삭제되었습니다.",
         emptyItineraryMsg: "저장된 일정이 없습니다.",
@@ -42,8 +42,8 @@ const dictionary = {
         confirmDelete: "정말로 이 일정을 삭제하시겠습니까?",
         loadingModal: "불러오는 중...",
         saveFailToast: "저장에 실패했습니다.",
-        shareItineraryBtn: "🔗 일정 공유하기",
-        shareSuccessAlert: "🔗 공유 링크가 클립보드에 복사되었습니다!",
+        shareItineraryBtn: "일정 공유하기",
+        shareSuccessAlert: "공유 링크가 클립보드에 복사되었습니다!",
         loginRequiredToast: "로그인이 필요합니다.",
         savingStateBtn: "저장 중...",
         walkText: "도보",
@@ -51,7 +51,11 @@ const dictionary = {
         busFormat: "{0}번 버스",
         subwayFormat: "{0}",
         trainFormat: "{0} 기차",
-        editItineraryBtn: "이 조건으로 다시 만들기 ✏️",
+        editItineraryBtn: "이 조건으로 다시 만들기",
+        estimatedCostLabel: "예상 비용",
+        operatingHoursLabel: "영업 시간",
+        localTipLabel: "현지 팁",
+        transitGuideLabel: "이동 안내",
         boarding: "승차",
         alighting: "하차",
         fare: "요금",
@@ -63,6 +67,8 @@ const dictionary = {
         trimScheduleBtn: "마지막 일정 줄여서 맞추기",
         addStopHere: "+ 여기에 장소 추가",
         resolvedPlaceLabel: "지도에서 찾은 곳",
+        ungroundedLabel: "지도 데이터에서 확인하지 못한 장소입니다. 방문 전에 실제로 있는 곳인지, 영업시간이 맞는지 직접 확인해 주세요.",
+        ungroundedSummary: "이 일정에는 지도 데이터로 확인하지 못한 장소가 {0}곳 있습니다.",
         addStopPlaceholder: "장소 이름 (예: 남산서울타워)",
         addStopStay: "체류",
         addStopConfirm: "추가",
@@ -74,8 +80,8 @@ const dictionary = {
         fallbackReasonQuota: "AI 일일 사용량을 모두 소진했습니다.",
         fallbackReasonError: "AI 일정 생성에 실패했습니다.",
         fallbackNotice: "아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.",
-        shareItineraryBtn: "🔗 일정 공유하기",
-        shareSuccessAlert: "🔗 공유 링크가 클립보드에 복사되었습니다!",
+        shareItineraryBtn: "일정 공유하기",
+        shareSuccessAlert: "공유 링크가 클립보드에 복사되었습니다!",
         transitVerify: "🔎 구글 지도에서 경로 확인",
         stopsCount: "{0}개 정류장",
         itineraryHeader: "{0} 여행 일정",
@@ -145,10 +151,10 @@ const dictionary = {
         loadingText: "AI is analyzing the optimal route...",
         loadingSubtext: "Please wait a moment.",
         generationComplete: "✨ Route design is complete!",
-        showResultsBtn: "✨ View Itinerary",
+        showResultsBtn: "View Itinerary",
         generationFail: "❌ Failed to generate itinerary.",
         goBackBtn: "← Back to the form",
-        saveItineraryBtn: "Save this Itinerary 💾",
+        saveItineraryBtn: "Save this Itinerary",
         itinerarySaveToast: "Itinerary saved successfully! 🎉",
         itineraryDeleteToast: "Itinerary deleted successfully.",
         emptyItineraryMsg: "No saved itineraries found.",
@@ -163,7 +169,11 @@ const dictionary = {
         busFormat: "Bus {0}",
         subwayFormat: "Line {0}",
         trainFormat: "Train {0}",
-        editItineraryBtn: "Rebuild with these settings ✏️",
+        editItineraryBtn: "Rebuild with these settings",
+        estimatedCostLabel: "Est. cost",
+        operatingHoursLabel: "Hours",
+        localTipLabel: "Local tip",
+        transitGuideLabel: "Getting there",
         boarding: "Boarding",
         alighting: "Drop-off",
         transitSegHeader: "Leg {0} → {1}",
@@ -174,6 +184,8 @@ const dictionary = {
         trimScheduleBtn: "Trim the last stops to fit",
         addStopHere: "+ Add a stop here",
         resolvedPlaceLabel: "Found on the map",
+        ungroundedLabel: "This place could not be verified against map data. Check that it exists and that its hours are right before you go.",
+        ungroundedSummary: "{0} stop(s) in this itinerary could not be verified against map data.",
         addStopPlaceholder: "Place name (e.g. N Seoul Tower)",
         addStopStay: "Stay",
         addStopConfirm: "Add",
@@ -185,8 +197,8 @@ const dictionary = {
         fallbackReasonQuota: "The daily AI quota has been used up.",
         fallbackReasonError: "AI itinerary generation failed.",
         fallbackNotice: "Below is a placeholder itinerary containing only your start and end points — not a real recommendation. Please try again shortly.",
-        shareItineraryBtn: "🔗 Share itinerary",
-        shareSuccessAlert: "🔗 Share link copied to clipboard!",
+        shareItineraryBtn: "Share itinerary",
+        shareSuccessAlert: "Share link copied to clipboard!",
         transitVerify: "🔎 Verify route on Google Maps",
         stopsCount: "{0} stops",
         fare: "Fare",
@@ -231,8 +243,14 @@ const dictionary = {
  * Initializes language from localStorage or defaults to 'ko'.
  */
 function initLang() {
-    const stored = localStorage.getItem('compasser_lang');
-    if (stored) return stored;
+    // localStorage 는 브라우저 밖(테스트·SSR)에서는 없다. 모듈을 불러오는
+    // 것만으로 터지면 이 파일에 의존하는 모듈 전체를 테스트할 수 없다.
+    try {
+        const stored = globalThis.localStorage?.getItem('compasser_lang');
+        if (stored) return stored;
+    } catch {
+        // 사파리 프라이빗 모드처럼 접근 자체가 막히는 경우도 있다.
+    }
 
     // Optional: check navigator.language
     // const browserLang = navigator.language.split('-')[0];
@@ -248,12 +266,16 @@ export function getLang() {
 }
 
 export function setLang(lang) {
-    if (dictionary[lang]) {
-        currentLang = lang;
-        localStorage.setItem('compasser_lang', lang);
-        // Dispatch global event so components can react
-        window.dispatchEvent(new CustomEvent('i18n-changed', { detail: { lang } }));
+    if (!dictionary[lang]) return;
+    currentLang = lang;
+    // 저장에 실패해도(프라이빗 모드 등) 이번 세션의 전환은 계속되어야 한다.
+    try {
+        globalThis.localStorage?.setItem('compasser_lang', lang);
+    } catch {
+        // 저장만 못 할 뿐이다.
     }
+    // Dispatch global event so components can react
+    globalThis.window?.dispatchEvent(new CustomEvent('i18n-changed', { detail: { lang } }));
 }
 
 export function t(key) {

@@ -1,4 +1,8 @@
 // Entry point for the frontend logic
+
+// 디자인 토큰. UI 는 무채색, 색은 지도 마커 규칙에만 — 결과 화면부터 적용 중.
+import '../styles/tokens.css';
+
 import '../domains/auth/ui/login-view.js';
 import '../domains/auth/ui/join-view.js';
 import '../domains/auth/ui/verify-view.js';

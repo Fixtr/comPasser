@@ -399,3 +399,50 @@ body.dark .ad-banner {
   border: 1px solid #e5e7eb;
   margin-top: 4px;
 }
+
+/* ============================================================
+   결과 화면 (page-view)
+   무채색 UI · 각진 형태 · 그림자 없음. 색은 지도 마커 규칙에만 쓴다.
+   토큰 정의는 src/styles/tokens.css.
+   ============================================================ */
+#page-view {
+  display: none;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  position: relative;
+}
+
+#page-view .view-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+#page-view .view-actions button {
+  width: fit-content;
+  background: transparent;
+  color: var(--cp-ink);
+  border: var(--cp-hair) solid var(--cp-ink);
+  border-radius: var(--cp-radius);
+  padding: 0.55rem 1.1rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  /* 그림자·트랜스폼 대신 색 반전으로만 상태를 알린다.
+     저사양 기기에서 리페인트가 가볍고, 캡처에서도 그대로 나온다. */
+  transition: background 0.12s linear, color 0.12s linear;
+}
+
+#page-view .view-actions button:hover,
+#page-view .view-actions button:focus-visible {
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+}
+
+#page-view .view-actions button:focus-visible {
+  outline: 2px solid var(--cp-ink);
+  outline-offset: 2px;
+}

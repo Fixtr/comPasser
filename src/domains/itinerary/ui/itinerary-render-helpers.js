@@ -6,27 +6,52 @@ import { t } from '../../../utils/i18n.js';
  * 함수로 분리해 render()/데이터 로딩 로직과 책임을 나눈다. 동작 변경 없음.
  */
 
+/**
+ * 이동 수단 칩의 표기.
+ *
+ * 예전에는 수단마다 다른 색을 썼다(버스=초록, 지하철=파랑, 기차=보라,
+ * 택시=노랑). 그런데 이 화면에서 색은 이미 다른 뜻을 갖는다 —
+ * map/COMMAND_GUIDE.md 가 정한 대로 보라는 고정 일정, 초록은 그날의 첫
+ * 장소, 파랑은 나머지 방문지다. 수단까지 색을 쓰면 같은 초록이 어떤 줄에서는
+ * "첫 장소", 다른 줄에서는 "버스"를 뜻하게 된다.
+ *
+ * 수단은 아이콘과 라벨로 이미 구분되므로 색을 회수하고 무채색으로 통일한다.
+ * 그러면 화면에 남는 색 셋은 전부 지도 핀과 같은 뜻이 된다.
+ *
+ * 아이콘은 이모지 대신 인라인 SVG 다. 이모지는 OS 마다 모양과 색이 달라
+ * 무채색 규칙이 기기별로 깨지고, 캡처 결과도 기기마다 달라진다.
+ */
+const ICON = {
+  walk: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="2.6" r="1.4"/><path d="M8.6 5.2 6.6 6.6l-1 3M8.6 5.2l2 1.2.9 2.2M8.6 5.2 8 9l2 1.6.6 3.2M8 9l-2.2 2-.4 2.8"/></svg>',
+  bus:  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2" width="11" height="9.5" rx="1.2"/><path d="M2.5 7.5h11M5 11.5v1.6M11 11.5v1.6"/><circle cx="5.2" cy="9.5" r=".55" fill="currentColor" stroke="none"/><circle cx="10.8" cy="9.5" r=".55" fill="currentColor" stroke="none"/></svg>',
+  subway: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="2" width="10" height="10" rx="2.4"/><path d="M3 7.2h10M5.4 14l1.4-2M10.6 14l-1.4-2"/><circle cx="5.6" cy="9.6" r=".55" fill="currentColor" stroke="none"/><circle cx="10.4" cy="9.6" r=".55" fill="currentColor" stroke="none"/></svg>',
+  train: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.6C4 3.2 6 2.4 8 2.4s4 .8 5.5 2.2v4.9a1.6 1.6 0 0 1-1.6 1.6H4.1a1.6 1.6 0 0 1-1.6-1.6z"/><path d="M2.5 7h11M4.6 13.6 6 11.1M11.4 13.6 10 11.1"/></svg>',
+  taxi: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10.4h12M3.4 10.4 4.6 6.6h6.8l1.2 3.8M6 6.6V4.4h4v2.2"/><rect x="2" y="10.4" width="12" height="2.6" rx=".8"/><circle cx="5" cy="13" r=".6" fill="currentColor" stroke="none"/><circle cx="11" cy="13" r=".6" fill="currentColor" stroke="none"/></svg>',
+};
+
+/** 수단과 무관하게 같은 무채색 칩. 색은 지도 마커 규칙에만 쓴다. */
+function chip(icon, label) {
+  return {
+    icon,
+    bg: 'var(--cp-sunken)',
+    border: 'var(--cp-rule)',
+    color: 'var(--cp-ink-2)',
+    label,
+  };
+}
+
 export function getTransitStyle(mode, vehicleType) {
-  if (mode === 'WALKING') {
-    return { icon: '🚶', bg: '#f3f4f6', border: '#d1d5db', color: '#4b5563', label: '도보' };
-  }
+  if (mode === 'WALKING') return chip(ICON.walk, '도보');
+
   if (mode === 'TRANSIT' && vehicleType) {
     const vType = vehicleType.toUpperCase();
-    if (vType === 'BUS' || vType === 'INTERCITY_BUS') {
-      return { icon: '🚌', bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: '버스' };
-    }
-    if (vType === 'SUBWAY' || vType === 'HEAVY_RAIL' || vType === 'COMMUTER_TRAIN') {
-      return { icon: '🚇', bg: '#eff6ff', border: '#bfdbfe', color: '#1e40af', label: '지하철' };
-    }
-    if (vType === 'TRAIN' || vType === 'HIGH_SPEED_TRAIN') {
-      return { icon: '🚆', bg: '#f5f3ff', border: '#ddd6fe', color: '#5b21b6', label: '기차' };
-    }
-    if (vType === 'TAXI' || vType === 'CAB') {
-      return { icon: '🚕', bg: '#fefce8', border: '#fde68a', color: '#92400e', label: '택시' };
-    }
+    if (vType === 'BUS' || vType === 'INTERCITY_BUS') return chip(ICON.bus, '버스');
+    if (vType === 'SUBWAY' || vType === 'HEAVY_RAIL' || vType === 'COMMUTER_TRAIN') return chip(ICON.subway, '지하철');
+    if (vType === 'TRAIN' || vType === 'HIGH_SPEED_TRAIN') return chip(ICON.train, '기차');
+    if (vType === 'TAXI' || vType === 'CAB') return chip(ICON.taxi, '택시');
   }
-  // Default transit
-  return { icon: '🚌', bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: '대중교통' };
+
+  return chip(ICON.bus, '대중교통');
 }
 
 export function getTransitModeText(vehicleType, lineName) {
@@ -72,7 +97,7 @@ export function renderTransitStep(step) {
   // WALKING 및 기타 구간
   return `
     <div class="transit-step walk">
-      <span class="step-icon">🚶</span>
+      <span class="step-icon">${getTransitStyle('WALKING').icon}</span>
       <span class="step-main">${t('walkText') || '도보'}</span>
       <span class="step-time">${step.duration}${step.distance ? ` (${step.distance})` : ''}</span>
     </div>`;

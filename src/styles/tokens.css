@@ -1,0 +1,81 @@
+/**
+ * ComPasser 디자인 토큰 — 결과 화면(page-view)부터 적용.
+ *
+ * 규칙 하나: **UI 는 무채색, 색은 지도 마커 규칙에만 쓴다.**
+ *
+ * map/COMMAND_GUIDE.md 가 Anchor=보라 / 첫 장소=초록 / 나머지=파랑 을
+ * 못박아 두었다. UI 에서 색을 빼면 이 셋이 화면의 유일한 색이 되고,
+ * 지도 핀과 타임라인 카드가 같은 색으로 짝지어진다. 지금까지 지도와
+ * 일정이 따로 놀던 문제가 레이아웃을 건드리지 않고 색만으로 좁혀진다.
+ *
+ * 형태 규칙(radius 0, 1px 실선, 그림자 없음)은 세 가지를 동시에 산다 —
+ * 야외 가독성, 저사양 안드로이드 렌더 비용, 그리고 html2canvas 호환.
+ *
+ * 이름은 `--cp-` 로 시작한다. style.css 의 기존 `--bg-primary` 계열을
+ * 덮어쓰지 않기 위해서다. 나머지 화면은 순차적으로 옮긴다.
+ *
+ * 값은 전부 hex 다. oklch()/color-mix() 는 캡처(html2canvas)가 읽지
+ * 못해 공유 이미지가 깨진다(PRD 3.7 에 기록된 이력).
+ */
+:root {
+  /* ---- 지면 ---- */
+  --cp-paper:      #F4F4F1;  /* 화면 바탕 */
+  --cp-surface:    #FFFFFF;  /* 카드/패널 */
+  --cp-sunken:     #EBEBE7;  /* 눌린 영역, 이동 구간 */
+
+  /* ---- 잉크 ---- */
+  --cp-ink:        #141414;
+  --cp-ink-2:      #4A4A46;
+  --cp-muted:      #6E6E68;
+
+  /* ---- 선 ---- */
+  --cp-rule:       #D6D6D1;
+  --cp-rule-hard:  #141414;
+
+  /* ---- 색은 여기까지. 아래 셋은 지도 마커와 같은 값이다 ---- */
+  --cp-anchor:     #7c3aed;  /* AnchorSchedule — 반드시 도착해야 하는 일정 */
+  --cp-start:      #10b981;  /* 그날의 첫 장소 */
+  --cp-stop:       #3b82f6;  /* 나머지 방문지 */
+
+  /* ---- 상태색. 액센트와 분리한다 ---- */
+  --cp-warn:       #B45309;
+  --cp-warn-bg:    #FDF6E7;
+  --cp-danger:     #B3261E;
+  --cp-danger-bg:  #FBEDEC;
+  --cp-ok:         #15803D;
+  --cp-ok-bg:      #EDF6EF;
+
+  /* ---- 브랜드색은 예외. 카카오 버튼은 카카오 가이드를 따라야 한다 ---- */
+  --cp-kakao:      #FEE500;
+  --cp-kakao-ink:  #000000;
+
+  /* ---- 형태 ---- */
+  --cp-radius:     0;        /* 기본은 각지게 */
+  --cp-pill:       999px;    /* 뱃지·칩만 예외 */
+  --cp-hair:       1px;
+
+  /* ---- 타이포 ---- */
+  --cp-font:       'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                   'Apple SD Gothic Neo', 'Segoe UI', system-ui, sans-serif;
+  --cp-mono:       ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+body.dark {
+  --cp-paper:      #121211;
+  --cp-surface:    #1A1A19;
+  --cp-sunken:     #232322;
+  --cp-ink:        #EDEDE9;
+  --cp-ink-2:      #C2C2BD;
+  --cp-muted:      #8E8E88;
+  --cp-rule:       #2E2E2C;
+  --cp-rule-hard:  #EDEDE9;
+  --cp-anchor:     #a78bfa;
+  --cp-start:      #34d399;
+  --cp-stop:       #60a5fa;
+  --cp-warn:       #F0A94A;
+  --cp-warn-bg:    #2A2318;
+  --cp-danger:     #F2857D;
+  --cp-danger-bg:  #2B1A19;
+  --cp-ok:         #6EE7A8;
+  --cp-ok-bg:      #16251C;
+}

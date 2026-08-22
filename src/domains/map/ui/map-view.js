@@ -4,6 +4,19 @@ import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
 import { getLang } from "../../../utils/i18n.js";
 
+/**
+ * 핀 색을 CSS 토큰에서 읽는다.
+ *
+ * PinElement 는 CSS 변수를 못 받고 실제 색 문자열만 받는다. 그래서 값을
+ * 코드에 박아 두면 타임라인(토큰)과 지도(하드코딩)가 조용히 갈라진다.
+ * "화면에 남는 색 셋은 전부 지도 핀과 같은 뜻" 이라는 규칙이 깨지는 지점이
+ * 정확히 여기라서, 한 곳(tokens.css)만 보게 만든다.
+ */
+function tokenColor(name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 function latLngToString(latLng) {
   const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
   const lng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
@@ -276,10 +289,15 @@ export class MapView extends HTMLElement {
       const isAnchor = entries.some(({ item }) => item.type === 'AnchorSchedule');
       const isStart = numbers.includes(1);
 
+      // map/COMMAND_GUIDE.md: Anchor=보라 / 첫 장소=초록 / 나머지=파랑
+      const fill = isAnchor
+        ? tokenColor('--cp-anchor', '#7c3aed')
+        : (isStart ? tokenColor('--cp-start', '#10b981') : tokenColor('--cp-stop', '#3b82f6'));
+
       const pinView = new PinElement({
-        background: isAnchor ? "#7c3aed" : (isStart ? "#10b981" : "#3b82f6"),
-        borderColor: isAnchor ? "#5b21b6" : (isStart ? "#047857" : "#2563eb"),
-        glyphColor: "white",
+        background: fill,
+        borderColor: fill,
+        glyphColor: tokenColor('--cp-surface', '#ffffff'),
         glyph: numbers.join('·'),
         scale: numbers.length > 1 ? 1.25 : 1
       });

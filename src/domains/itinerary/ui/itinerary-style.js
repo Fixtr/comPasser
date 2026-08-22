@@ -1,10 +1,13 @@
 export const itineraryStyles = `
         :host {
           display: block;
-          background: var(--bg-secondary);
-          padding: 2.5rem;
-          border-radius: var(--radius-lg);
-          box-shadow: var(--shadow-md);
+          /* 카드가 흰색이므로 호스트는 한 톤 낮은 지면을 깐다.
+             그래야 그림자 없이도 층이 읽힌다. */
+          background: var(--cp-paper);
+          color: var(--cp-ink);
+          font-family: var(--cp-font);
+          padding: 2rem;
+          border-radius: 0;
           opacity: 0;
           transform: translateY(20px);
           transition: opacity 0.4s ease, transform 0.4s ease;
@@ -18,9 +21,9 @@ export const itineraryStyles = `
 
         h2 {
           font-size: 1.5rem;
-          color: var(--text-primary);
+          color: var(--cp-ink);
           margin-bottom: 1.5rem;
-          border-bottom: 2px solid #f3f4f6;
+          border-bottom: 2px solid var(--cp-sunken);
           padding-bottom: 0.5rem;
           display: flex;
           align-items: center;
@@ -28,11 +31,11 @@ export const itineraryStyles = `
         }
 
         .fallback-warning {
-          background: #fef2f2;
-          border: 1px solid #fca5a5;
-          border-left: 4px solid #dc2626;
-          color: #991b1b;
-          border-radius: 8px;
+          background: var(--cp-danger-bg);
+          border: 1px solid var(--cp-danger);
+          border-left: 4px solid var(--cp-danger);
+          color: var(--cp-danger);
+          border-radius: 0;
           padding: 0.9rem 1rem;
           margin-bottom: 0.75rem;
           font-size: 0.9rem;
@@ -41,11 +44,11 @@ export const itineraryStyles = `
         }
 
         .transit-notice {
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-left: 4px solid #3b82f6;
-          color: #1e40af;
-          border-radius: 8px;
+          background: var(--cp-sunken);
+          border: 1px solid var(--cp-rule);
+          border-left: 4px solid var(--cp-ink);
+          color: var(--cp-ink-2);
+          border-radius: 0;
           padding: 0.85rem 1rem;
           margin-bottom: 0.75rem;
           font-size: 0.88rem;
@@ -54,11 +57,11 @@ export const itineraryStyles = `
         }
 
         .end-time-warning {
-          background: #fffbeb;
-          border: 1px solid #fcd34d;
-          border-left: 4px solid #f59e0b;
-          color: #92400e;
-          border-radius: 8px;
+          background: var(--cp-warn-bg);
+          border: 1px solid var(--cp-warn);
+          border-left: 4px solid var(--cp-warn);
+          color: var(--cp-warn);
+          border-radius: 0;
           padding: 0.85rem 1rem;
           margin-bottom: 1.25rem;
           font-size: 0.9rem;
@@ -74,9 +77,9 @@ export const itineraryStyles = `
         }
         .insert-slot-btn {
           background: transparent;
-          border: 1px dashed #cbd5e1;
-          color: #94a3b8;
-          border-radius: 8px;
+          border: 1px dashed var(--cp-rule);
+          color: var(--cp-muted);
+          border-radius: 0;
           padding: 0.3rem 0.8rem;
           font-size: 0.8rem;
           font-weight: 600;
@@ -87,39 +90,42 @@ export const itineraryStyles = `
         .insert-slot:hover .insert-slot-btn,
         .insert-slot-btn:focus-visible {
           opacity: 1;
-          border-color: var(--accent-primary);
-          color: var(--accent-primary);
+          border-color: var(--cp-ink);
+          color: var(--cp-ink);
         }
         .insert-form {
           display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
-          background: #f8faff; border: 1px solid var(--accent-primary);
-          border-radius: 10px; padding: 0.6rem 0.75rem;
+          background: var(--cp-surface); border: 1px solid var(--cp-ink);
+          border-radius: 0; padding: 0.6rem 0.75rem;
         }
         .insert-input {
           flex: 1; min-width: 9rem; padding: 0.4rem 0.6rem;
-          border: 1px solid #d1d5db; border-radius: 6px;
+          border: 1px solid var(--cp-rule); border-radius: 0;
           font-family: inherit; font-size: 0.88rem;
         }
-        .insert-stay { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-secondary); }
-        .insert-stay-select { padding: 0.35rem 0.4rem; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 0.82rem; }
+        .insert-stay { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--cp-ink-2); }
+        .insert-stay-select { padding: 0.35rem 0.4rem; border: 1px solid var(--cp-rule); border-radius: 0; font-family: inherit; font-size: 0.82rem; }
         .insert-confirm {
-          background: var(--accent-primary); color: #fff; border: none;
-          border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+          background: var(--cp-ink); color: var(--cp-surface); border: none;
+          border-radius: 0; padding: 0.4rem 0.85rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;
         }
         .insert-cancel {
-          background: transparent; color: var(--text-secondary); border: 1px solid #d1d5db;
-          border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+          background: transparent; color: var(--cp-ink-2); border: 1px solid var(--cp-rule);
+          border-radius: 0; padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
         }
+        /* 왼쪽 띠 자리는 고정 일정이 쓰므로, 사용자가 추가한 항목은
+           점선 테두리로 구분한다. 같은 자리에 두 뜻을 겹치지 않는다. */
         .schedule-card[data-added="true"] {
-          border-left: 3px solid var(--accent-primary);
+          border-style: dashed;
+          border-left-style: solid;
         }
 
         .resolved-place {
           font-size: 0.78rem;
-          color: var(--text-secondary);
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 6px;
+          color: var(--cp-ink-2);
+          background: var(--cp-surface);
+          border: 1px solid var(--cp-rule);
+          border-radius: 0;
           padding: 0.3rem 0.55rem;
           margin-bottom: 0.5rem;
           line-height: 1.45;
@@ -127,9 +133,9 @@ export const itineraryStyles = `
         }
         /* 적어둔 이름과 다른 곳을 찾았으면 눈에 띄게 */
         .resolved-place.mismatch {
-          background: #fffbeb;
-          border-color: #fcd34d;
-          color: #92400e;
+          background: var(--cp-warn-bg);
+          border-color: var(--cp-warn);
+          color: var(--cp-warn);
           font-weight: 600;
         }
 
@@ -139,38 +145,38 @@ export const itineraryStyles = `
         }
         .item-edit-actions { display: flex; gap: 0.2rem; flex-shrink: 0; }
         .item-edit-btn {
-          background: transparent; border: 1px solid #e5e7eb; color: #6b7280;
-          border-radius: 6px; width: 1.65rem; height: 1.65rem; line-height: 1;
+          background: transparent; border: 1px solid var(--cp-rule); color: var(--cp-muted);
+          border-radius: 0; width: 1.65rem; height: 1.65rem; line-height: 1;
           font-size: 0.8rem; cursor: pointer; padding: 0;
           transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
         .item-edit-btn:hover, .item-edit-btn:focus-visible {
-          background: #f3f4f6; color: #111827; border-color: #d1d5db;
+          background: var(--cp-sunken); color: var(--cp-ink); border-color: var(--cp-rule);
         }
         .item-edit-btn.danger:hover, .item-edit-btn.danger:focus-visible {
-          background: #fef2f2; color: #b91c1c; border-color: #fca5a5;
+          background: var(--cp-danger-bg); color: var(--cp-danger); border-color: var(--cp-danger);
         }
 
         .end-time-fix-btn {
           display: inline-block;
           margin-left: 0.6rem;
-          background: #b45309;
-          color: #fff;
+          background: var(--cp-warn);
+          color: var(--cp-surface);
           border: none;
-          border-radius: 6px;
+          border-radius: 0;
           padding: 0.35rem 0.8rem;
           font-size: 0.85rem;
           font-weight: 700;
           cursor: pointer;
         }
-        .end-time-fix-btn:hover { background: #92400e; }
+        .end-time-fix-btn:hover { background: var(--cp-warn); }
 
         .cost-summary {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          border-left: 4px solid #16a34a;
-          color: #166534;
-          border-radius: 8px;
+          background: var(--cp-sunken);
+          border: 1px solid var(--cp-rule);
+          border-left: 4px solid var(--cp-ink-2);
+          color: var(--cp-ink-2);
+          border-radius: 0;
           padding: 0.8rem 1rem;
           margin-bottom: 1.25rem;
           font-size: 0.92rem;
@@ -192,7 +198,7 @@ export const itineraryStyles = `
           top: 0;
           bottom: 0;
           width: 2px;
-          background: #e5e7eb;
+          background: var(--cp-rule);
         }
 
         .timeline-item {
@@ -207,25 +213,30 @@ export const itineraryStyles = `
           width: 100px;
           font-weight: 600;
           font-size: 0.9rem;
-          color: var(--accent-primary);
+          font-family: var(--cp-mono);
+          font-variant-numeric: tabular-nums;
+          color: var(--cp-ink-2);
           text-align: right;
           padding-top: 0.2rem;
         }
 
         .schedule-card {
           flex-grow: 1;
-          background: var(--bg-primary);
-          padding: 1.25rem;
-          border-radius: 12px;
-          border: 1px solid #f3f4f6;
+          background: var(--cp-surface);
+          padding: 1.15rem 1.25rem;
+          border-radius: 0;
+          border: var(--cp-hair) solid var(--cp-rule);
+          /* 고정 일정이 아닌 카드는 왼쪽 띠를 투명하게 비워 둔다.
+             띠가 생겼다 사라지면 글이 좌우로 밀리므로 자리는 늘 잡아 둔다. */
+          border-left: 3px solid transparent;
           position: relative;
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: border-color 0.12s linear;
         }
 
+        /* 그림자·이동 대신 선만 진해진다. 저사양 기기에서 리페인트가 가볍다. */
         .schedule-card:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-sm);
-          border-color: var(--accent-primary);
+          border-color: var(--cp-ink);
+          border-left-color: transparent;
         }
         
         /* Node marker */
@@ -236,29 +247,43 @@ export const itineraryStyles = `
           top: 1rem;
           width: 24px;
           height: 24px;
-          border-radius: 50%;
-          background: var(--bg-secondary);
-          border: 2px solid var(--accent-primary);
-          color: var(--accent-primary);
+          border-radius: 0;
+          background: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-ink);
+          color: var(--cp-ink);
           transform: translateX(-50%);
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 700;
           font-size: 0.8rem;
-          box-shadow: 0 0 0 4px var(--bg-primary);
         }
 
+        /* 고정 일정의 신호는 "왼쪽 띠" 하나다.
+           예전에는 배경 틴트 + 테두리 + 번호 노드 색까지 셋이 동시에 걸려
+           있어서 무엇이 신호인지 흐려졌다. 하나만 남기면 오히려 강해진다.
+           띠 색은 지도 핀의 Anchor 색과 같은 토큰이라, 목록과 지도가 같은
+           것을 가리킨다는 사실이 색만으로 읽힌다. */
         .schedule-card[data-type="AnchorSchedule"] {
-          background: linear-gradient(to right, #f8faff, #f5f3ff);
-          border: 1px solid var(--accent-primary);
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+          border-left-color: var(--cp-anchor);
         }
-        
+
+        .schedule-card[data-type="AnchorSchedule"]:hover {
+          border-color: var(--cp-ink);
+          border-left-color: var(--cp-anchor);
+        }
+
         .schedule-card[data-type="AnchorSchedule"]::before {
-          background: var(--accent-primary);
-          color: white;
-          box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.3);
+          background: var(--cp-anchor);
+          border-color: var(--cp-anchor);
+          color: var(--cp-surface);
+        }
+
+        /* 그날의 첫 장소도 지도 핀과 같은 색을 쓴다. */
+        .timeline-item:first-child .schedule-card::before {
+          background: var(--cp-start);
+          border-color: var(--cp-start);
+          color: var(--cp-surface);
         }
 
         /* ====== Transit Info (Upgraded) ====== */
@@ -266,7 +291,7 @@ export const itineraryStyles = `
           padding-left: calc(100px + 2rem);
           margin-block: -0.25rem;
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
           position: relative;
           z-index: 1;
           display: flex;
@@ -280,7 +305,7 @@ export const itineraryStyles = `
           align-items: center;
           gap: 0.75rem;
           padding: 0.5rem 1rem;
-          border-radius: 12px;
+          border-radius: 0;
           border: 1px solid;
           transition: transform 0.2s, box-shadow 0.2s;
           min-width: 200px;
@@ -288,7 +313,6 @@ export const itineraryStyles = `
 
         .transit-card:hover {
           transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(0,0,0,0.06);
         }
 
         .transit-icon-badge {
@@ -311,23 +335,23 @@ export const itineraryStyles = `
         .transit-duration {
           font-weight: 800;
           font-size: 0.9rem;
-          color: var(--text-primary);
+          color: var(--cp-ink);
         }
 
         .transit-distance {
           font-size: 0.8rem;
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
           opacity: 0.7;
         }
 
         .transit-extended-info {
           margin-left: 1rem;
           font-size: 0.8rem;
-          color: var(--text-secondary);
-          background: #f8f9ff;
+          color: var(--cp-ink-2);
+          background: var(--cp-surface);
           padding: 0.4rem 0.8rem;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
+          border-radius: 0;
+          border: 1px solid var(--cp-rule);
           display: inline-block;
         }
 
@@ -338,9 +362,9 @@ export const itineraryStyles = `
         /* ====== Transit Segment Card (per-step breakdown) ====== */
         .transit-seg-card {
           width: 100%;
-          border: 1px solid #a7f3d0;
-          background: #ecfdf5;
-          border-radius: 12px;
+          border: 1px solid var(--cp-rule);
+          background: var(--cp-sunken);
+          border-radius: 0;
           padding: 0.6rem 0.9rem;
           display: flex;
           flex-direction: column;
@@ -355,7 +379,6 @@ export const itineraryStyles = `
 
         .transit-seg-card.clickable:hover {
           transform: translateY(-1px);
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
         }
 
         .transit-seg-header {
@@ -365,13 +388,13 @@ export const itineraryStyles = `
           gap: 0.5rem;
           font-weight: 800;
           font-size: 0.8rem;
-          color: #065f46;
+          color: var(--cp-ink-2);
         }
 
         .transit-seg-total {
           font-weight: 700;
           font-size: 0.78rem;
-          color: #047857;
+          color: var(--cp-ink-2);
           white-space: nowrap;
         }
 
@@ -388,8 +411,8 @@ export const itineraryStyles = `
           gap: 0.4rem;
           font-size: 0.85rem;
           padding: 0.35rem 0.55rem;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
+          border-radius: 0;
+          border: 1px solid var(--cp-rule);
           background: rgba(255, 255, 255, 0.75);
         }
 
@@ -404,28 +427,28 @@ export const itineraryStyles = `
         .transit-step .step-time {
           font-weight: 600;
           font-size: 0.8rem;
-          color: var(--text-primary);
+          color: var(--cp-ink);
         }
 
         .transit-step .step-stops {
           flex-basis: 100%;
           font-size: 0.78rem;
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
           padding-left: 1.6rem;
         }
 
         .transit-verify {
           font-size: 0.75rem;
           font-weight: 600;
-          color: #2563eb;
+          color: var(--cp-ink-2);
         }
 
         /* Legacy pill (keep for fallback) */
         .transit-pill {
-          background: #f3f4f6;
+          background: var(--cp-sunken);
           padding: 0.3rem 0.8rem;
-          border-radius: 20px;
-          border: 1px dashed #e5e7eb;
+          border-radius: 0;
+          border: 1px dashed var(--cp-rule);
           display: inline-flex;
           align-items: center;
           gap: 0.25rem;
@@ -436,11 +459,11 @@ export const itineraryStyles = `
           font-weight: 700;
           font-size: 1.1rem;
           margin-bottom: 0.25rem;
-          color: var(--text-primary);
+          color: var(--cp-ink);
         }
 
         .schedule-desc {
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
           font-size: 0.95rem;
           line-height: 1.4;
           margin-bottom: 0.75rem;
@@ -450,7 +473,7 @@ export const itineraryStyles = `
           display: flex;
           gap: 1rem;
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
         }
         
         .meta-item {
@@ -472,26 +495,25 @@ export const itineraryStyles = `
           align-items: center;
           gap: 0.3rem;
           padding: 0.4rem 0.8rem;
-          border-radius: 20px;
+          border-radius: 0;
           font-size: 0.8rem;
           font-weight: 600;
           text-decoration: none;
           transition: all 0.2s ease;
-          background: #f9fafb;
-          color: var(--text-secondary);
-          border: 1px solid #e5e7eb;
+          background: var(--cp-surface);
+          color: var(--cp-ink-2);
+          border: 1px solid var(--cp-rule);
         }
 
         .action-link-badge.primary {
-          background: #f5f3ff;
-          color: var(--accent-primary);
-          border-color: #ddd6fe;
+          background: var(--cp-sunken);
+          color: var(--cp-ink);
+          border-color: var(--cp-sunken);
         }
 
         .action-link-badge:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-          background: white;
+          background: var(--cp-surface);
         }
 
         .nav-btn {
@@ -499,20 +521,19 @@ export const itineraryStyles = `
           align-items: center;
           gap: 0.3rem;
           padding: 0.45rem 0.85rem;
-          border-radius: 20px;
+          border-radius: 0;
           font-size: 0.8rem;
           font-weight: 700;
-          border: 1.5px solid #10b981;
-          background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
-          color: #065f46;
+          border: 1.5px solid var(--cp-ink-2);
+          background: var(--cp-sunken);
+          color: var(--cp-ink-2);
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .nav-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-          background: linear-gradient(135deg, #d1fae5, #ecfdf5);
+          background: var(--cp-sunken);
         }
 
         /* ====== Top3 추천 리스트 버튼 ====== */
@@ -528,13 +549,13 @@ export const itineraryStyles = `
           align-items: center;
           gap: 0.5rem;
           font-size: 0.83rem;
-          color: #374151;
+          color: var(--cp-ink-2);
           flex-wrap: wrap;
         }
 
         .rec-rank {
           font-weight: 800;
-          color: var(--accent-primary, #7c3aed);
+          color: var(--cp-ink);
           min-width: 1.2rem;
         }
 
@@ -544,7 +565,7 @@ export const itineraryStyles = `
         }
 
         .rec-rating {
-          color: #d97706;
+          color: var(--cp-warn);
           font-weight: 700;
           font-size: 0.8rem;
         }
@@ -554,7 +575,7 @@ export const itineraryStyles = `
           align-items: center;
           gap: 0.2rem;
           padding: 0.22rem 0.6rem;
-          border-radius: 12px;
+          border-radius: 0;
           font-size: 0.75rem;
           font-weight: 700;
           text-decoration: none;
@@ -566,27 +587,25 @@ export const itineraryStyles = `
         }
 
         .rec-btn.review {
-          color: #2563eb;
-          border-color: #bfdbfe;
-          background: #eff6ff;
+          color: var(--cp-ink-2);
+          border-color: var(--cp-rule);
+          background: var(--cp-sunken);
         }
 
         .rec-btn.review:hover {
-          background: #dbeafe;
+          background: var(--cp-sunken);
           transform: translateY(-1px);
-          box-shadow: 0 3px 8px rgba(37,99,235,0.15);
         }
 
         .rec-btn.direction {
-          color: #065f46;
-          border-color: #a7f3d0;
-          background: #ecfdf5;
+          color: var(--cp-ink-2);
+          border-color: var(--cp-rule);
+          background: var(--cp-sunken);
         }
 
         .rec-btn.direction:hover {
-          background: #d1fae5;
+          background: var(--cp-rule);
           transform: translateY(-1px);
-          box-shadow: 0 3px 8px rgba(16,185,129,0.15);
         }
 
         .nav-btn:active {
@@ -600,14 +619,14 @@ export const itineraryStyles = `
           margin-top: 0.85rem;
           margin-bottom: 0.75rem;
           padding: 0.75rem 1rem;
-          background: #f8fafc;
-          border-left: 3.5px solid var(--accent-primary);
-          border-radius: 4px 12px 12px 4px;
+          background: var(--cp-sunken);
+          border-left: 3px solid var(--cp-rule);
+          border-radius: 0;
           display: flex;
           gap: 0.5rem;
           align-items: flex-start;
           font-size: 0.82rem;
-          color: #475569;
+          color: var(--cp-ink-2);
           line-height: 1.4;
           animation: quickInfoFade 0.4s ease-out;
         }
@@ -615,7 +634,7 @@ export const itineraryStyles = `
         .quick-info-box.structured {
           display: block;
           padding: 1rem 1.25rem;
-          background: linear-gradient(to right, #f8fafc, #f1f5f9);
+          background: var(--cp-sunken);
         }
 
         @keyframes quickInfoFade {
@@ -650,15 +669,90 @@ export const itineraryStyles = `
         }
 
         .info-label {
-          font-weight: 800;
-          color: #334155;
-          min-width: 65px;
+          font-family: var(--cp-mono);
+          font-size: 0.68rem;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--cp-muted);
+          min-width: 0;
           display: inline-block;
         }
 
         .info-value {
-          color: #475569;
-          line-height: 1.4;
+          color: var(--cp-ink-2);
+          line-height: 1.5;
+        }
+
+        /* 현지 팁은 외국인 사용자에게 방문 여부를 가르는 정보다(영어 메뉴
+           유무, 택스프리, 대기시간). 다른 메타 정보와 같은 회색 줄에 두면
+           묻히므로 한 칸 올린다. 값이 비면 줄 자체를 감춘다 —
+           "현지 팁: —" 는 정보가 없다는 뜻이 아니라 앱이 부실하다는 인상만
+           남긴다. 감추는 판단은 itinerary-view 의 렌더 쪽에 있다. */
+        .info-row.tip {
+          display: block;
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-left: 3px solid var(--cp-ink);
+          background: var(--cp-sunken);
+          padding: 0.55rem 0.7rem;
+          margin-top: 0.15rem;
+        }
+
+        .info-row.tip .info-icon { display: none; }
+
+        .info-row.tip .info-label {
+          display: block;
+          color: var(--cp-ink);
+          margin-bottom: 0.15rem;
+        }
+
+        /* ====== 인라인 SVG 아이콘 ====== */
+        .meta-item svg,
+        .info-icon svg,
+        .gemini-transit svg,
+        .action-link-badge svg,
+        .nav-btn svg,
+        #cost-summary svg {
+          display: inline-block;
+          vertical-align: -0.15em;
+          flex-shrink: 0;
+        }
+
+        .info-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--cp-muted);
+        }
+
+        /* AI 추정 이동 안내. 실제 경로가 도착하면 감춰진다. */
+        .gemini-transit {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          margin-top: 0.5rem;
+          padding: 0.4rem 0.6rem;
+          background: var(--cp-sunken);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: 0;
+          color: var(--cp-ink-2);
+          font-weight: 500;
+          font-size: 0.84rem;
+        }
+
+        /* 아이콘 + 문구를 한 줄로. display 는 JS 가 flex 로 켠다. */
+        #cost-summary,
+        #transit-notice {
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        #transit-notice svg,
+        #cost-summary svg { flex-shrink: 0; }
+
+        .info-row.tip .info-value {
+          color: var(--cp-ink);
+          font-size: 0.88rem;
         }
 
         /* ====== Buttons ====== */
@@ -668,7 +762,7 @@ export const itineraryStyles = `
           align-items: center;
           justify-content: center;
           padding: 3rem 0;
-          color: var(--text-secondary);
+          color: var(--cp-ink-2);
         }
 
         .loader.active {
@@ -678,9 +772,9 @@ export const itineraryStyles = `
         .spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid #f3f4f6;
-          border-top-color: var(--accent-primary);
-          border-radius: 50%;
+          border: 3px solid var(--cp-sunken);
+          border-top-color: var(--cp-ink);
+          border-radius: 0;
           animation: spin 1s linear infinite;
           margin-bottom: 1rem;
         }
@@ -716,13 +810,13 @@ export const itineraryStyles = `
 
         .save-btn {
           margin-top: 2rem;
-          background: #f3f4f6;
-          color: var(--accent-primary, #7c3aed);
-          border: 2px solid var(--accent-primary, #7c3aed);
+          background: var(--cp-sunken);
+          color: var(--cp-ink);
+          border: 2px solid var(--cp-ink);
           padding: 1rem 2rem;
           font-size: 1.1rem;
           font-weight: 700;
-          border-radius: 12px;
+          border-radius: 0;
           cursor: pointer;
           transition: all 0.2s ease;
           width: 100%;
@@ -730,8 +824,8 @@ export const itineraryStyles = `
         }
 
         .save-btn:hover {
-          background: var(--accent-primary, #7c3aed);
-          color: white;
+          background: var(--cp-ink);
+          color: var(--cp-surface);
         }
 
         .save-btn:disabled {
@@ -741,13 +835,13 @@ export const itineraryStyles = `
 
         .share-btn {
           margin-top: 1rem;
-          background: var(--bg-primary);
-          color: var(--accent-primary, #7c3aed);
-          border: 2px solid var(--accent-primary, #7c3aed);
+          background: var(--cp-paper);
+          color: var(--cp-ink);
+          border: 2px solid var(--cp-ink);
           padding: 1rem 2rem;
           font-size: 1.1rem;
           font-weight: 700;
-          border-radius: 12px;
+          border-radius: 0;
           cursor: pointer;
           transition: all 0.2s ease;
           width: 100%;
@@ -755,9 +849,8 @@ export const itineraryStyles = `
         }
 
         .share-btn:hover {
-          background: #f3f4f6;
+          background: var(--cp-sunken);
           transform: translateY(-2px);
-          box-shadow: var(--shadow-sm);
         }
 
         .share-btn:active {
@@ -766,23 +859,21 @@ export const itineraryStyles = `
 
         .kakao-share-btn {
           margin-top: 1rem;
-          background: #FEE500;
-          color: #000000;
+          background: var(--cp-kakao);
+          color: var(--cp-kakao-ink);
           border: none;
           padding: 1rem 2rem;
           font-size: 1.1rem;
           font-weight: 700;
-          border-radius: 12px;
+          border-radius: 0;
           cursor: pointer;
           transition: all 0.2s ease;
           width: 100%;
           display: none;
-          box-shadow: 0 4px 12px rgba(254, 229, 0, 0.2);
         }
 
         .kakao-share-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(254, 229, 0, 0.4);
           filter: brightness(0.95);
         }
 
@@ -792,24 +883,22 @@ export const itineraryStyles = `
 
         .download-btn {
           margin-top: 1rem;
-          background: linear-gradient(135deg, var(--accent-primary, #7c3aed), #4f46e5);
-          color: white;
+          background: var(--cp-sunken);
+          color: var(--cp-surface);
           border: none;
           padding: 1rem 2rem;
           font-size: 1.1rem;
           font-weight: 700;
-          border-radius: 12px;
+          border-radius: 0;
           cursor: pointer;
           transition: all 0.2s ease;
           width: 100%;
           display: none;
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
           text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .download-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(124, 58, 237, 0.3);
           filter: brightness(1.1);
         }
 

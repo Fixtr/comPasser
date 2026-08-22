@@ -5,6 +5,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
+import { icons } from './icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
@@ -164,7 +165,7 @@ export default class ItineraryView extends HTMLElement {
           this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
         } finally {
           saveBtn.disabled = false;
-          saveBtn.textContent = t('saveItineraryBtn') || '이 일정 저장하기 💾';
+          saveBtn.textContent = t('saveItineraryBtn') || '이 일정 저장하기';
         }
       });
     }
@@ -248,7 +249,7 @@ export default class ItineraryView extends HTMLElement {
           const shareUrl = window.location.origin + '/view/' + docId;
 
           await navigator.clipboard.writeText(shareUrl);
-          showGlobalToast(t('shareSuccessAlert') || "🔗 공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
+          showGlobalToast(t('shareSuccessAlert') || "공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
         } catch (error) {
           console.error("Share error:", error);
           this.showToast("링크 생성 중 오류가 발생했습니다.", true);
@@ -327,7 +328,7 @@ export default class ItineraryView extends HTMLElement {
     try {
       if (downloadBtn) {
         downloadBtn.disabled = true;
-        downloadBtn.textContent = "📸 이미지 생성 중...";
+        downloadBtn.textContent = "이미지 생성 중...";
       }
       
       // 2. html2canvas 파싱 에러(color-mix 등 최신 CSS 함수) 우회를 위해 안전한 색상으로 치환
@@ -387,7 +388,7 @@ export default class ItineraryView extends HTMLElement {
       link.download = `my-trip-itinerary-${new Date().getTime()}.png`;
       link.click();
       
-      this.showToast("이미지가 성공적으로 저장되었습니다! 📸");
+      this.showToast("이미지를 저장했습니다.");
     } catch (error) {
       // 4. 에러 핸들링 보강
       console.error("[html2canvas] Image generation failed:", error);
@@ -523,7 +524,7 @@ export default class ItineraryView extends HTMLElement {
         return;
       }
 
-      target.textContent = `🔎 ${t('resolvedPlaceLabel') || '지도에서 찾은 곳'}: ${detail}`;
+      target.textContent = `${icons.search} ${t('resolvedPlaceLabel') || '지도에서 찾은 곳'}: ${detail}`;
       target.style.display = 'block';
       // 적어둔 이름과 다르면 눈에 띄게 표시한다.
       target.classList.toggle('mismatch', mismatch);
@@ -731,8 +732,8 @@ export default class ItineraryView extends HTMLElement {
       box.textContent = '';
       return;
     }
-    box.textContent = `💰 ${text}`;
-    box.style.display = 'block';
+    box.innerHTML = `${icons.cost}<span>${text}</span>`;
+    box.style.display = 'flex';
   }
 
   /**
@@ -762,10 +763,13 @@ export default class ItineraryView extends HTMLElement {
       return;
     }
 
-    box.textContent = status === 'none'
-      ? 'ℹ️ 실제 대중교통 소요시간을 확인하지 못했습니다. 아래 시각은 AI 추정치이며 실제와 다를 수 있습니다.'
-      : `ℹ️ 전체 ${expected}개 구간 중 ${resolved}개만 실제 소요시간이 확인됐습니다. 나머지 구간의 시각은 AI 추정치입니다.`;
-    box.style.display = 'block';
+    const noticeText = status === 'none'
+      ? '실제 대중교통 소요시간을 확인하지 못했습니다. 아래 시각은 AI 추정치이며 실제와 다를 수 있습니다.'
+      : `전체 ${expected}개 구간 중 ${resolved}개만 실제 소요시간이 확인됐습니다. 나머지 구간의 시각은 AI 추정치입니다.`;
+    box.innerHTML = `${icons.info}<span></span>`;
+    box.querySelector('span').textContent = noticeText;
+    // 인라인 display 가 CSS 를 이기므로 여기서 flex 로 켠다(아이콘 정렬·간격).
+    box.style.display = 'flex';
   }
 
   /**
@@ -793,7 +797,8 @@ export default class ItineraryView extends HTMLElement {
     // 그 자리에서 해결할 수 있는 버튼을 함께 준다.
     box.innerHTML = '';
     const text = document.createElement('span');
-    text.textContent = `⚠️ 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다.`;
+    text.innerHTML = icons.warn;
+    text.appendChild(document.createTextNode(` 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다.`));
     box.appendChild(text);
 
     const action = document.createElement('button');
@@ -844,7 +849,9 @@ export default class ItineraryView extends HTMLElement {
       <!-- Global loader handles loading state -->
 
       <div id="results" style="display: none;">
-        <div id="results-content" style="background: white;">
+        <!-- 배경은 호스트(:host)가 준다. 여기에 흰색을 박아 두면 다크 모드에서
+             흰 띠가 생긴다. 캡처용 배경은 share 경로가 따로 지정한다. -->
+        <div id="results-content">
           <div id="fallback-warning" class="fallback-warning" role="alert" style="display: none;"></div>
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
@@ -858,9 +865,9 @@ export default class ItineraryView extends HTMLElement {
           </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem;">
-          <button id="download-image-btn" class="download-btn">📸 일정 이미지로 저장하기</button>
-          <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기 💾</button>
-          <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">🔗 일정 공유하기</button>
+          <button id="download-image-btn" class="download-btn">일정 이미지로 저장하기</button>
+          <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기</button>
+          <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
           <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">💬 카카오톡 공유하기</button>
         </div>
       </div>
@@ -1034,9 +1041,9 @@ export default class ItineraryView extends HTMLElement {
         fallbackItem.className = 'timeline-item';
         fallbackItem.innerHTML = `
           <div class="time-badge">--:--</div>
-          <div class="schedule-card" style="border-color: #ef4444; background: #fef2f2;">
-            <div class="schedule-title" style="color: #b91c1c;">⚠️ 항목 없음</div>
-            <div class="schedule-desc" style="color: #7f1d1d;">저장된 세부 일정이 없습니다.</div>
+          <div class="schedule-card" style="border-color: var(--cp-danger); border-left-color: var(--cp-danger); background: var(--cp-danger-bg);">
+            <div class="schedule-title" style="color: var(--cp-danger);">항목 없음</div>
+            <div class="schedule-desc" style="color: var(--cp-danger);">저장된 세부 일정이 없습니다.</div>
           </div>
         `;
         container.appendChild(fallbackItem);
@@ -1067,9 +1074,9 @@ export default class ItineraryView extends HTMLElement {
 
       const linksHtml = `
         <div class="action-links">
-          ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" class="action-link-badge">🌐 홈페이지</a>` : ''}
-          ${gmapsStr ? `<a href="${gmapsStr}" target="_blank" rel="noopener noreferrer" class="action-link-badge primary">📍 리뷰 보기</a>` : ''}
-          <button class="nav-btn" data-location="${locationStr.replace(/"/g, '&quot;')}" data-gmaps="${gmapsStr.replace(/"/g, '&quot;')}">🗺️ 길찾기</button>
+          ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" class="action-link-badge">${icons.info} 홈페이지</a>` : ''}
+          ${gmapsStr ? `<a href="${gmapsStr}" target="_blank" rel="noopener noreferrer" class="action-link-badge primary">${icons.search} 리뷰 보기</a>` : ''}
+          <button class="nav-btn" data-location="${locationStr.replace(/"/g, '&quot;')}" data-gmaps="${gmapsStr.replace(/"/g, '&quot;')}">${icons.route} 길찾기</button>
         </div>
       `;
 
@@ -1089,12 +1096,14 @@ export default class ItineraryView extends HTMLElement {
             const skipKeywords = ['없음', '이동 완료', '정보 없음', 'null', 'undefined'];
             if (trimmedInfo === '' || skipKeywords.some(k => trimmedInfo.includes(k))) return '';
             
-            return `<div class="schedule-desc gemini-transit" style="color: #059669; font-weight: 600; margin-top: 0.5rem; padding: 0.5rem; background: #ecfdf5; border-radius: 6px;">🚇 이동 안내: ${trimmedInfo}</div>`;
+            // 색은 지도 마커 규칙에만 쓴다(보라=고정, 초록=첫 장소, 파랑=나머지).
+            // 이동 안내가 초록을 쓰면 같은 초록이 두 가지를 뜻하게 된다.
+            return `<div class="schedule-desc gemini-transit">${icons.route}<span>${t('transitGuideLabel') || '이동 안내'} · ${trimmedInfo}</span></div>`;
           })()}
           <div class="resolved-place" style="display: none;"></div>
           <div class="schedule-meta">
-            <span class="meta-item">📍 ${locationStr}</span>
-            <span class="meta-item">⏱ ${scheduleItem.duration || fallbackDuration(scheduleItem)}${(function() {
+            <span class="meta-item">${icons.pin} ${locationStr}</span>
+            <span class="meta-item">${icons.clock} ${scheduleItem.duration || fallbackDuration(scheduleItem)}${(function() {
               const info = scheduleItem.transitInfo || '';
               // 시간 정보 추출 정규식 (예: 약 15분, 1시간 10분 등)
               const timeMatch = info.match(/(?:약\s*)?(\d+\s*시간)?\s*(\d+\s*분)/);
@@ -1133,7 +1142,7 @@ export default class ItineraryView extends HTMLElement {
                     <span class="rec-name">${safeName}</span>
                     <span class="rec-rating">⭐ ${rec.rating || ''}</span>
                     <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">📋 리뷰보기</a>
-                    <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">🗺️ 길찾기</a>
+                    <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">${icons.route} 길찾기</a>
                   </div>`;
                 }).join('');
                 recsHtml = `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
@@ -1154,22 +1163,38 @@ export default class ItineraryView extends HTMLElement {
                    </div>`;
               }
 
+              // 값이 없는 줄은 아예 그리지 않는다. "현지 팁: —" 은 정보가
+              // 없다는 뜻이 아니라 앱이 부실하다는 인상만 남긴다.
+              const infoLine = (icon, label, value) => {
+                const text = typeof value === 'string' ? value.trim() : '';
+                if (!text || text === '—') return '';
+                return `
+                    <div class="info-row">
+                      <span class="info-icon">${icon}</span>
+                      <span class="info-value"><span class="info-label">${label}</span> ${text}</span>
+                    </div>`;
+              };
+
+              // 현지 팁은 외국인 사용자에게 방문 여부를 가르는 정보다
+              // (영어 메뉴 유무, 택스프리, 대기시간). 다른 메타 정보와 같은
+              // 줄에 두지 않고 한 칸 올린다.
+              const tipText = typeof info.localTip === 'string' ? info.localTip.trim() : '';
+              const tipHtml = (!tipText || tipText === '—') ? '' : `
+                    <div class="info-row tip">
+                      <span class="info-icon">${icons.tip}</span>
+                      <span class="info-value"><span class="info-label">${t('localTipLabel') || '현지 팁'}</span>${tipText}</span>
+                    </div>`;
+
+              const lines = [
+                infoLine(icons.cost, `${t('estimatedCostLabel') || '예상 비용'}`, info.estimatedCost),
+                infoLine(icons.hours, `${t('operatingHoursLabel') || '영업 시간'}`, info.operatingHours),
+              ].join('');
+
+              if (!lines && !tipHtml && !recsHtml) return '';
+
               return `
                 <div class="quick-info-box structured">
-                  <div class="info-group">
-                    <div class="info-row">
-                      <span class="info-icon">💰</span>
-                      <span class="info-value"><span class="info-label">예상 비용:</span> ${info.estimatedCost || '—'}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="info-icon">🕐</span>
-                      <span class="info-value"><span class="info-label">영업 시간:</span> ${info.operatingHours || '—'}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="info-icon">💡</span>
-                      <span class="info-value"><span class="info-label">현지 팁:</span> ${info.localTip || '—'}</span>
-                    </div>
-                    ${recsHtml}
+                  <div class="info-group">${lines}${tipHtml}${recsHtml}
                   </div>
                 </div>
               `;
@@ -1178,7 +1203,7 @@ export default class ItineraryView extends HTMLElement {
             // Legacy String Format (Phase 3 Fallback)
             return `
               <div class="quick-info-box">
-                <span class="quick-info-icon">💡</span>
+                <span class="quick-info-icon">${icons.tip}</span>
                 <div class="quick-info-text">${info}</div>
               </div>
             `;

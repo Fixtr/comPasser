@@ -209,27 +209,11 @@
       </div>
 
       <!-- PAGE 3: VIEW (Results Section Container) -->
-      <div id="page-view" class="page-container fade-transition hidden-view"
-        style="display: none; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem; position: relative;">
-        <!-- Back Navigation Actions -->
-        <div style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: -1rem; flex-wrap: wrap;">
-
-          <button id="edit-itinerary-btn" style="
-              width: fit-content;
-              background: transparent;
-              color: var(--accent-primary);
-              border: 2px solid var(--accent-primary);
-              padding: 0.6rem 1.2rem;
-              font-size: 0.95rem;
-              font-weight: 600;
-              border-radius: 8px;
-              cursor: pointer;
-              transition: all 0.2s;
-            " data-i18n="editItineraryBtn"
-            onmouseover="this.style.background='var(--accent-primary)'; this.style.color='white';"
-            onmouseout="this.style.background='transparent'; this.style.color='var(--accent-primary)';">
-            이 조건으로 다시 만들기 ✏️
-          </button>
+      <div id="page-view" class="page-container fade-transition hidden-view" style="display: none;">
+        <!-- 결과 화면 액션. 스타일은 style.css 의 #page-view 블록에 있다
+             (인라인 style/onmouseover 를 토큰 기반 CSS 로 옮겼다). -->
+        <div class="view-actions">
+          <button id="edit-itinerary-btn" type="button" data-i18n="editItineraryBtn">이 조건으로 다시 만들기</button>
         </div>
 
         <map-view></map-view>
