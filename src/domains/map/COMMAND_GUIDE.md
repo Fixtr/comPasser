@@ -16,6 +16,12 @@
 - **Service 레이어**: 구글 지도 API 통신은 반드시 `services/geocoding-service.js` 와 `services/routing-service.js` 를 통해서만 이루어져야 합니다.
 - **의존성 방향**: UI -> Service (O), Service -> UI (X). Service 모듈은 DOM에 직접 접근하거나 상태를 조작해선 안 됩니다.
 
+## 언어 규칙
+- **언어는 값이 아니라 함수로 주입합니다**: `new GeocodingService(loader, { getLanguage })`. 사용자가 도중에 언어를 바꿀 수 있으므로 생성 시점의 값을 붙잡아 두면 토글 후에도 옛 언어로 요청이 나갑니다.
+- **알려진 한계**: Maps JS API 의 `language` 는 로드 시점에 굳습니다. 언어를 도중에 바꾸면 지도 라벨은 페이지를 새로 열기 전까지 이전 언어로 남고, 타임라인의 장소 이름(`resolvedName`)만 즉시 따라갑니다. 로더는 `map-view` 와 `travel-form` 이 같은 인스턴스를 공유하므로 언어를 인자로 받지 않습니다.
+- **`region` 은 항상 `KR`**: PRD 상 한국 여행 한정 서비스입니다. 언어만 바뀌고 지역은 바뀌지 않습니다.
+- **표기 체계가 다른 이름은 오매칭으로 판정하지 않습니다**: 한글("경복궁")과 로마자("Gyeongbokgung Palace")가 맞붙으면 같은 곳이라도 글자가 겹치지 않습니다. 판단은 `itinerary-resolved-place.mjs` 의 `isComparableName()` 에 있습니다.
+
 ## UI 렌더링 규칙 
 - **마커 렌더링 색상 규칙**: 
   - `AnchorSchedule` 일 경우 보라색 핀으로 렌더링.

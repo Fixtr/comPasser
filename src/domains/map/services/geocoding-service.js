@@ -1,7 +1,24 @@
+/** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
+const SUPPORTED_LANGUAGES = new Set(['ko', 'en']);
+
 export class GeocodingService {
-    constructor(loader) {
+    /**
+     * @param {object} loader Google Maps JS API 로더
+     * @param {{getLanguage?: () => string}} [options]
+     *   언어를 값이 아니라 함수로 받는다. 사용자가 도중에 언어를 바꿔도
+     *   다음 요청부터 바로 반영되어야 하는데, 생성 시점 값을 붙잡아 두면
+     *   토글 후에도 옛 언어가 남기 때문이다.
+     */
+    constructor(loader, { getLanguage } = {}) {
         this.loader = loader;
         this.Place = null;
+        this.getLanguage = typeof getLanguage === 'function' ? getLanguage : () => 'ko';
+    }
+
+    /** 현재 언어를 Places 가 이해하는 코드로 정규화한다. */
+    resolveLanguage() {
+        const lang = this.getLanguage();
+        return SUPPORTED_LANGUAGES.has(lang) ? lang : 'ko';
     }
 
     async init() {
@@ -42,7 +59,11 @@ export class GeocodingService {
         try {
             const request = {
                 textQuery: location,
-                language: 'ko',
+                // 한국어로 고정돼 있던 값. 영어 모드에서 AI 가 쓴 영문 이름과
+                // 지도가 돌려준 한글 이름이 맞붙어, 같은 곳인데도 거의 모든
+                // 항목에 "다른 곳을 찾았다" 경고가 붙었다.
+                language: this.resolveLanguage(),
+                // 지역은 KR 로 유지한다(PRD: 한국 여행 한정 서비스).
                 region: 'kr',
                 fields: ['location', 'displayName', 'formattedAddress']
             };

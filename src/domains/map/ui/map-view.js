@@ -2,6 +2,7 @@ import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
+import { getLang } from "../../../utils/i18n.js";
 
 function latLngToString(latLng) {
   const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
@@ -32,7 +33,9 @@ export class MapView extends HTMLElement {
     this.loader = getMapsLoader();
 
     // Initialize domain services
-    this.geocodingService = new GeocodingService(this.loader);
+    // 언어를 함수로 넘긴다. 사용자가 언어를 바꾸면 다음 지오코딩부터
+    // 바로 반영되어야 하기 때문이다(생성 시점 값 고정 금지).
+    this.geocodingService = new GeocodingService(this.loader, { getLanguage: getLang });
     this.routingService = new RoutingService(this.loader);
   }
 
