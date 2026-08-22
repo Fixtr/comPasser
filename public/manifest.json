@@ -1,8 +1,8 @@
 {
   "name": "ComPasser",
   "short_name": "ComPasser",
-  "theme_color": "#7c3aed",
-  "background_color": "#7c3aed",
+  "theme_color": "#F4F4F1",
+  "background_color": "#F4F4F1",
   "display": "standalone",
   "icons": [
     {

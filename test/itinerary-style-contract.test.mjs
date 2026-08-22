@@ -83,3 +83,30 @@ test('이동 수단 아이콘은 이모지가 아니라 인라인 SVG 다', () =
     assert.doesNotMatch(icon, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, '이모지가 남아 있다');
   }
 });
+
+/**
+ * 아래는 PWA(설치형)로 폰에서 쓰는 상황을 위한 규칙이다.
+ *
+ * 데스크톱에서 밀도를 지키는 것과 폰에서 손가락이 닿는 것은 서로 다른
+ * 요구다. 둘을 하나의 값으로 타협하면 양쪽 다 잃으므로, 포인터 종류로
+ * 갈라서 데스크톱은 그대로 촘촘하게 두고 터치 기기에서만 넓힌다.
+ */
+test('터치 기기에서는 탭 대상을 44px 이상으로 넓힌다', () => {
+  const coarse = css.match(/@media\s*\([^)]*pointer:\s*coarse[^)]*\)\s*\{[\s\S]*?\n        \}/);
+  assert.ok(coarse, '(pointer: coarse) 블록이 있어야 한다');
+  const block = coarse[0];
+  for (const cls of ['.item-edit-btn', '.nav-btn', '.insert-slot-btn']) {
+    assert.ok(block.includes(cls), `${cls} 의 탭 대상이 넓혀지지 않았다`);
+  }
+  const sizes = [...block.matchAll(/min-(?:height|width)\s*:\s*(\d+)px/g)].map(m => Number(m[1]));
+  assert.ok(sizes.length > 0, 'min-height/min-width 로 크기를 보장해야 한다');
+  assert.ok(sizes.every(v => v >= 44), `44px 미만이 있다: ${sizes.filter(v => v < 44).join(', ')}`);
+});
+
+test('hover 가 없는 기기에서는 숨은 버튼이 드러난다', () => {
+  // "여기에 장소 추가" 는 opacity 0.5 로 두고 hover 때만 드러난다.
+  // 터치에는 hover 가 없으므로 폰에서는 영영 반투명한 채로 남는다.
+  const noHover = css.match(/@media\s*\([^)]*hover:\s*none[^)]*\)\s*\{[\s\S]*?\n        \}/);
+  assert.ok(noHover, '(hover: none) 블록이 있어야 한다');
+  assert.match(noHover[0], /\.insert-slot-btn[\s\S]*opacity\s*:\s*1/, '터치에서는 완전히 보여야 한다');
+});

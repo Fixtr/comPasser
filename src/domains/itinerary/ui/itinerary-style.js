@@ -471,15 +471,33 @@ export const itineraryStyles = `
 
         .schedule-meta {
           display: flex;
-          gap: 1rem;
+          /* 좁은 화면에서 항목 사이가 아니라 항목 안에서 줄이 바뀌어
+             "30 / 분" 처럼 끊기던 문제. 줄바꿈은 항목 경계에서만 일어나게 한다. */
+          flex-wrap: wrap;
+          gap: 0.35rem 1rem;
           font-size: 0.85rem;
           color: var(--cp-ink-2);
         }
-        
+
         .meta-item {
           display: flex;
           align-items: center;
           gap: 0.25rem;
+          /* 장소 이름은 길어서 접혀도 되지만, 시간·거리 같은 짧은 값은
+             한 덩어리로 읽혀야 한다. */
+          min-width: 0;
+        }
+
+        .meta-item > * {
+          min-width: 0;
+        }
+
+        .meta-item:not(:first-child) {
+          white-space: nowrap;
+        }
+
+        .gemini-transit-meta {
+          white-space: nowrap;
         }
 
         /* ====== Action Links & Nav Button ====== */
@@ -781,6 +799,56 @@ export const itineraryStyles = `
 
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+
+        /* ====== 터치 기기 ======
+           데스크톱의 밀도와 폰에서 손가락이 닿는 것은 서로 다른 요구다.
+           하나의 값으로 타협하면 양쪽 다 잃으므로 포인터 종류로 가른다.
+           데스크톱은 그대로 촘촘하게 두고, 터치에서만 넓힌다. */
+        @media (pointer: coarse) {
+          /* 26px 짜리 이동·삭제 버튼은 손가락으로 누르기엔 작다. 특히
+             "빼기"는 잘못 눌렀을 때 되돌릴 수 없으므로 더 그렇다.
+             처음엔 ::after 로 탭 영역만 넓혀 봤는데, 절대 배치된 가상 요소가
+             오른쪽으로 삐져나가 부모의 scrollWidth 를 늘렸다. 그냥 버튼을
+             키우고 제목과 같은 줄을 다투지 않게 아래로 내린다. */
+          .schedule-title-row {
+            flex-wrap: wrap;
+          }
+          .item-edit-actions {
+            width: 100%;
+            justify-content: flex-end;
+            gap: 0.25rem;
+          }
+          .item-edit-btn {
+            min-width: 44px;
+            min-height: 44px;
+          }
+
+          .nav-btn,
+          .action-link-badge,
+          .insert-slot-btn,
+          .insert-confirm,
+          .insert-cancel {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .insert-input,
+          .insert-stay-select {
+            min-height: 44px;
+          }
+        }
+
+        /* ====== hover 가 없는 기기 ======
+           "여기에 장소 추가" 는 평소 반투명이다가 hover 때 드러난다.
+           터치에는 hover 가 없어서 폰에서는 영영 반투명한 채로 남는다. */
+        @media (hover: none) {
+          .insert-slot-btn {
+            opacity: 1;
+            border-style: dashed;
+          }
         }
 
         @container (max-width: 500px) {

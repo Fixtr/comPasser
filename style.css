@@ -446,3 +446,10 @@ body.dark .ad-banner {
   outline: 2px solid var(--cp-ink);
   outline-offset: 2px;
 }
+
+/* 터치 기기에서는 탭 대상을 44px 이상으로. 데스크톱은 그대로 촘촘하게 둔다. */
+@media (pointer: coarse) {
+  #page-view .view-actions button {
+    min-height: 44px;
+  }
+}
