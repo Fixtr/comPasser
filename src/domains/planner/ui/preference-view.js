@@ -8,6 +8,7 @@
 
 import { t } from '../../../utils/i18n.js';
 import { preferenceStyles } from './preference-style.js';
+import { icons } from '../../../ui/icons.js';
 
 export default class PreferenceView extends HTMLElement {
   constructor() {
@@ -48,8 +49,8 @@ export default class PreferenceView extends HTMLElement {
       </style>
 
       <div class="preference-header">
-        <div class="progress-bar-container" style="max-width: 200px; height: 6px; background: #e5e7eb; border-radius: 3px; margin: 0 auto 1.5rem; overflow: hidden;">
-          <div id="progress-bar" style="width: 50%; height: 100%; background: linear-gradient(135deg, var(--accent-primary, #7c3aed), oklch(55% 0.3 280)); transition: width 0.3s ease;"></div>
+        <div class="progress-track">
+          <div id="progress-bar" class="progress-fill" style="width: 50%;"></div>
         </div>
         <span class="step-badge" id="step-badge">Step 1 / 2</span>
         <h2>나만의 여행 스타일 선택</h2>
@@ -59,7 +60,7 @@ export default class PreferenceView extends HTMLElement {
       <div id="step1-container" class="step-container">
         <!-- Date Selection -->
         <div class="section-title">
-          <span class="icon">📅</span> <span data-i18n="pref_date_title">${t('pref_date_title')}</span>
+          <span data-i18n="pref_date_title">${t('pref_date_title')}</span>
         </div>
         
         <div class="date-chip-container" id="date-chip-container">
@@ -80,8 +81,8 @@ export default class PreferenceView extends HTMLElement {
         </div>
 
         <!-- Duration Selection -->
-        <div class="section-title" style="margin-top: 1.5rem;">
-          <span class="icon">⏳</span> <span data-i18n="pref_duration_title">${t('pref_duration_title')}</span>
+        <div class="section-title">
+          <span data-i18n="pref_duration_title">${t('pref_duration_title')}</span>
         </div>
         <div class="date-chip-container" id="duration-chip-container">
           <div class="date-chip" data-duration="1">
@@ -109,79 +110,55 @@ export default class PreferenceView extends HTMLElement {
 
       <div id="step2-container" class="step-container" style="display: none;">
         <!-- Theme Selection -->
-        <div class="section-title">
-          <span class="icon">🎨</span> 여행 테마
-        </div>
+        <div class="section-title">여행 테마</div>
         <div class="card-grid" id="theme-grid">
           <div class="preference-card" data-value="food">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">🍽️</span>
+            <span class="card-icon">${icons.dining}</span>
             <div class="card-title">맛집 탐방</div>
             <div class="card-desc">현지 맛집·카페를 중심으로 미식 여행</div>
           </div>
           <div class="preference-card" data-value="activity">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">🏄</span>
+            <span class="card-icon">${icons.activity}</span>
             <div class="card-title">액티비티</div>
             <div class="card-desc">서핑·트레킹 등 체험 중심 여행</div>
           </div>
           <div class="preference-card" data-value="healing">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">🧘</span>
+            <span class="card-icon">${icons.healing}</span>
             <div class="card-title">휴식 / 힐링</div>
             <div class="card-desc">자연·온천·공원 등 힐링 스팟</div>
           </div>
           <div class="preference-card" data-value="photo">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">📸</span>
+            <span class="card-icon">${icons.camera}</span>
             <div class="card-title">인생샷</div>
             <div class="card-desc">포토스팟·감성 장소 중심 여행</div>
           </div>
         </div>
 
         <!-- Budget Selection -->
-        <div class="section-title">
-          <span class="icon">💳</span> 예산 스타일
-        </div>
+        <div class="section-title">예산 스타일</div>
         <div class="card-grid budget" id="budget-grid">
           <div class="preference-card" data-value="flex">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">💰</span>
+            <span class="card-icon"><span class="budget-meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title">플렉스</div>
             <div class="card-desc">고급형 · 렌터카 · 파인다이닝</div>
           </div>
           <div class="preference-card" data-value="standard">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">💵</span>
+            <span class="card-icon"><span class="budget-meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title">스탠다드</div>
             <div class="card-desc">표준형 · 적절한 가성비</div>
           </div>
           <div class="preference-card" data-value="budget">
-            <span class="card-check">✓</span>
-            <span class="card-emoji">🪙</span>
+            <span class="card-icon"><span class="budget-meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title">짠내투어</div>
             <div class="card-desc">절약형 · 대중교통 · 로컬 맛집</div>
           </div>
         </div>
 
         <!-- Submit -->
-        <div class="submit-section" style="display: flex; flex-direction: column; align-items: center;">
-          <div style="display: flex; gap: 1rem; width: 100%; max-width: 400px;">
-            <button id="prev-step-btn" style="
-              flex: 1;
-              background: transparent;
-              color: var(--text-secondary, #4b5563);
-              border: 2px solid #e5e7eb;
-              padding: 1rem;
-              font-size: 1.1rem;
-              font-weight: 700;
-              border-radius: 14px;
-              cursor: pointer;
-              transition: all 0.2s;
-            ">이전으로</button>
-            <button class="next-btn" id="submit-btn" disabled style="flex: 2; margin: 0; max-width: none;">
-              일정 생성하기 ✨
-            </button>
+        <div class="submit-section">
+          <div class="submit-row">
+            <button class="prev-btn" id="prev-step-btn">이전으로</button>
+            <button class="next-btn" id="submit-btn" disabled>일정 생성하기</button>
           </div>
           <p class="helper-text" id="step2-helper-text">테마와 예산을 모두 선택해 주세요</p>
           <button class="skip-link" id="skip-btn">선택 없이 바로 일정 짜기 →</button>
@@ -271,14 +248,12 @@ export default class PreferenceView extends HTMLElement {
         this.startDateValue = todayStr;
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
-        durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('combo-locked'));
       } else if (type === 'tomorrow') {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         this.startDateValue = this.getLocalDateString(d);
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
-        durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('combo-locked'));
       } else if (type === 'weekend') {
         const sat = new Date();
         const currentDay = sat.getDay();
@@ -303,7 +278,6 @@ export default class PreferenceView extends HTMLElement {
         this.startDateValue = customValue;
         customDateText.textContent = customValue; 
         customDateText.removeAttribute('data-i18n');
-        durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('combo-locked'));
       }
 
       computeDateArray();
@@ -513,7 +487,7 @@ export default class PreferenceView extends HTMLElement {
       submitBtn.disabled = false;
       const themeLabels = { food: '맛집 탐방', activity: '액티비티', healing: '휴식/힐링', photo: '인생샷' };
       const budgetLabels = { flex: '플렉스', standard: '스탠다드', budget: '짠내투어' };
-      step2Helper.textContent = `✨ ${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 설계합니다`;
+      step2Helper.textContent = `${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 설계합니다`;
     } else {
       submitBtn.disabled = true;
       step2Helper.textContent = '테마와 예산을 모두 선택해 주세요';
