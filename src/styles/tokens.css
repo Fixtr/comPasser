@@ -63,6 +63,12 @@
   --cp-google-ink:     #3C4043;
   --cp-google-rule:    #DADCE0;
 
+  /* ---- 반투명이 꼭 필요한 자리 ----
+     모달 뒤를 가리는 막. 불투명한 색으로는 "뒤에 화면이 있다"가 전해지지
+     않는다. backdrop-filter 는 쓰지 않는다 — 저사양 안드로이드에서 비싸고
+     캡처가 읽지 못한다(PRD 3.7). */
+  --cp-scrim:      rgba(20, 20, 20, 0.55);
+
   /* ---- 형태 ---- */
   --cp-radius:     0;        /* 기본은 각지게 */
   --cp-pill:       999px;    /* 뱃지·칩만 예외 */
@@ -83,6 +89,7 @@
 
 body.dark {
   color-scheme: dark;
+  --cp-scrim:      rgba(0, 0, 0, 0.65);
   --cp-paper:      #121211;
   --cp-surface:    #1A1A19;
   --cp-sunken:     #232322;

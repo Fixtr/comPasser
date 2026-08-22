@@ -1,11 +1,32 @@
+/**
+ * 프로필 화면 스타일.
+ *
+ * 마지막으로 옮기는 화면이다. 여기까지 끝나야 `style.css` 의 옛 변수
+ * (`--bg-primary` 계열)를 지울 수 있다.
+ *
+ * 이 화면에서 특별히 신경 쓴 것 —
+ *  1) "지금 보고 있는 메뉴"를 보라 배경이 아니라 **잉크 반전**으로. 앱
+ *     전체(일차 탭·선호 카드·날짜 칩)가 이미 그 표기를 쓴다. 보라는 지도의
+ *     "고정 일정" 색이라 다른 뜻으로 쓰면 안 된다.
+ *  2) 삭제·탈퇴는 되돌릴 수 없다. 상태색(`--cp-danger`)은 여기서 유지한다 —
+ *     무채색으로 눌러 버리면 위험이 안 읽힌다.
+ *  3) 모달 가림막은 `--cp-scrim` 토큰. `backdrop-filter: blur()` 는 저사양
+ *     안드로이드에서 비싸고 캡처가 못 읽어(PRD 3.7) 빼냈다.
+ */
 export const profileStyles = `
+                *,
+                *::before,
+                *::after {
+                    box-sizing: border-box;
+                }
+
                 :host {
                     display: block;
                     width: 100%;
                     min-height: 100vh;
-                    background-color: oklch(98% 0.01 260);
-                    color: var(--text-primary);
-                    font-family: 'Inter', sans-serif;
+                    background-color: var(--cp-paper);
+                    color: var(--cp-ink);
+                    font-family: var(--cp-font);
                 }
 
                 .profile-wrapper {
@@ -13,141 +34,153 @@ export const profileStyles = `
                     margin: 0 auto;
                     display: flex;
                     gap: 2rem;
-                    padding: 3rem 1.5rem;
+                    padding: 2.5rem 1.5rem;
                 }
 
+                /* ====== 사이드바 ====== */
                 .sidebar {
-                    width: 280px;
+                    width: 260px;
                     flex-shrink: 0;
                     display: flex;
                     flex-direction: column;
-                    gap: 0.5rem;
+                    gap: 0.25rem;
                 }
 
                 .btn-back-home {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
-                    padding: 1rem 1.5rem;
+                    gap: 0.7rem;
+                    padding: 0.8rem 1rem;
                     margin-bottom: 1rem;
-                    border-radius: 12px;
-                    background: white;
-                    border: 1px solid oklch(90% 0.02 260);
-                    color: var(--text-primary);
+                    border-radius: var(--cp-radius);
+                    background: var(--cp-surface);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    color: var(--cp-ink);
+                    font-family: inherit;
+                    font-size: 0.92rem;
                     font-weight: 700;
                     cursor: pointer;
-                    transition: all 0.2s;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                    transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
                 }
 
-                .btn-back-home:hover {
-                    background: oklch(98% 0.01 260);
-                    border-color: var(--accent-primary);
-                    transform: translateX(-4px);
+                .btn-back-home:hover,
+                .btn-back-home:focus-visible {
+                    background: var(--cp-ink);
+                    border-color: var(--cp-ink);
+                    color: var(--cp-surface);
                 }
 
                 .nav-item {
                     /* button 으로 바꾸면서 브라우저 기본 스타일을 지운다 */
-                    appearance: none; background: transparent; border: none; font: inherit; text-align: left; width: 100%;
+                    appearance: none;
+                    background: transparent;
+                    border: var(--cp-hair) solid transparent;
+                    font: inherit;
+                    text-align: left;
+                    width: 100%;
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
-                    padding: 1rem 1.5rem;
-                    border-radius: 12px;
+                    gap: 0.8rem;
+                    padding: 0.8rem 1rem;
+                    border-radius: var(--cp-radius);
                     cursor: pointer;
-                    font-weight: 500;
-                    color: var(--text-secondary);
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    color: var(--cp-ink-2);
+                    transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
                     user-select: none;
                 }
 
                 .nav-item:hover {
-                    background-color: oklch(94% 0.02 260);
-                    color: var(--text-primary);
+                    border-color: var(--cp-rule);
+                    color: var(--cp-ink);
                 }
 
+                /* 앱 전체가 쓰는 "지금 이것" 표기. 색이 아니라 반전이다. */
                 .nav-item.active {
-                    background-color: rgba(124, 58, 237, 0.1);
-                    color: var(--accent-primary, #7c3aed);
-                    font-weight: 700;
+                    background: var(--cp-ink);
+                    border-color: var(--cp-ink);
+                    color: var(--cp-surface);
                 }
 
-                .nav-icon { font-size: 1.25rem; }
+                .nav-icon {
+                    display: inline-flex;
+                    flex-shrink: 0;
+                }
 
+                /* ====== 본문 ====== */
                 .main-content {
                     flex-grow: 1;
                     max-width: 800px;
+                    min-width: 0;
                 }
 
                 .header-banner {
                     text-align: center;
-                    margin-bottom: 3rem;
-                    animation: fadeInDown 0.6s ease-out;
+                    margin-bottom: 2.5rem;
                 }
 
                 .photo-hero {
-                    width: 100px;
-                    height: 100px;
-                    border-radius: 50%;
+                    width: 88px;
+                    height: 88px;
+                    border-radius: var(--cp-pill);
                     object-fit: cover;
-                    margin-bottom: 1.5rem;
-                    border: 4px solid white;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                    margin-bottom: 1.25rem;
+                    border: var(--cp-hair) solid var(--cp-rule);
                 }
 
                 .header-banner h1 {
-                    font-size: 2rem;
+                    font-size: 1.7rem;
                     font-weight: 800;
                     margin: 0;
                     letter-spacing: -0.02em;
+                    word-break: keep-all;
                 }
 
                 .header-banner p {
-                    color: var(--text-secondary);
-                    margin-top: 0.5rem;
-                    font-size: 1.1rem;
+                    color: var(--cp-muted);
+                    margin-top: 0.4rem;
+                    font-size: 1rem;
+                    word-break: break-all;
                 }
 
                 .content-section { display: none; }
-                .content-section.active {
-                    display: block;
-                    animation: fadeInUp 0.4s ease-out;
-                }
+                .content-section.active { display: block; }
 
                 .card {
-                    background: white;
-                    border: 1px solid oklch(90% 0.02 260);
-                    border-radius: 20px;
+                    background: var(--cp-surface);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    border-radius: var(--cp-radius);
                     overflow: hidden;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                    margin-bottom: 2rem;
+                    margin-bottom: 1.5rem;
                 }
 
                 .card-header {
-                    padding: 1.5rem 2rem;
-                    border-bottom: 1px solid oklch(94% 0.02 260);
+                    padding: 1.15rem 1.5rem;
+                    border-bottom: var(--cp-hair) solid var(--cp-rule);
                 }
 
-                .card-header h2 { margin: 0; font-size: 1.3rem; font-weight: 700; }
-                .card-header p { margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.95rem; }
+                .card-header h2 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+                .card-header p { margin: 0.4rem 0 0; color: var(--cp-muted); font-size: 0.9rem; word-break: keep-all; }
 
                 .list-item {
                     display: flex;
                     align-items: center;
-                    padding: 1.5rem 2rem;
-                    border-bottom: 1px solid oklch(96% 0.01 260);
-                    transition: background 0.2s;
+                    padding: 1.15rem 1.5rem;
+                    border-bottom: var(--cp-hair) solid var(--cp-rule);
                 }
 
                 .list-item:last-child { border-bottom: none; }
 
+                /* 결과 화면 .info-label · 폼 label 과 같은 표기. */
                 .list-label {
                     width: 30%;
+                    font-family: var(--cp-mono);
                     font-weight: 600;
-                    color: var(--text-secondary);
-                    font-size: 0.9rem;
+                    color: var(--cp-muted);
+                    font-size: 0.7rem;
                     text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.1em;
                 }
 
                 .list-value {
@@ -156,65 +189,105 @@ export const profileStyles = `
                     align-items: center;
                     justify-content: space-between;
                     gap: 1rem;
+                    min-width: 0;
                 }
 
-                .photo-small { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
-                .value-text { font-weight: 500; font-size: 1.05rem; }
-                .not-set { color: var(--text-secondary); font-style: italic; font-size: 0.95rem; }
+                .photo-small {
+                    width: 52px;
+                    height: 52px;
+                    border-radius: var(--cp-pill);
+                    object-fit: cover;
+                    border: var(--cp-hair) solid var(--cp-rule);
+                }
 
-                /* Inline Form UI */
+                .value-text { font-weight: 600; font-size: 1rem; }
+                .not-set { color: var(--cp-muted); font-style: italic; font-size: 0.92rem; }
+
+                /* ====== 인라인 편집 ====== */
                 .edit-mode-container {
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
+                    gap: 0.6rem;
                     width: 100%;
                 }
 
                 .inline-input {
                     flex-grow: 1;
-                    padding: 0.6rem 1rem;
-                    border-radius: 8px;
-                    border: 2px solid var(--accent-primary);
+                    min-width: 0;
+                    padding: 0.6rem 0.85rem;
+                    border-radius: var(--cp-radius);
+                    border: var(--cp-hair) solid var(--cp-ink);
+                    font-family: inherit;
                     font-size: 1rem;
                     outline: none;
-                    background: oklch(99% 0.01 260);
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
                 }
 
-                .edit-actions { display: flex; gap: 0.5rem; }
+                .inline-input:focus {
+                    outline: 2px solid var(--cp-ink);
+                    outline-offset: 2px;
+                }
 
-                .btn-save, .btn-cancel, .btn-edit-inline {
-                    padding: 0.5rem 0.75rem;
-                    border-radius: 8px;
+                .edit-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+
+                .btn-save,
+                .btn-cancel,
+                .btn-edit-inline {
+                    padding: 0.5rem 0.8rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
                     font-size: 0.85rem;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: all 0.2s;
-                    border: none;
+                    transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    white-space: nowrap;
                 }
 
-                .btn-save { background: var(--accent-primary); color: white; }
-                .btn-cancel { background: oklch(94% 0.02 260); color: var(--text-secondary); }
+                .btn-save {
+                    background: var(--cp-ink);
+                    border-color: var(--cp-ink);
+                    color: var(--cp-surface);
+                }
+
+                .btn-save:hover,
+                .btn-save:focus-visible {
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
+                }
+
+                .btn-cancel,
                 .btn-edit-inline {
                     background: transparent;
-                    color: var(--accent-primary);
-                    border: 1px solid var(--accent-primary);
+                    color: var(--cp-ink-2);
                 }
-                .btn-edit-inline:hover { background: rgba(124, 58, 237, 0.05); }
+
+                .btn-cancel:hover,
+                .btn-cancel:focus-visible,
+                .btn-edit-inline:hover,
+                .btn-edit-inline:focus-visible {
+                    border-color: var(--cp-ink);
+                    color: var(--cp-ink);
+                }
 
                 .value-wrapper {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
+                    gap: 0.6rem;
+                    min-width: 0;
                 }
 
+                /* 인증 완료는 상태다. 상태색은 액센트와 분리해 유지한다. */
                 .verified-badge {
-                    background: oklch(95% 0.1 150);
-                    color: oklch(40% 0.15 150);
-                    font-size: 0.75rem;
+                    background: var(--cp-ok-bg);
+                    color: var(--cp-ok);
+                    font-size: 0.72rem;
                     font-weight: 700;
                     padding: 0.2rem 0.6rem;
-                    border-radius: 20px;
-                    border: 1px solid oklch(85% 0.1 150);
+                    border-radius: var(--cp-pill);
+                    border: var(--cp-hair) solid var(--cp-ok);
+                    white-space: nowrap;
                 }
 
                 .certification-success {
@@ -224,61 +297,260 @@ export const profileStyles = `
                 }
 
                 .cert-msg {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
                     font-size: 0.9rem;
-                    color: var(--accent-primary);
+                    color: var(--cp-ok);
                     font-weight: 600;
                     margin-bottom: 0.5rem;
                 }
 
-                /* My Trips */
-                .itineraries-container { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
+                /* ====== 내 여행 일정 ====== */
+                .itineraries-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.6rem;
+                    padding: 1rem;
+                }
+
                 .trip-card {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 1.5rem;
-                    background: oklch(98% 0.01 260);
-                    border: 1px solid oklch(92% 0.02 260);
-                    border-radius: 16px;
-                    transition: all 0.2s;
+                    gap: 1rem;
+                    padding: 1.15rem 1.25rem;
+                    background: var(--cp-sunken);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    border-radius: var(--cp-radius);
+                    transition: border-color 0.12s linear;
                 }
-                .trip-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-                .trip-title-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
-                .trip-title { font-weight: 700; color: var(--accent-primary); }
-                .trip-anchor-suffix { font-size: 0.85rem; color: var(--text-secondary); }
-                .btn-rename { background: transparent; border: none; cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 6px; font-size: 0.85rem; opacity: 0.55; transition: opacity 0.15s, background 0.15s; }
-                .btn-rename:hover, .btn-rename:focus-visible { opacity: 1; background: rgba(124, 58, 237, 0.1); }
-                .rename-input { flex: 1; min-width: 10rem; padding: 0.35rem 0.6rem; border: 1px solid var(--accent-primary); border-radius: 6px; font-family: inherit; font-size: 0.95rem; font-weight: 600; }
-                .btn-rename-save { background: var(--accent-primary); color: white; border: none; padding: 0.35rem 0.8rem; border-radius: 6px; font-weight: 700; cursor: pointer; }
-                .btn-rename-save:disabled { opacity: 0.6; cursor: default; }
-                .btn-rename-cancel { background: transparent; color: var(--text-secondary); border: 1px solid #d1d5db; padding: 0.35rem 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
-                .trip-date { font-size: 0.85rem; color: var(--text-secondary); }
-                .trip-actions { display: flex; gap: 0.75rem; }
 
-                .btn-view { background: var(--accent-primary); color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
-                .btn-delete-trip { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+                .trip-card:hover { border-color: var(--cp-ink); }
 
-                /* Danger Zone */
-                .danger-section { border-color: rgba(239, 68, 68, 0.2); }
-                .danger-header { background-color: rgba(239, 68, 68, 0.02); }
-                .danger-header h2 { color: #ef4444; }
-                .btn-danger-trigger { background: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; margin: 1.5rem 2rem; transition: transform 0.2s; }
-                .btn-danger-trigger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+                .trip-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    margin-bottom: 0.25rem;
+                    flex-wrap: wrap;
+                    min-width: 0;
+                }
 
-                /* Modal */
-                .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+                .trip-title { font-weight: 700; color: var(--cp-ink); word-break: keep-all; }
+                .trip-anchor-suffix { font-size: 0.85rem; color: var(--cp-muted); }
+                .trip-date { font-size: 0.82rem; color: var(--cp-muted); font-family: var(--cp-mono); }
+                .trip-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+                .btn-rename {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: transparent;
+                    border: var(--cp-hair) solid transparent;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: var(--cp-radius);
+                    color: var(--cp-muted);
+                    transition: color 0.12s linear, border-color 0.12s linear;
+                }
+
+                .btn-rename:hover,
+                .btn-rename:focus-visible {
+                    color: var(--cp-ink);
+                    border-color: var(--cp-rule);
+                }
+
+                .rename-input {
+                    flex: 1;
+                    min-width: 10rem;
+                    padding: 0.4rem 0.6rem;
+                    border: var(--cp-hair) solid var(--cp-ink);
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
+                }
+
+                .btn-rename-save {
+                    background: var(--cp-ink);
+                    color: var(--cp-surface);
+                    border: var(--cp-hair) solid var(--cp-ink);
+                    padding: 0.4rem 0.8rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+
+                .btn-rename-save:disabled {
+                    background: var(--cp-sunken);
+                    border-color: var(--cp-rule);
+                    color: var(--cp-muted);
+                    cursor: default;
+                }
+
+                .btn-rename-cancel {
+                    background: transparent;
+                    color: var(--cp-ink-2);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    padding: 0.4rem 0.8rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+
+                .btn-view {
+                    background: var(--cp-ink);
+                    color: var(--cp-surface);
+                    border: var(--cp-hair) solid var(--cp-ink);
+                    padding: 0.5rem 1.1rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: background 0.12s linear, color 0.12s linear;
+                }
+
+                .btn-view:hover,
+                .btn-view:focus-visible {
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
+                }
+
+                /* 삭제는 되돌릴 수 없다. 여기서 상태색을 빼면 위험이 안 읽힌다. */
+                .btn-delete-trip {
+                    background: transparent;
+                    color: var(--cp-danger);
+                    border: var(--cp-hair) solid var(--cp-danger);
+                    padding: 0.5rem 0.9rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: background 0.12s linear;
+                }
+
+                .btn-delete-trip:hover,
+                .btn-delete-trip:focus-visible {
+                    background: var(--cp-danger-bg);
+                }
+
+                /* ====== 위험 구역 ====== */
+                .danger-section { border-color: var(--cp-danger); }
+                .danger-header {
+                    background-color: var(--cp-danger-bg);
+                    border-bottom-color: var(--cp-danger);
+                }
+                .danger-header h2 { color: var(--cp-danger); }
+
+                .btn-danger-trigger {
+                    background: transparent;
+                    color: var(--cp-danger);
+                    border: var(--cp-hair) solid var(--cp-danger);
+                    padding: 0.75rem 1.5rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 700;
+                    cursor: pointer;
+                    margin: 1.5rem;
+                    transition: background 0.12s linear, color 0.12s linear;
+                }
+
+                .btn-danger-trigger:hover,
+                .btn-danger-trigger:focus-visible {
+                    background: var(--cp-danger);
+                    color: var(--cp-surface);
+                }
+
+                /* ====== 모달 ====== */
+                .modal-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: var(--cp-scrim);
+                    z-index: 2000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 0.2s ease;
+                }
+
                 .modal-overlay.show { opacity: 1; pointer-events: auto; }
-                .modal-content { background: white; width: 90%; max-width: 480px; border-radius: 24px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; }
-                .modal-overlay.show .modal-content { transform: scale(1); }
-                .modal-close-x { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
-                .modal-content h3 { margin: 0 0 1rem 0; color: #ef4444; font-size: 1.5rem; font-weight: 800; }
-                .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; }
-                .btn-modal-cancel { background: oklch(94% 0.02 260); border: none; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; }
-                .btn-modal-confirm { background: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; cursor: pointer; }
 
-                @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                .loading-state, .empty-state, .error-state { padding: 3rem; text-align: center; color: var(--text-secondary); }
+                .modal-content {
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
+                    width: 100%;
+                    max-width: 460px;
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    border-top: 3px solid var(--cp-danger);
+                    border-radius: var(--cp-radius);
+                    padding: 1.75rem;
+                    position: relative;
+                }
+
+                .modal-close-x {
+                    position: absolute;
+                    top: 1rem;
+                    right: 1rem;
+                    background: none;
+                    border: none;
+                    font-family: inherit;
+                    font-size: 1.4rem;
+                    line-height: 1;
+                    cursor: pointer;
+                    color: var(--cp-muted);
+                    padding: 0.3rem 0.5rem;
+                }
+
+                .modal-close-x:hover { color: var(--cp-ink); }
+
+                .modal-content h3 {
+                    margin: 0 0 1rem;
+                    color: var(--cp-danger);
+                    font-size: 1.3rem;
+                    font-weight: 800;
+                    word-break: keep-all;
+                }
+
+                .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+                .btn-modal-cancel {
+                    background: transparent;
+                    color: var(--cp-ink-2);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    padding: 0.7rem 1.35rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+
+                .btn-modal-confirm {
+                    background: var(--cp-danger);
+                    color: var(--cp-surface);
+                    border: var(--cp-hair) solid var(--cp-danger);
+                    padding: 0.7rem 1.35rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+
+                .loading-state,
+                .empty-state,
+                .error-state {
+                    padding: 2.5rem 1.5rem;
+                    text-align: center;
+                    color: var(--cp-muted);
+                    word-break: keep-all;
+                }
 
                 @media (max-width: 768px) {
                     .profile-wrapper {
@@ -286,48 +558,68 @@ export const profileStyles = `
                         padding: 1.5rem 1rem;
                         gap: 1.5rem;
                     }
-                    .sidebar {
-                        width: 100%;
-                    }
-                    .main-content {
-                        max-width: 100%;
-                    }
+                    .sidebar { width: 100%; }
+                    .main-content { max-width: 100%; }
                     .list-item {
                         flex-direction: column;
                         align-items: flex-start;
                         gap: 0.5rem;
                         padding: 1rem 1.25rem;
                     }
-                    .list-label {
-                        width: 100%;
-                    }
-                    .list-value {
-                        width: 100%;
-                    }
-                    .value-text, #user-email {
+                    .list-label { width: 100%; }
+                    .list-value { width: 100%; }
+                    .value-text,
+                    #user-email {
                         word-break: break-all;
                         overflow-wrap: break-word;
                     }
                     .edit-mode-container {
                         flex-direction: column;
                         align-items: stretch;
-                        gap: 0.75rem;
+                        gap: 0.6rem;
                     }
-                    .edit-actions {
-                        justify-content: flex-end;
-                    }
+                    .edit-actions { justify-content: flex-end; }
                     .trip-card {
                         flex-direction: column;
                         align-items: flex-start;
                         gap: 1rem;
                     }
-                    .trip-actions {
-                        width: 100%;
-                        justify-content: flex-end;
-                    }
+                    .trip-actions { width: 100%; justify-content: flex-end; }
                     .btn-danger-trigger {
-                        margin: 1.5rem;
-                        width: calc(100% - 3rem);
+                        margin: 1.25rem;
+                        width: calc(100% - 2.5rem);
+                    }
+                }
+
+                /* 이 화면은 삭제·탈퇴가 모여 있는 곳이다. 오탭 비용이 가장 크다. */
+                @media (pointer: coarse) {
+                    .nav-item,
+                    .btn-back-home,
+                    .inline-input,
+                    .rename-input {
+                        min-height: 44px;
+                    }
+
+                    .btn-save,
+                    .btn-cancel,
+                    .btn-edit-inline,
+                    .btn-view,
+                    .btn-delete-trip,
+                    .btn-rename-save,
+                    .btn-rename-cancel,
+                    .btn-danger-trigger,
+                    .btn-modal-cancel,
+                    .btn-modal-confirm {
+                        min-height: 44px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+
+                    .btn-rename,
+                    .modal-close-x {
+                        min-width: 44px;
+                        min-height: 44px;
                     }
                 }
 `;

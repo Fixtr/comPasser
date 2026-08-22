@@ -1,4 +1,5 @@
 import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
+import { icons } from '../../../ui/icons.js';
 import { getUserItineraries, deleteItinerary, deleteAllUserItineraries, renameItinerary } from '../../itinerary/services/firestore-service.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
@@ -105,11 +106,11 @@ class ProfileView extends HTMLElement {
         if (field === 'phoneNumber' && this.showCertificationInput) {
             container.innerHTML = `
                 <div class="edit-mode-container certification-success">
-                    <div class="cert-msg">✅ 인증이 완료되었습니다. 번호를 입력하고 저장하세요.</div>
+                    <div class="cert-msg">${icons.check}<span>인증이 완료되었습니다. 번호를 입력하고 저장하세요.</span></div>
                     <input type="tel" id="input-phoneNumber" class="inline-input" value="${value || ''}" placeholder="번호 입력">
                     <div class="edit-actions">
-                        <button class="btn-save" data-field="phoneNumber">💾 저장</button>
-                        <button class="btn-cancel" data-field="phoneNumber">❌ 취소</button>
+                        <button class="btn-save" data-field="phoneNumber">저장</button>
+                        <button class="btn-cancel" data-field="phoneNumber">취소</button>
                     </div>
                 </div>
             `;
@@ -132,8 +133,8 @@ class ProfileView extends HTMLElement {
                 <div class="edit-mode-container">
                     <input type="${inputType}" id="input-${field}" class="inline-input" value="${value || ''}" placeholder="${label} 입력">
                     <div class="edit-actions">
-                        <button class="btn-save" data-field="${field}">💾 저장</button>
-                        <button class="btn-cancel" data-field="${field}">❌ 취소</button>
+                        <button class="btn-save" data-field="${field}">저장</button>
+                        <button class="btn-cancel" data-field="${field}">취소</button>
                     </div>
                 </div>
             `;
@@ -149,8 +150,8 @@ class ProfileView extends HTMLElement {
             container.querySelector('.btn-cancel').onclick = () => this.handleCancel();
         } else {
             const isPhone = field === 'phoneNumber';
-            const badge = (isPhone && isVerified) ? '<span class="verified-badge">인증완료 ✅</span>' : '';
-            const buttonText = isPhone ? '📱 본인인증' : '✏️ 수정';
+            const badge = (isPhone && isVerified) ? '<span class="verified-badge">인증완료</span>' : '';
+            const buttonText = isPhone ? '본인인증' : '수정';
 
             container.innerHTML = `
                 <div class="value-wrapper">
@@ -276,7 +277,7 @@ class ProfileView extends HTMLElement {
                     <div class="trip-title-row">
                         <span class="trip-title">${tripTitle}</span>
                         <span class="trip-anchor-suffix">${anchorSuffix}</span>
-                        <button class="btn-rename" title="이름 바꾸기" aria-label="일정 이름 바꾸기">✏️</button>
+                        <button class="btn-rename" title="이름 바꾸기" aria-label="일정 이름 바꾸기">${icons.pencil}</button>
                     </div>
                     <div class="trip-date">저장일: ${dateString}</div>
                 </div>
@@ -370,7 +371,7 @@ class ProfileView extends HTMLElement {
     viewTrip(item) {
         if (!item.itineraryPlan || !item.id) return;
         if (window.navigate) {
-            // 🚀 [Routing] 동적 파라미터 경로(/view/:id)로 이동
+            // [Routing] 동적 파라미터 경로(/view/:id)로 이동
             window.navigate('/view/' + item.id);
         }
     }
@@ -514,13 +515,13 @@ class ProfileView extends HTMLElement {
                         <span>←</span> <span>홈으로 돌아가기</span>
                     </button>
                     <button type="button" class="nav-item active" data-tab="personal" aria-current="page">
-                        <span class="nav-icon" aria-hidden="true">👤</span> <span>개인 정보</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.user}</span> <span>개인 정보</span>
                     </button>
                     <button type="button" class="nav-item" data-tab="trips">
-                        <span class="nav-icon" aria-hidden="true">🗺️</span> <span>내 여행 일정</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.map}</span> <span>내 여행 일정</span>
                     </button>
                     <button type="button" class="nav-item" data-tab="security">
-                        <span class="nav-icon" aria-hidden="true">🛡️</span> <span>보안 및 계정</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.shield}</span> <span>보안 및 계정</span>
                     </button>
                 </nav>
 

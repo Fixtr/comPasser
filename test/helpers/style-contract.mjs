@@ -68,6 +68,18 @@ export function assertNoNamedColors(css, label) {
   assert.deepEqual(hits, [], `${label}: 이름 있는 색 대신 var(--cp-*) 를 쓴다\n${[...new Set(hits)].join('\n')}`);
 }
 
+/**
+ * rgb()/rgba() 도 토큰이 아니다.
+ *
+ * hex 만 막으면 반투명 색이 이쪽으로 새어 나간다. 실제로 프로필 화면의
+ * 모달 가림막·"위험 구역" 배경·보라 hover 가 전부 rgba 로 적혀 있었다.
+ * 반투명이 꼭 필요한 자리(가림막)는 --cp-scrim 처럼 토큰으로 이름을 준다.
+ */
+export function assertNoRgbaColors(css, label) {
+  const hits = css.match(/\brgba?\s*\(/g) || [];
+  assert.deepEqual(hits, [], `${label}: rgb()/rgba() 대신 var(--cp-*) 를 쓴다 (${hits.length}건)`);
+}
+
 export function assertNoModernColorFunctions(css, label) {
   const hits = css.match(/\b(oklch|oklab|lch|lab|color-mix)\s*\(/g) || [];
   assert.deepEqual(hits, [], `${label}: html2canvas 가 읽지 못한다\n${[...new Set(hits)].join(', ')}`);
