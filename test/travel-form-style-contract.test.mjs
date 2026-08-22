@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 
 import { travelFormStyles } from '../src/domains/planner/ui/travel-form-style.js';
 import {
-  stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
+  stripComments, stripSourceComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertSquareRadius, assertNoLegacyTokens, assertTouchTargets,
   assertNativeControlScheme,
+  extractInlineStyles,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -47,13 +48,10 @@ test('고정 일정 입력은 결과 화면과 같은 색 어휘를 쓴다', () 
  * 옛 색을 그대로 들고 있으면 화면에는 여전히 보라 그라디언트가 남는다.
  * 실제로 이 파일에는 oklch 테두리, 하드코딩 hex, 그라디언트 배지가 있었다.
  */
-const logic = stripComments(
+const logic = stripSourceComments(
   readFileSync(new URL('../src/domains/planner/ui/travel-form.js', import.meta.url), 'utf8')
 );
-// 스타일 모듈 자체를 import 하는 줄과 CSS 셀렉터 문자열은 검사 대상이 아니다.
-const inlineStyles = [...logic.matchAll(/style(?:\s*=\s*"([^"]*)"|\.[a-zA-Z]+\s*=\s*'([^']*)')/g)]
-  .map(m => m[1] ?? m[2])
-  .join('\n');
+const inlineStyles = extractInlineStyles(logic);
 
 test('폼 로직 파일의 인라인 스타일에도 옛 색이 없다', () => {
   assertNoModernColorFunctions(inlineStyles, `${LABEL}(inline)`);

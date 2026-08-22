@@ -6,7 +6,7 @@ import { authStyles } from '../src/domains/auth/ui/auth-style.js';
 import {
   stripComments, stripSourceComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
-  assertNoLegacyTokens, assertTouchTargets, assertHostBoxSizing,
+  assertNoLegacyTokens, assertTouchTargets, assertHostBoxSizing, extractInlineStyles,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -85,11 +85,7 @@ test('세 화면이 같은 스타일 모듈을 쓴다', () => {
 test('화면 파일의 인라인 스타일에도 옛 색이 없다', () => {
   for (const name of VIEWS) {
     const src = viewSources[name];
-    const inline = [
-      ...src.matchAll(/style\s*=\s*"([^"]*)"/g),
-      ...src.matchAll(/\.style\.[a-zA-Z]+\s*=\s*['"]([^'"]*)['"]/g),
-      ...src.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
-    ].map(m => m[1]).join('\n');
+    const inline = extractInlineStyles(src);
     assertNoHardcodedColors(inline, `${name}(inline)`);
     assertNoNamedColors(inline, `${name}(inline)`);
     assertNoGradients(inline, `${name}(inline)`);

@@ -8,6 +8,7 @@ import {
   assertNoHardcodedColors, assertNoNamedColors, assertNoRgbaColors,
   assertNoModernColorFunctions, assertSquareRadius, assertNoLegacyTokens,
   assertTouchTargets,
+  extractInlineStyles,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -69,11 +70,7 @@ test('장식 이모지를 쓰지 않는다', () => {
 });
 
 test('프로필 파일의 인라인 스타일에도 옛 색이 없다', () => {
-  const inline = [
-    ...view.matchAll(/style\s*=\s*"([^"]*)"/g),
-    ...view.matchAll(/\.style\.[a-zA-Z]+\s*=\s*['"]([^'"]*)['"]/g),
-    ...view.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
-  ].map(m => m[1]).join('\n');
+  const inline = extractInlineStyles(view);
   assertNoHardcodedColors(inline, 'profile-view(inline)');
   assertNoNamedColors(inline, 'profile-view(inline)');
   assertNoRgbaColors(inline, 'profile-view(inline)');

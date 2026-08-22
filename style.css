@@ -1,47 +1,16 @@
 /* Base Baseline & Modern CSS Reset */
-:root {
-  /* Dynamic, vibrant OKLCH colors for a premium feel - Converted to Hex for compatibility */
-  --bg-primary: #f8f9ff;
-  /* Very light, cool blue/grey */
-  --bg-secondary: #ffffff;
-  /* Pure White */
-  --text-primary: #1f2937;
-  /* Deep grey-blue */
-  --text-secondary: #4b5563;
-  /* Medium grey */
 
-  --accent-primary: #7c3aed;
-  /* Vibrant Blue/Purple Accent */
-  --accent-hover: #6d28d9;
-
-  /* Layered Shadows for depth */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 15px rgba(124, 58, 237, 0.3);
-
-  /* Border Radius */
-  --radius-md: 12px;
-  --radius-lg: 24px;
-}
-
-body.dark {
-  --bg-primary: #111827;
-  /* Dark grey-blue */
-  --bg-secondary: #1f2937;
-  /* Very Dark */
-  --text-primary: #f9fafb;
-  /* Near White */
-  --text-secondary: #d1d5db;
-  /* Light Grey */
-
-  --accent-primary: #a78bfa;
-  /* Brighter Accent for Dark Mode */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
-}
-
+/*
+ * 색·형태 토큰은 src/styles/tokens.css 한 곳에만 있다.
+ *
+ * 예전에는 여기에 --bg-primary / --accent-primary / --shadow-* 계열이
+ * 함께 정의돼 있었다. 화면을 하나씩 --cp-* 로 옮기는 동안은 두 벌이
+ * 공존해야 했지만(옮기지 않은 화면이 계속 옛 쪽을 읽으므로), 마지막
+ * 화면까지 옮긴 지금은 남겨 둘 이유가 없다. 두 벌이 있으면 "이 색이
+ * 어디서 오는가"에 답이 둘이고, 새 화면이 실수로 옛 쪽을 읽어도
+ * 아무도 눈치채지 못한다. test/legacy-token-removal.test.mjs 가
+ * 다시 생기지 않도록 막는다.
+ */
 
 *,
 *::before,
@@ -593,3 +562,97 @@ h4 {
     height: 44px;
   }
 }
+
+/* ====== 첫 방문 안내 ======
+   예전에는 main.js 의 cssText 에 보라 버튼 + backdrop-filter 로 들어 있어
+   계약 밖에서 살아남았다. 가림막은 --cp-scrim 토큰을 쓴다. */
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999; /* 광고·영상 플레이어 위로 */
+  background: var(--cp-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.welcome-card {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  background: var(--cp-surface);
+  color: var(--cp-ink);
+  border: var(--cp-hair) solid var(--cp-rule);
+  border-radius: var(--cp-radius);
+  padding: 2.5rem 2rem;
+}
+
+.welcome-card h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.9rem;
+}
+
+.welcome-card p {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--cp-muted);
+  margin-bottom: 1.75rem;
+  word-break: keep-all;
+}
+
+.welcome-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  background: none;
+  border: none;
+  color: var(--cp-muted);
+  font-family: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.welcome-close:hover,
+.welcome-close:focus-visible {
+  color: var(--cp-ink);
+}
+
+.welcome-start {
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+  border: var(--cp-hair) solid var(--cp-ink);
+  border-radius: var(--cp-radius);
+  padding: 0.9rem 2rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s linear, color 0.12s linear;
+}
+
+.welcome-start:hover,
+.welcome-start:focus-visible {
+  background: var(--cp-surface);
+  color: var(--cp-ink);
+}
+
+@media (pointer: coarse) {
+  .welcome-start {
+    min-height: 44px;
+  }
+  .welcome-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* 로딩 문구의 상태색. 예전에는 main.js 가 #f59e0b / #ef4444 를 직접
+   칠했는데, 다크 모드에서 대비가 무너지고 계약에도 걸리지 않았다. */
+#loading-text[data-tone="warn"]   { color: var(--cp-warn); }
+#loading-text[data-tone="danger"] { color: var(--cp-danger); }

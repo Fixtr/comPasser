@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 
 import { preferenceStyles } from '../src/domains/planner/ui/preference-style.js';
 import {
-  stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
+  stripComments, stripSourceComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
   assertNoLegacyTokens, assertTouchTargets, assertHostBoxSizing,
+  extractInlineStyles,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -53,13 +54,10 @@ test('다크 모드를 위한 별도 색 블록이 필요 없다', () => {
  * 스타일 파일만 지키면 반쪽이다 — 진도율 막대와 "이전으로" 버튼은
  * preference-view.js 안에 인라인으로 칠해져 있었다.
  */
-const view = stripComments(
+const view = stripSourceComments(
   readFileSync(new URL('../src/domains/planner/ui/preference-view.js', import.meta.url), 'utf8')
 );
-const inlineStyles = [
-  ...view.matchAll(/style\s*=\s*"([^"]*)"/g),
-  ...view.matchAll(/\.style\.[a-zA-Z]+\s*=\s*['"]([^'"]*)['"]/g),
-].map(m => m[1]).join('\n');
+const inlineStyles = extractInlineStyles(view);
 
 test('선호 화면의 인라인 스타일에도 옛 색이 없다', () => {
   assertNoHardcodedColors(inlineStyles, 'preference-view(inline)');

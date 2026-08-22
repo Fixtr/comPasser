@@ -36,6 +36,28 @@ export function stripSourceComments(source) {
     .join('\n');
 }
 
+/**
+ * JS 파일 안에서 실제로 화면을 칠하는 인라인 스타일을 모은다.
+ *
+ * 세 가지 모양을 모두 잡아야 한다 —
+ *   style="…"            마크업 문자열
+ *   el.style.cssText=`…` 통째로 대입
+ *   el.style.color = …   속성 하나씩 대입
+ *
+ * 마지막 것을 `= '리터럴'` 로만 잡던 시절, `tab.style.background =
+ * idx === active ? 'var(--accent-primary)' : '#f3f4f6'` 를 놓쳤다. 그래서
+ * 일차 탭이 **클릭할 때마다** 다시 보라로 칠해지는데도 계약은 통과했다.
+ * 지금은 대입 오른쪽을 문장 끝까지 통째로 본다.
+ */
+export function extractInlineStyles(source) {
+  const parts = [
+    ...source.matchAll(/style\s*=\s*"([^"]*)"/g),
+    ...source.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
+    ...source.matchAll(/\.style(?:\.[a-zA-Z]+|\[[^\]]+\])\s*=\s*([^;\n]+)/g),
+  ];
+  return parts.map(m => m[1]).join('\n');
+}
+
 export function assertNoShadows(css, label) {
   const hits = css.match(/box-shadow\s*:\s*(?!none)[^;]+/g) || [];
   assert.deepEqual(hits, [], `${label}: 그림자 대신 1px 실선으로 경계를 만든다\n${hits.join('\n')}`);

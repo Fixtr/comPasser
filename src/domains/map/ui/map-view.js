@@ -77,21 +77,23 @@ export class MapView extends HTMLElement {
           min-height: 500px;
           background: transparent;
           margin-top: 2rem;
-          color: var(--text-secondary);
+          color: var(--cp-muted);
+          font-family: var(--cp-font);
           position: relative;
         }
 
         #map-container {
           width: 100%;
           height: 500px;
-          border-radius: var(--radius-lg, 16px);
-          box-shadow: var(--shadow-md);
-          border: 1px solid oklch(90% 0.02 260);
+          border-radius: var(--cp-radius);
+          border: var(--cp-hair) solid var(--cp-rule);
           transition: opacity 0.5s ease;
-          display: none; /* Hidden until itinerary is generated */
-          background: var(--bg-primary, #fcfcfc);
+          display: none; /* 일정이 만들어지기 전까지는 숨긴다 */
+          background: var(--cp-sunken);
         }
 
+        /* 지도 위를 덮는 막. 흰색을 박아 두면 다크 모드에서 흰 판이 뜬다.
+           backdrop-filter 는 저사양 안드로이드에서 비싸 쓰지 않는다. */
         .loading-overlay {
           position: absolute;
           inset: 0;
@@ -99,8 +101,8 @@ export class MapView extends HTMLElement {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: rgba(255, 255, 255, 0.8);
-          backdrop-filter: blur(4px);
+          background: var(--cp-paper);
+          color: var(--cp-ink-2);
           z-index: 20;
           transition: opacity 0.3s;
         }
@@ -116,7 +118,7 @@ export class MapView extends HTMLElement {
 
 
       <div class="loading-overlay" id="loading-overlay">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary, #7c3aed)" stroke-width="2">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
           <circle cx="12" cy="10" r="3"></circle>
         </svg>

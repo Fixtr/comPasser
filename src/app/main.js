@@ -96,10 +96,10 @@ function stopBannerCarousel() {
 // ====== End Ad Banner Carousel ======
 // ====== Dynamic Loading Message Logic ======
 const loadingMessages = [
-    "AI가 최적의 여행 장소를 탐색하고 있습니다 🔍",
-    "추천 장소 간의 이동 동선을 계산하는 중입니다 🗺️",
-    "방문 시간에 맞춰 일정을 최적화하고 있습니다 🕒",
-    "거의 다 준비되었습니다! 조금만 더 기다려주세요 ✨"
+    "AI가 최적의 여행 장소를 탐색하고 있습니다",
+    "추천 장소 간의 이동 동선을 계산하는 중입니다",
+    "방문 시간에 맞춰 일정을 최적화하고 있습니다",
+    "거의 다 준비되었습니다! 조금만 더 기다려주세요"
 ];
 
 let loadingMessageIntervalId = null;
@@ -183,56 +183,18 @@ function showWelcomeOverlay() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', 'ComPasser 시작 안내');
-    overlay.style.cssText = `
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(8px);
-        z-index: 99999; /* Fix overlapping video players */
-        pointer-events: auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        text-align: center;
-        padding: 2rem;
-    `;
+    // 모양은 style.css 의 .welcome-overlay 가 맡는다. 예전에는 여기서
+    // cssText 로 칠했는데, 그 안에 보라 버튼과 backdrop-filter 가 들어 있어
+    // 계약 밖에서 조용히 살아남았다.
+    overlay.className = 'welcome-overlay';
 
     overlay.innerHTML = `
-        
-        <div style="max-width: 500px; animation: fadeIn 0.5s ease-out; position: relative;">
-            <button id="close-x-btn" type="button" aria-label="안내 닫기" style="
-                position: absolute;
-                top: -20px;
-                right: -20px;
-                background: none;
-                border: none;
-                color: rgba(255,255,255,0.6);
-                font-size: 1.5rem;
-                cursor: pointer;
-            ">✖</button>
-            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🧭 ComPasser</h1>
-            <p style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 2rem;">
-                당신의 소중한 일정을 중심으로<br>AI가 최적의 여행 경로를 설계해 드립니다.
-            </p>
-            <button id="close-welcome-btn" style="
-                background: var(--accent-primary, #7c3aed);
-                color: white;
-                border: none;
-                padding: 1rem 2rem;
-                font-size: 1.1rem;
-                font-weight: 700;
-                border-radius: 12px;
-                cursor: pointer;
-                transition: transform 0.2s;
-            ">시작하기 ✨</button>
+        <div class="welcome-card">
+            <button id="close-x-btn" type="button" class="welcome-close" aria-label="안내 닫기">&times;</button>
+            <h1>ComPasser</h1>
+            <p>당신의 소중한 일정을 중심으로<br>AI가 최적의 여행 경로를 설계해 드립니다.</p>
+            <button id="close-welcome-btn" class="welcome-start">시작하기</button>
         </div>
-        <style>
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(20px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        </style>
     `;
 
     document.body.appendChild(overlay);
@@ -316,7 +278,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('ai-retry-status', (e) => {
         if (loadingText) {
             loadingText.textContent = e.detail.message;
-            loadingText.style.color = '#f59e0b'; // Optional: orange hue for warning/retry
+            // 색은 style.css 의 #loading-text[data-tone] 이 맡는다.
+            // 여기서 직접 칠하면 다크 모드에서 대비가 무너진다.
+            loadingText.dataset.tone = 'warn';
         }
     });
 
@@ -670,11 +634,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             loadingSpinner.style.display = 'block';
             loadingText.textContent = 'AI가 최적의 경로를 분석하고 있습니다...';
-            loadingText.style.color = 'var(--accent-primary)';
+            delete loadingText.dataset.tone;
             loadingSubtext.textContent = '잠시만 기다려주세요.';
             loadingSubtext.style.display = 'block';
             showResultsBtn.style.display = 'none';
-            showResultsBtn.textContent = '✨ 경로 확인하기';
+            showResultsBtn.textContent = '경로 확인하기';
 
             loadingTransitionView.style.display = 'flex';
             void loadingTransitionView.offsetWidth; // Reflow
@@ -694,7 +658,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success State! Delay routing so user can process visual cue
                 loadingSpinner.style.display = 'none';
-                loadingText.textContent = '✨ 경로 설계가 완료되었습니다!';
+                loadingText.textContent = '경로 설계가 완료되었습니다!';
                 loadingSubtext.style.display = 'none';
                 stopLoadingMessageRotation(); // Stop rotation on success
                 showResultsBtn.style.display = 'inline-block';
@@ -708,13 +672,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error("Failed to generate itinerary:", error);
 
                 loadingSpinner.style.display = 'none';
-                loadingText.textContent = '❌ 일정을 생성하지 못했습니다.';
-                loadingText.style.color = '#ef4444';
+                loadingText.textContent = '일정을 생성하지 못했습니다.';
+                loadingText.dataset.tone = 'danger';
                 loadingSubtext.textContent = error.message || '다시 시도해주세요.';
                 loadingSubtext.style.display = 'block';
                 stopLoadingMessageRotation(); // Stop rotation on error
 
-                showResultsBtn.textContent = '🔙 돌아가기';
+                showResultsBtn.textContent = '돌아가기';
                 showResultsBtn.style.display = 'inline-block';
                 showResultsBtn.onclick = () => {
                     // Safe reset within #page-plan

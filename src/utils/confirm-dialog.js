@@ -21,7 +21,7 @@ function ensureStyle() {
     #${HOST_ID} {
       position: fixed; inset: 0; z-index: 2147483646;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(15, 23, 42, 0.55); padding: 1.25rem;
+      background: var(--cp-scrim); padding: 1.25rem;
     }
     #${HOST_ID} .confirm-box {
       background: var(--cp-surface); border: var(--cp-hair) solid var(--cp-rule); border-radius: var(--cp-radius); padding: 1.4rem;

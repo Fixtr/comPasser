@@ -7,7 +7,7 @@ import { getTransitStyle } from '../src/domains/itinerary/ui/itinerary-render-he
 import {
   stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
-  assertNoLegacyTokens, assertTouchTargets,
+  assertNoLegacyTokens, assertTouchTargets, extractInlineStyles, stripSourceComments,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -84,14 +84,10 @@ test('이동 수단 아이콘은 이모지가 아니라 인라인 SVG 다', () =
  * 안의 인라인 스타일에는 일차 탭의 보라 배경(`var(--accent-primary, #7c3aed)`)이
  * 그대로 남아 있었다. 화면에서 가장 눈에 띄는 자리인데 테스트는 통과했다.
  */
-const view = stripComments(
+const view = stripSourceComments(
   readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8')
 );
-const inlineStyles = [
-  ...view.matchAll(/style\s*=\s*"([^"]*)"/g),
-  ...view.matchAll(/\.style\.[a-zA-Z]+\s*=\s*['"]([^'"]*)['"]/g),
-  ...view.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
-].map(m => m[1]).join('\n');
+const inlineStyles = extractInlineStyles(view);
 
 test('결과 화면의 인라인 스타일에도 옛 색이 없다', () => {
   assertNoHardcodedColors(inlineStyles, 'itinerary-view(inline)');
@@ -124,4 +120,13 @@ test('캡처를 위해 스타일 태그를 정규식으로 고치지 않는다',
   // 화면을 예쁘게 고칠수록 캡처가 깨지던 구조의 원인이다.
   assert.doesNotMatch(capture, /styleTag\.textContent\s*=/, '스타일 태그를 런타임에 덮어쓰고 있다');
   assert.doesNotMatch(capture, /replace\(\/color-mix/, 'color-mix 치환 우회가 남아 있다');
+});
+
+test('일차 탭을 인라인으로 칠하지 않는다', () => {
+  // 탭 모양은 .day-tab-btn / .active 가 맡는다. 클릭할 때 인라인으로 다시
+  // 칠하면, 최초 렌더만 고쳐 놓고 "고쳤다"고 믿게 된다. 실제로 그랬다.
+  assert.doesNotMatch(view, /tab\.style\.(background|color)\s*=/,
+    '탭을 클릭할 때 인라인으로 색을 덮어쓰고 있다');
+  assert.match(view, /classList\.toggle\('active'/,
+    '활성 탭은 클래스로 표시해야 한다');
 });

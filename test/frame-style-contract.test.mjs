@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+import { extractInlineStyles, assertNoRgbaColors } from './helpers/style-contract.mjs';
+
 /**
  * 공통 프레임(헤더·랜딩·로딩·광고 배너·토스트·확인창)의 형태 규칙.
  *
@@ -45,9 +47,23 @@ test('프레임 CSS 에 그림자와 그라디언트가 없다', () => {
 
 test('index.html 의 인라인 style 에 색이 없다', () => {
   // 색을 마크업에 박아 두면 토큰이 무슨 값인지와 무관하게 화면이 어긋난다.
-  const inline = [...html.matchAll(/style="([^"]*)"/g)].map(m => m[1]);
+  const inline = extractInlineStyles(html).split('\n');
   const colored = inline.filter(v => /#[0-9a-fA-F]{3,8}|rgba?\(|\b(background|color|border-color)\s*:/.test(v));
   assert.deepEqual(colored, [], `색을 담은 인라인 style 이 남아 있다:\n${colored.join('\n')}`);
+});
+
+test('main.js 가 화면을 인라인으로 칠하지 않는다', () => {
+  // 첫 방문 안내 오버레이가 cssText 안에 보라 버튼과 backdrop-filter 를
+  // 담고 있었다. JS 안에 있으면 어떤 스타일 계약에도 걸리지 않는다.
+  const main = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8')
+    .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  const inline = extractInlineStyles(strip(main));
+  const colored = inline.split('\n')
+    .filter(v => /#[0-9a-fA-F]{3,8}|rgba?\(|var\(\s*--(bg|text|accent|shadow|radius)-/.test(v))
+    // 광고 배너 색은 데이터에서 온다(운영자가 넣는 값이라 토큰이 아니다).
+    .filter(v => !v.includes('ad.bgColor'));
+  assert.deepEqual(colored, [], `색을 담은 인라인 style 이 남아 있다:\n${colored.join('\n')}`);
+  assert.doesNotMatch(main, /backdrop-filter/, 'backdrop-filter 가 남아 있다');
 });
 
 test('모든 화면에 뜨는 토스트·확인창은 프레임 규칙을 따른다', () => {
@@ -61,6 +77,10 @@ test('모든 화면에 뜨는 토스트·확인창은 프레임 규칙을 따른
     const radii = (src.match(/border-radius\s*:\s*[^;]+/g) || []).map(v => v.split(':')[1].trim());
     const bad = radii.filter(v => !/^0(px)?$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));
     assert.deepEqual(bad, [], `${name} 의 라운드: ${[...new Set(bad)].join(', ')}`);
+
+    // 확인창의 가림막이 rgba(15,23,42,.55) 로 박혀 있었다. 다크 모드에서
+    // 같은 값이면 뒤가 덜 가려진다. --cp-scrim 토큰을 쓴다.
+    assertNoRgbaColors(src, name);
   }
 });
 

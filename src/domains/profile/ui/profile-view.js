@@ -79,7 +79,9 @@ class ProfileView extends HTMLElement {
         const headerNameEl = this.shadowRoot.getElementById('header-name');
 
         const initial = encodeURIComponent(user.displayName || 'User');
-        const defaultAvatar = `https://ui-avatars.com/api/?name=${initial}&background=7c3aed&color=fff`;
+        // 기본 아바타도 무채색으로. 보라(7c3aed)는 지도에서 "고정 일정"을
+        // 뜻하는 색이라, 사진 없는 사용자마다 그 색이 화면에 하나씩 늘었다.
+        const defaultAvatar = `https://ui-avatars.com/api/?name=${initial}&background=EBEBE7&color=141414`;
         const avatarUrl = user.photoURL || defaultAvatar;
 
         if (photoHeroEl) photoHeroEl.src = avatarUrl;

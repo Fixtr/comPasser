@@ -995,9 +995,11 @@ export default class ItineraryView extends HTMLElement {
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
     const tabs = tabsContainer.querySelectorAll('.day-tab-btn');
+    // 모양은 .day-tab-btn / .active 가 맡는다. 여기서 인라인으로 다시
+    // 칠하던 코드가 있었는데, 최초 렌더만 고쳐 놓고 "탭 색을 고쳤다"고
+    // 믿게 만들었다. 클릭하면 곧바로 보라로 돌아왔다.
     tabs.forEach((tab, idx) => {
-      tab.style.background = idx === this.activeDayIndex ? 'var(--accent-primary, #7c3aed)' : '#f3f4f6';
-      tab.style.color = idx === this.activeDayIndex ? 'white' : '#4b5563';
+      tab.classList.toggle('active', idx === this.activeDayIndex);
     });
 
     // Fade Out
