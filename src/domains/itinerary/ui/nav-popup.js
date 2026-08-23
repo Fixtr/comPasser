@@ -22,18 +22,13 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     popup.setAttribute('aria-modal', 'true');
     popup.setAttribute('aria-label', `${locationName} 길찾기`);
 
-    // 기본 스타일 (JS inline — body 레벨이므로 Shadow DOM CSS 영향 없음)
+    // JS 는 위치만 정한다. 모양은 아래 스타일 블록이 맡는다 — 예전에는
+    // 여기서 흰 배경·그림자·둥근 모서리를 통째로 칠했고, body 에 직접
+    // 붙는 요소라 어느 화면의 스타일 계약에도 걸리지 않았다.
     Object.assign(popup.style, {
       position: 'fixed',
       width: POPUP_WIDTH + 'px',
-      background: 'white',
-      borderRadius: '16px',
-      padding: '1.25rem',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.10)',
       zIndex: '2147483647',
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      animation: 'navPopupSlide 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-      border: '1px solid #e5e7eb',
     });
 
     // ── 3. 위치 계산 ─────────────────────────────────────
@@ -77,92 +72,147 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     // ── 4. 팝업 HTML ─────────────────────────────────────
     popup.innerHTML = `
       <style>
+        #nav-popup-global {
+          box-sizing: border-box;
+          padding: 1.1rem 1.15rem;
+          background: var(--cp-surface);
+          color: var(--cp-ink);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: var(--cp-radius);
+          font-family: var(--cp-font);
+          animation: navPopupSlide 0.16s ease-out;
+        }
+        #nav-popup-global *,
+        #nav-popup-global *::before,
+        #nav-popup-global *::after { box-sizing: border-box; }
 
         @keyframes navPopupSlide {
-          from { opacity: 0; transform: translateY(${arrowClass === 'arrow-top' ? '-8px' : '8px'}) scale(0.96); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
+          from { opacity: 0; transform: translateY(${arrowClass === 'arrow-top' ? '-6px' : '6px'}); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 화살표는 삼각형 두 개를 겹쳐 만든다. 바깥은 테두리 색, 안은 지면
+           색이라 그림자 없이도 경계가 읽힌다(예전에는 drop-shadow 를 썼다). */
+        #nav-popup-global .arrow-top::before,
+        #nav-popup-global .arrow-top::after,
+        #nav-popup-global .arrow-bottom::before,
+        #nav-popup-global .arrow-bottom::after {
+          content: '';
+          position: absolute;
+          left: ${arrowLeft}px;
+          transform: translateX(-50%);
+          border: ${ARROW_HEIGHT}px solid transparent;
         }
         #nav-popup-global .arrow-top::before {
-          content: '';
-          position: absolute;
-          top: -${ARROW_HEIGHT}px;
-          left: ${arrowLeft}px;
-          transform: translateX(-50%);
-          border: ${ARROW_HEIGHT}px solid transparent;
-          border-bottom-color: white;
+          top: calc(-1.1rem - ${ARROW_HEIGHT}px - 1px);
+          border-bottom-color: var(--cp-rule);
           border-top: 0;
-          filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.08));
+        }
+        #nav-popup-global .arrow-top::after {
+          top: calc(-1.1rem - ${ARROW_HEIGHT}px + 1px);
+          border-bottom-color: var(--cp-surface);
+          border-top: 0;
         }
         #nav-popup-global .arrow-bottom::before {
-          content: '';
-          position: absolute;
-          bottom: -${ARROW_HEIGHT}px;
-          left: ${arrowLeft}px;
-          transform: translateX(-50%);
-          border: ${ARROW_HEIGHT}px solid transparent;
-          border-top-color: white;
+          bottom: calc(-1.1rem - ${ARROW_HEIGHT}px - 1px);
+          border-top-color: var(--cp-rule);
           border-bottom: 0;
-          filter: drop-shadow(0 1px 1px rgba(0,0,0,0.08));
         }
-        #nav-popup-global .nav-inner {
-          position: relative;
+        #nav-popup-global .arrow-bottom::after {
+          bottom: calc(-1.1rem - ${ARROW_HEIGHT}px + 1px);
+          border-top-color: var(--cp-surface);
+          border-bottom: 0;
         }
+
+        #nav-popup-global .nav-inner { position: relative; }
+
         #nav-popup-global .popup-header {
           display: flex; justify-content: space-between; align-items: center;
-          margin-bottom: 0.4rem;
+          margin-bottom: 0.35rem;
         }
         #nav-popup-global .popup-title {
-          font-size: 1.05rem; font-weight: 800; color: #1f2937;
+          font-family: var(--cp-mono);
+          font-size: 0.7rem;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--cp-ink-2);
         }
         #nav-popup-global .popup-close {
-          background: #f3f4f6; border: none; width: 30px; height: 30px;
-          border-radius: 50%; font-size: 0.9rem; cursor: pointer;
+          background: transparent;
+          border: var(--cp-hair) solid transparent;
+          border-radius: var(--cp-radius);
+          width: 28px; height: 28px;
+          font-family: inherit;
+          font-size: 1.1rem; line-height: 1; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          color: #6b7280; transition: background 0.15s;
+          color: var(--cp-muted);
+          transition: color 0.12s linear, border-color 0.12s linear;
         }
-        #nav-popup-global .popup-close:hover { background: #e5e7eb; }
+        #nav-popup-global .popup-close:hover,
+        #nav-popup-global .popup-close:focus-visible {
+          color: var(--cp-ink);
+          border-color: var(--cp-rule);
+        }
+
         #nav-popup-global .popup-location {
-          font-size: 0.8rem; color: #6b7280; margin-bottom: 0.75rem;
-          padding-bottom: 0.6rem; border-bottom: 1px solid #f3f4f6;
+          font-size: 0.85rem; color: var(--cp-ink); font-weight: 600;
+          margin: 0 0 0.75rem;
+          padding-bottom: 0.6rem;
+          border-bottom: var(--cp-hair) solid var(--cp-rule);
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
+
         #nav-popup-global .popup-options {
           display: flex; flex-direction: column; gap: 0.4rem;
         }
+
+        /* 행 자체는 무채색이다. 서비스 구분은 왼쪽 색 조각 하나로 한다 —
+           예전에는 파스텔 그라디언트 배경과 🟢🟡 이모지였다. */
         #nav-popup-global .pop-opt {
-          display: flex; align-items: center; gap: 0.65rem;
-          padding: 0.7rem 0.85rem; border-radius: 12px;
-          text-decoration: none; border: 1px solid #f3f4f6;
-          transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+          display: flex; align-items: center; gap: 0.7rem;
+          padding: 0.65rem 0.8rem;
+          border-radius: var(--cp-radius);
+          text-decoration: none;
+          background: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-rule);
+          transition: border-color 0.12s linear;
         }
-        #nav-popup-global .pop-opt:hover {
-          transform: translateX(3px);
-          box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+        #nav-popup-global .pop-opt:hover,
+        #nav-popup-global .pop-opt:focus-visible {
+          border-color: var(--cp-ink);
         }
-        #nav-popup-global .pop-opt.naver  { background: linear-gradient(135deg,#f0fdf4,#ecfdf5); }
-        #nav-popup-global .pop-opt.naver:hover  { border-color:#86efac; }
-        #nav-popup-global .pop-opt.kakao  { background: linear-gradient(135deg,#fefce8,#fffbeb); }
-        #nav-popup-global .pop-opt.kakao:hover  { border-color:#fde68a; }
-        #nav-popup-global .pop-opt.google { background: linear-gradient(135deg,#eff6ff,#f0f9ff); }
-        #nav-popup-global .pop-opt.google:hover { border-color:#93c5fd; }
-        #nav-popup-global .pop-icon { font-size: 1.35rem; flex-shrink: 0; }
-        #nav-popup-global .pop-name { font-weight: 700; font-size: 0.88rem; color: #1f2937; }
-        #nav-popup-global .pop-desc { font-size: 0.72rem; color: #9ca3af; }
-      
+
+        #nav-popup-global .pop-swatch {
+          width: 14px; height: 14px;
+          flex-shrink: 0;
+          border: var(--cp-hair) solid var(--cp-rule);
+        }
+        #nav-popup-global .pop-opt.naver .pop-swatch { background: var(--cp-naver); border-color: var(--cp-naver); }
+        #nav-popup-global .pop-opt.kakao .pop-swatch { background: var(--cp-kakao); border-color: var(--cp-kakao); }
+
+        #nav-popup-global .pop-name { font-weight: 700; font-size: 0.88rem; color: var(--cp-ink); }
+        #nav-popup-global .pop-desc { font-family: var(--cp-mono); font-size: 0.68rem; color: var(--cp-muted); }
+
+        /* 낯선 도시에서 한 손으로 누르는 자리다. */
+        @media (pointer: coarse) {
+          #nav-popup-global .pop-opt { min-height: 44px; }
+          #nav-popup-global .popup-close { width: 44px; height: 44px; }
+        }
       </style>
       <div class="nav-inner ${arrowClass}">
         <div class="popup-header">
-          <span class="popup-title">🗺️ 길찾기</span>
-          <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="길찾기 창 닫기">✕</button>
+          <span class="popup-title">길찾기</span>
+          <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="길찾기 창 닫기">&times;</button>
         </div>
         <p class="popup-location" title="${locationName}">${locationName}</p>
         <div class="popup-options">
           <a href="https://map.naver.com/v5/search/${encoded}" target="_blank" rel="noopener noreferrer" class="pop-opt naver" data-svc="naver">
-            <span class="pop-icon">🟢</span>
+            <span class="pop-swatch" aria-hidden="true"></span>
             <div><div class="pop-name">네이버 지도</div><div class="pop-desc">Naver Map</div></div>
           </a>
           <a href="https://map.kakao.com/?q=${encoded}" target="_blank" rel="noopener noreferrer" class="pop-opt kakao" data-svc="kakao">
-            <span class="pop-icon">🟡</span>
+            <span class="pop-swatch" aria-hidden="true"></span>
             <div><div class="pop-name">카카오맵</div><div class="pop-desc">Kakao Map</div></div>
           </a>
 

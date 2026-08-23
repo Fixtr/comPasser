@@ -54,6 +54,9 @@ export function extractInlineStyles(source) {
     ...source.matchAll(/style\s*=\s*"([^"]*)"/g),
     ...source.matchAll(/\.style\.cssText\s*=\s*`([^`]*)`/g),
     ...source.matchAll(/\.style(?:\.[a-zA-Z]+|\[[^\]]+\])\s*=\s*([^;\n]+)/g),
+    // Object.assign(el.style, { … }) — 길찾기 팝업이 상자 전체를 이 모양으로
+    // 칠하고 있었다. 위 셋만 보던 동안 흰 배경과 그림자가 그대로 남아 있었다.
+    ...source.matchAll(/Object\.assign\(\s*[\w.]*\.style\s*,\s*\{([\s\S]*?)\n\s*\}\s*\)/g),
   ];
   return parts.map(m => m[1]).join('\n');
 }
@@ -83,7 +86,8 @@ const NAMED_COLORS = ['white', 'black', 'red', 'blue', 'green', 'gray', 'grey', 
 export function assertNoNamedColors(css, label) {
   const hits = [];
   for (const name of NAMED_COLORS) {
-    const re = new RegExp(`(?:^|[^-\\w])(?:color|background|background-color|border-color|fill|stroke)\\s*:\\s*${name}\\b`, 'gi');
+    // JS 객체 표기(`background: 'white'`)도 잡도록 따옴표를 허용한다.
+    const re = new RegExp(`(?:^|[^-\\w])(?:color|background|backgroundColor|background-color|borderColor|border-color|fill|stroke)\\s*:\\s*['"\`]?${name}\\b`, 'gi');
     const found = css.match(re);
     if (found) hits.push(...found.map(v => v.trim()));
   }
