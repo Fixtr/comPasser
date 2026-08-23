@@ -36,6 +36,15 @@
       // CSS 셀렉터와 같은 글자로 적어 둔다 — dataset.theme 로 쓰면
       // 파일에서 'data-theme' 를 찾을 수 없어 연결이 눈에 안 띈다.
       document.documentElement.setAttribute('data-theme', theme);
+
+      // 랜딩(#page-home)은 기본값이 "보임"이다. 스크립트가 못 뜨거나
+      // Firebase 가 답을 안 줘도 최소한 첫 화면과 로그인 버튼은 보여야
+      // 하기 때문이다. 대신 랜딩이 아닌 주소로 들어온 경우에는 여기서
+      // 미리 감춰 한 번 번쩍이는 것을 막는다 — 경로만 보면 되므로
+      // 모듈도 인증도 기다리지 않는다.
+      var path = location.pathname;
+      var isHome = path === '/' || path === '/home' || path.slice(-11) === '/index.html';
+      if (!isHome) document.documentElement.setAttribute('data-route', 'away');
     })();
   </script>
 

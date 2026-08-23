@@ -300,6 +300,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastLoadedStaticViewData = null;
     let lastLoadedViewId = null;
 
+    /** 홈으로 쳐 주는 경로. 가드와 렌더 분기가 같은 답을 써야 한다 —
+     *  예전에는 렌더 쪽에만 '/index.html' 이 있어서, 그 주소로 들어오면
+     *  가드에 걸려 로그인으로 튕겼다. */
+    const isHomePath = (path) =>
+        path === '/' || path === '/home' || path.endsWith('/index.html');
+
     async function handleRouteChange() {
         const path = window.location.pathname;
         const user = getCurrentUser();
@@ -310,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         trackEvent('page_view', { page_path: path });
 
         // Route Guards
-        if (!user && path !== '/login' && path !== '/join' && !path.startsWith('/verify') && path !== '/' && path !== '/home') {
+        if (!user && path !== '/login' && path !== '/join' && !path.startsWith('/verify') && !isHomePath(path)) {
             console.log('[Router] Unauthenticated access denied, redirecting to home.');
             window.navigate('/login');
             return;
@@ -454,7 +460,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingTransitionView.style.display = 'none';
                 loadingTransitionView.classList.add('hidden-view');
             }
-        } else if (path === '/home' || path === '/' || path.endsWith('/index.html')) {
+        } else if (isHomePath(path)) {
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
             if (pageLogin) pageLogin.style.display = 'block';
@@ -509,6 +515,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.history.replaceState({}, document.title, window.location.origin + newPath);
         }
     }
+
+    // 첫 라우팅은 인증을 기다리지 않는다.
+    // 예전에는 이 호출이 onAuthStateChanged 콜백 안에만 있어서, Firebase 가
+    // 답을 안 주면 라우터가 한 번도 돌지 않고 화면이 빈 채로 남았다.
+    // 로그인이 필요한 경로는 아래 가드가 잡고, 인증이 확정되면 콜백이
+    // 다시 한 번 돌려 준다.
+    handleRouteChange();
 
     // Subscribe to Firebase Auth and trigger initial route
     const userAvatar = document.getElementById('user-avatar');
