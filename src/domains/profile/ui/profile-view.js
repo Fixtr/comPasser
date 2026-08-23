@@ -1,5 +1,6 @@
 import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
+import { loadPortOne } from '../../../utils/external-scripts.js';
 import { getUserItineraries, deleteItinerary, deleteAllUserItineraries, renameItinerary } from '../../itinerary/services/firestore-service.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
@@ -171,13 +172,17 @@ class ProfileView extends HTMLElement {
         }
     }
 
-    handleCertification() {
-        if (!window.IMP) {
-            showToast("인증 모듈을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+    async handleCertification() {
+        // 본인인증을 시작한 지금 불러온다. 실패해도 이 기능 하나만 막히고
+        // 앱 전체는 살아 있다.
+        let IMP;
+        try {
+            IMP = await loadPortOne();
+        } catch (e) {
+            showErrorToast("본인인증 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
             return;
         }
 
-        const IMP = window.IMP;
         IMP.init('imp66802662'); // TODO: 실제 식별코드로 변경 (현재는 테스트 가맹점 코드)
 
         IMP.certification({

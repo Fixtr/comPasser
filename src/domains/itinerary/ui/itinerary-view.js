@@ -11,6 +11,7 @@ import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
+import { loadKakaoSdk, loadHtml2Canvas } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import {
@@ -276,6 +277,7 @@ export default class ItineraryView extends HTMLElement {
           const docId = await createSharedItinerary(this.currentItinerary);
           const shareUrl = window.location.origin + '/view/' + docId;
 
+          const Kakao = await loadKakaoSdk();
           Kakao.Share.sendDefault({
             objectType: 'feed',
             content: {
@@ -370,6 +372,9 @@ export default class ItineraryView extends HTMLElement {
         // 담긴 값(보라 틴트)은 지금 디자인과도 어긋났다.
       };
       
+      // 캡처 엔진은 무겁다(gzip 기준 70KB 남짓). 첫 화면에서는 쓰이지
+      // 않으므로 "이미지로 저장"을 누른 지금 내려받는다.
+      const html2canvas = await loadHtml2Canvas();
       const canvas = await html2canvas(target, options);
       const dataUrl = canvas.toDataURL("image/png");
       

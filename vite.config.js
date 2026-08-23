@@ -17,6 +17,14 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
 
+          // 동적 import 로만 쓰는 것은 여기서 묶지 않는다.
+          // 이름을 붙여 주면 그 청크가 "이 이름을 쓰는 모든 코드"의 것이
+          // 되어, 첫 화면에서 불리는 코드와 한 덩어리가 된다. 실제로
+          // 캡처 엔진(html2canvas-pro)이 catch-all 'vendor' 로 들어가는
+          // 바람에 첫 로드 preload 목록이 3.4KB → 254KB 로 불었다.
+          // undefined 를 돌려주면 Rollup 이 알아서 별도 async 청크로 뗀다.
+          if (id.includes('html2canvas')) return undefined;
+
           // Firestore 는 저장/조회 화면에서만, Functions 는 일정 생성에서만
           // 쓰이므로 인증과 분리해 두면 캐시 무효화 범위가 좁아진다.
           if (id.includes('@firebase/firestore') || id.includes('firebase/firestore')) return 'vendor-firestore';

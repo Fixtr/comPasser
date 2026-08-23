@@ -5,6 +5,7 @@ import { t } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 import { showErrorToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
+import { loadKakaoSdk } from '../../../utils/external-scripts.js';
 
 const auth = getAuth(app);
 const functions = getFunctions(app);
@@ -186,19 +187,11 @@ export default class LoginView extends HTMLElement {
       errorMsg.style.display = 'none';
 
       try {
-        if (!window.Kakao) {
-           throw new Error('Kakao SDK가 로드되지 않았습니다.');
-        }
-        if (!window.Kakao.isInitialized()) {
-           if (import.meta.env.VITE_KAKAO_APP_KEY) {
-               window.Kakao.init(import.meta.env.VITE_KAKAO_APP_KEY);
-           } else {
-               throw new Error('카카오 앱 키가 설정되지 않았습니다. (.env 파일을 확인해주세요)');
-           }
-        }
+        // 버튼을 누른 지금 불러온다. 로드·초기화·키 확인은 로더가 맡는다.
+        const Kakao = await loadKakaoSdk();
 
         const authObj = await new Promise((resolve, reject) => {
-          window.Kakao.Auth.login({
+          Kakao.Auth.login({
             success: resolve,
             fail: reject
           });

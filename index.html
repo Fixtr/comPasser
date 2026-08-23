@@ -48,12 +48,11 @@
     gtag('config', '%VITE_GA_MEASUREMENT_ID%');
   </script>
 
-  <!-- Screenshot capture -->
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-  <!-- Kakao SDK -->
-  <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.1/kakao.min.js"></script>
-  <!-- PortOne SDK -->
-  <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
+  <!-- html2canvas · Kakao · PortOne 은 여기서 걷어냈다.
+       async 없는 <script> 는 응답이 올 때까지 문서 파싱을 멈춘다. 셋 다
+       첫 화면에는 쓰이지 않는데(이미지 저장·카카오 로그인·본인인증을
+       누를 때 필요하다) 세 CDN 이 앱의 첫 페인트를 붙잡고 있었다.
+       지금은 src/utils/external-scripts.js 가 필요한 순간에 불러온다. -->
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2887038255405057"
     crossorigin="anonymous"></script>

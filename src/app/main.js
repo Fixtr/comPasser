@@ -235,11 +235,10 @@ function showWelcomeOverlay() {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("App initialized. Event-based routing ready.");
 
-    // Initialize Kakao SDK
-    if (typeof Kakao !== 'undefined' && !Kakao.isInitialized()) {
-        Kakao.init('164b3385a56f88dfb3d04e05b873426f');
-        console.log('Kakao initialized:', Kakao.isInitialized());
-    }
+    // Kakao SDK 초기화는 여기서 하지 않는다. 예전에는 이 줄이 하드코딩된
+    // 키로, login-view 가 .env 키로 각각 init 해서 먼저 실행되는 쪽이
+    // 이겼다 — 공유와 로그인이 서로 다른 앱으로 붙을 수 있었다.
+    // 지금은 utils/external-scripts.js 의 loadKakaoSdk() 한 곳이 맡는다.
 
     const travelForm = document.querySelector('travel-form');
     const itineraryView = document.querySelector('itinerary-view');
