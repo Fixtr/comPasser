@@ -12,6 +12,15 @@ import { getLang } from "../../../utils/i18n.js";
  * "화면에 남는 색 셋은 전부 지도 핀과 같은 뜻" 이라는 규칙이 깨지는 지점이
  * 정확히 여기라서, 한 곳(tokens.css)만 보게 만든다.
  */
+/**
+ * 토큰 값을 실제 색 문자열로 읽는다. PinElement 와 Polyline 은 CSS 변수를
+ * 받지 못해 값이 필요하다.
+ *
+ * `body` 가 아니라 `:root` 에서 읽는 것은 의도적이다. 다크 모드 토큰은
+ * `body.dark` 에 걸리는데, 구글 지도 타일은 우리 테마를 따르지 않고 항상
+ * 밝다. `body` 에서 읽으면 다크 모드에서 밝은 지도 위에 옅은 파스텔 핀이
+ * 찍혀 잘 안 보이게 된다. 여기서는 늘 라이트 값이 맞다.
+ */
 function tokenColor(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -320,12 +329,18 @@ export class MapView extends HTMLElement {
     const { Polyline } = await this.loader.importLibrary("maps");
     const { SymbolPath } = await this.loader.importLibrary("core");
 
-    const PATH_COLORS = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#0284c7', '#4f46e5', '#9333ea'];
+    // 예전에는 구간마다 다른 색(빨강·주황·초록·파랑·보라 …)을 돌려 썼다.
+    // 그런데 이 화면에서 색은 이미 뜻을 갖고 있다 — 보라는 고정 일정,
+    // 초록은 그날의 첫 장소, 파랑은 나머지 방문지(map/COMMAND_GUIDE.md).
+    // 경로선이 같은 색을 쓰면 사용자는 그 색이 "5번째 구간"을 뜻하는지
+    // "고정 일정"을 뜻하는지 알 수 없다. 게다가 구간 색을 읽는 곳은
+    // 어디에도 없었다(타임라인은 이 값을 쓰지 않는다).
+    const routeColor = tokenColor('--cp-route', '#3F3F3B');
     // map()을 활용하여 병렬 Promise 배열 생성 후 Promise.all()로 처리
     const routePromises = geocodedItems.slice(0, -1).map((item, i) => {
       const origin = geocodedItems[i].latLng;
       const destination = geocodedItems[i + 1].latLng;
-      const segmentColor = PATH_COLORS[i % PATH_COLORS.length];
+      const segmentColor = routeColor;
       // Timeline positions (0-based) so the itinerary list can attach this
       // segment to the right cards even when geocoding dropped items.
       const fromIndex = (geocodedItems[i].displayIndex ?? i + 1) - 1;

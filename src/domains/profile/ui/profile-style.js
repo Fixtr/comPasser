@@ -108,6 +108,11 @@ export const profileStyles = `
                     flex-shrink: 0;
                 }
 
+                .nav-icon svg {
+                    width: 17px;
+                    height: 17px;
+                }
+
                 /* ====== 본문 ====== */
                 .main-content {
                     flex-grow: 1;

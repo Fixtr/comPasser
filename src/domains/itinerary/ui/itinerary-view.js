@@ -154,7 +154,7 @@ export default class ItineraryView extends HTMLElement {
           saveBtn.textContent = t('savingStateBtn') || '저장 중...';
           const title = buildItineraryTitle(this.currentItinerary, getLang());
           const newId = await saveItinerary(user.uid, this.currentItinerary, title);
-          this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다! 🎉");
+          this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다.");
           
           // 🚀 [Routing] URL 업데이트: /view/:id 로 이동
           if (window.navigate) {
@@ -461,7 +461,16 @@ export default class ItineraryView extends HTMLElement {
       ? (t('fallbackReasonQuota') || 'AI 일일 사용량을 모두 소진했습니다.')
       : (t('fallbackReasonError') || 'AI 일정 생성에 실패했습니다.');
 
-    box.textContent = `🚨 ${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`;
+    // 예전에는 문구 앞에 🚨 를 붙였다. 이모지는 OS 색을 갖고 들어와
+    // 무채색 규칙을 깨고, 기기마다 모양이 달라 캡처 결과도 달라진다.
+    // 문구는 서버가 준 값을 포함하므로 textContent 로 넣는다.
+    box.replaceChildren();
+    const warnIcon = document.createElement('span');
+    warnIcon.className = 'info-icon';
+    warnIcon.innerHTML = icons.warn;
+    const warnText = document.createElement('span');
+    warnText.textContent = `${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`;
+    box.append(warnIcon, warnText);
     box.style.display = 'block';
     return true;
   }
@@ -849,7 +858,7 @@ export default class ItineraryView extends HTMLElement {
           <button id="download-image-btn" class="download-btn">일정 이미지로 저장하기</button>
           <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
-          <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">💬 카카오톡 공유하기</button>
+          <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">카카오톡 공유하기</button>
         </div>
       </div>
 
@@ -1113,7 +1122,7 @@ export default class ItineraryView extends HTMLElement {
               // 객체 배열 포맷 (신규)
               let recsHtml = '';
               if (Array.isArray(recs) && recs.length > 0) {
-                const recIcon = isDining ? '🍽️' : isCafe ? '☕️' : '⭐';
+                const recIcon = isDining ? icons.dining : isCafe ? icons.cafe : icons.star;
                 const recLabel = isDining ? '추천 식당 Top 3' : isCafe ? '추천 카페 Top 3' : '추천 Top 3';
                 const recItemsHtml = recs.map((rec, i) => {
                   const safeName = (rec.name || '').replace(/"/g, '&quot;');
@@ -1122,8 +1131,8 @@ export default class ItineraryView extends HTMLElement {
                   return `<div class="rec-item">
                     <span class="rec-rank">${i + 1}.</span>
                     <span class="rec-name">${safeName}</span>
-                    <span class="rec-rating">⭐ ${rec.rating || ''}</span>
-                    <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">📋 리뷰보기</a>
+                    <span class="rec-rating">${icons.star} ${rec.rating || ''}</span>
+                    <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">${icons.list} 리뷰보기</a>
                     <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">${icons.route} 길찾기</a>
                   </div>`;
                 }).join('');
@@ -1137,7 +1146,7 @@ export default class ItineraryView extends HTMLElement {
               } else if (typeof recs === 'string' && recs.trim() !== '') {
                 // 문자열 폴백 (구버전 데이터 호환)
                 recsHtml = `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
-                     <span class="info-icon">${isDining ? '🍽️' : isCafe ? '☕️' : '⭐'}</span>
+                     <span class="info-icon">${isDining ? icons.dining : isCafe ? icons.cafe : icons.star}</span>
                      <span class="info-value">
                        <span class="info-label">${isDining ? '추천 식당 Top 3' : isCafe ? '추천 카페 Top 3' : '추천 Top 3'}</span>
                        <div style="margin-top: 0.3rem; white-space: pre-line; line-height: 1.7;">${recs.trim()}</div>

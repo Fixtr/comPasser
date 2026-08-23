@@ -325,6 +325,8 @@ export const travelFormStyles = `
 
         .pref-chip .chip-icon svg {
           display: block;
+          width: 13px;
+          height: 13px;
         }
 
         /* 고정 일정. 왼쪽 보라 띠는 결과 화면의 카드·지도 핀과 같은 토큰이다. */

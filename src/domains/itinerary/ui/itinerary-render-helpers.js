@@ -82,7 +82,7 @@ export function renderTransitStep(step) {
     const boarding = t('boarding') || '승차';
     const alighting = t('alighting') || '하차';
     const stopsHtml = (step.departureStop && step.arrivalStop)
-      ? `<div class="step-stops">[${boarding}] ${step.departureStop} ➔ [${alighting}] ${step.arrivalStop}</div>`
+      ? `<div class="step-stops">[${boarding}] ${step.departureStop} &rarr; [${alighting}] ${step.arrivalStop}</div>`
       : '';
 
     return `
@@ -177,7 +177,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
           ${totalText ? `<span class="transit-seg-total">${totalText}</span>` : ''}
         </div>
         <div class="transit-steps">${stepsHtml}</div>
-        ${detail.directionsUrl ? `<div class="transit-verify">${t('transitVerify') || '🔎 구글 지도에서 경로 확인'}</div>` : ''}
+        ${detail.directionsUrl ? `<div class="transit-verify">${t('transitVerify') || '구글 지도에서 경로 확인'}</div>` : ''}
       </div>
     `;
 

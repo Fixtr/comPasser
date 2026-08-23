@@ -327,7 +327,7 @@ export default class TravelForm extends HTMLElement {
             </svg>
             <span data-i18n="resetBtn">초기화</span>
           </button>
-          <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary ✨</button>
+          <button type="submit" class="primary-btn" data-i18n="generateBtn">Generate AI Itinerary</button>
         </div>
       </form>
     `;

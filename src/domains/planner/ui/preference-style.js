@@ -222,6 +222,13 @@ export const preferenceStyles = `
           color: var(--cp-ink-2);
         }
 
+        /* 아이콘은 한 벌(기본 15px)이고 크기는 쓰는 자리가 정한다.
+           카드를 구분하는 유일한 그림이라 여기서는 크게 그린다. */
+        .card-icon svg {
+          width: 26px;
+          height: 26px;
+        }
+
         .preference-card.selected .card-icon {
           color: var(--cp-surface);
         }

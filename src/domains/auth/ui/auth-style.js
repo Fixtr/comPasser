@@ -161,6 +161,11 @@ export const authStyles = `
           transition: color 0.12s linear;
         }
 
+        .toggle-password svg {
+          width: 18px;
+          height: 18px;
+        }
+
         .toggle-password:hover,
         .toggle-password:focus-visible {
           color: var(--cp-ink);
@@ -350,6 +355,11 @@ export const authStyles = `
           justify-content: center;
           margin-bottom: 0.9rem;
           color: var(--cp-muted);
+        }
+
+        .status-icon svg {
+          width: 28px;
+          height: 28px;
         }
 
         .status-icon[data-tone="ok"]     { color: var(--cp-ok); }
