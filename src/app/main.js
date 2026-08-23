@@ -588,20 +588,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Theme initialization
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    if (currentTheme === 'dark') {
-        document.body.classList.add('dark');
-        if (themeToggleBtn) themeToggleBtn.textContent = t('lightMode') || 'Light Mode';
-    }
+    // ====== 테마 ======
+    // 첫 페인트 전에 index.html 의 head 스크립트가 html[data-theme] 를 이미
+    // 정해 두었다. 여기서는 그 값을 body.dark 와 맞추고, 토글과 시스템 설정
+    // 변경을 잇는다.
+    const applyTheme = (theme) => {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.body.classList.toggle('dark', theme === 'dark');
+        if (themeToggleBtn) {
+            // 버튼은 "지금 상태"가 아니라 "누르면 갈 곳"을 말한다.
+            // data-i18n 도 함께 바꿔 둔다 — 언어를 바꾸면 updateTexts() 가
+            // 이 속성을 보고 다시 번역하는데, 키가 고정돼 있으면 다크 모드에서
+            // 버튼이 "다크 모드"로 되돌아간다.
+            const key = theme === 'dark' ? 'lightMode' : 'darkMode';
+            themeToggleBtn.setAttribute('data-i18n', key);
+            themeToggleBtn.textContent = t(key);
+        }
+    };
+
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+            applyTheme(next);
+            // 여기서부터는 사용자가 고른 값이 시스템 설정보다 앞선다.
+            try { localStorage.setItem('theme', next); } catch (e) { /* 저장이 막힐 수 있다 */ }
         });
     }
+
+    // 시스템 테마가 바뀌면 따라간다 — 단, 사용자가 아직 고른 적이 없을 때만.
+    // 한 번 고르고 나면 그 선택이 이긴다.
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+    systemDark.addEventListener('change', (e) => {
+        let stored = null;
+        try { stored = localStorage.getItem('theme'); } catch (err) { /* 무시 */ }
+        if (stored) return;
+        applyTheme(e.matches ? 'dark' : 'light');
+    });
 
     if (langToggleBtn) {
         langToggleBtn.textContent = getLang() === 'ko' ? 'English' : '한국어';

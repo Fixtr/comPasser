@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs';
 const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const manifest = JSON.parse(readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+const main = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8');
 
 /** tokens.css 의 :root 블록에서 값을 읽는다(body.dark 쪽과 섞이지 않게). */
 function token(name) {
@@ -46,4 +48,77 @@ test('meta theme-color 가 라이트/다크 각각 지면색과 같다', () => {
   const darkRoot = tokens.slice(tokens.indexOf('body.dark'));
   const darkPaper = /--cp-paper\s*:\s*([^;]+);/.exec(darkRoot)[1].trim().toLowerCase();
   assert.equal(contentOf(dark), darkPaper);
+});
+
+/**
+ * 아래는 "설치해서 폰에서 쓰는 앱"으로서의 조건들이다.
+ * 브라우저 탭에서는 티가 안 나지만 홈 화면에서 띄우면 바로 드러난다.
+ */
+
+test('핀치 줌을 막지 않는다', () => {
+  // user-scalable=no 는 저시력 사용자에게서 확대 수단을 통째로 뺏는다.
+  // 낯선 도시에서 작은 글씨의 주소를 읽어야 하는 앱이라 더 그렇다.
+  const viewport = /<meta\s+name="viewport"[\s\S]*?>/.exec(html);
+  assert.ok(viewport, 'viewport 메타가 없다');
+  const content = /content="([^"]+)"/.exec(viewport[0])[1];
+  assert.doesNotMatch(content, /user-scalable\s*=\s*no/, '핀치 줌이 막혀 있다');
+  assert.doesNotMatch(content, /maximum-scale/, '최대 배율을 묶어 두면 확대가 제한된다');
+  assert.match(content, /viewport-fit=cover/, '노치 대응은 유지해야 한다');
+});
+
+test('첫 페인트 전에 테마가 정해진다', () => {
+  // main.js 는 모듈이라 문서 파싱이 끝난 뒤 실행된다. 거기서 테마를 정하면
+  // 시스템이 다크인 폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다.
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.match(head, /data-theme/, 'head 안에서 테마를 정하는 코드가 없다');
+  assert.match(head, /prefers-color-scheme/, '시스템 설정을 읽지 않는다');
+  assert.match(head, /localStorage/, '사용자가 고른 값을 먼저 봐야 한다');
+});
+
+test('다크 팔레트는 data-theme 로도 걸린다', () => {
+  // 첫 페인트 전에는 body 가 아직 없다. 그래서 html 요소에 표시한다.
+  assert.match(tokens, /\[data-theme="dark"\]/, 'data-theme="dark" 규칙이 없다');
+  // 같은 값을 두 곳에 적으면 갈라진다. 한 규칙이 두 셀렉터를 함께 받아야 한다.
+  const darkRule = /(:root\[data-theme="dark"\][^{]*|body\.dark[^{]*)\{/.exec(tokens);
+  assert.ok(darkRule, '다크 팔레트 규칙을 찾지 못했다');
+  assert.match(darkRule[0], /data-theme="dark"[\s\S]*body\.dark|body\.dark[\s\S]*data-theme="dark"/,
+    '다크 값이 한 규칙에 모여 있어야 한다');
+});
+
+test('시스템 테마가 바뀌면 따라간다 — 사용자가 고른 적 없을 때만', () => {
+  assert.match(main, /matchMedia\(\s*['"]\(prefers-color-scheme: dark\)['"]\s*\)/,
+    '시스템 테마 변경을 듣지 않는다');
+  assert.match(main, /addEventListener\(\s*['"]change['"]/, 'change 이벤트를 듣지 않는다');
+  // 고른 적이 있으면 그 선택이 이긴다.
+  assert.match(main, /localStorage\.getItem\(\s*['"]theme['"]\s*\)/, '저장된 선택을 확인하지 않는다');
+});
+
+test('설치형에서는 히어로가 자리를 덜 차지한다', () => {
+  // 홈 화면에서 띄우면 브라우저 주소창이 없는 대신 이 헤더가 매 화면 위에
+  // 200px 를 상시 점유했다. 설치형에서는 줄인다.
+  const block = /@media\s*\(display-mode:\s*standalone\)\s*\{[\s\S]*?\n\}/.exec(css);
+  assert.ok(block, '(display-mode: standalone) 블록이 없다');
+  assert.match(block[0], /\.hero/, '설치형에서 히어로를 줄이지 않는다');
+});
+
+test('노치 아래로 내용이 숨지 않는다', () => {
+  // viewport-fit=cover 를 쓰면 상태 표시줄 아래까지 내용이 들어간다.
+  assert.match(css, /env\(safe-area-inset-top\)/, '위쪽 안전 영역을 비켜 주지 않는다');
+});
+
+test('캡처는 두 표시를 함께 라이트로 되돌린다', () => {
+  // 토큰이 data-theme 와 body.dark 둘 다에 걸리므로, 캡처 때 한쪽만
+  // 되돌리면 여전히 어두운 이미지가 나간다.
+  const view = readFileSync(
+    new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8');
+  const fn = view.slice(view.indexOf('async downloadAsImage'));
+  assert.match(fn, /data-theme/, '캡처가 data-theme 를 되돌리지 않는다');
+  assert.match(fn, /classList\.(remove|toggle)\(\s*['"]dark['"]/, '캡처가 body.dark 를 되돌리지 않는다');
+});
+
+test('테마 버튼 라벨이 언어를 바꿔도 상태를 지킨다', () => {
+  // 버튼에 data-i18n 이 고정돼 있으면, 다크 모드에서 언어를 바꾸는 순간
+  // updateTexts() 가 "다크 모드"로 되돌려 놓는다(누르면 라이트로 가는데도).
+  assert.match(main, /setAttribute\(\s*['"]data-i18n['"]\s*,\s*key\s*\)/,
+    '테마에 따라 i18n 키를 바꾸지 않는다');
 });

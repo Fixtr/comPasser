@@ -324,8 +324,11 @@ export default class ItineraryView extends HTMLElement {
     // 캡처 동안 라이트 테마로 고정한다. 다크 모드에서 그대로 찍으면
     // 공유받은 사람에게 검은 판이 간다. 토큰이 body.dark 로 갈리므로
     // 클래스 하나만 잠시 떼면 --cp-* 가 전부 라이트 값으로 풀린다.
+    // 토큰이 html[data-theme] 와 body.dark 두 곳에 걸리므로 한쪽만
+    // 되돌리면 여전히 어두운 이미지가 나간다.
     const body = document.body;
-    const wasDark = body.classList.contains('dark');
+    const root = document.documentElement;
+    const wasDark = body.classList.contains('dark') || root.getAttribute('data-theme') === 'dark';
 
     try {
       if (downloadBtn) {
@@ -337,7 +340,10 @@ export default class ItineraryView extends HTMLElement {
       // color-mix() 같은 최신 문법이 있어 캡처가 터졌기 때문인데, 그래서
       // 화면을 예쁘게 고칠수록 공유 이미지가 깨졌다. 지금은 스타일 계약이
       // 최신 색 함수를 아예 막고 있으므로 그 우회가 필요 없다.
-      if (wasDark) body.classList.remove('dark');
+      if (wasDark) {
+        body.classList.remove('dark');
+        root.setAttribute('data-theme', 'light');
+      }
       
       const target = this.shadowRoot.getElementById('results-content');
       
@@ -378,7 +384,10 @@ export default class ItineraryView extends HTMLElement {
       console.error("[html2canvas] Image generation failed:", error);
       this.showToast("최신 브라우저 환경에서 캡처 기능이 지원되지 않을 수 있습니다.", true);
     } finally {
-      if (wasDark) body.classList.add('dark');
+      if (wasDark) {
+        body.classList.add('dark');
+        root.setAttribute('data-theme', 'dark');
+      }
       if (downloadBtn) {
         downloadBtn.disabled = false;
         downloadBtn.textContent = originalText;

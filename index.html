@@ -3,8 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <!-- user-scalable=no / maximum-scale 은 뺐다. 저시력 사용자에게서 확대
+       수단을 통째로 뺏는 설정이고, 낯선 도시에서 작은 주소를 읽어야 하는
+       앱이라 더 그렇다. viewport-fit=cover 는 노치 대응이라 유지한다. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Compasser</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="manifest" href="/manifest.json" />
@@ -19,6 +21,23 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css" />
+
+  <!-- 테마는 첫 페인트 전에 정해야 한다. main.js 는 모듈이라 문서 파싱이
+       끝난 뒤 실행되는데, 거기서 정하면 시스템이 다크인 폰에서 흰 화면이
+       한 번 번쩍인 뒤 어두워진다. 사용자가 고른 값이 있으면 그것이 먼저고,
+       없을 때만 시스템 설정을 따른다. -->
+  <script>
+    (function () {
+      var theme = 'light';
+      try {
+        theme = localStorage.getItem('theme')
+          || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } catch (e) { /* 사생활 보호 모드 등에서 localStorage 가 막힐 수 있다 */ }
+      // CSS 셀렉터와 같은 글자로 적어 둔다 — dataset.theme 로 쓰면
+      // 파일에서 'data-theme' 를 찾을 수 없어 연결이 눈에 안 띈다.
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
