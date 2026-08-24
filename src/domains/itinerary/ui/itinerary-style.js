@@ -121,6 +121,11 @@ export const itineraryStyles = `
         }
 
         .resolved-place {
+          /* 아이콘과 글자는 이제 별개의 요소다. 주소가 두 줄로 접혀도
+             아이콘은 첫 줄 옆에 남아야 하므로 flex-start 로 붙인다. */
+          display: flex;
+          align-items: flex-start;
+          gap: 0.35rem;
           font-size: 0.78rem;
           color: var(--cp-ink-2);
           background: var(--cp-surface);
@@ -131,6 +136,13 @@ export const itineraryStyles = `
           line-height: 1.45;
           word-break: keep-all;
         }
+        /* 위의 display:flex 는 hidden 의 기본 display:none 을 이긴다.
+           예전처럼 JS 가 인라인 display 를 껐다 켰다 하면 레이아웃이 두 곳에
+           나뉘므로, 감추는 일도 여기서 한다. */
+        .resolved-place[hidden] {
+          display: none;
+        }
+
         /* 적어둔 이름과 다른 곳을 찾았으면 눈에 띄게 */
         .resolved-place.mismatch {
           background: var(--cp-warn-bg);

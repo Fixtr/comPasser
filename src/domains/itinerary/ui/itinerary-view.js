@@ -5,7 +5,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
-import { icons } from '../../../ui/icons.js';
+import { icons, iconRow } from '../../../ui/icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
@@ -478,13 +478,11 @@ export default class ItineraryView extends HTMLElement {
     // 예전에는 문구 앞에 🚨 를 붙였다. 이모지는 OS 색을 갖고 들어와
     // 무채색 규칙을 깨고, 기기마다 모양이 달라 캡처 결과도 달라진다.
     // 문구는 서버가 준 값을 포함하므로 textContent 로 넣는다.
-    box.replaceChildren();
-    const warnIcon = document.createElement('span');
-    warnIcon.className = 'info-icon';
-    warnIcon.innerHTML = icons.warn;
-    const warnText = document.createElement('span');
-    warnText.textContent = `${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`;
-    box.append(warnIcon, warnText);
+    box.replaceChildren(iconRow(
+      icons.warn,
+      `${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`,
+      { iconClass: 'info-icon' }
+    ));
     box.style.display = 'block';
     return true;
   }
@@ -524,12 +522,16 @@ export default class ItineraryView extends HTMLElement {
       });
 
       if (!visible) {
-        target.style.display = 'none';
+        target.hidden = true;
         return;
       }
 
-      target.textContent = `${icons.search} ${t('resolvedPlaceLabel') || '지도에서 찾은 곳'}: ${detail}`;
-      target.style.display = 'block';
+      // 아이콘은 마크업이라 글자와 같은 자리에 넣을 수 없다(ui/icons.js 참고).
+      // 장소 이름은 지도 API 가 준 값이므로 반드시 글자 쪽으로 간다.
+      target.replaceChildren(
+        iconRow(icons.search, `${t('resolvedPlaceLabel') || '지도에서 찾은 곳'}: ${detail}`)
+      );
+      target.hidden = false;
       // 적어둔 이름과 다르면 눈에 띄게 표시한다.
       target.classList.toggle('mismatch', mismatch);
     });
@@ -1105,7 +1107,7 @@ export default class ItineraryView extends HTMLElement {
             // 이동 안내가 초록을 쓰면 같은 초록이 두 가지를 뜻하게 된다.
             return `<div class="schedule-desc gemini-transit">${icons.route}<span>${t('transitGuideLabel') || '이동 안내'} · ${trimmedInfo}</span></div>`;
           })()}
-          <div class="resolved-place" style="display: none;"></div>
+          <div class="resolved-place" hidden></div>
           <div class="schedule-meta">
             <span class="meta-item">${icons.pin} ${locationStr}</span>
             <span class="meta-item">${icons.clock} ${scheduleItem.duration || fallbackDuration(scheduleItem)}${(function() {

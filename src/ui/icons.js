@@ -92,3 +92,35 @@ export const icons = {
   list: svg('<rect x="3" y="2.2" width="10" height="11.6" rx="1.2"/>'
     + '<path d="M5.6 5.6h4.8M5.6 8h4.8M5.6 10.4h3"/>'),
 };
+
+/**
+ * 아이콘 하나와 글자 한 줄을 나란히 놓는다.
+ *
+ * 위의 아이콘들은 그림이 아니라 `<svg ...>` **마크업 문자열**이다. 그래서
+ * 글자와 한 덩어리로 이어 붙여 `textContent` 에 넣으면 브라우저가 태그를
+ * 태그로 읽지 않고 글자 그대로 찍는다. 실제로 결과 화면의 "지도에서 찾은 곳"
+ * 줄이 그렇게 깨져 있었다 — 원래 🔎 이모지였다가(이모지는 글자라 멀쩡했다)
+ * 인라인 SVG 로 바뀌었는데 `textContent` 자리는 그대로 남았다.
+ *
+ * 그렇다고 줄 전체를 `innerHTML` 로 넣으면 안 된다. 여기 들어오는 글자는
+ * 지도 API 가 준 장소 이름처럼 우리가 쓰지 않은 값이다. 그래서 자리를
+ * 나눈다 — **아이콘은 innerHTML, 글자는 textContent.**
+ *
+ * @param {string} iconMarkup icons 의 값
+ * @param {string} text 그대로 보여줄 글자(마크업으로 해석되지 않는다)
+ * @param {{iconClass?: string}} [options]
+ * @returns {DocumentFragment}
+ */
+export function iconRow(iconMarkup, text, { iconClass = 'row-icon' } = {}) {
+  const frag = document.createDocumentFragment();
+
+  const icon = document.createElement('span');
+  icon.className = iconClass;
+  icon.innerHTML = iconMarkup;
+
+  const label = document.createElement('span');
+  label.textContent = text;
+
+  frag.append(icon, label);
+  return frag;
+}
