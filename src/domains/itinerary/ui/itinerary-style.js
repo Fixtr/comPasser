@@ -324,7 +324,6 @@ export const itineraryStyles = `
         }
 
         .transit-card:hover {
-          transform: translateY(-1px);
         }
 
         .transit-icon-badge {
@@ -390,7 +389,6 @@ export const itineraryStyles = `
         }
 
         .transit-seg-card.clickable:hover {
-          transform: translateY(-1px);
         }
 
         .transit-seg-header {
@@ -425,7 +423,9 @@ export const itineraryStyles = `
           padding: 0.35rem 0.55rem;
           border-radius: 0;
           border: 1px solid var(--cp-rule);
-          background: rgba(255, 255, 255, 0.75);
+          /* 예전에는 rgba(255,255,255,0.75) 였다. 다크 모드에서
+             밝은 글씨가 거의 흰 상자에 얹혀 읽히지 않았다. */
+          background: var(--cp-surface);
         }
 
         .transit-step .step-icon {
@@ -542,7 +542,6 @@ export const itineraryStyles = `
         }
 
         .action-link-badge:hover {
-          transform: translateY(-2px);
           background: var(--cp-surface);
         }
 
@@ -562,7 +561,6 @@ export const itineraryStyles = `
         }
 
         .nav-btn:hover {
-          transform: translateY(-2px);
           background: var(--cp-sunken);
         }
 
@@ -624,7 +622,6 @@ export const itineraryStyles = `
 
         .rec-btn.review:hover {
           background: var(--cp-sunken);
-          transform: translateY(-1px);
         }
 
         .rec-btn.direction {
@@ -635,7 +632,6 @@ export const itineraryStyles = `
 
         .rec-btn.direction:hover {
           background: var(--cp-rule);
-          transform: translateY(-1px);
         }
 
         .nav-btn:active {
@@ -965,6 +961,13 @@ export const itineraryStyles = `
             min-height: 44px;
           }
 
+          .save-btn,
+          .share-btn,
+          .download-btn,
+          .kakao-share-btn {
+            min-height: 44px;
+          }
+
           .nav-btn,
           .action-link-badge,
           .insert-slot-btn,
@@ -1021,109 +1024,125 @@ export const itineraryStyles = `
           }
         }
 
-        .save-btn {
+        /* ====== 조작 묶음 ======
+           예전에는 이 넷이 마크업의 style="display:flex; …" 안에 있었고,
+           버튼마다 margin-top 이 따로 붙어 컨테이너의 gap 과 이중으로
+           벌어졌다. 배치는 여기 한 곳에 있다. */
+        .itinerary-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
           margin-top: 2rem;
-          background: var(--cp-sunken);
-          color: var(--cp-ink);
-          border: 2px solid var(--cp-ink);
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          border-radius: 0;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          width: 100%;
+        }
+
+        /* 주 버튼은 엄지가 닿는 자리에 머문다.
+
+           이 화면은 하루치 일정이 세로로 길게 이어지는데 "이 일정 저장하기"가
+           그 맨 끝에 있었다. 만든 일정을 저장하려면 하루를 전부 스크롤해서
+           내려가야 했다는 뜻이다. sticky 라 스크롤 중에는 바닥에 붙어 있다가
+           제자리에 닿으면 자연스럽게 앉는다 — fixed 와 달리 마지막에 다른
+           버튼을 가리지 않는다. */
+        /* sticky 요소는 부모 상자를 벗어나지 못한다. 그래서 이 상자는
+           조작 묶음이 아니라 **하루치 타임라인을 품은 #results 의 자식**이다.
+           묶음 안에 두면 미끄러질 자리가 버튼 한 개 높이뿐이라 sticky 가
+           아무 일도 하지 않는다. */
+        .actions-primary {
+          position: sticky;
+          bottom: 0;
+          margin-top: 0.5rem;
+          z-index: 2;
+          padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom, 0px));
+          /* 반투명이면 밑으로 지나가는 일정이 글자와 겹쳐 둘 다 안 읽힌다. */
+          background: var(--cp-paper);
+          border-top: var(--cp-hair) solid var(--cp-rule);
+        }
+
+        .actions-primary[hidden] {
           display: none;
         }
 
-        .save-btn:hover {
+        /* 버튼 넷의 공통 몸. 예전에는 넷이 각자 같은 값을 따로 적고 있어서
+           한 곳만 고쳐지는 날이 오게 돼 있었다. */
+        .save-btn,
+        .share-btn,
+        .download-btn,
+        .kakao-share-btn {
+          width: 100%;
+          padding: 1rem 2rem;
+          font-family: inherit;
+          font-size: 1.05rem;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          border-radius: var(--cp-radius);
+          cursor: pointer;
+          /* 들어올리기(translateY)와 brightness() 를 걷어냈다. 그림자가 없는
+             방향에서 2px 올라가기만 하면 떠오르는 게 아니라 흔들린다. 게다가
+             손가락 기기에는 hover 자체가 없다. */
+          transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+        }
+
+        /* 주 버튼 — 로그인 화면의 .auth-btn 과 같은 어휘(잉크로 채우고,
+           눌릴 준비가 되면 뒤집는다). */
+        .save-btn {
           background: var(--cp-ink);
           color: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-ink);
+        }
+
+        .save-btn:hover:not(:disabled),
+        .save-btn:focus-visible:not(:disabled) {
+          background: var(--cp-surface);
+          color: var(--cp-ink);
         }
 
         .save-btn:disabled {
-          opacity: 0.6;
+          background: var(--cp-sunken);
+          border-color: var(--cp-rule);
+          color: var(--cp-muted);
           cursor: not-allowed;
         }
 
-        .share-btn {
-          margin-top: 1rem;
-          background: var(--cp-paper);
+        /* 곁 버튼들 — 테두리만 두르고 지면색을 쓴다. */
+        .share-btn,
+        .download-btn {
+          background: var(--cp-surface);
           color: var(--cp-ink);
-          border: 2px solid var(--cp-ink);
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          border-radius: 0;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          width: 100%;
+          border: var(--cp-hair) solid var(--cp-ink);
           display: none;
         }
 
-        .share-btn:hover {
+        .share-btn:hover:not(:disabled),
+        .share-btn:focus-visible:not(:disabled),
+        .download-btn:hover:not(:disabled),
+        .download-btn:focus-visible:not(:disabled) {
           background: var(--cp-sunken);
-          transform: translateY(-2px);
         }
 
-        .share-btn:active {
-          transform: translateY(0);
+        .share-btn:disabled,
+        .download-btn:disabled {
+          color: var(--cp-muted);
+          border-color: var(--cp-rule);
+          cursor: not-allowed;
         }
 
+        /* 카카오만 색이 남는다 — 브랜드 가이드가 값을 못박고 있어서
+           무채색으로 바꾸면 심사에서 막힌다. 로그인 화면의 .social-btn 과
+           같은 처리(밝기를 건드리지 않고 테두리 한 겹을 더 두른다). */
         .kakao-share-btn {
-          margin-top: 1rem;
           background: var(--cp-kakao);
           color: var(--cp-kakao-ink);
-          border: none;
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          border-radius: 0;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          width: 100%;
+          border: var(--cp-hair) solid var(--cp-kakao);
           display: none;
+          outline: 2px solid transparent;
+          outline-offset: 2px;
+          transition: outline-color 0.12s linear;
         }
 
-        .kakao-share-btn:hover {
-          transform: translateY(-2px);
-          filter: brightness(0.95);
+        .kakao-share-btn:hover,
+        .kakao-share-btn:focus-visible {
+          outline-color: var(--cp-ink);
         }
 
-        .kakao-share-btn:active {
-          transform: translateY(0);
-        }
-
-        .download-btn {
-          margin-top: 1rem;
-          background: var(--cp-sunken);
-          color: var(--cp-surface);
-          border: none;
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          border-radius: 0;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          width: 100%;
-          display: none;
-          text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .download-btn:hover {
-          transform: translateY(-2px);
-          filter: brightness(1.1);
-        }
-
-        .download-btn:active {
-          transform: translateY(0);
-        }
-
-        .download-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-          transform: none;
-        }
 
 
       

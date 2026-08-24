@@ -929,11 +929,20 @@ export default class ItineraryView extends HTMLElement {
             <!-- Dynamically injected -->
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem;">
+        <div class="itinerary-actions">
           <button id="download-image-btn" class="download-btn">티켓 이미지로 저장·공유</button>
-          <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
           <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">카카오톡 공유하기</button>
+        </div>
+        <!-- 주 버튼은 .itinerary-actions **밖**에 있어야 한다.
+
+             sticky 요소는 부모 상자를 벗어나지 못한다. 조작 묶음 안에 두면
+             그 묶음이 버튼 높이만큼밖에 안 되므로 미끄러질 자리가 없고,
+             sticky 를 적어 놔도 아무 일도 일어나지 않는다(실제로 그랬다).
+             하루치 타임라인을 품은 #results 의 자식이어야 화면 끝까지
+             따라온다. 정리한다고 위 묶음 안으로 옮기지 말 것. -->
+        <div class="actions-primary" id="actions-primary" hidden>
+          <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn">이 일정 저장하기</button>
         </div>
       </div>
 
@@ -966,8 +975,8 @@ export default class ItineraryView extends HTMLElement {
     this.currentItinerary = null;
     const container = this.shadowRoot.getElementById('timeline-container');
     if (container) container.innerHTML = '';
-    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
-    if (saveBtn) saveBtn.style.display = 'none';
+    const primaryBar = this.shadowRoot.getElementById('actions-primary');
+    if (primaryBar) primaryBar.hidden = true;
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) shareBtn.style.display = 'none';
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
@@ -1007,8 +1016,8 @@ export default class ItineraryView extends HTMLElement {
     // 공유 링크로 퍼지면 되돌릴 방법이 없다.
     const isFallback = this.refreshFallbackWarning();
 
-    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
-    if (saveBtn) saveBtn.style.display = isFallback ? 'none' : 'block';
+    const primaryBar = this.shadowRoot.getElementById('actions-primary');
+    if (primaryBar) primaryBar.hidden = isFallback;
 
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
     if (shareBtn) shareBtn.style.display = isFallback ? 'none' : 'block';

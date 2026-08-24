@@ -8,6 +8,7 @@ import {
   stripComments, assertNoShadows, assertNoGradients, assertNoHardcodedColors,
   assertNoModernColorFunctions, assertNoNamedColors, assertSquareRadius,
   assertNoLegacyTokens, assertTouchTargets, extractInlineStyles, stripSourceComments,
+  assertNoRgbaColors,
 } from './helpers/style-contract.mjs';
 
 /**
@@ -30,6 +31,19 @@ test('이름 있는 색을 쓰지 않는다', () => assertNoNamedColors(css, LAB
 test('캡처가 못 읽는 색 함수를 쓰지 않는다', () => assertNoModernColorFunctions(css, LABEL));
 test('라운드는 0 이거나 알약 토큰이다', () => assertSquareRadius(css, LABEL, tokens));
 test('옛 토큰을 더 이상 읽지 않는다', () => assertNoLegacyTokens(css, LABEL));
+
+/**
+ * rgba 검사가 이 화면에만 빠져 있었다. 그 틈으로 두 가지가 새어 들어왔다 —
+ * 이동 구간 상자의 `rgba(255,255,255,0.75)`(다크 모드에서 밝은 글씨가
+ * 밝은 상자에 얹혀 사라진다)와 저장 버튼의 text-shadow.
+ */
+test('반투명 색도 토큰에서 온다', () => assertNoRgbaColors(css, LABEL));
+
+test('글자에도 그림자를 쓰지 않는다', () => {
+  // box-shadow 만 막으면 text-shadow 로 새어 나간다. 이 방향에 그림자는 없다.
+  const hits = css.match(/text-shadow\s*:\s*(?!none)[^;]+/g) || [];
+  assert.deepEqual(hits, [], `${LABEL}: 글자 그림자도 쓰지 않는다\n${hits.join('\n')}`);
+});
 
 test('타임라인과 지도가 같은 색 어휘를 쓴다', () => {
   // 고정 일정 / 첫 장소 / 나머지 — map/COMMAND_GUIDE.md 의 마커 규칙과 같은 토큰.
