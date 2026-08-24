@@ -21,7 +21,9 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* 화면마다 글꼴이 갈리지 않도록 여기도 토큰을 본다. 예전에는 이 줄만
+     'Inter' 였고 옮긴 화면들은 --cp-font 였다. */
+  font-family: var(--cp-font);
   /* 액자(.app-container)와 같은 지면색. 바깥쪽만 다른 색이면 가장자리에서
      띠가 보인다. theme-color 도 이 값에 맞춰져 있다. */
   background-color: var(--cp-paper);

@@ -81,8 +81,23 @@
   --cp-hair:       1px;
 
   /* ---- 타이포 ---- */
-  --cp-font:       'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
-                   'Apple SD Gothic Neo', 'Segoe UI', system-ui, sans-serif;
+  /* 이름을 적었으면 그 글꼴이 실제로 있어야 한다. 예전 값의 맨 앞은
+     Pretendard 였는데 **어디서도 받아오지 않았다** — 코드에는 있고 화면에는
+     없는 글꼴이라, 조용히 다음 후보로 넘어가고 있었다.
+
+     그렇다고 실어 보내기엔 비싸다. 이 앱의 글자는 대부분 한글이고, 장소
+     이름에는 흔치 않은 글자가 섞인다. 자주 쓰는 2,350 자만 실으면 나머지가
+     **단어 한복판에서** 다른 글꼴로 떨어져 오히려 더 눈에 띈다. 완성형
+     전체(11,172 자)를 실으면 Pretendard Variable 기준 1.7MB — 저사양
+     안드로이드와 느린 네트워크를 걱정해 온 이 앱이 낼 값이 아니다.
+     (라틴만 33KB, 여기에 완성형을 더하면 1.74MB. 직접 재 본 값이다.)
+
+     기기가 이미 갖고 있는 것을 쓴다. iOS 는 Apple SD Gothic Neo, 안드로이드는
+     Noto Sans KR 로 떨어진다. 글꼴 후보는 **글자 단위로** 내려가므로,
+     Roboto 에 한글이 없으면 그 글자만 Noto Sans KR 이 받는다. */
+  --cp-font:       -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+                   'Segoe UI', 'Malgun Gothic', Roboto, 'Noto Sans KR',
+                   system-ui, sans-serif;
   --cp-mono:       ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
