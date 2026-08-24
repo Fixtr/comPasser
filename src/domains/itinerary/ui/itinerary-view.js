@@ -14,6 +14,8 @@ import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { loadKakaoSdk, loadHtml2Canvas } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
+import { buildBoardingPass } from '../services/boarding-pass.mjs';
+import { boardingPassStyles, renderBoardingPass } from './boarding-pass-view.js';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -317,78 +319,106 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
+  /**
+   * 하루 일정을 탑승권 한 장으로 만들어 공유하거나 저장한다.
+   *
+   * 예전에는 결과 화면(#results-content)을 그대로 찍었다. 받는 사람 손에는
+   * 버튼만 빠진 앱 스크린샷이 갔고, 우리 화면을 모르는 사람은 무엇을 보라는
+   * 것인지 알기 어려웠다. 지금은 공유를 위해 따로 그린 티켓을 찍는다 —
+   * 어디서 시작해 어디서 끝나는지, 그중 무엇이 확정인지가 한 장에 있다.
+   */
   async downloadAsImage() {
     if (!this.currentItinerary) return;
-    
+
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     const originalText = downloadBtn ? downloadBtn.textContent : '';
-    
+
+    const plan = this.normalizeData(this.currentItinerary);
+    const pass = buildBoardingPass({
+      plan,
+      dayIndex: this.activeDayIndex,
+      title: buildItineraryTitle(this.currentItinerary, getLang()),
+      language: getLang(),
+    });
+    // 방문지가 하나도 없으면 티켓에 적을 것이 없다. 빈 종이를 내보내지 않는다.
+    if (!pass) {
+      this.showToast(t('nothingToShare') || '아직 공유할 일정이 없습니다.', true);
+      return;
+    }
+
     // 캡처 동안 라이트 테마로 고정한다. 다크 모드에서 그대로 찍으면
-    // 공유받은 사람에게 검은 판이 간다. 토큰이 body.dark 로 갈리므로
-    // 클래스 하나만 잠시 떼면 --cp-* 가 전부 라이트 값으로 풀린다.
-    // 토큰이 html[data-theme] 와 body.dark 두 곳에 걸리므로 한쪽만
-    // 되돌리면 여전히 어두운 이미지가 나간다.
+    // 공유받은 사람에게 검은 판이 간다. 토큰이 html[data-theme] 와
+    // body.dark 두 곳에 걸리므로 한쪽만 되돌리면 여전히 어둡게 나간다.
     const body = document.body;
     const root = document.documentElement;
     const wasDark = body.classList.contains('dark') || root.getAttribute('data-theme') === 'dark';
 
+    // 티켓은 화면 밖에 세워 두고 찍는다. display:none 이면 크기가 0 이라
+    // 캡처가 빈 이미지를 돌려준다.
+    const stage = document.createElement('div');
+    stage.setAttribute('aria-hidden', 'true');
+    Object.assign(stage.style, {
+      position: 'fixed', left: '-10000px', top: '0', zIndex: '-1', pointerEvents: 'none',
+    });
+    const sheet = document.createElement('style');
+    sheet.textContent = boardingPassStyles;
+    const ticket = renderBoardingPass(pass, {
+      fixedLabel: t('anchorBadge') || '확정',
+      transitLabel: t('transitTotalLabel') || '이동',
+      costLabel: t('costLabel') || '비용',
+      moreLabel: n => (getLang() === 'en' ? `+ ${n} more` : `+ ${n}곳 더`),
+    });
+    // 섀도 DOM 이 아니라 문서에 붙인다 — 토큰은 :root 에서 상속되고,
+    // 캡처 엔진은 일반 DOM 에서 가장 잘 동작한다.
+    stage.append(sheet, ticket);
+
     try {
       if (downloadBtn) {
         downloadBtn.disabled = true;
-        downloadBtn.textContent = "이미지 생성 중...";
+        downloadBtn.textContent = t('generatingImage') || '이미지 만드는 중...';
       }
-      
-      // 예전에는 여기서 <style> 본문을 정규식으로 갈아치웠다. 화면 CSS 에
-      // color-mix() 같은 최신 문법이 있어 캡처가 터졌기 때문인데, 그래서
-      // 화면을 예쁘게 고칠수록 공유 이미지가 깨졌다. 지금은 스타일 계약이
-      // 최신 색 함수를 아예 막고 있으므로 그 우회가 필요 없다.
       if (wasDark) {
         body.classList.remove('dark');
         root.setAttribute('data-theme', 'light');
       }
-      
-      const target = this.shadowRoot.getElementById('results-content');
-      
+      document.body.append(stage);
+
       // 캔버스 바탕도 토큰에서 읽는다. 값을 박아 두면 지면색을 바꿨을 때
       // 화면과 공유 이미지가 조용히 갈라진다.
       const paper = getComputedStyle(document.documentElement)
         .getPropertyValue('--cp-surface').trim() || '#FFFFFF';
 
-      const options = {
+      // 캡처 엔진은 무겁다(gzip 기준 64KB). 첫 화면에서는 쓰이지 않으므로
+      // 이 버튼을 누른 지금 내려받는다.
+      const html2canvas = await loadHtml2Canvas();
+      const canvas = await html2canvas(ticket, {
         scale: 2,
         useCORS: true,
         backgroundColor: paper,
         logging: false,
-        // 3. 버튼 등 불필요한 요소 캡처 제외
-        ignoreElements: (element) => {
-          if (element.tagName === 'BUTTON') return true;
-          if (element.classList && element.classList.contains('itinerary-actions')) return true;
-          if (element.id && (element.id.includes('-btn') || element.id === 'itinerary-actions')) return true;
-          return false;
-        },
-        // onclone 으로 색을 강제하던 블록이 있었는데,
-        // clonedDoc.querySelector('#results-content') 는 shadow DOM 안의
-        // 요소를 찾지 못한다. 즉 한 번도 실행된 적 없는 죽은 코드였고,
-        // 담긴 값(보라 틴트)은 지금 디자인과도 어긋났다.
-      };
-      
-      // 캡처 엔진은 무겁다(gzip 기준 70KB 남짓). 첫 화면에서는 쓰이지
-      // 않으므로 "이미지로 저장"을 누른 지금 내려받는다.
-      const html2canvas = await loadHtml2Canvas();
-      const canvas = await html2canvas(target, options);
-      const dataUrl = canvas.toDataURL("image/png");
-      
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `my-trip-itinerary-${new Date().getTime()}.png`;
-      link.click();
-      
-      this.showToast("이미지를 저장했습니다.");
+      });
+
+      const fileName = `compasser-${pass.code}.png`;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+      if (await this.shareImage(blob, fileName, pass)) {
+        this.showToast(t('shareImageDone') || '티켓을 공유했습니다.');
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        // 놓아주지 않으면 이미지 하나가 탭이 닫힐 때까지 메모리에 남는다.
+        URL.revokeObjectURL(url);
+        this.showToast(t('saveImageDone') || '티켓 이미지를 저장했습니다.');
+      }
     } catch (error) {
-      // 4. 에러 핸들링 보강
-      console.error("[html2canvas] Image generation failed:", error);
-      this.showToast("최신 브라우저 환경에서 캡처 기능이 지원되지 않을 수 있습니다.", true);
+      console.error('[boarding-pass] 이미지 생성 실패:', error);
+      this.showToast(t('captureUnsupported')
+        || '이 브라우저에서는 이미지 만들기가 지원되지 않을 수 있습니다.', true);
     } finally {
+      stage.remove();
       if (wasDark) {
         body.classList.add('dark');
         root.setAttribute('data-theme', 'dark');
@@ -399,6 +429,35 @@ export default class ItineraryView extends HTMLElement {
       }
     }
   }
+
+  /**
+   * 만든 이미지를 기기의 공유 시트로 넘긴다. 넘기지 못했으면 false —
+   * 부르는 쪽이 내려받기로 돌아간다.
+   *
+   * 두 가지를 실패가 아니라 "안 된 것"으로 다룬다.
+   *  - 사용자가 공유 시트를 닫은 경우(AbortError): 취소는 오류가 아니므로
+   *    조용히 끝낸다. 여기서 내려받기로 넘어가면 취소했는데 파일이 생긴다.
+   *  - 사파리가 제스처가 끝났다고 보는 경우(NotAllowedError): 이미지를
+   *    만드느라 await 를 여러 번 지났기 때문이다. 이때는 내려받기로 간다.
+   */
+  async shareImage(blob, fileName, pass) {
+    if (!blob || typeof File !== 'function' || !navigator.canShare || !navigator.share) return false;
+    const file = new File([blob], fileName, { type: 'image/png' });
+    if (!navigator.canShare({ files: [file] })) return false;
+    try {
+      await navigator.share({
+        files: [file],
+        title: pass.route || 'ComPasser',
+        text: `${pass.dayLabel} · ${pass.from} → ${pass.to}`,
+      });
+      return true;
+    } catch (error) {
+      if (error?.name === 'AbortError') return true;   // 취소는 오류가 아니다
+      console.warn('[boarding-pass] 공유 시트를 열지 못해 내려받기로 갑니다:', error);
+      return false;
+    }
+  }
+
 
   /**
    * 컴포넌트 안에 따로 두던 토스트를 앱 공용 토스트로 위임한다.
@@ -871,7 +930,7 @@ export default class ItineraryView extends HTMLElement {
           </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem;">
-          <button id="download-image-btn" class="download-btn">일정 이미지로 저장하기</button>
+          <button id="download-image-btn" class="download-btn">티켓 이미지로 저장·공유</button>
           <button id="save-itinerary-btn" class="save-btn" data-i18n="saveItineraryBtn" style="margin-top: 0;">이 일정 저장하기</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
           <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">카카오톡 공유하기</button>
