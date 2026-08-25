@@ -15,6 +15,7 @@ import { loadKakaoSdk, loadHtml2Canvas } from '../../../utils/external-scripts.j
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { buildBoardingPass } from '../services/boarding-pass.mjs';
+import { ROUTE_THEME_ATTR } from '../../../utils/route-theme.js';
 import { boardingPassStyles, renderBoardingPass } from './boarding-pass-view.js';
 import {
   buildItineraryViewModel,
@@ -352,6 +353,9 @@ export default class ItineraryView extends HTMLElement {
     const body = document.body;
     const root = document.documentElement;
     const wasDark = body.classList.contains('dark') || root.getAttribute('data-theme') === 'dark';
+    // 결과 화면은 경로만으로도 어두워진다(utils/route-theme.js). 토큰이 세
+    // 곳에서 걸리므로 둘만 되돌리면 여전히 어두운 이미지가 나간다.
+    const wasRouteDark = root.hasAttribute(ROUTE_THEME_ATTR);
 
     // 티켓은 화면 밖에 세워 두고 찍는다. display:none 이면 크기가 0 이라
     // 캡처가 빈 이미지를 돌려준다.
@@ -381,6 +385,7 @@ export default class ItineraryView extends HTMLElement {
         body.classList.remove('dark');
         root.setAttribute('data-theme', 'light');
       }
+      if (wasRouteDark) root.removeAttribute(ROUTE_THEME_ATTR);
       document.body.append(stage);
 
       // 캔버스 바탕도 토큰에서 읽는다. 값을 박아 두면 지면색을 바꿨을 때
@@ -423,6 +428,7 @@ export default class ItineraryView extends HTMLElement {
         body.classList.add('dark');
         root.setAttribute('data-theme', 'dark');
       }
+      if (wasRouteDark) root.setAttribute(ROUTE_THEME_ATTR, 'dark');
       if (downloadBtn) {
         downloadBtn.disabled = false;
         downloadBtn.textContent = originalText;

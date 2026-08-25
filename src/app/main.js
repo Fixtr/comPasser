@@ -18,6 +18,7 @@ import { t, getLang, setLang } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
 import { showErrorToast } from '../utils/toast.js';
+import { applyRouteTheme, releaseRouteTheme } from '../utils/route-theme.js';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
 
@@ -331,6 +332,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // 결과·지도 화면만 어둡게 한다(utils/route-theme.js).
+        // **가드 뒤에** 부른다. 앞에서 부르면 로그인으로 튕겨 나갈 주소에도
+        // 잠깐 다크가 얹혔다가 곧바로 되돌아와 화면이 한 번 껌뻑인다.
+        // 튕긴 뒤의 주소로 이 함수가 다시 도는 것이 정상 경로다.
+        applyRouteTheme(path);
+
         // 1. Hide all pages by default
         if (pageHome) pageHome.style.display = 'none';
         if (pageLogin) pageLogin.style.display = 'none';
@@ -623,6 +630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', () => {
             const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+            // 결과 화면이 강제로 어둡게 해 둔 상태일 수 있다. 먼저 풀지 않으면
+            // 눌러도 화면이 그대로라 고장으로 보인다. 한 번 누른 뒤로는
+            // 이 세션 동안 다시 강제하지 않는다.
+            releaseRouteTheme();
             applyTheme(next);
             // 여기서부터는 사용자가 고른 값이 시스템 설정보다 앞선다.
             try { localStorage.setItem('theme', next); } catch (e) { /* 저장이 막힐 수 있다 */ }

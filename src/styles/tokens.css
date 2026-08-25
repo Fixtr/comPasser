@@ -106,11 +106,16 @@
  *     그때는 body 가 아직 없으므로 html 요소여야 한다.
  *  ② `body.dark`: 예전부터 쓰던 런타임 표시. 토글 코드와 Google Places
  *     위젯의 :host-context 가 아직 이것을 본다.
+ *  ③ `html[data-route-theme="dark"]`: 결과·지도 화면(`/view`)만 어둡게
+ *     하는 표시. 그 화면은 이동 중에 보고, 늘 어두운 편인 구글 지도 타일과
+ *     함께 본다 — 밝은 배경 위에 얹히면 지도와 일정이 두 물건으로 보인다.
+ *     자세한 규칙은 utils/route-theme.js.
  *
- * 값은 한 규칙에 모아 둔다. 두 곳에 나눠 적으면 한쪽만 고쳐지는 날이 온다.
+ * 값은 한 규칙에 모아 둔다. 세 곳에 나눠 적으면 한쪽만 고쳐지는 날이 온다.
  * color-scheme 도 여기 함께 둔다 — 브라우저가 직접 그리는 입력 아이콘과
  * 스크롤바는 토큰이 아니라 이 값을 본다. */
 :root[data-theme="dark"],
+:root[data-route-theme="dark"],
 body.dark {
   color-scheme: dark;
   --cp-scrim:      rgba(0, 0, 0, 0.65);
