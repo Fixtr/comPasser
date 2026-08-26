@@ -3,6 +3,21 @@ import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
 import { getLang } from "../../../utils/i18n.js";
+import {
+  MIN_PADDING, centerOffsetFor, toPoint, isSinglePlace
+} from "../services/map-framing.mjs";
+
+/**
+ * 두 장소가 가까우면 `fitBounds` 는 배율을 끝까지 올린다 — 골목 하나만 남고
+ * "이 하루가 어디쯤인가"는 사라진다. 여기서 멈춘다.
+ */
+const MAX_FIT_ZOOM = 16;
+
+/** 사실상 한 곳뿐인 하루의 배율(예전부터 쓰던 값). */
+const SINGLE_PLACE_ZOOM = 14;
+
+/** 앱이 여백을 알려 주지 않을 때(미리보기 등) 쓰는 값. */
+const DEFAULT_PADDING = { top: MIN_PADDING, right: MIN_PADDING, bottom: MIN_PADDING, left: MIN_PADDING };
 
 /**
  * 핀 색을 CSS 토큰에서 읽는다.
@@ -286,11 +301,11 @@ export class MapView extends HTMLElement {
         return;
       }
 
-      // 2. Center Map on Anchor Schedule, or first item
+      // 2. 그 날의 장소가 전부 보이게 맞춘다.
+      //    예전에는 고정 일정 한 곳에 배율 14 를 박아, 나머지가 화면 밖에
+      //    있어도 알 수 없었다. 한 곳뿐이면 그때 고정 일정을 가운데 둔다.
       const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
-      const centerCoordinate = anchorItem ? anchorItem.latLng : geocodedItems[0].latLng;
-      this.map.setCenter(centerCoordinate);
-      this.map.setZoom(14);
+      this.frameToItems(geocodedItems, anchorItem);
 
       // 3. Render Markers on Map
       await this.renderMarkers(geocodedItems);
@@ -322,6 +337,55 @@ export class MapView extends HTMLElement {
     } finally {
       this.setLoading(false);
     }
+  }
+
+  /**
+   * 지도 위에 얹힌 것들(일정 시트·버튼 줄)이 덮는 만큼을 여백으로 받는다.
+   *
+   * 값이 아니라 **함수**를 받는 이유: 시트는 접히고 펼쳐지고 창은 크기가
+   * 바뀐다. 미리 받아 둔 숫자는 맞추는 순간에는 이미 틀린 값일 수 있다.
+   * 재는 일은 그 DOM 을 아는 앱 층이 하고(`main.js`), 지도는 부르기만 한다.
+   */
+  currentPadding() {
+    try {
+      return this.getFrameInsets?.() || DEFAULT_PADDING;
+    } catch (e) {
+      console.warn('[Map] 여백을 재지 못했습니다.', e);
+      return DEFAULT_PADDING;
+    }
+  }
+
+  /**
+   * 그 날의 장소가 전부 보이도록 지도를 맞춘다.
+   * @param {Array} geocodedItems 좌표가 붙은 일정 항목들
+   * @param {object|undefined} preferredItem 한 곳뿐일 때 가운데 둘 항목
+   */
+  frameToItems(geocodedItems, preferredItem) {
+    const points = geocodedItems.map(item => toPoint(item.latLng)).filter(Boolean);
+    if (points.length === 0) return;
+
+    const padding = this.currentPadding();
+
+    if (isSinglePlace(points)) {
+      // 한 자리뿐인 하루는 fitBounds 로 맞출 수 없다(폭이 0 이라 끝까지 파고든다).
+      // 대신 가운데에 놓고, 덮인 만큼 밀어 시트 뒤로 가지 않게 한다.
+      const center = toPoint(preferredItem?.latLng) || points[0];
+      this.map.setCenter(center);
+      this.map.setZoom(SINGLE_PLACE_ZOOM);
+      const offset = centerOffsetFor(padding);
+      if (offset.x || offset.y) this.map.panBy(offset.x, offset.y);
+      return;
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+    points.forEach(point => bounds.extend(point));
+    this.map.fitBounds(bounds, padding);
+
+    // 가까운 두 곳만 있으면 여기서 배율이 20 을 넘는다. 한 번만 되돌린다
+    // (계속 듣고 있으면 사용자가 직접 확대하는 것까지 막는다).
+    google.maps.event.addListenerOnce(this.map, 'idle', () => {
+      if (this.map.getZoom() > MAX_FIT_ZOOM) this.map.setZoom(MAX_FIT_ZOOM);
+    });
   }
 
   async renderMarkers(geocodedItems) {

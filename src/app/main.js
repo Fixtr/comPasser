@@ -20,6 +20,7 @@ import { affiliateAds } from '../config/ads.js';
 import { showErrorToast } from '../utils/toast.js';
 import { applyRouteTheme, releaseRouteTheme } from '../utils/route-theme.js';
 import { initMapSheet } from './map-sheet.js';
+import { framePadding } from '../domains/map/services/map-framing.mjs';
 import { decideRoute, isHomePath } from './route-decision.mjs';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
@@ -624,6 +625,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             window.navigate('/plan');
         });
+    }
+
+    // ====== 지도에게 "네 위에 무엇이 얹혀 있는지" 알려 준다 ======
+    // 지도는 일정 시트도 버튼 줄도 모른다 — 알아야 할 이유도 없다. 그것들을
+    // 배치한 것은 이 층이니 **재는 일은 여기가 하고 맞추는 일은 지도가 한다.**
+    // 값이 아니라 함수를 넘긴다: 시트는 접히고 펼쳐지고 창은 크기가 바뀌므로,
+    // 미리 재 둔 숫자는 맞추는 순간에 이미 틀린 값일 수 있다.
+    if (mapView) {
+        // 숨겨진 것은 아무것도 안 덮는다(다른 경로에서는 무대가 display:none 이다).
+        const rectOf = (el) => (el && el.offsetParent !== null ? el.getBoundingClientRect() : null);
+        mapView.getFrameInsets = () => framePadding(
+            rectOf(document.getElementById('page-view')),
+            [
+                rectOf(document.getElementById('itinerary-sheet')),
+                rectOf(document.querySelector('#page-view .view-actions')),
+            ]
+        );
     }
 
     // ====== 결과 화면의 일정 시트 ======
