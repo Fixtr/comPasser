@@ -635,7 +635,12 @@ body.stage-map #page-view {
   top: 0.85rem;
   left: 0.85rem;
   right: 0.85rem;
-  z-index: 3;
+  /* **시트보다 아래에 있어야 한다.**
+     이 버튼은 지도 위에 떠 있는 것이지 시트 위에 떠 있는 것이 아니다.
+     시트(z-index: 2)보다 위에 두면, 시트를 펼쳤을 때 그 안의 일차 탭을
+     검은 상자가 덮는다 — 실제로 폰에서 그렇게 겹쳐 있었다.
+     지도(0) < 이 버튼(1) < 시트(2) 순서라야 접었을 땐 보이고 펼치면 덮인다. */
+  z-index: 1;
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;

@@ -96,6 +96,19 @@ test('넓은 화면에서는 시트가 아니라 옆 패널이다', () => {
     '넓은 화면 대응이 없다');
 });
 
+test('지도 위의 버튼이 시트를 덮지 않는다', () => {
+  // 이 버튼은 지도 위에 떠 있는 것이지 시트 위에 떠 있는 것이 아니다.
+  // 시트보다 위에 두면 펼쳤을 때 그 안의 일차 탭을 덮는다 — 폰에서
+  // 실제로 그렇게 겹쳐 있었다.
+  const actions = block('#page-view .view-actions');
+  const sheet = block('.map-sheet');
+  const z = css => Number((/z-index\s*:\s*(-?\d+)/.exec(css) || [])[1]);
+  assert.ok(Number.isFinite(z(actions)), '.view-actions 에 z-index 가 없다');
+  assert.ok(Number.isFinite(z(sheet)), '.map-sheet 에 z-index 가 없다');
+  assert.ok(z(actions) < z(sheet),
+    `지도(0) < 버튼(${z(actions)}) < 시트(${z(sheet)}) 순서라야 접었을 땐 보이고 펼치면 덮인다`);
+});
+
 test('지도의 z-index 가 시트 위로 새지 않는다', () => {
   // position:absolute + z-index:auto 는 쌓임 맥락을 만들지 않는다. 그래서
   // 지도 안의 로딩 막(z-index: 20)이 무대의 쌓임 맥락에 그대로 참여해
