@@ -170,6 +170,12 @@ body.stage-map {
   cursor: pointer;
 }
 
+/* 감추는 일은 hidden 속성이 한다. 인라인 display 를 쓰면 어떤 CSS 규칙도
+   이기지 못해서, 화면마다 다른 배치를 줄 수 없다. */
+.content[hidden] {
+  display: none;
+}
+
 .content {
   padding: 3rem 2rem;
   flex: 1;
@@ -567,7 +573,10 @@ html[data-route="away"] #page-home {
 body.stage-map {
   min-height: 100vh;
   min-height: 100dvh;
-  place-items: stretch;
+  /* 세로는 늘려서 액자가 화면을 채우게, 가로는 가운데로. stretch 하나만
+     주면 넓은 화면에서 액자(max-width: 1200px)가 왼쪽에 붙고 오른쪽에
+     빈 지면이 남는다. */
+  place-items: stretch center;
 }
 
 body.stage-map .app-container {
@@ -576,7 +585,7 @@ body.stage-map .app-container {
   border: 0;
 }
 
-body.stage-map .content {
+body.stage-map .content:not([hidden]) {
   /* 지도가 배경인데 안쪽 여백이 남으면 지도가 액자 속 카드로 보인다. */
   padding: 0;
   display: flex;

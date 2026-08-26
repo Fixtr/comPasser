@@ -258,8 +258,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pageView = document.getElementById('page-view');
     const pageProfile = document.getElementById('page-profile');
 
-    // Always show app-content container now that we control child pages
-    if (appContent) appContent.style.display = 'block';
+    // 보임/숨김만 여기서 정하고 배치는 CSS 가 갖는다.
+    // 예전에는 style.display = 'block' 을 박았는데, 인라인은 어떤 CSS 규칙도
+    // 이기기 때문에 결과 화면에서 이 상자를 flex 로 만들 수가 없었다 —
+    // 무대가 남은 높이를 못 받고 바닥값 560px 에 머물렀다.
+    if (appContent) appContent.hidden = false;
 
     // UI Buttons and Elements
     const logoutBtn = document.getElementById('logout-btn');
@@ -361,7 +364,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Evaluate Route
         if (path.startsWith('/view')) {
             if (pageView) {
-                pageView.style.display = 'grid'; // Grid layout applied
+                // 무대의 자식(지도·시트)은 절대 배치라 grid 가 할 일이 없다.
+                pageView.style.display = 'block';
                 pageView.classList.remove('hidden-view');
                 window.dispatchEvent(new Event('resize')); // Fix map sizing
             }

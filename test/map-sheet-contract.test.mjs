@@ -119,9 +119,27 @@ test('무대는 flex 사슬이 끊겨도 사라지지 않는다', () => {
   assert.match(floor[1], /vh|px/, '뷰포트를 기준으로 한 바닥값이어야 한다');
 });
 
+test('보임·숨김을 인라인 display 로 하지 않는다', () => {
+  // 인라인 style 은 어떤 CSS 규칙도 이긴다. 실제로 main.js 가 .content 에
+  // display:block 을 박아 두는 바람에, 결과 화면에서 그 상자를 flex 로 만들
+  // 수가 없었다 — 무대가 남은 높이를 못 받고 바닥값에 머물렀다.
+  // 브라우저에서 직접 재 보기 전까지 테스트도 눈도 잡지 못한 자리다.
+  assert.ok(!/appContent\.style\.display/.test(main),
+    '.content 의 display 를 인라인으로 정하면 화면마다 다른 배치를 줄 수 없다');
+  assert.match(main, /appContent\.hidden\s*=/, 'hidden 속성으로 감추지 않는다');
+  assert.match(css, /\.content\[hidden\]\s*\{[^}]*display\s*:\s*none/,
+    '.content[hidden] 규칙이 없으면 hidden 이 무시된다');
+});
+
+test('넓은 화면에서 액자가 가운데 온다', () => {
+  const rules = [...css.matchAll(/body\.stage-map\s*\{([^}]*)\}/g)].map(m => m[1]).join('\n');
+  assert.match(rules, /place-items\s*:\s*stretch\s+center/,
+    'stretch 만 주면 액자가 왼쪽에 붙고 오른쪽에 빈 지면이 남는다');
+});
+
 test('무대에서는 액자 여백을 걷는다', () => {
   assert.match(main, /stage-map/, '결과 화면에서 무대 표시를 붙이지 않는다');
-  assert.match(css, /body\.stage-map\s+\.content\s*\{[^}]*padding\s*:\s*0/,
+  assert.match(css, /body\.stage-map\s+\.content(?::not\(\[hidden\]\))?\s*\{[^}]*padding\s*:\s*0/,
     '지도가 배경인데 안쪽 여백이 남으면 지도가 액자 속 카드로 보인다');
 });
 
