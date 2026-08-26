@@ -67,9 +67,16 @@ test('비용은 금액만, 단서는 따로 — 라벨과 겹치지 않게', () 
   const pass = buildBoardingPass({ plan, dayIndex: 0, title: '도쿄 여행' });
   // 티켓에는 '비용' 라벨이 이미 붙는다. 값에 '1인 예상 비용' 이 또 들어가면
   // 같은 말이 두 번 적힌다.
-  assert.match(pass.cost, /^₩[\d,]+(~₩[\d,]+)?$/);
   assert.ok(!/예상|비용|per person/i.test(pass.cost));
   assert.equal(pass.costNote, null);
+});
+
+test('도쿄 일정의 티켓에는 엔이 찍힌다', () => {
+  // 위 픽스처의 금액은 "2,000엔"·"3,000엔" 이다. 예전에는 티켓이 원화
+  // 기호를 직접 만들어 붙여서 ₩5,000 으로 나갔다 — 공유받은 사람에게
+  // 열 배쯤 어긋난 금액이 간 셈이다.
+  const pass = buildBoardingPass({ plan, dayIndex: 0, title: '도쿄 여행' });
+  assert.equal(pass.cost, '¥5,000');
 });
 
 test('합계에 못 넣은 곳이 있으면 그 사실을 남긴다', () => {

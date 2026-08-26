@@ -14,7 +14,7 @@
  * 검사할 수 있고, 나중에 서버에서 이미지를 만들게 되어도 그대로 쓴다.
  */
 
-import { summarizeCosts } from './itinerary-cost.mjs';
+import { summarizeCosts, formatCostAmount } from './itinerary-cost.mjs';
 
 /** 티켓 한 장에 들어가는 최대 줄 수. 넘치면 잘라내되 몇 곳인지 남긴다. */
 export const MAX_ROWS = 8;
@@ -61,9 +61,11 @@ export function formatMinutes(minutes, language = 'ko') {
  */
 function describeCost(stops, language) {
   const summary = summarizeCosts(stops);
-  if (!summary || summary.knownCount === 0) return { cost: null, costNote: null };
-  const won = n => `₩${n.toLocaleString('ko-KR')}`;
-  const cost = summary.min === summary.max ? won(summary.min) : `${won(summary.min)}~${won(summary.max)}`;
+  // 돈을 글자로 바꾸는 일은 itinerary-cost 한 곳이 안다. 예전에는 여기서도
+  // `₩${n.toLocaleString()}` 을 따로 적고 있었는데, 그 탓에 엔화 일정의
+  // 티켓에도 원화 기호가 찍혔다.
+  const cost = formatCostAmount(summary, language);
+  if (cost === null) return { cost: null, costNote: null };
   const note = summary.unknownCount === 0
     ? null
     : (language === 'en' ? `${summary.unknownCount} not priced` : `${summary.unknownCount}곳 미정`);
