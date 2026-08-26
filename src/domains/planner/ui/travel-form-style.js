@@ -135,6 +135,15 @@ export const travelFormStyles = `
           border-color: var(--cp-ink);
         }
 
+        /* 검사에 걸린 칸. 색은 지도 마커 규칙에만 쓰므로 빨강을 못 쓴다 —
+           왼쪽 변만 잉크로 굵게 세워 "여기다"를 말한다. 초점 표시(outline)와
+           겹쳐도 서로를 가리지 않게 테두리 쪽을 쓴다. */
+        input[aria-invalid="true"],
+        select[aria-invalid="true"] {
+          border-color: var(--cp-ink);
+          border-left-width: 3px;
+        }
+
         /* 선호 단계에서 날짜를 이미 고른 경우 날짜 칸은 읽기 전용이 된다.
            예전에는 이 회색을 travel-form.js 가 인라인으로 칠했다. */
         input[readonly] {

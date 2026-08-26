@@ -3,9 +3,31 @@ import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { icons } from '../../../ui/icons.js';
-import { getFormData } from './travel-form-data.js';
+import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
+import { findIncompleteAnchor } from '../services/anchor-validation.mjs';
+
+/** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
+const ANCHOR_FIELD_SELECTOR = {
+  name: '.anchor-name',
+  time: '.anchor-time',
+  endTime: '.anchor-end-time'
+};
+
+/**
+ * 사용자가 화면에서 읽은 그 이름으로 칸을 부른다.
+ * `aria-label` → 같은 묶음의 <label> → placeholder 순. 셋 다 없으면 이름 없이 말한다
+ * ("'' 칸을 채워 주세요" 보다는 스크롤과 초점이 더 정확한 안내다).
+ */
+function fieldLabelOf(control) {
+  if (!control) return '';
+  const aria = control.getAttribute?.('aria-label');
+  if (aria && aria.trim()) return aria.trim();
+  const label = control.closest?.('.form-group')?.querySelector('label');
+  if (label && label.textContent.trim()) return label.textContent.trim();
+  return control.getAttribute?.('placeholder')?.trim() || '';
+}
 
 
 
@@ -432,17 +454,17 @@ export default class TravelForm extends HTMLElement {
       <button type="button" class="remove-btn" title="${t('removeAnchorLabel')}" aria-label="${t('removeAnchorLabel')}">×</button>
       <div class="form-group">
         <label data-i18n="anchorNameLabel">${t('anchorNameLabel')}</label>
-        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" aria-label="${t('anchorNameLabel')}" required>
+        <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" aria-label="${t('anchorNameLabel')}">
       </div>
       ${daySelectorHTML}
       <div class="row-3">
         <div class="form-group">
           <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
-          <input type="time" class="anchor-time" required>
+          <input type="time" class="anchor-time">
         </div>
         <div class="form-group">
           <label data-i18n="anchorEndLabel">${t('anchorEndLabel')}</label>
-          <input type="time" class="anchor-end-time" required>
+          <input type="time" class="anchor-end-time">
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
@@ -664,8 +686,31 @@ export default class TravelForm extends HTMLElement {
 
     const form = this.shadowRoot.getElementById('travel-form');
 
+    // 브라우저 기본 검사는 Shadow DOM 안에서 사실상 보이지 않는다.
+    // `invalid` 는 거품처럼 위로 오르지 않으므로 폼에서 받으려면 캡처 단계여야 한다.
+    // 무엇보다 걸린 칸이 접힌 아래에 있으면(실측: top 887 / 화면 높이 932)
+    // 사용자 눈에는 버튼이 죽은 것으로 보인다. 그래서 우리가 그 칸까지 데려간다.
+    let revealedThisRound = false;
+    form.addEventListener('invalid', (e) => {
+      e.preventDefault(); // 믿을 수 없는 기본 말풍선 대신 우리 안내를 쓴다
+      // 한 번 누르면 걸린 칸마다 하나씩 쏜다 — 첫 칸만 데려가고 나머지는 흘린다.
+      // (그 무더기는 한 작업 안에서 연달아 오므로 마이크로태스크면 충분히 뒤다)
+      if (revealedThisRound) return;
+      revealedThisRound = true;
+      queueMicrotask(() => { revealedThisRound = false; });
+
+      const control = e.target;
+      const label = fieldLabelOf(control);
+      const message = control.validity && !control.validity.valueMissing && control.validationMessage
+        ? `${label}: ${control.validationMessage}`
+        : t('missingFieldError').replace('{0}', label);
+      this._revealInvalidField(control, message);
+    }, true);
+
     // Auto-save form data on any input
-    form.addEventListener('input', () => {
+    form.addEventListener('input', (e) => {
+      // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
+      if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
       sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
     });
     
@@ -719,7 +764,7 @@ export default class TravelForm extends HTMLElement {
       // 4. Clear specific error classes or inline borders just in case
       const allInputs = this.shadowRoot.querySelectorAll('input');
       allInputs.forEach(input => {
-        input.classList.remove('error');
+        input.removeAttribute('aria-invalid');
         input.style.borderColor = '';
       });
 
@@ -794,6 +839,21 @@ export default class TravelForm extends HTMLElement {
         }
       }
 
+      // 손댔지만 덜 찬 고정 일정. 화면에 보이는 줄을 그대로 읽는다 —
+      // plannerRequest.anchorSchedules 는 빈 줄이 이미 걸러져 번호가 어긋난다.
+      const anchorRows = this._readAnchorRows();
+      const incomplete = findIncompleteAnchor(anchorRows);
+      if (incomplete) {
+        const control = anchorRows[incomplete.index].el
+          .querySelector(ANCHOR_FIELD_SELECTOR[incomplete.field]);
+        this._revealInvalidField(control, t('incompleteAnchorError')
+          .replace('{0}', String(incomplete.index + 1))
+          .replace('{1}', fieldLabelOf(control)));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
+
       for (const anchor of plannerRequest.anchorSchedules) {
         // Skip empty anchors if they aren't filled yet
         if (!anchor.time || !anchor.endTime) continue;
@@ -837,6 +897,36 @@ export default class TravelForm extends HTMLElement {
         composed: true // Allows event to pass through shadow DOM boundary
       }));
     });
+  }
+
+  /**
+   * 화면에 보이는 순서 그대로의 고정 일정 줄. 빈 줄도 세어 둔다 —
+   * 사용자에게 "두 번째 고정 일정"이라고 말하려면 번호가 화면과 같아야 한다.
+   */
+  _readAnchorRows() {
+    return Array.from(this.shadowRoot.querySelectorAll('.anchor-item')).map((el) => ({
+      el,
+      name: el.querySelector('.anchor-name')?.value || '',
+      time: el.querySelector('.anchor-time')?.value || '',
+      endTime: el.querySelector('.anchor-end-time')?.value || '',
+      location: getAutocompleteValue(el.querySelector('.anchor-location'))
+    }));
+  }
+
+  /**
+   * 막혔다는 사실을 눈에 보이게 한다: 말로 한 번(토스트), 자리로 한 번(스크롤·초점),
+   * 그리고 그 칸에 표시를 남긴다(aria-invalid — 보조기기도 읽는다).
+   */
+  _revealInvalidField(control, message) {
+    if (message) showErrorToast(message);
+    if (!control) return;
+    // 표시는 늘 한 칸에만. 앞서 걸렸던 칸을 그대로 두면 "지금 막고 있는 것"이
+    // 둘로 보인다 — 값이 코드로 바뀌어 input 이 안 뜬 경우에도 남는다.
+    this.shadowRoot.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+    control.setAttribute('aria-invalid', 'true');
+    control.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // 스크롤과 다투지 않게 초점만 옮긴다.
+    control.focus({ preventScroll: true });
   }
 
   _resetSubmitButton(btn) {
