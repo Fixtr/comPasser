@@ -207,6 +207,13 @@
     </section>
   </main>
 
+  <!-- 하단 탭바.
+       기본은 **숨김**이다. 여기 있어야 할지는 로그인 여부와 경로에 달렸는데
+       그건 JS 만 안다 — 마크업이 먼저 보이면 로그아웃한 사람의 랜딩에 남의
+       메뉴가 잠깐 뜬다. 켜고 끄는 것은 src/app/tab-bar.mjs 의 판단이고,
+       배치는 style.css 의 .tab-bar 가 맡는다(인라인 display 는 쓰지 않는다). -->
+  <nav id="tab-bar" class="tab-bar" aria-label="주요 화면" data-i18n-aria="tabBarLabel" hidden></nav>
+
   <!-- Entry point for JS -->
   <script type="module" src="/src/app/main.js"></script>
 </body>

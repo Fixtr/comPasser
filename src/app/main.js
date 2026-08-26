@@ -21,6 +21,8 @@ import { showErrorToast } from '../utils/toast.js';
 import { applyRouteTheme, releaseRouteTheme } from '../utils/route-theme.js';
 import { initMapSheet } from './map-sheet.js';
 import { framePadding } from '../domains/map/services/map-framing.mjs';
+import { TABS, shouldShowTabBar, activeTabId } from './tab-bar.mjs';
+import { icons } from '../ui/icons.js';
 import { decideRoute, isHomePath } from './route-decision.mjs';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
@@ -336,6 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 결과 화면에서는 액자 여백을 걷어 지도가 무대를 채우게 한다.
         // 여백이 남으면 지도가 배경이 아니라 액자 속 카드로 보인다.
         document.body.classList.toggle('stage-map', path.startsWith('/view'));
+        syncTabBar(path, user);
 
         // 결과·지도 화면만 어둡게 한다(utils/route-theme.js).
         // **가드 뒤에** 부른다. 앞에서 부르면 로그인으로 튕겨 나갈 주소에도
@@ -623,6 +626,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.warn('[Auto-fill] 지금 보고 있는 일정의 조건을 찾지 못했습니다.');
             }
             window.navigate('/plan');
+        });
+    }
+
+    // ====== 하단 탭바 ======
+    // 폰에서 헤더는 엄지가 닿지 않는 자리다. 자주 오가는 세 곳을 아래로 내린다.
+    // 보일지 말지와 어느 탭을 켤지는 tab-bar.mjs 가 정한다 — 여기서는 그리기만.
+    const tabBar = document.getElementById('tab-bar');
+    if (tabBar) {
+        // 진짜 <a> 로 만든다. 가운데 클릭·새 탭 열기 같은 브라우저 기본 동작이
+        // 공짜로 따라오고, 스크린리더도 "링크"로 읽는다.
+        for (const tab of TABS) {
+            const link = document.createElement('a');
+            link.href = tab.path;
+            link.dataset.tab = tab.id;
+            const icon = document.createElement('span');
+            icon.className = 'tab-icon';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.innerHTML = icons[tab.icon] || '';
+            const label = document.createElement('span');
+            label.dataset.i18n = tab.labelKey;
+            label.textContent = t(tab.labelKey);
+            link.append(icon, label);
+            link.addEventListener('click', (event) => {
+                // 새 탭으로 열려는 사람의 의도는 가로채지 않는다.
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                event.preventDefault();
+                window.navigate(tab.path);
+            });
+            tabBar.appendChild(link);
+        }
+        // 라우터가 이미 한 번 돌았을 수 있다(그때는 링크가 없었다).
+        syncTabBar(window.location.pathname, getCurrentUser());
+    }
+
+    /**
+     * 경로와 로그인 상태가 바뀔 때마다 탭바를 맞춘다.
+     *
+     * 요소를 **여기서 찾는다.** 바깥의 `const tabBar` 를 그대로 쓰다가
+     * 실제 빌드에서 `Cannot access '…' before initialization` 으로 터졌다 —
+     * 이 함수는 호이스팅돼 라우터가 먼저 부르는데, 그 `const` 는 아직
+     * 초기화 전(TDZ)이었다. 순서에 기대지 않는 편이 안전하다.
+     */
+    function syncTabBar(path, user) {
+        const tabBar = document.getElementById('tab-bar');
+        if (!tabBar) return;
+        const show = shouldShowTabBar({ path, user });
+        // 인라인 display 는 어떤 CSS 규칙도 이긴다 — 결과 화면 무대에서 한 번 데었다.
+        tabBar.hidden = !show;
+        document.body.classList.toggle('has-tab-bar', show);
+        if (!show) return;
+        const active = activeTabId(path);
+        tabBar.querySelectorAll('a').forEach((link) => {
+            if (link.dataset.tab === active) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
         });
     }
 

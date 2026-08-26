@@ -922,3 +922,89 @@ body.stage-map #page-view {
     width: min(30rem, 42%);
   }
 }
+
+/* ====== 하단 탭바 ======
+   판단(보일 자리·현재 탭)은 src/app/tab-bar.mjs 가 하고, 여기서는 모양만 정한다.
+
+   왜 아래에 두나: 폰에서 헤더는 엄지가 닿지 않는 자리다. 자주 오가는 세 곳
+   (새 일정·내 일정·프로필)을 엄지 영역으로 내린다. 결과 화면에서는 뜨지
+   않는다 — 그 화면의 바닥은 일정 시트가 갖는다. */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  /* 아이폰 홈 인디케이터에 깔리지 않게. 없는 기기에서는 0 이다. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--cp-paper);
+  /* 이 방향에도 그림자를 쓰지 않는다. 가르는 것은 실선 한 겹과 불투명한 지면색뿐. */
+  border-top: var(--cp-hair) solid var(--cp-rule-hard);
+  border-radius: var(--cp-radius);
+}
+
+.tab-bar[hidden] {
+  display: none;
+}
+
+.tab-bar a {
+  flex: 1;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.25rem;
+  border: none;
+  border-radius: var(--cp-radius);
+  background: transparent;
+  color: var(--cp-ink-2);
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background 0.12s linear, color 0.12s linear;
+}
+
+.tab-bar a svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 고른 탭은 **잉크 반전**으로 말한다. 색으로 말하면 이 앱에서 색이 뜻하는
+   것(지도 마커 규칙)과 겹친다 — 일정 시트의 일차 탭과 같은 어휘다. */
+.tab-bar a[aria-current="page"] {
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+}
+
+.tab-bar a:focus-visible {
+  outline: 2px solid var(--cp-ink);
+  outline-offset: -2px;
+}
+
+/* 본문 마지막 줄이 막대 뒤에 깔리면 그 버튼은 영영 못 누른다. */
+body.has-tab-bar .content {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+/* 프로필 화면은 헤더를 감추고 자기 사이드바를 쓴다. 그 화면에서도 탭바는
+   나가는 길이므로 남긴다 — 대신 그만큼 아래를 비운다. */
+body.has-tab-bar #page-profile {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 넓은 화면에서는 엄지가 화면 아래에 있지 않다. 탭바를 가운데로 모아
+   폭 전체를 가로지르는 막대가 되지 않게 한다. */
+@media (min-width: 900px) {
+  .tab-bar {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(30rem, 90vw);
+    border: var(--cp-hair) solid var(--cp-rule-hard);
+    border-bottom: none;
+  }
+}
