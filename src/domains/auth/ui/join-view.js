@@ -122,13 +122,13 @@ export default class JoinView extends HTMLElement {
         passwordStrength.textContent = '';
         passwordStrength.removeAttribute('data-strength');
       } else if (val.length < 6) {
-        passwordStrength.textContent = '위험 (6자 이상 필요)';
+        passwordStrength.textContent = t('pwWeak');
         passwordStrength.dataset.strength = 'weak';
       } else if (val.length >= 8 && /[A-Za-z]/.test(val) && /[0-9]/.test(val)) {
-        passwordStrength.textContent = '안전';
+        passwordStrength.textContent = t('pwStrong');
         passwordStrength.dataset.strength = 'strong';
       } else {
-        passwordStrength.textContent = '보통';
+        passwordStrength.textContent = t('pwFair');
         passwordStrength.dataset.strength = 'medium';
       }
     });
@@ -148,12 +148,12 @@ export default class JoinView extends HTMLElement {
       const password = passwordInput.value;
 
       if (!email || !password) {
-        errorMsg.textContent = '이메일과 비밀번호를 입력해주세요.';
+        errorMsg.textContent = t('emailPasswordRequired');
         errorMsg.style.display = 'block';
         return;
       }
       if (password.length < 6) {
-        errorMsg.textContent = '비밀번호는 6자 이상이어야 합니다.';
+        errorMsg.textContent = t('pwTooShort');
         errorMsg.style.display = 'block';
         return;
       }

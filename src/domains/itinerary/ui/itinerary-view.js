@@ -123,6 +123,15 @@ export default class ItineraryView extends HTMLElement {
   updateTexts() {
     applyTranslations(this.shadowRoot);
 
+    // 값이 섞인 문장(종료 시각·초과 시간·비용·이동 안내)은 사전 키 하나로
+    // 되돌릴 수 없다 — 상태가 그대로 있으니 그 자리에서 다시 그린다.
+    // 실제로 언어를 바꿔도 이 경고만 한국어로 남아 있었다(사용자가 잡아 줬다).
+    if (this.currentItinerary) {
+      this.refreshEndTimeWarning?.();
+      this.refreshTransitNotice?.();
+      this.refreshCostSummary?.();
+    }
+
     if (this.currentItinerary && this.currentItinerary.days && this.currentItinerary.days.length > 0) {
       const dayData = this.currentItinerary.days[0];
       const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
@@ -238,7 +247,7 @@ export default class ItineraryView extends HTMLElement {
 
         const originalText = shareBtn.textContent;
         try {
-          shareBtn.textContent = "링크 생성 중...";
+          shareBtn.textContent = t('creatingLink');
           shareBtn.disabled = true;
 
           const docId = await createSharedItinerary(this.currentItinerary);
@@ -266,7 +275,7 @@ export default class ItineraryView extends HTMLElement {
 
         const originalText = kakaoBtn.textContent;
         try {
-          kakaoBtn.textContent = "링크 생성 중...";
+          kakaoBtn.textContent = t('creatingLink');
           kakaoBtn.disabled = true;
 
           const docId = await createSharedItinerary(this.currentItinerary);
@@ -853,21 +862,26 @@ export default class ItineraryView extends HTMLElement {
     const hours = Math.floor(overflowMinutes / 60);
     const mins = overflowMinutes % 60;
     const amount = hours > 0
-      ? (mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`)
-      : `${mins}분`;
+      ? (mins > 0
+          ? t('durationHoursMinutes').replace('{0}', hours).replace('{1}', mins)
+          : t('durationHours').replace('{0}', hours))
+      : t('durationMinutes').replace('{0}', mins);
 
     // 경고만 띄우면 사용자가 직접 폼으로 돌아가 다시 만들어야 한다.
     // 그 자리에서 해결할 수 있는 버튼을 함께 준다.
     box.innerHTML = '';
     const text = document.createElement('span');
     text.innerHTML = icons.warn;
-    text.appendChild(document.createTextNode(` 실제 이동시간을 반영하면 종료 예정 시각(${dayEndTime})보다 약 ${amount} 늦게 끝납니다.`));
+    text.appendChild(document.createTextNode(' ' + t('endTimeOverflowWarning')
+      .replace('{0}', dayEndTime)
+      .replace('{1}', amount)));
     box.appendChild(text);
 
     const action = document.createElement('button');
     action.type = 'button';
     action.className = 'end-time-fix-btn';
-    action.textContent = t('trimScheduleBtn') || '마지막 일정 줄여서 맞추기';
+    action.dataset.i18n = 'trimScheduleBtn';
+    action.textContent = t('trimScheduleBtn');
     action.addEventListener('click', () => this.trimActiveDayToEndTime());
     box.appendChild(action);
 

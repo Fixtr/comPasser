@@ -1,6 +1,7 @@
 import { verifyEmailCode } from '../services/firebase-auth.js';
 import { authStyles } from './auth-style.js';
 import { icons } from '../../../ui/icons.js';
+import { t, applyTranslations } from '../../../utils/i18n.js';
 
 export default class VerifyView extends HTMLElement {
   constructor() {
@@ -10,6 +11,13 @@ export default class VerifyView extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    // 언어를 바꾸면 이 화면도 따라와야 한다.
+    this._i18nHandler = () => applyTranslations(this.shadowRoot);
+    window.addEventListener('i18n-changed', this._i18nHandler);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('i18n-changed', this._i18nHandler);
   }
 
   render() {
@@ -19,15 +27,15 @@ export default class VerifyView extends HTMLElement {
       <div id="status-icon" class="status-icon"></div>
 
       <div class="header-section">
-        <h2 id="title-text">이메일 인증 진행 중...</h2>
-        <p id="subtitle-text" class="subtitle">링크 유효성을 확인하고 있습니다. 잠시만 기다려주세요.</p>
+        <h2 id="title-text" data-i18n="verifyPendingTitle">${t('verifyPendingTitle')}</h2>
+        <p id="subtitle-text" class="subtitle" data-i18n="verifyPendingDesc">${t('verifyPendingDesc')}</p>
       </div>
       
       <div id="loading-spinner" class="spinner"></div>
       
       <div id="error-msg"></div>
 
-      <button id="go-login-btn" class="auth-btn">로그인하러 가기</button>
+      <button id="go-login-btn" class="auth-btn" data-i18n="verifyGoLoginBtn">${t('verifyGoLoginBtn')}</button>
     `;
 
     this.shadowRoot.getElementById('go-login-btn').addEventListener('click', () => {
@@ -52,9 +60,9 @@ export default class VerifyView extends HTMLElement {
     if (!oobCode) {
       spinner.style.display = 'none';
       setStatus('danger', icons.warn);
-      titleText.textContent = '유효하지 않은 요청';
-      subtitleText.textContent = '인증 코드가 누락되었습니다.';
-      errorMsg.textContent = '잘못된 접근입니다.';
+      titleText.textContent = t('verifyBadRequestTitle');
+      subtitleText.textContent = t('verifyBadRequestDesc');
+      errorMsg.textContent = t('verifyBadAccess');
       errorMsg.style.display = 'block';
       goLoginBtn.style.display = 'inline-block';
       return;
@@ -64,15 +72,15 @@ export default class VerifyView extends HTMLElement {
       await verifyEmailCode(oobCode);
       spinner.style.display = 'none';
       setStatus('ok', icons.check);
-      titleText.textContent = '이메일 인증이 완료되었습니다!';
-      subtitleText.textContent = '이제 로그인하여 모든 기능을 이용하실 수 있습니다.';
+      titleText.textContent = t('verifyDoneTitle');
+      subtitleText.textContent = t('verifyDoneDesc');
       goLoginBtn.style.display = 'inline-block';
     } catch (err) {
       console.error('Email verification error:', err);
       spinner.style.display = 'none';
       setStatus('danger', icons.warn);
-      titleText.textContent = '인증 실패';
-      subtitleText.textContent = '이메일 인증 처리에 실패했습니다.';
+      titleText.textContent = t('verifyFailedTitle');
+      subtitleText.textContent = t('verifyFailedDesc');
       let msg = err.message;
       if (err.code === 'auth/invalid-action-code') {
         msg = '이미 만료되었거나 사용된 인증 코드입니다.';

@@ -175,7 +175,7 @@ function showWelcomeOverlay() {
     // 화면 전체를 덮는 모달이므로 역할과 이름을 알려준다.
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', 'ComPasser 시작 안내');
+    overlay.setAttribute('aria-label', t('welcomeOverlayLabel'));
     // 모양은 style.css 의 .welcome-overlay 가 맡는다. 예전에는 여기서
     // cssText 로 칠했는데, 그 안에 보라 버튼과 backdrop-filter 가 들어 있어
     // 계약 밖에서 조용히 살아남았다.
@@ -729,12 +729,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (travelFormView) travelFormView.style.display = 'none';
 
             loadingSpinner.style.display = 'block';
-            loadingText.textContent = 'AI가 최적의 경로를 분석하고 있습니다...';
+            loadingText.textContent = t('loadingText');
             delete loadingText.dataset.tone;
-            loadingSubtext.textContent = '잠시만 기다려주세요.';
+            loadingSubtext.textContent = t('loadingSubtext');
             loadingSubtext.style.display = 'block';
             showResultsBtn.style.display = 'none';
-            showResultsBtn.textContent = '경로 확인하기';
+            showResultsBtn.textContent = t('showResultsBtn');
 
             loadingTransitionView.style.display = 'flex';
             void loadingTransitionView.offsetWidth; // Reflow
@@ -754,7 +754,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success State! Delay routing so user can process visual cue
                 loadingSpinner.style.display = 'none';
-                loadingText.textContent = '경로 설계가 완료되었습니다!';
+                loadingText.textContent = t('planReadyText');
                 loadingSubtext.style.display = 'none';
                 stopLoadingMessageRotation(); // Stop rotation on success
                 showResultsBtn.style.display = 'inline-block';
@@ -768,13 +768,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error("Failed to generate itinerary:", error);
 
                 loadingSpinner.style.display = 'none';
-                loadingText.textContent = '일정을 생성하지 못했습니다.';
+                loadingText.textContent = t('planFailedText');
                 loadingText.dataset.tone = 'danger';
-                loadingSubtext.textContent = error.message || '다시 시도해주세요.';
+                loadingSubtext.textContent = error.message || t('tryAgainText');
                 loadingSubtext.style.display = 'block';
                 stopLoadingMessageRotation(); // Stop rotation on error
 
-                showResultsBtn.textContent = '돌아가기';
+                showResultsBtn.textContent = t('goBackBtn');
                 showResultsBtn.style.display = 'inline-block';
                 showResultsBtn.onclick = () => {
                     // Safe reset within #page-plan

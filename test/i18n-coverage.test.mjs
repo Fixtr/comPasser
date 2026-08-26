@@ -27,6 +27,20 @@ const MARKUP_FILES = [
   'src/domains/planner/ui/preference-view.js',
   'src/domains/planner/ui/travel-form.js',
   'src/domains/itinerary/ui/itinerary-view.js',
+  'src/domains/auth/ui/verify-view.js',
+  'src/domains/profile/ui/profile-view.js',
+];
+
+/** 마크업이 아니라 **코드가 직접 써 넣는** 글자가 있는 파일들. */
+const SCRIPTED_FILES = [
+  'src/app/main.js',
+  'src/domains/auth/ui/login-view.js',
+  'src/domains/auth/ui/join-view.js',
+  'src/domains/auth/ui/verify-view.js',
+  'src/domains/planner/ui/preference-view.js',
+  'src/domains/planner/ui/travel-form.js',
+  'src/domains/itinerary/ui/itinerary-view.js',
+  'src/domains/profile/ui/profile-view.js',
 ];
 
 /**
@@ -105,6 +119,26 @@ function maskTemplates(source) {
   return { masked: mask.join(''), ranges };
 }
 
+/**
+ * 한 줄에서 `${...}` 를 걷어 낸다. 그 안은 `t()` 의 몫이라 검사 대상이 아니다.
+ * 중첩된 템플릿 때문에 정규식으로는 못 걷어 내므로 중괄호를 센다.
+ */
+function stripExpressions(line) {
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (depth === 0 && ch === '$' && line[i + 1] === '{') { depth = 1; i += 1; continue; }
+    if (depth > 0) {
+      if (ch === '{') depth += 1;
+      else if (ch === '}') depth -= 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
 /**
@@ -166,3 +200,38 @@ test('쓰이는 data-i18n 키가 두 사전에 모두 있다', () => {
   assert.deepEqual(missing, [],
     '두 사전에 모두 있어야 한다 — t() 는 없는 키를 만나면 키 이름을 그대로 화면에 찍는다:\n' + missing.join('\n'));
 });
+
+/**
+ * 마크업만 보면 절반만 본 것이다.
+ *
+ * 사용자가 실제 화면에서 잡아 준 것이 이 종류였다 — 종료 시각 경고 문장이
+ * 영어 화면에 한국어로 떠 있었는데, 그 글자는 마크업이 아니라
+ * `document.createTextNode(\` 실제 이동시간을 …\`)` 로 **코드가 직접** 만들고
+ * 있었다. 마크업만 훑는 검사에는 통째로 안 보인다.
+ *
+ * 그래서 글자를 화면에 써 넣는 자리(`textContent`·`innerText`·`innerHTML`·
+ * `createTextNode`·`setAttribute('aria-label'|'title'|'placeholder')`)에 한국어
+ * 리터럴이 있으면 걸러 낸다. `t(` 가 같은 줄에 있으면 사전을 거친 것으로 본다.
+ */
+const WRITE_SITES = /(createTextNode|textContent|innerText|innerHTML|\.setAttribute\(\s*['"](?:aria-label|title|placeholder)['"])/;
+
+function scriptedKorean(source) {
+  const found = [];
+  stripComments(source).split('\n').forEach((line, index) => {
+    if (!WRITE_SITES.test(line)) return;
+    if (/\bt\(/.test(line)) return;              // 사전을 거치는 줄
+    if (EXEMPT_LINE.test(line)) return;
+    if (/langToggleBtn\.textContent/.test(line)) return;  // 토글은 자기 자신을 번역하지 않는다
+    const bare = stripExpressions(line);
+    if (/[가-힣]/.test(bare)) found.push(`${index + 1}: ${line.trim().slice(0, 76)}`);
+  });
+  return found;
+}
+
+for (const file of SCRIPTED_FILES) {
+  test(`${file} — 코드가 써 넣는 글자도 사전을 거친다`, () => {
+    const lines = scriptedKorean(read(file));
+    assert.deepEqual(lines, [],
+      `영어로 바꿔도 한국어로 남는 자리 ${lines.length}곳:\n` + lines.join('\n'));
+  });
+}

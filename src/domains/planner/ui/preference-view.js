@@ -474,10 +474,10 @@ export default class PreferenceView extends HTMLElement {
     // Step 1 check
     if (this.selectedDates && this.selectedDates.length > 0) {
       nextStepBtn.disabled = false;
-      step1Helper.textContent = '날짜가 선택되었습니다. 다음으로 이동하세요.';
+      step1Helper.textContent = t('prefStep1Done');
     } else {
       nextStepBtn.disabled = true;
-      step1Helper.textContent = '시작일과 기간을 선택해 주세요';
+      step1Helper.textContent = t('prefStep1Helper');
     }
 
     // Step 2 check
@@ -486,10 +486,12 @@ export default class PreferenceView extends HTMLElement {
       // 카드에 적힌 것과 같은 말을 써야 한다 — 두 곳에 따로 적으면 한쪽만 번역된다.
       const themeLabels = { food: t('themeFood'), activity: t('themeActivity'), healing: t('themeHealing'), photo: t('themePhoto') };
       const budgetLabels = { flex: t('budgetFlex'), standard: t('budgetStandard'), budget: t('budgetSaver') };
-      step2Helper.textContent = `${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 설계합니다`;
+      step2Helper.textContent = t('prefStyleSummary')
+          .replace('{0}', themeLabels[this.selectedTheme])
+          .replace('{1}', budgetLabels[this.selectedBudget]);
     } else {
       submitBtn.disabled = true;
-      step2Helper.textContent = '테마와 예산을 모두 선택해 주세요';
+      step2Helper.textContent = t('prefStep2Helper');
     }
   }
 

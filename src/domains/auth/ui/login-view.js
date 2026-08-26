@@ -158,7 +158,7 @@ export default class LoginView extends HTMLElement {
       try {
         await loginWithGoogle();
       } catch (err) {
-        errorMsg.textContent = '로그인에 실패했습니다. 다시 시도해 주세요.';
+        errorMsg.textContent = t('loginFailed');
         errorMsg.style.display = 'block';
       } finally {
         googleBtn.disabled = false;
@@ -170,7 +170,7 @@ export default class LoginView extends HTMLElement {
       
       kakaoBtn.disabled = true;
       const originalHtml = kakaoBtn.innerHTML;
-      kakaoBtn.textContent = '로그인 처리 중...';
+      kakaoBtn.textContent = t('loggingIn');
       errorMsg.style.display = 'none';
 
       try {
@@ -193,7 +193,7 @@ export default class LoginView extends HTMLElement {
         window.navigate(targetPath);
       } catch (err) {
         console.error('[Kakao] Social login failed:', err.message || 'Unknown error');
-        errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+        errorMsg.textContent = t('socialLoginFailed');
         errorMsg.style.display = 'block';
       } finally {
         kakaoBtn.disabled = false;
@@ -207,13 +207,13 @@ export default class LoginView extends HTMLElement {
       const originalHtml = naverBtn.innerHTML;
       const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
       if (!clientId) {
-          errorMsg.textContent = '네이버 앱 키가 설정되지 않았습니다. (.env 파일을 확인해주세요)';
+          errorMsg.textContent = t('naverKeyMissing');
           errorMsg.style.display = 'block';
           return;
       }
 
       naverBtn.disabled = true;
-      naverBtn.textContent = '로그인 처리 중...';
+      naverBtn.textContent = t('loggingIn');
       errorMsg.style.display = 'none';
 
       const state = Math.random().toString(36).substring(2, 15);
@@ -230,7 +230,7 @@ export default class LoginView extends HTMLElement {
               window.removeEventListener('message', handlePopupMessage);
               
               if (e.data.state !== sessionStorage.getItem('naver_oauth_state')) {
-                  errorMsg.textContent = '네이버 로그인 상태 검증에 실패했습니다.';
+                  errorMsg.textContent = t('naverVerifyFailed');
                   errorMsg.style.display = 'block';
                   naverBtn.disabled = false;
                   naverBtn.innerHTML = originalHtml;
@@ -246,7 +246,7 @@ export default class LoginView extends HTMLElement {
                   window.navigate(targetPath);
               } catch (err) {
                   console.error('[Naver] Social login failed:', err.message || 'Unknown error');
-                  errorMsg.textContent = '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+                  errorMsg.textContent = t('socialLoginFailed');
                   errorMsg.style.display = 'block';
               } finally {
                   naverBtn.disabled = false;
@@ -260,7 +260,7 @@ export default class LoginView extends HTMLElement {
       const popupCheckInterval = setInterval(() => {
           if (popup && popup.closed) {
               clearInterval(popupCheckInterval);
-              if (naverBtn.disabled && naverBtn.textContent === '로그인 처리 중...') {
+              if (naverBtn.disabled && naverBtn.textContent === t('loggingIn')) {
                   naverBtn.disabled = false;
                   naverBtn.innerHTML = originalHtml;
               }
@@ -285,7 +285,7 @@ export default class LoginView extends HTMLElement {
       const password = passwordInput.value;
 
       if (!email || !password) {
-        errorMsg.textContent = '이메일과 비밀번호를 입력해주세요.';
+        errorMsg.textContent = t('emailPasswordRequired');
         errorMsg.style.display = 'block';
         return;
       }
@@ -314,7 +314,7 @@ export default class LoginView extends HTMLElement {
               showErrorToast("비밀번호를 여러 번 틀려 계정이 잠겼습니다. 나중에 다시 시도하거나 비밀번호를 재설정해주세요.", { duration: 5000 });
               break;
             default:
-              errorMsg.textContent = '로그인에 실패했습니다: ' + err.message;
+              errorMsg.textContent = t('loginFailedWith').replace('{0}', err.message);
               errorMsg.style.display = 'block';
           }
         }

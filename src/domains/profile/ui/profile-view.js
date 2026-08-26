@@ -6,7 +6,16 @@ import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
+import { t, applyTranslations } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
+
+/** 목록 자리에 한 줄짜리 안내를 놓는다(불러오는 중·실패·비어 있음). */
+function stateBlock(className, text) {
+  const box = document.createElement('div');
+  box.className = className;
+  box.textContent = text;
+  return box;
+}
 
 class ProfileView extends HTMLElement {
     constructor() {
@@ -24,11 +33,20 @@ class ProfileView extends HTMLElement {
         this.showCertificationInput = false;
     }
 
+    disconnectedCallback() {
+        window.removeEventListener('i18n-changed', this._i18nHandler);
+    }
+
     connectedCallback() {
         this.render();
         this.setupEventListeners();
         this.loadUserData();
         this.fetchItineraries();
+
+        // 언어를 바꾸면 이 화면도 따라와야 한다. 마크업의 data-i18n 은
+        // 첫 그림만 t() 로 채워지고, 이후 전환은 이 자리가 맡는다.
+        this._i18nHandler = () => applyTranslations(this.shadowRoot);
+        window.addEventListener('i18n-changed', this._i18nHandler);
 
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -87,9 +105,9 @@ class ProfileView extends HTMLElement {
 
         if (photoHeroEl) photoHeroEl.src = avatarUrl;
         if (photoSmallEl) photoSmallEl.src = avatarUrl;
-        if (nameEl) nameEl.textContent = user.displayName || '이름 없음';
-        if (emailEl) emailEl.textContent = user.email || '이메일 없음';
-        if (headerNameEl) headerNameEl.textContent = `반가워요, ${user.displayName || '사용자'}님!`;
+        if (nameEl) nameEl.textContent = user.displayName || t('noName');
+        if (emailEl) emailEl.textContent = user.email || t('noEmail');
+        if (headerNameEl) headerNameEl.textContent = t('profileGreeting').replace('{0}', user.displayName || t('someone'));
     }
 
     updateExtendedProfileUI() {
@@ -109,11 +127,11 @@ class ProfileView extends HTMLElement {
         if (field === 'phoneNumber' && this.showCertificationInput) {
             container.innerHTML = `
                 <div class="edit-mode-container certification-success">
-                    <div class="cert-msg">${icons.check}<span>인증이 완료되었습니다. 번호를 입력하고 저장하세요.</span></div>
-                    <input type="tel" id="input-phoneNumber" class="inline-input" value="${value || ''}" placeholder="번호 입력">
+                    <div class="cert-msg">${icons.check}<span data-i18n="phoneVerifiedHint">${t('phoneVerifiedHint')}</span></div>
+                    <input type="tel" id="input-phoneNumber" class="inline-input" value="${value || ''}" data-i18n-placeholder="phoneInputPlaceholder" placeholder="${t('phoneInputPlaceholder')}">
                     <div class="edit-actions">
-                        <button class="btn-save" data-field="phoneNumber">저장</button>
-                        <button class="btn-cancel" data-field="phoneNumber">취소</button>
+                        <button class="btn-save" data-field="phoneNumber" data-i18n="saveBtn">${t('saveBtn')}</button>
+                        <button class="btn-cancel" data-field="phoneNumber" data-i18n="cancelBtn">${t('cancelBtn')}</button>
                     </div>
                 </div>
             `;
@@ -134,10 +152,10 @@ class ProfileView extends HTMLElement {
         if (isEditing) {
             container.innerHTML = `
                 <div class="edit-mode-container">
-                    <input type="${inputType}" id="input-${field}" class="inline-input" value="${value || ''}" placeholder="${label} 입력">
+                    <input type="${inputType}" id="input-${field}" class="inline-input" value="${value || ''}" placeholder="${t('fieldInputPlaceholder').replace('{0}', label)}">
                     <div class="edit-actions">
-                        <button class="btn-save" data-field="${field}">저장</button>
-                        <button class="btn-cancel" data-field="${field}">취소</button>
+                        <button class="btn-save" data-field="${field}" data-i18n="saveBtn">${t('saveBtn')}</button>
+                        <button class="btn-cancel" data-field="${field}" data-i18n="cancelBtn">${t('cancelBtn')}</button>
                     </div>
                 </div>
             `;
@@ -153,7 +171,7 @@ class ProfileView extends HTMLElement {
             container.querySelector('.btn-cancel').onclick = () => this.handleCancel();
         } else {
             const isPhone = field === 'phoneNumber';
-            const badge = (isPhone && isVerified) ? '<span class="verified-badge">인증완료</span>' : '';
+            const badge = (isPhone && isVerified) ? `<span class="verified-badge" data-i18n="verifiedBadge">${t('verifiedBadge')}</span>` : '';
             const buttonText = isPhone ? '본인인증' : '수정';
 
             container.innerHTML = `
@@ -246,14 +264,20 @@ class ProfileView extends HTMLElement {
 
         this.isLoadingItineraries = true;
         const listContainer = this.shadowRoot.getElementById('itineraries-list');
-        if (listContainer) listContainer.innerHTML = '<div class="loading-state">일정을 불러오는 중...</div>';
+        if (listContainer) {
+            listContainer.textContent = '';
+            listContainer.append(stateBlock('loading-state', t('loadingItineraries')));
+        }
 
         try {
             this.itineraries = await getUserItineraries(user.uid);
             this.renderItineraries();
         } catch (error) {
             console.error('Failed to fetch itineraries:', error);
-            if (listContainer) listContainer.innerHTML = '<div class="error-state">일정을 불러오지 못했습니다.</div>';
+            if (listContainer) {
+                listContainer.textContent = '';
+                listContainer.append(stateBlock('error-state', t('loadItinerariesFailed')));
+            }
         } finally {
             this.isLoadingItineraries = false;
         }
@@ -264,7 +288,8 @@ class ProfileView extends HTMLElement {
         if (!listContainer) return;
 
         if (this.itineraries.length === 0) {
-            listContainer.innerHTML = '<div class="empty-state">저장된 일정이 없습니다. 새로운 여행을 계획해 보세요!</div>';
+            listContainer.textContent = '';
+            listContainer.append(stateBlock('empty-state', t('noSavedItineraries')));
             return;
         }
 
@@ -284,13 +309,13 @@ class ProfileView extends HTMLElement {
                     <div class="trip-title-row">
                         <span class="trip-title">${tripTitle}</span>
                         <span class="trip-anchor-suffix">${anchorSuffix}</span>
-                        <button class="btn-rename" title="이름 바꾸기" aria-label="일정 이름 바꾸기">${icons.pencil}</button>
+                        <button class="btn-rename" data-i18n-title="renameTitle" title="${t('renameTitle')}" data-i18n-aria="renameAria" aria-label="${t('renameAria')}">${icons.pencil}</button>
                     </div>
-                    <div class="trip-date">저장일: ${dateString}</div>
+                    <div class="trip-date">${t('savedOn').replace('{0}', dateString)}</div>
                 </div>
                 <div class="trip-actions">
-                    <button class="btn-view" data-id="${item.id}">보기</button>
-                    <button class="btn-delete-trip" data-id="${item.id}">삭제</button>
+                    <button class="btn-view" data-id="${item.id}" data-i18n="viewBtn">${t('viewBtn')}</button>
+                    <button class="btn-delete-trip" data-id="${item.id}" data-i18n="deleteBtn">${t('deleteBtn')}</button>
                 </div>
             `;
 
@@ -325,9 +350,9 @@ class ProfileView extends HTMLElement {
 
         const original = row.innerHTML;
         row.innerHTML = `
-            <input class="rename-input" type="text" maxlength="100" aria-label="일정 이름">
-            <button class="btn-rename-save">저장</button>
-            <button class="btn-rename-cancel">취소</button>
+            <input class="rename-input" type="text" maxlength="100" data-i18n-aria="itineraryNameAria" aria-label="${t('itineraryNameAria')}">
+            <button class="btn-rename-save" data-i18n="saveBtn">${t('saveBtn')}</button>
+            <button class="btn-rename-cancel" data-i18n="cancelBtn">${t('cancelBtn')}</button>
         `;
 
         const input = row.querySelector('.rename-input');
@@ -350,7 +375,7 @@ class ProfileView extends HTMLElement {
 
             const saveBtn = row.querySelector('.btn-rename-save');
             saveBtn.disabled = true;
-            saveBtn.textContent = '저장 중...';
+            saveBtn.textContent = t('savingBtn');
             try {
                 await renameItinerary(item.id, next);
                 item.title = next; // 다시 불러오지 않아도 목록 상태가 최신이 되도록
@@ -359,7 +384,7 @@ class ProfileView extends HTMLElement {
             } catch (error) {
                 console.error('Rename failed:', error);
                 saveBtn.disabled = false;
-                saveBtn.textContent = '저장';
+                saveBtn.textContent = t('saveBtn');
                 input.setCustomValidity(error.message || '이름을 바꾸지 못했습니다.');
                 input.reportValidity();
                 setTimeout(() => input.setCustomValidity(''), 0);
@@ -447,7 +472,7 @@ class ProfileView extends HTMLElement {
                 if (!user) return;
 
                 confirmBtn.disabled = true;
-                confirmBtn.textContent = '데이터 정리 중...';
+                confirmBtn.textContent = t('deletingDataBtn');
 
                 try {
                     // 1. Delete all itineraries
@@ -470,7 +495,7 @@ class ProfileView extends HTMLElement {
                         showErrorToast('회원 탈퇴 처리 중 오류가 발생했습니다.');
                     }
                     confirmBtn.disabled = false;
-                    confirmBtn.textContent = '회원 탈퇴 확정';
+                    confirmBtn.textContent = t('confirmDeleteAccountBtn');
                     closeModal();
                 }
             });
@@ -517,68 +542,68 @@ class ProfileView extends HTMLElement {
             </style>
 
             <div class="profile-wrapper">
-                <nav class="sidebar" aria-label="프로필 메뉴">
+                <nav class="sidebar" data-i18n-aria="profileMenuAria" aria-label="${t('profileMenuAria')}">
                     <button id="btn-back-home" class="btn-back-home">
-                        <span>←</span> <span>홈으로 돌아가기</span>
+                        <span>←</span> <span data-i18n="backHome">${t('backHome')}</span>
                     </button>
                     <button type="button" class="nav-item active" data-tab="personal" aria-current="page">
-                        <span class="nav-icon" aria-hidden="true">${icons.user}</span> <span>개인 정보</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.user}</span> <span data-i18n="navPersonal">${t('navPersonal')}</span>
                     </button>
                     <button type="button" class="nav-item" data-tab="trips">
-                        <span class="nav-icon" aria-hidden="true">${icons.map}</span> <span>내 여행 일정</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.map}</span> <span data-i18n="navItineraries">${t('navItineraries')}</span>
                     </button>
                     <button type="button" class="nav-item" data-tab="security">
-                        <span class="nav-icon" aria-hidden="true">${icons.shield}</span> <span>보안 및 계정</span>
+                        <span class="nav-icon" aria-hidden="true">${icons.shield}</span> <span data-i18n="navSecurity">${t('navSecurity')}</span>
                     </button>
                 </nav>
 
                 <main class="main-content">
                     <div class="header-banner">
                         <img id="user-photo-hero" class="photo-hero" src="" alt="Profile" />
-                        <h1 id="header-name">반가워요!</h1>
-                        <p>ComPasser에서 당신의 정보를 안전하게 관리하세요.</p>
+                        <h1 id="header-name" data-i18n="profileGreetingPlain">${t('profileGreetingPlain')}</h1>
+                        <p data-i18n="profileHeaderDesc">${t('profileHeaderDesc')}</p>
                     </div>
 
                     <div id="personal" class="content-section active">
                         <div class="card">
                             <div class="card-header">
-                                <h2>기본 정보</h2>
-                                <p>서비스 이용 시 표시되는 나의 프로필 정보입니다.</p>
+                                <h2 data-i18n="sectionBasicInfo">${t('sectionBasicInfo')}</h2>
+                                <p data-i18n="sectionBasicInfoDesc">${t('sectionBasicInfoDesc')}</p>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">프로필 사진</div>
+                                <div class="list-label" data-i18n="labelProfilePhoto">${t('labelProfilePhoto')}</div>
                                 <div class="list-value">
                                     <img id="user-photo-small" class="photo-small" src="" alt="Profile" />
                                 </div>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">이름</div>
+                                <div class="list-label" data-i18n="labelName">${t('labelName')}</div>
                                 <div class="list-value">
-                                    <span id="user-name" class="value-text">로딩 중...</span>
+                                    <span id="user-name" class="value-text" data-i18n="loadingShort">${t('loadingShort')}</span>
                                 </div>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">생년월일</div>
+                                <div class="list-label" data-i18n="labelBirthday">${t('labelBirthday')}</div>
                                 <div id="field-birthday" class="list-value">
-                                    <span class="not-set">로딩 중...</span>
+                                    <span class="not-set" data-i18n="loadingShort">${t('loadingShort')}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="card">
                             <div class="card-header">
-                                <h2>연락처 정보</h2>
+                                <h2 data-i18n="sectionContact">${t('sectionContact')}</h2>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">이메일</div>
+                                <div class="list-label" data-i18n="labelEmail">${t('labelEmail')}</div>
                                 <div class="list-value">
-                                    <span id="user-email" class="value-text">로딩 중...</span>
+                                    <span id="user-email" class="value-text" data-i18n="loadingShort">${t('loadingShort')}</span>
                                 </div>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">휴대전화</div>
+                                <div class="list-label" data-i18n="labelPhone">${t('labelPhone')}</div>
                                 <div id="field-phoneNumber" class="list-value">
-                                    <span class="not-set">로딩 중...</span>
+                                    <span class="not-set" data-i18n="loadingShort">${t('loadingShort')}</span>
                                 </div>
                             </div>
                         </div>
@@ -587,8 +612,8 @@ class ProfileView extends HTMLElement {
                     <div id="trips" class="content-section">
                         <div class="card">
                             <div class="card-header">
-                                <h2>저장된 일정 관리</h2>
-                                <p>AI가 생성한 당신만의 최적화된 여행 경로들입니다.</p>
+                                <h2 data-i18n="sectionSavedItineraries">${t('sectionSavedItineraries')}</h2>
+                                <p data-i18n="sectionSavedItinerariesDesc">${t('sectionSavedItinerariesDesc')}</p>
                             </div>
                             <div id="itineraries-list" class="itineraries-container"></div>
                         </div>
@@ -596,23 +621,23 @@ class ProfileView extends HTMLElement {
 
                     <div id="security" class="content-section">
                         <div class="card">
-                            <div class="card-header"><h2>계정 보안</h2></div>
+                            <div class="card-header"><h2 data-i18n="sectionSecurity">${t('sectionSecurity')}</h2></div>
                             <div class="list-item">
-                                <div class="list-label">로그인 방식</div>
-                                <div class="list-value"><span class="value-text">구글 계정 / 이메일 인증</span></div>
+                                <div class="list-label" data-i18n="labelLoginMethod">${t('labelLoginMethod')}</div>
+                                <div class="list-value"><span data-i18n="loginMethodValue">${t('loginMethodValue')}</span></div>
                             </div>
                             <div class="list-item">
-                                <div class="list-label">비밀번호</div>
-                                <div class="list-value"><span class="not-set">외부 로그인 연동 중</span></div>
+                                <div class="list-label" data-i18n="labelPassword">${t('labelPassword')}</div>
+                                <div class="list-value"><span class="not-set" data-i18n="passwordExternal">${t('passwordExternal')}</span></div>
                             </div>
                         </div>
 
                         <div class="card danger-section">
                             <div class="card-header danger-header">
-                                <h2>계정 삭제</h2>
-                                <p>ComPasser 계정을 영구적으로 삭제합니다. 모든 일정이 삭제됩니다.</p>
+                                <h2 data-i18n="sectionDeleteAccount">${t('sectionDeleteAccount')}</h2>
+                                <p data-i18n="deleteAccountDesc">${t('deleteAccountDesc')}</p>
                             </div>
-                            <button id="btn-delete-account-trigger" class="btn-danger-trigger">탈퇴 진행하기</button>
+                            <button id="btn-delete-account-trigger" class="btn-danger-trigger" data-i18n="deleteAccountBtn">${t('deleteAccountBtn')}</button>
                         </div>
                     </div>
                 </main>
@@ -621,11 +646,11 @@ class ProfileView extends HTMLElement {
             <div id="delete-modal" class="modal-overlay">
                 <div class="modal-content">
                     <span id="modal-close-x" class="modal-close-x">&times;</span>
-                    <h3>정말로 탈퇴하시겠습니까?</h3>
-                    <p>모든 여행 일정과 데이터가 즉시 삭제되며 절대 복구할 수 없습니다.</p>
+                    <h3 data-i18n="deleteAccountConfirmTitle">${t('deleteAccountConfirmTitle')}</h3>
+                    <p data-i18n="deleteAccountConfirmDesc">${t('deleteAccountConfirmDesc')}</p>
                     <div class="modal-actions">
-                        <button id="btn-modal-cancel" class="btn-modal-cancel">취소</button>
-                        <button id="btn-modal-confirm" class="btn-modal-confirm">회원 탈퇴 확정</button>
+                        <button id="btn-modal-cancel" class="btn-modal-cancel" data-i18n="cancelBtn">${t('cancelBtn')}</button>
+                        <button id="btn-modal-confirm" class="btn-modal-confirm" data-i18n="confirmDeleteAccountBtn">${t('confirmDeleteAccountBtn')}</button>
                     </div>
                 </div>
             </div>
