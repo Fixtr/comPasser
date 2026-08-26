@@ -6,7 +6,7 @@
  * - 선택 완료 후 sessionStorage에 저장 → /plan으로 이동
  */
 
-import { t } from '../../../utils/i18n.js';
+import { t, applyTranslations } from '../../../utils/i18n.js';
 import { preferenceStyles } from './preference-style.js';
 import { icons } from '../../../ui/icons.js';
 
@@ -53,8 +53,8 @@ export default class PreferenceView extends HTMLElement {
           <div id="progress-bar" class="progress-fill" style="width: 50%;"></div>
         </div>
         <span class="step-badge" id="step-badge">Step 1 / 2</span>
-        <h2>나만의 여행 스타일 선택</h2>
-        <p>어떤 여행을 꿈꾸고 계신가요?<br>날짜, 테마, 예산을 선택하면 AI가 맞춤 동선을 설계해 드려요.</p>
+        <h2 data-i18n="prefStyleTitle">${t('prefStyleTitle')}</h2>
+        <p><span data-i18n="prefStyleSubtitle1">${t('prefStyleSubtitle1')}</span><br><span data-i18n="prefStyleSubtitle2">${t('prefStyleSubtitle2')}</span></p>
       </div>
 
       <div id="step1-container" class="step-container">
@@ -101,67 +101,65 @@ export default class PreferenceView extends HTMLElement {
 
         <!-- Step 1 Submit -->
         <div class="submit-section">
-          <button class="next-btn" id="next-step-btn" disabled>
-            다음으로 →
-          </button>
-          <p class="helper-text" id="step1-helper-text">시작일과 기간을 선택해 주세요</p>
+          <button class="next-btn" id="next-step-btn" data-i18n="prefNextBtn" disabled>${t('prefNextBtn')}</button>
+          <p class="helper-text" id="step1-helper-text" data-i18n="prefStep1Helper">${t('prefStep1Helper')}</p>
         </div>
       </div>
 
       <div id="step2-container" class="step-container" style="display: none;">
         <!-- Theme Selection -->
-        <div class="section-title">여행 테마</div>
+        <div class="section-title" data-i18n="prefThemeSection">${t('prefThemeSection')}</div>
         <div class="card-grid" id="theme-grid">
           <div class="preference-card" data-value="food">
             <span class="card-icon">${icons.dining}</span>
-            <div class="card-title">맛집 탐방</div>
-            <div class="card-desc">현지 맛집·카페를 중심으로 미식 여행</div>
+            <div class="card-title" data-i18n="themeFood">${t('themeFood')}</div>
+            <div class="card-desc" data-i18n="themeFoodDesc">${t('themeFoodDesc')}</div>
           </div>
           <div class="preference-card" data-value="activity">
             <span class="card-icon">${icons.activity}</span>
-            <div class="card-title">액티비티</div>
-            <div class="card-desc">서핑·트레킹 등 체험 중심 여행</div>
+            <div class="card-title" data-i18n="themeActivity">${t('themeActivity')}</div>
+            <div class="card-desc" data-i18n="themeActivityDesc">${t('themeActivityDesc')}</div>
           </div>
           <div class="preference-card" data-value="healing">
             <span class="card-icon">${icons.healing}</span>
-            <div class="card-title">휴식 / 힐링</div>
-            <div class="card-desc">자연·온천·공원 등 힐링 스팟</div>
+            <div class="card-title" data-i18n="themeHealing">${t('themeHealing')}</div>
+            <div class="card-desc" data-i18n="themeHealingDesc">${t('themeHealingDesc')}</div>
           </div>
           <div class="preference-card" data-value="photo">
             <span class="card-icon">${icons.camera}</span>
-            <div class="card-title">인생샷</div>
-            <div class="card-desc">포토스팟·감성 장소 중심 여행</div>
+            <div class="card-title" data-i18n="themePhoto">${t('themePhoto')}</div>
+            <div class="card-desc" data-i18n="themePhotoDesc">${t('themePhotoDesc')}</div>
           </div>
         </div>
 
         <!-- Budget Selection -->
-        <div class="section-title">예산 스타일</div>
+        <div class="section-title" data-i18n="prefBudgetSection">${t('prefBudgetSection')}</div>
         <div class="card-grid budget" id="budget-grid">
           <div class="preference-card" data-value="flex">
             <span class="card-icon"><span class="budget-meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span></span>
-            <div class="card-title">플렉스</div>
-            <div class="card-desc">고급형 · 렌터카 · 파인다이닝</div>
+            <div class="card-title" data-i18n="budgetFlex">${t('budgetFlex')}</div>
+            <div class="card-desc" data-i18n="budgetFlexDesc">${t('budgetFlexDesc')}</div>
           </div>
           <div class="preference-card" data-value="standard">
             <span class="card-icon"><span class="budget-meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span></span>
-            <div class="card-title">스탠다드</div>
-            <div class="card-desc">표준형 · 적절한 가성비</div>
+            <div class="card-title" data-i18n="budgetStandard">${t('budgetStandard')}</div>
+            <div class="card-desc" data-i18n="budgetStandardDesc">${t('budgetStandardDesc')}</div>
           </div>
           <div class="preference-card" data-value="budget">
             <span class="card-icon"><span class="budget-meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span></span>
-            <div class="card-title">짠내투어</div>
-            <div class="card-desc">절약형 · 대중교통 · 로컬 맛집</div>
+            <div class="card-title" data-i18n="budgetSaver">${t('budgetSaver')}</div>
+            <div class="card-desc" data-i18n="budgetSaverDesc">${t('budgetSaverDesc')}</div>
           </div>
         </div>
 
         <!-- Submit -->
         <div class="submit-section">
           <div class="submit-row">
-            <button class="prev-btn" id="prev-step-btn">이전으로</button>
-            <button class="next-btn" id="submit-btn" disabled>일정 생성하기</button>
+            <button class="prev-btn" id="prev-step-btn" data-i18n="prefPrevBtn">${t('prefPrevBtn')}</button>
+            <button class="next-btn" id="submit-btn" disabled data-i18n="prefSubmitBtn">${t('prefSubmitBtn')}</button>
           </div>
-          <p class="helper-text" id="step2-helper-text">테마와 예산을 모두 선택해 주세요</p>
-          <button class="skip-link" id="skip-btn">선택 없이 바로 일정 짜기 →</button>
+          <p class="helper-text" id="step2-helper-text" data-i18n="prefStep2Helper">${t('prefStep2Helper')}</p>
+          <button class="skip-link" id="skip-btn" data-i18n="prefSkipBtn">${t('prefSkipBtn')}</button>
         </div>
       </div>
     `;
@@ -485,8 +483,9 @@ export default class PreferenceView extends HTMLElement {
     // Step 2 check
     if (this.selectedTheme && this.selectedBudget) {
       submitBtn.disabled = false;
-      const themeLabels = { food: '맛집 탐방', activity: '액티비티', healing: '휴식/힐링', photo: '인생샷' };
-      const budgetLabels = { flex: '플렉스', standard: '스탠다드', budget: '짠내투어' };
+      // 카드에 적힌 것과 같은 말을 써야 한다 — 두 곳에 따로 적으면 한쪽만 번역된다.
+      const themeLabels = { food: t('themeFood'), activity: t('themeActivity'), healing: t('themeHealing'), photo: t('themePhoto') };
+      const budgetLabels = { flex: t('budgetFlex'), standard: t('budgetStandard'), budget: t('budgetSaver') };
       step2Helper.textContent = `${themeLabels[this.selectedTheme]} + ${budgetLabels[this.selectedBudget]} 스타일로 설계합니다`;
     } else {
       submitBtn.disabled = true;
@@ -516,20 +515,7 @@ export default class PreferenceView extends HTMLElement {
   }
 
   updateTexts() {
-    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (el.children.length === 0) {
-        el.textContent = t(key);
-      } else {
-        el.childNodes[0].nodeValue = t(key) + ' ';
-      }
-    });
-
-    // Restore custom date text if needed
-    if (this.selectedDates && this.shadowRoot.getElementById('custom-date-text') && !this.shadowRoot.getElementById('custom-date-text').hasAttribute('data-i18n')) {
-      // Keep it displaying the chosen date
-    }
+    applyTranslations(this.shadowRoot);
   }
 }
 

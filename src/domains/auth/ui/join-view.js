@@ -1,5 +1,5 @@
 import { signUpWithEmail } from '../services/firebase-auth.js';
-import { t } from '../../../utils/i18n.js';
+import { t, applyTranslations } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
 import { showToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
@@ -29,7 +29,7 @@ export default class JoinView extends HTMLElement {
   }
 
   updateTexts() {
-    // Basic i18n support
+    applyTranslations(this.shadowRoot);
   }
 
   _showInAppBrowserWarning() {
@@ -64,30 +64,30 @@ export default class JoinView extends HTMLElement {
       <style>${authStyles}</style>
 
       <div class="header-section">
-        <h2>회원가입</h2>
-        <p class="subtitle">1분 만에 가입하고 AI 맞춤형 여행 지도를 받아보세요.</p>
+        <h2 data-i18n="joinTitle">${t('joinTitle')}</h2>
+        <p class="subtitle" data-i18n="joinSubtitle">${t('joinSubtitle')}</p>
       </div>
       
       <div class="auth-form">
         <div class="input-group">
-          <input type="email" id="email-input" class="auth-input" placeholder="이메일을 입력하세요" autocomplete="email" />
+          <input type="email" id="email-input" class="auth-input" data-i18n-placeholder="emailPlaceholder" placeholder="${t('emailPlaceholder')}" autocomplete="email" />
         </div>
         
         <div class="input-group">
           <div class="password-wrapper">
-            <input type="password" id="password-input" class="auth-input" placeholder="비밀번호" autocomplete="new-password" />
-            <button type="button" id="toggle-password-btn" class="toggle-password" aria-label="비밀번호 숨기기/보이기">${icons.eye}</button>
+            <input type="password" id="password-input" class="auth-input" data-i18n-placeholder="passwordPlaceholder" placeholder="${t('passwordPlaceholder')}" autocomplete="new-password" />
+            <button type="button" id="toggle-password-btn" class="toggle-password" data-i18n-aria="togglePassword" aria-label="${t('togglePassword')}">${icons.eye}</button>
           </div>
           <div id="password-strength" class="strength-indicator"></div>
         </div>
 
         <div id="error-msg"></div>
 
-        <button id="email-signup-btn" class="auth-btn">이메일로 회원가입</button>
+        <button id="email-signup-btn" class="auth-btn" data-i18n="joinWithEmail">${t('joinWithEmail')}</button>
       </div>
 
       <div class="login-link">
-        이미 계정이 있으신가요? <a id="go-to-login">로그인</a>
+        <span data-i18n="joinHaveAccount">${t('joinHaveAccount')}</span> <a id="go-to-login" data-i18n="joinGoToLogin">${t('joinGoToLogin')}</a>
       </div>
     `;
   }

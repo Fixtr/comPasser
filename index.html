@@ -91,8 +91,8 @@
     <!-- Home Landing Page. 스타일은 style.css 의 #page-home 블록. -->
     <div id="page-home" class="page-container">
       <div class="home-intro">
-        <h2>환영합니다! Compasser 시작하기</h2>
-        <p>복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.<br>지금 시작하고 스마트한 여행 계획을 세워보세요.</p>
+        <h2 data-i18n="homeTitle">환영합니다! Compasser 시작하기</h2>
+        <p><span data-i18n="homeSubtitle1">복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.</span><br><span data-i18n="homeSubtitle2">지금 시작하고 스마트한 여행 계획을 세워보세요.</span></p>
       </div>
 
       <!-- 아이콘은 이모지 대신 인라인 SVG. 이모지는 OS 가 정한 자기 색을 갖고
@@ -100,22 +100,22 @@
       <div class="features-grid">
         <div class="feature-card">
           <span class="feature-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17.5V8a4 4 0 0 1 4-4h1.5"/><path d="M20 6.5V16a4 4 0 0 1-4 4h-1.5"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M9.5 4 12 6.5 9.5 9M14.5 20 12 17.5l2.5-2.5"/></svg></span>
-          <b>스마트 동선 가이드</b>
-          <span>최적화된 알고리즘으로 이동 시간을 최소화합니다.</span>
+          <b data-i18n="homeFeature1Title">스마트 동선 가이드</b>
+          <span data-i18n="homeFeature1Desc">최적화된 알고리즘으로 이동 시간을 최소화합니다.</span>
         </div>
         <div class="feature-card">
           <span class="feature-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-4.9 7-10.4A7 7 0 0 0 5 10.6C5 16.1 12 21 12 21z"/><circle cx="12" cy="10.4" r="2.4"/><path d="M18.5 3.5 21 6l-2.5 2.5"/></svg></span>
-          <b>이벤트 중심 설계</b>
-          <span>반드시 가야 하는 이벤트 시간을 사수해 드립니다.</span>
+          <b data-i18n="homeFeature2Title">이벤트 중심 설계</b>
+          <span data-i18n="homeFeature2Desc">반드시 가야 하는 이벤트 시간을 사수해 드립니다.</span>
         </div>
         <div class="feature-card">
           <span class="feature-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 2"/><path d="M12 3.5V2M20.5 12H22M12 20.5V22M3.5 12H2"/></svg></span>
-          <b>원클릭 맞춤 여행</b>
-          <span>검색 스트레스 없이 단숨에 일정을 완성하세요.</span>
+          <b data-i18n="homeFeature3Title">원클릭 맞춤 여행</b>
+          <span data-i18n="homeFeature3Desc">검색 스트레스 없이 단숨에 일정을 완성하세요.</span>
         </div>
       </div>
 
-      <button id="go-to-login-btn" class="primary-btn" type="button">로그인하고 시작하기</button>
+      <button id="go-to-login-btn" class="primary-btn" type="button" data-i18n="homeStart">로그인하고 시작하기</button>
 
       <script>
         document.getElementById('go-to-login-btn').addEventListener('click', () => {
@@ -195,9 +195,9 @@
              손잡이만 있는 빈 지도가 아니라 평소의 일정 화면이다. -->
         <div id="itinerary-sheet" class="map-sheet" data-state="full">
           <button type="button" class="sheet-grip" id="sheet-grip"
-            aria-expanded="true" aria-controls="sheet-body" aria-label="지도 보기">
+            aria-expanded="true" aria-controls="sheet-body" aria-label="">
             <span class="sheet-grip-bar" aria-hidden="true"></span>
-            <span class="sheet-grip-label">지도 보기</span>
+            <span class="sheet-grip-label"></span>
           </button>
           <div class="sheet-body" id="sheet-body">
             <itinerary-view></itinerary-view>

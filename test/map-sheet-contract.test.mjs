@@ -197,3 +197,29 @@ test('시트 로직은 시계나 난수를 읽지 않는다', () => {
   assert.ok(!/Math\.random/.test(sheetJs), '난수를 쓴다');
   assert.match(sheetJs, /timeStamp/, '이벤트의 timeStamp 대신 다른 시계를 쓰고 있지 않은지 확인');
 });
+
+/**
+ * 손잡이 글자는 **쓸 때마다 다시 읽어야 한다.**
+ *
+ * 맥에서 언어를 영어로 돌려 보고 잡았다. 사전에는 `sheetExpand`/`sheetCollapse`
+ * 가 있는데도 손잡이만 "일정 펼치기"로 남아 있었다 — `initMapSheet` 이 초기화
+ * 때 `t()` 를 **한 번만** 읽어 글자를 박아 두었기 때문이다. 사전을 바꾸는 것으로는
+ * 이미 박힌 글자를 되돌릴 수 없다. 지도 여백(`getFrameInsets`)에서 배운 것과
+ * 같은 교훈이라 같은 모양으로 고쳤다.
+ */
+test('손잡이 글자는 함수로 받아 쓸 때마다 읽는다', () => {
+  assert.match(
+    sheetJs,
+    /typeof labels === 'function'/,
+    '값으로 받아 두면 언어가 바뀐 뒤에는 틀린 글자다'
+  );
+  assert.match(
+    sheetJs,
+    /addEventListener\?\.\(\s*'i18n-changed'|addEventListener\(\s*'i18n-changed'/,
+    '언어가 바뀌면 지금 상태의 글자를 다시 써야 한다'
+  );
+});
+
+test('앱은 손잡이 글자를 함수로 넘긴다', () => {
+  assert.match(main, /labels:\s*\(\s*\)\s*=>/, 'main.js 가 아직 값으로 넘기고 있다');
+});

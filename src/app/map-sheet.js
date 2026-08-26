@@ -30,12 +30,23 @@ const VELOCITY_THRESHOLD = 0.45;
  * @param {{sheet: HTMLElement, grip: HTMLElement, body: HTMLElement,
  *          labels?: {expand?: string, collapse?: string}}} parts
  */
-export function initMapSheet({ sheet, grip, body, labels = {} } = {}) {
+export function initMapSheet({ sheet, grip, body, labels } = {}) {
   if (!sheet || !grip || !body) return null;
 
-  const text = {
-    expand: labels.expand || '일정 펼치기',
-    collapse: labels.collapse || '지도 보기',
+  /**
+   * 글자는 **쓸 때마다 다시 읽는다.**
+   *
+   * 예전에는 초기화 때 한 번 읽어 박아 두었다. 그래서 언어를 영어로 바꿔도
+   * 손잡이만 "일정 펼치기"로 남았다 — 사전에는 있는데, 이미 박힌 글자를
+   * 되돌릴 방법이 없었던 것이다. 지도 여백(`getFrameInsets`)에서 배운 것과
+   * 같은 교훈이다: 화면이 달라지는 값은 미리 재 두지 않는다.
+   */
+  const readLabels = () => {
+    const given = typeof labels === 'function' ? labels() : labels;
+    return {
+      expand: given?.expand || '일정 펼치기',
+      collapse: given?.collapse || '지도 보기',
+    };
   };
   const label = grip.querySelector('.sheet-grip-label');
 
@@ -48,6 +59,7 @@ export function initMapSheet({ sheet, grip, body, labels = {} } = {}) {
     sheet.style.removeProperty('--sheet-offset');
     grip.setAttribute('aria-expanded', String(state === FULL));
     // 버튼은 "지금 상태"가 아니라 "누르면 갈 곳"을 말한다 — 테마 토글과 같은 규칙.
+    const text = readLabels();
     const nextLabel = state === FULL ? text.collapse : text.expand;
     grip.setAttribute('aria-label', nextLabel);
     if (label) label.textContent = nextLabel;
@@ -128,6 +140,10 @@ export function initMapSheet({ sheet, grip, body, labels = {} } = {}) {
       grip.focus();
     }
   });
+
+  // 언어가 바뀌면 지금 상태의 글자를 다시 쓴다. 마크업에는 글자를 두지 않았으므로
+  // (상태에 따라 달라져 사전 키 하나로 못 정한다) 이 자리가 유일한 주인이다.
+  globalThis.addEventListener?.('i18n-changed', () => setState(state));
 
   setState(PEEK);
   return { setState, toggle, get state() { return state; } };

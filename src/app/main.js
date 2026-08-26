@@ -14,7 +14,7 @@ import '../domains/profile/ui/profile-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
-import { t, getLang, setLang } from '../utils/i18n.js';
+import { t, getLang, setLang, applyTranslations } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
 import { showErrorToast } from '../utils/toast.js';
@@ -152,18 +152,7 @@ if ('serviceWorker' in navigator) {
 }
 
 function updateTexts() {
-    const elements = document.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        // Handle input placeholders specifically
-        if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
-            el.setAttribute('placeholder', t(key));
-        } else {
-            // Some elements might have child elements (like icons) we want to preserve?
-            // For now, replacing textContent is safest for simple texts.
-            el.textContent = t(key);
-        }
-    });
+    applyTranslations(document);
 }
 
 // 1. 초기 로드 시 다국어(i18n) 자동 적용 (즉시 실행)
@@ -587,6 +576,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 userAvatar.src = '';
             }
         }
+        // 랜딩의 시작 버튼이 로그인한 사람에게도 "로그인하고 시작하기"라고 말하고
+        // 있었다. 눌러 보면 /login 을 거쳐 /plan 으로 제대로 튕기므로 **동작은
+        // 했지만**, 이미 들어온 사람에게 다시 들어오라고 하는 첫 화면이었다.
+        // 가는 곳은 그대로 둔다 — 그 판단은 route-decision.mjs 한 곳이 갖는다.
+        const startBtn = document.getElementById('go-to-login-btn');
+        if (startBtn) {
+            startBtn.dataset.i18n = user ? 'homeStartLoggedIn' : 'homeStart';
+            applyTranslations(document);
+        }
+
         // Force router re-evaluation on auth state changes (which also handles standard initial load)
         handleRouteChange();
     });
@@ -654,7 +653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // t() 는 없는 키를 만나면 키 이름을 그대로 돌려준다. 그래서 이
         // 저장소에 흔한 `t(k) || '기본값'` 은 한 번도 동작하지 않는다 —
         // 실제로 손잡이에 "sheetExpand" 가 찍혀 있었다. 사전에 넣는 것이 답이다.
-        labels: { expand: t('sheetExpand'), collapse: t('sheetCollapse') },
+        labels: () => ({ expand: t('sheetExpand'), collapse: t('sheetCollapse') }),
     });
 
     // ====== 테마 ======

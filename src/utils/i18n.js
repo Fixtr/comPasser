@@ -92,6 +92,82 @@ const dictionary = {
         emptyTimeValidationError: "오류: 시작 시간과 종료 시간을 모두 입력해 주세요.",
         incompleteAnchorError: "오류: {0}번째 고정 일정의 '{1}' 칸이 비어 있어요.",
         missingFieldError: "오류: '{0}' 칸을 채워 주세요.",
+        viewNotFoundTitle: "일정을 찾을 수 없거나 접근 권한이 없습니다.",
+        viewNotFoundDesc1: "요청하신 여행 일정이 삭제되었거나, 비공개 상태일 수 있습니다.",
+        viewNotFoundDesc2: "올바른 링크인지 다시 확인해 주세요.",
+        viewNewPlanBtn: "새 일정 만들기",
+        viewLoadErrorTitle: "데이터 로딩 오류",
+        viewNoItemsTitle: "항목 없음",
+        viewNoItemsDesc: "저장된 세부 일정이 없습니다.",
+        stay30m: "30분",
+        stay1h: "1시간",
+        stay1h30m: "1시간 30분",
+        stay2h: "2시간",
+        downloadTicketBtn: "티켓 이미지로 저장·공유",
+        moveUpAria: "{0} 앞으로 옮기기",
+        moveDownAria: "{0} 뒤로 옮기기",
+        removeItemAria: "{0} 일정에서 빼기",
+        moveUpTitle: "앞으로",
+        moveDownTitle: "뒤로",
+        removeItemTitle: "빼기",
+        officialSiteBtn: "홈페이지",
+        reviewsBtn: "리뷰 보기",
+        directionsBtn: "길찾기",
+        transitTimeMeta: "(이동시간: {0})",
+        prefStyleTitle: "나만의 여행 스타일 선택",
+        prefStyleSubtitle1: "어떤 여행을 꿈꾸고 계신가요?",
+        prefStyleSubtitle2: "날짜, 테마, 예산을 선택하면 AI가 맞춤 동선을 설계해 드려요.",
+        prefNextBtn: "다음으로 →",
+        prefPrevBtn: "이전으로",
+        prefSubmitBtn: "일정 생성하기",
+        prefSkipBtn: "선택 없이 바로 일정 짜기 →",
+        prefStep1Helper: "시작일과 기간을 선택해 주세요",
+        prefStep2Helper: "테마와 예산을 모두 선택해 주세요",
+        prefThemeSection: "여행 테마",
+        prefBudgetSection: "예산 스타일",
+        themeFood: "맛집 탐방",
+        themeFoodDesc: "현지 맛집·카페를 중심으로 미식 여행",
+        themeActivity: "액티비티",
+        themeActivityDesc: "서핑·트레킹 등 체험 중심 여행",
+        themeHealing: "휴식 / 힐링",
+        themeHealingDesc: "자연·온천·공원 등 힐링 스팟",
+        themePhoto: "인생샷",
+        themePhotoDesc: "포토스팟·감성 장소 중심 여행",
+        budgetFlex: "플렉스",
+        budgetFlexDesc: "고급형 · 렌터카 · 파인다이닝",
+        budgetStandard: "스탠다드",
+        budgetStandardDesc: "표준형 · 적절한 가성비",
+        budgetSaver: "짠내투어",
+        budgetSaverDesc: "절약형 · 대중교통 · 로컬 맛집",
+        authLoginHeading: "로그인",
+        authLoginSubtitle: "이메일 또는 소셜 계정으로 로그인하세요.",
+        authEmailLoginBtn: "로그인",
+        inAppHowIOS: "iOS: 우측 하단 [ ⠇ ] → \"다른 브라우저로 열기\"",
+        inAppHowAndroid: "Android: 자동으로 외부 브라우저가 열립니다.",
+        emailPlaceholder: "이메일 주소",
+        passwordPlaceholder: "비밀번호",
+        loginSocialDivider: "또는 소셜 계정으로 로그인",
+        loginWithKakao: "카카오로 시작하기",
+        loginWithNaver: "네이버로 시작하기",
+        loginNoAccount: "아직 계정이 없으신가요?",
+        loginGoToJoin: "회원가입",
+        joinTitle: "회원가입",
+        joinSubtitle: "1분 만에 가입하고 AI 맞춤형 여행 지도를 받아보세요.",
+        togglePassword: "비밀번호 숨기기/보이기",
+        joinWithEmail: "이메일로 회원가입",
+        joinHaveAccount: "이미 계정이 있으신가요?",
+        joinGoToLogin: "로그인",
+        homeTitle: "환영합니다! Compasser 시작하기",
+        homeSubtitle1: "복잡한 여행 동선과 시간 계산을 AI가 대신해 드립니다.",
+        homeSubtitle2: "지금 시작하고 스마트한 여행 계획을 세워보세요.",
+        homeFeature1Title: "스마트 동선 가이드",
+        homeFeature1Desc: "최적화된 알고리즘으로 이동 시간을 최소화합니다.",
+        homeFeature2Title: "이벤트 중심 설계",
+        homeFeature2Desc: "반드시 가야 하는 이벤트 시간을 사수해 드립니다.",
+        homeFeature3Title: "원클릭 맞춤 여행",
+        homeFeature3Desc: "검색 스트레스 없이 단숨에 일정을 완성하세요.",
+        homeStart: "로그인하고 시작하기",
+        homeStartLoggedIn: "일정 만들러 가기",
         kakaoShareBtn: "카카오톡 공유하기",
         resetBtn: "초기화",
         inAppBrowserIOSAlert: "보안 문제로 카카오톡 등 인앱 브라우저에서는 구글 로그인이 제한됩니다. 우측 하단의 [ ⠇ ] 버튼을 눌러 '다른 브라우저로 열기'를 선택해 주세요.",
@@ -214,6 +290,82 @@ const dictionary = {
         emptyTimeValidationError: "Error: Please enter both start and end times.",
         incompleteAnchorError: "Error: Anchor schedule #{0} is missing '{1}'.",
         missingFieldError: "Error: Please fill in '{0}'.",
+        viewNotFoundTitle: "This itinerary was not found, or you do not have access.",
+        viewNotFoundDesc1: "It may have been deleted, or it may be private.",
+        viewNotFoundDesc2: "Please double-check the link.",
+        viewNewPlanBtn: "Create a new itinerary",
+        viewLoadErrorTitle: "Could not load the data",
+        viewNoItemsTitle: "No items",
+        viewNoItemsDesc: "No saved details for this day.",
+        stay30m: "30 min",
+        stay1h: "1 hour",
+        stay1h30m: "1 hour 30 min",
+        stay2h: "2 hours",
+        downloadTicketBtn: "Save or share as a ticket image",
+        moveUpAria: "Move {0} earlier",
+        moveDownAria: "Move {0} later",
+        removeItemAria: "Remove {0} from the itinerary",
+        moveUpTitle: "Earlier",
+        moveDownTitle: "Later",
+        removeItemTitle: "Remove",
+        officialSiteBtn: "Website",
+        reviewsBtn: "Reviews",
+        directionsBtn: "Directions",
+        transitTimeMeta: "(travel: {0})",
+        prefStyleTitle: "Choose your travel style",
+        prefStyleSubtitle1: "What kind of trip do you have in mind?",
+        prefStyleSubtitle2: "Pick dates, a theme and a budget, and the AI plans the route.",
+        prefNextBtn: "Next →",
+        prefPrevBtn: "Back",
+        prefSubmitBtn: "Create my itinerary",
+        prefSkipBtn: "Skip and plan right away →",
+        prefStep1Helper: "Pick a start date and a length",
+        prefStep2Helper: "Pick both a theme and a budget",
+        prefThemeSection: "Travel theme",
+        prefBudgetSection: "Budget style",
+        themeFood: "Food hunting",
+        themeFoodDesc: "Local restaurants and cafes first",
+        themeActivity: "Activities",
+        themeActivityDesc: "Surfing, trekking and other hands-on days",
+        themeHealing: "Rest & healing",
+        themeHealingDesc: "Nature, hot springs and quiet parks",
+        themePhoto: "Photo spots",
+        themePhotoDesc: "Built around the places worth photographing",
+        budgetFlex: "Flex",
+        budgetFlexDesc: "Premium · rental car · fine dining",
+        budgetStandard: "Standard",
+        budgetStandardDesc: "Balanced · sensible value",
+        budgetSaver: "Shoestring",
+        budgetSaverDesc: "Thrifty · public transit · local eats",
+        authLoginHeading: "Log in",
+        authLoginSubtitle: "Log in with your email or a social account.",
+        authEmailLoginBtn: "Log in",
+        inAppHowIOS: "iOS: tap [ ⠇ ] at the bottom right → \"Open in browser\"",
+        inAppHowAndroid: "Android: an external browser opens automatically.",
+        emailPlaceholder: "Email address",
+        passwordPlaceholder: "Password",
+        loginSocialDivider: "Or continue with a social account",
+        loginWithKakao: "Continue with Kakao",
+        loginWithNaver: "Continue with Naver",
+        loginNoAccount: "No account yet?",
+        loginGoToJoin: "Sign up",
+        joinTitle: "Sign up",
+        joinSubtitle: "Sign up in a minute and get your AI-planned travel map.",
+        togglePassword: "Show or hide password",
+        joinWithEmail: "Sign up with email",
+        joinHaveAccount: "Already have an account?",
+        joinGoToLogin: "Log in",
+        homeTitle: "Welcome to ComPasser",
+        homeSubtitle1: "AI handles the tangled routing and time math for you.",
+        homeSubtitle2: "Start now and build a smarter trip.",
+        homeFeature1Title: "Smart Route Guide",
+        homeFeature1Desc: "An optimizer that keeps travel time to a minimum.",
+        homeFeature2Title: "Built Around Fixed Events",
+        homeFeature2Desc: "The times you cannot miss are protected.",
+        homeFeature3Title: "One-Click Custom Trip",
+        homeFeature3Desc: "Finish a whole plan without the search grind.",
+        homeStart: "Log in and get started",
+        homeStartLoggedIn: "Start planning",
         kakaoShareBtn: "Share on KakaoTalk",
         resetBtn: "Reset",
         inAppBrowserIOSAlert: "Due to security policies, Google login is restricted in in-app browsers like KakaoTalk. Please tap the [ ⠇ ] button at the bottom right and select 'Open in browser'.",
@@ -286,4 +438,55 @@ export function setLang(lang) {
 
 export function t(key) {
     return dictionary[currentLang]?.[key] || key;
+}
+
+/**
+ * `data-i18n` 이 붙은 것들을 지금 언어로 다시 쓴다.
+ *
+ * 왜 한 곳으로 모았나: 거의 같은 반복문이 다섯 곳(main.js·login·join·preference·
+ * travel-form·itinerary)에 흩어져 있었고 **조금씩 달랐다.** 어떤 곳은
+ * `textContent` 를 통째로 갈아 자식 아이콘을 지웠고, 어떤 곳은 첫 텍스트
+ * 노드만 갈았고, 한 곳은 특정 버튼만 손으로 처리했다. `data-i18n-placeholder`
+ * 는 한 곳만 알고 있었다 — 그래서 로그인 화면의 입력칸 안내는 영어로 바뀌지
+ * 않았다. 같은 판단이 여러 곳에 있으면 한쪽만 고쳐지는 날이 온다.
+ *
+ * @param {Document|ShadowRoot|Element} root
+ */
+export function applyTranslations(root) {
+    if (!root?.querySelectorAll) return;
+    root.querySelectorAll('[data-i18n]').forEach((el) => {
+        setText(el, t(el.getAttribute('data-i18n')));
+    });
+    for (const [attr, target] of [
+        ['data-i18n-placeholder', 'placeholder'],
+        ['data-i18n-aria', 'aria-label'],
+        ['data-i18n-title', 'title'],
+    ]) {
+        root.querySelectorAll(`[${attr}]`).forEach((el) => {
+            el.setAttribute(target, t(el.getAttribute(attr)));
+        });
+    }
+}
+
+/**
+ * 글자만 바꾸고 자식은 남긴다.
+ *
+ * `textContent = …` 로 덮으면 안에 있는 아이콘(SVG)이 사라진다. 그래서 자식이
+ * 있으면 **첫 번째 빈칸 아닌 텍스트 노드**만 갈아 끼운다. 앞뒤 공백은 그대로
+ * 두는데, 아이콘과 글자 사이의 한 칸이 사라지면 둘이 붙어 버리기 때문이다.
+ */
+function setText(el, text) {
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        if (el.hasAttribute('placeholder')) el.setAttribute('placeholder', text);
+        return;
+    }
+    if (el.children.length === 0) {
+        el.textContent = text;
+        return;
+    }
+    const node = [...el.childNodes].find((n) => n.nodeType === 3 && n.nodeValue.trim());
+    if (!node) return;   // 아이콘만 있는 자리 — 글자는 안쪽 요소가 따로 갖는다
+    const lead = /^\s/.test(node.nodeValue) ? ' ' : '';
+    const tail = /\s$/.test(node.nodeValue) ? ' ' : '';
+    node.nodeValue = lead + text + tail;
 }

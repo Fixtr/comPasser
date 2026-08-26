@@ -1,4 +1,4 @@
-import { t, getLang } from '../../../utils/i18n.js';
+import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
@@ -183,6 +183,9 @@ export default class TravelForm extends HTMLElement {
       const makeChip = (key) => {
         const chip = document.createElement('span');
         chip.className = 'pref-chip';
+        // 키를 남겨 둬야 언어가 바뀔 때 따라온다. 예전에는 t() 로 한 번 찍고
+        // 말아서, 영어로 바꿔도 이 배지만 "선택 없음"으로 남아 있었다.
+        chip.dataset.i18n = key;
         chip.textContent = t(key);
         return chip;
       };
@@ -261,26 +264,7 @@ export default class TravelForm extends HTMLElement {
   }
 
   updateTexts() {
-    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
-        el.setAttribute('placeholder', t(key));
-      } else {
-        if (el.children.length === 0) {
-          el.textContent = t(key);
-        } else {
-          el.childNodes[0].nodeValue = t(key) + ' ';
-        }
-      }
-    });
-
-    // placeholder 전용 업데이트 로직 추가
-    const placeholders = this.shadowRoot.querySelectorAll('[data-i18n-placeholder]');
-    placeholders.forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      if (key) el.setAttribute('placeholder', t(key));
-    });
+    applyTranslations(this.shadowRoot);
   }
 
   render() {

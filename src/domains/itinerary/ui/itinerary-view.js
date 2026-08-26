@@ -1,6 +1,6 @@
 import { saveItinerary, createSharedItinerary, getItineraryById } from '../services/firestore-service.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-import { t, getLang } from '../../../utils/i18n.js';
+import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
@@ -121,15 +121,7 @@ export default class ItineraryView extends HTMLElement {
   }
 
   updateTexts() {
-    const elements = this.shadowRoot.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
-        el.setAttribute('placeholder', t(key));
-      } else {
-        el.textContent = t(key);
-      }
-    });
+    applyTranslations(this.shadowRoot);
 
     if (this.currentItinerary && this.currentItinerary.days && this.currentItinerary.days.length > 0) {
       const dayData = this.currentItinerary.days[0];
@@ -207,9 +199,9 @@ export default class ItineraryView extends HTMLElement {
         this.setError(`
           <div class="state-block">
              <div class="state-icon">${icons.search}</div>
-             <h3 class="state-title">일정을 찾을 수 없거나 접근 권한이 없습니다.</h3>
-             <p class="state-desc">요청하신 여행 일정이 삭제되었거나, 비공개 상태일 수 있습니다.<br>올바른 링크인지 다시 확인해 주세요.</p>
-             <button class="state-action" onclick="window.navigate('/plan')">새 일정 만들기</button>
+             <h3 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h3>
+             <p class="state-desc"><span data-i18n="viewNotFoundDesc1">${t('viewNotFoundDesc1')}</span><br><span data-i18n="viewNotFoundDesc2">${t('viewNotFoundDesc2')}</span></p>
+             <button class="state-action" onclick="window.navigate('/plan')" data-i18n="viewNewPlanBtn">${t('viewNewPlanBtn')}</button>
           </div>
         `);
         return;
@@ -229,7 +221,7 @@ export default class ItineraryView extends HTMLElement {
       this.setError(`
         <div class="state-block danger">
            <div class="state-icon">${icons.warn}</div>
-           <h3 class="state-title">데이터 로딩 오류</h3>
+           <h3 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h3>
            <p class="state-desc">${error.message}</p>
         </div>
       `);
@@ -642,10 +634,10 @@ export default class ItineraryView extends HTMLElement {
         <label class="insert-stay">
           <span>${t('addStopStay') || '체류'}</span>
           <select class="insert-stay-select" aria-label="${t('addStopStay') || '체류 시간'}">
-            <option value="30">30분</option>
-            <option value="60" selected>1시간</option>
-            <option value="90">1시간 30분</option>
-            <option value="120">2시간</option>
+            <option value="30" data-i18n="stay30m">${t('stay30m')}</option>
+            <option value="60" selected data-i18n="stay1h">${t('stay1h')}</option>
+            <option value="90" data-i18n="stay1h30m">${t('stay1h30m')}</option>
+            <option value="120" data-i18n="stay2h">${t('stay2h')}</option>
           </select>
         </label>
         <button type="button" class="insert-confirm">${t('addStopConfirm') || '추가'}</button>
@@ -936,7 +928,7 @@ export default class ItineraryView extends HTMLElement {
           </div>
         </div>
         <div class="itinerary-actions">
-          <button id="download-image-btn" class="download-btn">티켓 이미지로 저장·공유</button>
+          <button id="download-image-btn" class="download-btn" data-i18n="downloadTicketBtn">${t('downloadTicketBtn')}</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
           <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">카카오톡 공유하기</button>
         </div>
@@ -1011,7 +1003,7 @@ export default class ItineraryView extends HTMLElement {
       const safePlan = this.normalizeData(reconciled);
 
       if (!safePlan || !Array.isArray(safePlan.days) || safePlan.days.length === 0) {
-        this.setError('<div class="state-block"><p class="state-desc">저장된 세부 일정이 없습니다.</p></div>');
+        this.setError(`<div class="state-block"><p class="state-desc" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</p></div>`);
         return;
       }
 
@@ -1123,8 +1115,8 @@ export default class ItineraryView extends HTMLElement {
         fallbackItem.innerHTML = `
           <div class="time-badge">--:--</div>
           <div class="schedule-card" style="border-color: var(--cp-danger); border-left-color: var(--cp-danger); background: var(--cp-danger-bg);">
-            <div class="schedule-title" style="color: var(--cp-danger);">항목 없음</div>
-            <div class="schedule-desc" style="color: var(--cp-danger);">저장된 세부 일정이 없습니다.</div>
+            <div class="schedule-title" style="color: var(--cp-danger);" data-i18n="viewNoItemsTitle">${t('viewNoItemsTitle')}</div>
+            <div class="schedule-desc" style="color: var(--cp-danger);" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</div>
           </div>
         `;
         container.appendChild(fallbackItem);
@@ -1147,17 +1139,17 @@ export default class ItineraryView extends HTMLElement {
       // 출발/도착은 사용자가 폼에서 지정한 경계라 편집 대상이 아니다.
       const editHtml = isEditableItem(scheduleItem) ? `
         <div class="item-edit-actions">
-          <button class="item-edit-btn" data-edit="up" data-idx="${idx}" aria-label="${scheduleItem.title} 앞으로 옮기기" title="앞으로">↑</button>
-          <button class="item-edit-btn" data-edit="down" data-idx="${idx}" aria-label="${scheduleItem.title} 뒤로 옮기기" title="뒤로">↓</button>
-          <button class="item-edit-btn danger" data-edit="remove" data-idx="${idx}" aria-label="${scheduleItem.title} 일정에서 빼기" title="빼기">✕</button>
+          <button class="item-edit-btn" data-edit="up" data-idx="${idx}" aria-label="${t('moveUpAria').replace('{0}', scheduleItem.title)}" data-i18n-title="moveUpTitle" title="${t('moveUpTitle')}">↑</button>
+          <button class="item-edit-btn" data-edit="down" data-idx="${idx}" aria-label="${t('moveDownAria').replace('{0}', scheduleItem.title)}" data-i18n-title="moveDownTitle" title="${t('moveDownTitle')}">↓</button>
+          <button class="item-edit-btn danger" data-edit="remove" data-idx="${idx}" aria-label="${t('removeItemAria').replace('{0}', scheduleItem.title)}" data-i18n-title="removeItemTitle" title="${t('removeItemTitle')}">✕</button>
         </div>
       ` : '';
 
       const linksHtml = `
         <div class="action-links">
-          ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" class="action-link-badge">${icons.info} 홈페이지</a>` : ''}
-          ${gmapsStr ? `<a href="${gmapsStr}" target="_blank" rel="noopener noreferrer" class="action-link-badge primary">${icons.search} 리뷰 보기</a>` : ''}
-          <button class="nav-btn" data-location="${locationStr.replace(/"/g, '&quot;')}" data-gmaps="${gmapsStr.replace(/"/g, '&quot;')}">${icons.route} 길찾기</button>
+          ${scheduleItem?.officialWebsiteUrl ? `<a href="${scheduleItem.officialWebsiteUrl}" target="_blank" rel="noopener noreferrer" class="action-link-badge">${icons.info} <span data-i18n="officialSiteBtn">${t('officialSiteBtn')}</span></a>` : ''}
+          ${gmapsStr ? `<a href="${gmapsStr}" target="_blank" rel="noopener noreferrer" class="action-link-badge primary">${icons.search} <span data-i18n="reviewsBtn">${t('reviewsBtn')}</span></a>` : ''}
+          <button class="nav-btn" data-location="${locationStr.replace(/"/g, '&quot;')}" data-gmaps="${gmapsStr.replace(/"/g, '&quot;')}">${icons.route} <span data-i18n="directionsBtn">${t('directionsBtn')}</span></button>
         </div>
       `;
 
@@ -1192,7 +1184,7 @@ export default class ItineraryView extends HTMLElement {
                 const transitTime = timeMatch[0];
                 // 전체 소요 시간과 이동 시간이 다른 경우 혹은 이동 관련 키워드가 있는 경우에만 표시
                 if (scheduleItem.duration !== transitTime || info.includes('이동') || info.includes('도보')) {
-                   return ` <span class="gemini-transit-meta" style="opacity: 0.8; font-weight: normal; font-size: 0.85em;">(이동시간: ${transitTime})</span>`;
+                   return ` <span class="gemini-transit-meta" style="opacity: 0.8; font-weight: normal; font-size: 0.85em;">${t('transitTimeMeta').replace('{0}', transitTime)}</span>`;
                 }
               }
               return '';
@@ -1222,8 +1214,8 @@ export default class ItineraryView extends HTMLElement {
                     <span class="rec-rank">${i + 1}.</span>
                     <span class="rec-name">${safeName}</span>
                     <span class="rec-rating">${icons.star} ${rec.rating || ''}</span>
-                    <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">${icons.list} 리뷰보기</a>
-                    <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">${icons.route} 길찾기</a>
+                    <a href="${reviewHref}" target="_blank" rel="noopener noreferrer" class="rec-btn review">${icons.list} <span data-i18n="reviewsBtn">${t('reviewsBtn')}</span></a>
+                    <a href="${dirHref}" target="_blank" rel="noopener noreferrer" class="rec-btn direction">${icons.route} <span data-i18n="directionsBtn">${t('directionsBtn')}</span></a>
                   </div>`;
                 }).join('');
                 recsHtml = `<div class="info-row" style="margin-top: 0.5rem; align-items: flex-start;">
