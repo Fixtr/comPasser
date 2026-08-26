@@ -20,6 +20,7 @@ import { affiliateAds } from '../config/ads.js';
 import { showErrorToast } from '../utils/toast.js';
 import { applyRouteTheme, releaseRouteTheme } from '../utils/route-theme.js';
 import { initMapSheet } from './map-sheet.js';
+import { decideRoute, isHomePath } from './route-decision.mjs';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
 
@@ -305,11 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastLoadedStaticViewData = null;
     let lastLoadedViewId = null;
 
-    /** 홈으로 쳐 주는 경로. 가드와 렌더 분기가 같은 답을 써야 한다 —
-     *  예전에는 렌더 쪽에만 '/index.html' 이 있어서, 그 주소로 들어오면
-     *  가드에 걸려 로그인으로 튕겼다. */
-    const isHomePath = (path) =>
-        path === '/' || path === '/home' || path.endsWith('/index.html');
+    /** Firebase 가 로그인 여부를 알려 줬는가. 그 전에는 판단하지 않는다. */
+    let authSettled = false;
 
     async function handleRouteChange() {
         const path = window.location.pathname;
@@ -320,19 +318,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Track page view
         trackEvent('page_view', { page_path: path });
 
-        // Route Guards
-        if (!user && path !== '/login' && path !== '/join' && !path.startsWith('/verify') && !isHomePath(path)) {
-            console.log('[Router] Unauthenticated access denied, redirecting to home.');
-            window.navigate('/login');
+        // 어디로 갈지는 route-decision.mjs 가 정한다. 판단을 떼어 둔 이유는
+        // 이 자리가 한 번 크게 틀렸기 때문이다 — 인증이 확정되기 전에
+        // 로그인 여부로 판단해 버려서, 공유 링크(/view/:id)로 들어온 사람이
+        // /login 을 거쳐 /preference/1 로 밀려났다. 원래 가려던 주소는
+        // 그 사이에 사라진다.
+        const decision = decideRoute({
+            path,
+            user,
+            authSettled,
+            hasPreference: !!sessionStorage.getItem('userPreference'),
+        });
+
+        if (decision.action === 'wait') {
+            // 아직 로그인 여부를 모른다. 화면을 건드리지 않고 다음 회차를
+            // 기다린다 — 여기서 어림짐작으로 보내면 주소를 잃는다.
+            console.log(`[Router] Waiting for auth before deciding '${path}'.`);
             return;
         }
 
-        if (user && (path === '/login' || path === '/join')) {
-            // 이미 preference를 선택했으면 /plan으로, 아니면 /preference/1로
-            const hasPreference = sessionStorage.getItem('userPreference');
-            const targetPath = hasPreference ? '/plan' : '/preference/1';
-            console.log(`[Router] Authenticated user at login/join, redirecting to ${targetPath}.`);
-            window.navigate(targetPath);
+        if (decision.action === 'redirect') {
+            console.log(`[Router] Redirecting '${path}' → '${decision.to}'.`);
+            window.navigate(decision.to);
             return;
         }
 
@@ -543,6 +550,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userAvatar = document.getElementById('user-avatar');
 
     subscribeToAuthChanges((user) => {
+        // 이제부터는 로그인 여부를 안다. 이 줄이 없으면 라우터가 영영
+        // 기다리기만 한다.
+        authSettled = true;
         if (user) {
             const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
             const needsVerification = isEmailPasswordUser && !user.emailVerified;

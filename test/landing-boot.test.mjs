@@ -58,10 +58,23 @@ test('/index.html 로 들어와도 로그인으로 튕기지 않는다', () => {
   // 렌더 분기에는 path.endsWith('/index.html') 이 있는데 가드 목록에는
   // 빠져 있어서, 이 주소로 들어오면 랜딩을 못 보고 로그인으로 갔다.
   // 홈으로 쳐 주는 경로 판단이 한 곳에 모여 있어야 두 곳이 갈라지지 않는다.
-  assert.match(main, /const isHomePath = \(path\) =>[\s\S]{0,200}index\.html/,
-    '홈 경로 판단이 한 곳에 없다');
-  const guard = /if \(!user &&([\s\S]*?)\) \{/.exec(main);
-  assert.ok(guard, '라우트 가드를 찾지 못했다');
-  assert.match(guard[1], /isHomePath\(path\)/, '가드가 홈 경로 판단을 쓰지 않는다');
+  //
+  // 그 판단은 이제 route-decision.mjs 가 갖는다(가려는 곳을 정하는 일이
+  // 한 번 더 틀린 뒤로 — 공유 링크가 안 열리던 건 — 통째로 떼어 냈다).
+  // 규칙 자체는 route-decision.test.mjs 가 값으로 검사하고, 여기서는
+  // **main.js 가 그 판단만 쓰는지**를 본다.
+  assert.ok(!/const isHomePath = \(path\) =>/.test(main),
+    '홈 경로 판단이 main.js 에 다시 생겼다 — 두 곳이 갈라진다');
+  assert.match(main, /from\s+['"]\.\/route-decision\.mjs['"]/, '판단 모듈을 쓰지 않는다');
   assert.match(main, /\} else if \(isHomePath\(path\)\) \{/, '렌더 분기가 같은 판단을 쓰지 않는다');
+  assert.ok(!/if \(!user && path !== '\/login'/.test(main),
+    '가드가 경로 목록을 직접 들고 있다 — 목록이 두 곳에 생긴다');
+});
+
+test('인증을 모르는 동안에는 판단을 미룬다', () => {
+  // 이 줄이 없으면 공유 링크(/view/:id)로 들어온 사람이 /login 을 거쳐
+  // /preference/1 로 밀려나고, 원래 가려던 주소는 사라진다.
+  assert.match(main, /let authSettled = false/, '인증 확정 여부를 두지 않는다');
+  assert.match(main, /authSettled = true/, '인증이 확정돼도 표시하지 않는다 — 라우터가 영영 기다린다');
+  assert.match(main, /decision\.action === 'wait'/, '기다리는 갈래가 없다');
 });
