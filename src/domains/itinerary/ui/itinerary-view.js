@@ -11,7 +11,7 @@ import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
-import { loadKakaoSdk, loadHtml2Canvas } from '../../../utils/external-scripts.js';
+import { loadKakaoSdk, loadHtml2Canvas, loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { buildBoardingPass } from '../services/boarding-pass.mjs';
@@ -1339,8 +1339,13 @@ export default class ItineraryView extends HTMLElement {
     }, 150); // wait for fade out
   }
 
-  // Helper inside showResults (formerly at bottom of showResults)
-  renderAds() {
+  /**
+   * 광고 자리를 만들고, 그때 애드센스를 불러온다.
+   *
+   * 예전에는 index.html 이 애드센스를 미리 받아 두고 여기서는 push 만 했다.
+   * 광고 자리는 이 화면에만 있는데 랜딩·로그인·폼에서도 매번 받아 온 셈이다.
+   */
+  async renderAds() {
       // 1. Shadow DOM 우회 및 광고 컨테이너 삽입 (Light DOM 영역)
       // 기존 광고가 있다면 제거 후 새로 생성 (SPA 라우팅 대응)
       const existingAd = this.querySelector('.adsense-wrapper');
@@ -1349,10 +1354,11 @@ export default class ItineraryView extends HTMLElement {
       const adWrapper = document.createElement('div');
       adWrapper.className = 'adsense-wrapper';
       adWrapper.style.cssText = 'margin-top: 40px; text-align: center; width: 100%;';
+      // 계정 번호는 external-scripts.js 한 곳에서만 나온다.
       adWrapper.innerHTML = `
         <ins class="adsbygoogle"
              style="display:block"
-             data-ad-client="ca-pub-2887038255405057"
+             data-ad-client="${ADSENSE_CLIENT}"
              data-ad-slot="3531494624"
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
@@ -1360,7 +1366,9 @@ export default class ItineraryView extends HTMLElement {
       // shadowRoot가 아닌 컴포넌트 최상위에 붙이기 (Light DOM)
       this.appendChild(adWrapper);
 
-      // 2. 광고 트리거 스크립트 실행
+      // 2. 이제서야 SDK 를 받는다. 못 받아도 일정 화면은 그대로 살아 있다.
+      if (!await loadAdSense()) return;
+
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {

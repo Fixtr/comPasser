@@ -26,12 +26,17 @@ export default class TravelForm extends HTMLElement {
     }
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
-    this.initPlaces();
-    // SPA 캐싱 대응: 화면 표시 감지 옵저버 설정
+
+    // 여기서 initPlaces() 를 부르지 않는다. <travel-form> 은 index.html
+    // 마크업에 있어 **모든 경로에서** 붙는데, initPlaces 는 Maps 의 places
+    // 라이브러리를 받아 온다 — 랜딩에서도 지도 API 를 받고 있었다는 뜻이다.
+    // 폼이 실제로 보일 때 받으면 된다. 마침 아래 옵저버가 그 순간을 이미
+    // 알고 있었다.
     this._visibilityObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           console.log("[TravelForm] Component became visible. Forcing re-fetch from storage.");
+          this.initPlaces();
           this.refreshFromStorage();
         }
       });
@@ -337,6 +342,9 @@ export default class TravelForm extends HTMLElement {
   }
 
   async initPlaces() {
+    // 보일 때마다 불린다. 자동완성을 두 번 붙이면 같은 선택이 두 번 전달된다.
+    if (this._placesReady) return;
+    this._placesReady = true;
     try {
       // 💎 핵심 1: libraries=['places']가 포함된 로더로부터 places 라이브러리를 명확히 가져옴 💎
       await this.loader.importLibrary("places");
@@ -353,6 +361,8 @@ export default class TravelForm extends HTMLElement {
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
+      // 잠깐 끊겼다 돌아온 사용자가 다시 폼에 들어왔을 때 재시도할 수 있어야 한다.
+      this._placesReady = false;
     }
   }
 

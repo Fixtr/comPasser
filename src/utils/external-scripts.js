@@ -18,9 +18,11 @@ const pending = new Map();
 /**
  * 스크립트를 한 번만 로드한다.
  * @param {string} src
+ * @param {{crossOrigin?: string}} [options] 일부 SDK 는 오류 보고를 위해
+ *   crossorigin 을 요구한다(애드센스). 없으면 붙이지 않는다.
  * @returns {Promise<void>} 로드 실패 시 reject
  */
-export function loadScriptOnce(src) {
+export function loadScriptOnce(src, options = {}) {
   if (pending.has(src)) return pending.get(src);
 
   const promise = new Promise((resolve, reject) => {
@@ -36,6 +38,7 @@ export function loadScriptOnce(src) {
     const script = document.createElement('script');
     script.src = src;
     script.async = true;
+    if (options.crossOrigin) script.crossOrigin = options.crossOrigin;
     script.addEventListener('load', () => { script.dataset.loaded = 'true'; resolve(); }, { once: true });
     script.addEventListener('error', () => {
       // 실패한 Promise 를 캐시에 남겨 두면 다음 시도까지 영영 막힌다.
@@ -101,4 +104,37 @@ let html2canvasPromise;
 export function loadHtml2Canvas() {
   html2canvasPromise ??= import('html2canvas-pro').then(m => m.default);
   return html2canvasPromise;
+}
+
+/**
+ * 애드센스 계정 번호. **이 앱에서 이 번호를 아는 곳은 여기 한 곳이다.**
+ *
+ * 예전에 카카오 앱 키가 main.js 와 login-view 두 곳에서 나와, 먼저 실행되는
+ * 쪽이 이기는 바람에 공유와 로그인이 서로 다른 앱으로 붙을 수 있었다.
+ * 같은 실수를 되풀이하지 않으려고 광고 자리 마크업도 이 값을 가져다 쓴다.
+ */
+export const ADSENSE_CLIENT = 'ca-pub-2887038255405057';
+
+const ADSENSE_URL =
+  `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+
+/**
+ * 애드센스를 불러온다.
+ *
+ * 예전에는 index.html 에 `<script async>` 로 걸려 있었다. async 라 파싱을
+ * 막지는 않았지만, 광고 자리(`<ins class="adsbygoogle">`)는 결과 화면에만
+ * 있는데 랜딩·로그인·폼에서도 매번 이 무거운 스크립트를 받아 왔다.
+ *
+ * 실패해도 던지지 않는다 — 광고가 안 붙는 것과 일정이 안 보이는 것은
+ * 전혀 다른 문제다. 부르는 쪽이 try/catch 를 잊어도 화면은 살아 있어야 한다.
+ * @returns {Promise<boolean>} 실제로 불러왔는지
+ */
+export async function loadAdSense() {
+  try {
+    await loadScriptOnce(ADSENSE_URL, { crossOrigin: 'anonymous' });
+    return true;
+  } catch (error) {
+    console.warn('[ads] 애드센스를 불러오지 못했습니다:', error);
+    return false;
+  }
 }

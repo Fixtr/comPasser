@@ -63,7 +63,21 @@ export class MapView extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    this.initMap();
+
+    // 여기서 지도를 켜지 않는다.
+    //
+    // <map-view> 는 index.html 마크업에 있어 **모든 경로에서** 붙는다.
+    // 붙자마자 initMap() 을 부르면 랜딩·로그인·폼에서도 Maps JS 를 받아
+    // 온다 — 라이브러리 여섯 벌(marker·geocoding·routes·maps·core·places)
+    // 이라 가볍지 않고, 지도는 그 화면들 중 어디에도 보이지 않는다.
+    //
+    // 대신 화면에 보이는 순간에 켠다. 이 요소가 있는 #page-view 는 다른
+    // 경로에서 display:none 이라 교차가 일어나지 않는다 — 즉 결과 화면에
+    // 들어온 그 순간이 정확히 필요한 순간이다.
+    this._visibilityObserver = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) this.ensureMap();
+    }, { threshold: 0.01 });
+    this._visibilityObserver.observe(this);
 
     // Listen for manual route render requests (e.g. when loading by ID)
     window.removeEventListener('render-map-route', this._renderRouteHandler);
@@ -75,6 +89,30 @@ export class MapView extends HTMLElement {
 
   disconnectedCallback() {
     window.removeEventListener('render-map-route', this._renderRouteHandler);
+    if (this._visibilityObserver) {
+      this._visibilityObserver.disconnect();
+      this._visibilityObserver = null;
+    }
+  }
+
+  /**
+   * 지도를 한 번만 켠다.
+   *
+   * 보이게 됐을 때(옵저버)와 경로를 그려 달라고 했을 때(renderRoute) 둘 다
+   * 이 문을 지난다. 두 신호가 거의 동시에 오는 것이 정상이라, Promise 를
+   * 붙잡아 두지 않으면 지도를 두 번 만들게 된다.
+   *
+   * 실패한 시도는 붙잡아 두지 않는다 — 네트워크가 잠깐 끊겼다 돌아온
+   * 사용자가 새로고침 없이 다시 시도할 수 있어야 한다.
+   * @returns {Promise<boolean>} 지도가 준비됐는지
+   */
+  ensureMap() {
+    if (this.map) return Promise.resolve(true);
+    if (!this._mapReady) {
+      this._mapReady = this.initMap().then(() => Boolean(this.map));
+      this._mapReady.then((ok) => { if (!ok) this._mapReady = null; });
+    }
+    return this._mapReady;
   }
 
   render() {
@@ -203,7 +241,9 @@ export class MapView extends HTMLElement {
   }
 
   async renderRoute(itineraryPlan) {
-    if (!this.map) {
+    // 예전에는 지도가 없으면 여기서 포기했다. 지금은 지도를 늦게 켜므로,
+    // 그리라는 요청이 먼저 도착하는 것이 정상이다 — 그때 켜면 된다.
+    if (!await this.ensureMap()) {
       this.notifyTransitUnavailable('지도를 초기화하지 못했습니다.');
       return;
     }
