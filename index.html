@@ -177,15 +177,32 @@
       </div>
 
       <!-- PAGE 3: VIEW (Results Section Container) -->
+      <!-- 지도가 배경이고 일정이 그 위로 올라오는 시트다(보드의 방향 D).
+           예전에는 지도 500px 아래에 일정이 이어 붙어 스크롤을 공유했다 —
+           지도를 보려면 위로, 일정을 보려면 아래로 가야 해서 둘을 함께 보는
+           순간이 없었다. "고정 일정을 중심으로 동선을 다시 짠다"는 것은
+           지도와 일정이 같은 화면에 있을 때만 눈에 보인다. -->
       <div id="page-view" class="page-container fade-transition hidden-view" style="display: none;">
-        <!-- 결과 화면 액션. 스타일은 style.css 의 #page-view 블록에 있다
-             (인라인 style/onmouseover 를 토큰 기반 CSS 로 옮겼다). -->
+        <map-view></map-view>
+
+        <!-- 시트 밖이라 시트를 내려도 남는다. -->
         <div class="view-actions">
           <button id="edit-itinerary-btn" type="button" data-i18n="editItineraryBtn">이 조건으로 다시 만들기</button>
         </div>
 
-        <map-view></map-view>
-        <itinerary-view></itinerary-view>
+        <!-- data-state 의 기본값이 "full" 인 것은 의도다. map-sheet.js 가
+             뜨지 못하면 이 값이 그대로 남는데, 그때 사용자가 보는 것은
+             손잡이만 있는 빈 지도가 아니라 평소의 일정 화면이다. -->
+        <div id="itinerary-sheet" class="map-sheet" data-state="full">
+          <button type="button" class="sheet-grip" id="sheet-grip"
+            aria-expanded="true" aria-controls="sheet-body" aria-label="지도 보기">
+            <span class="sheet-grip-bar" aria-hidden="true"></span>
+            <span class="sheet-grip-label">지도 보기</span>
+          </button>
+          <div class="sheet-body" id="sheet-body">
+            <itinerary-view></itinerary-view>
+          </div>
+        </div>
       </div>
     </section>
   </main>

@@ -96,9 +96,21 @@ test('시스템 테마가 바뀌면 따라간다 — 사용자가 고른 적 없
 test('설치형에서는 히어로가 자리를 덜 차지한다', () => {
   // 홈 화면에서 띄우면 브라우저 주소창이 없는 대신 이 헤더가 매 화면 위에
   // 200px 를 상시 점유했다. 설치형에서는 줄인다.
+  //
+  // 줄이는 값은 이제 커스텀 속성 한 벌이다 — 설치형과 결과 화면(지도에
+  // 자리를 내줘야 한다)이 같은 것을 원하는데, 값을 두 곳에 적으면 한쪽만
+  // 고쳐지는 날이 온다. 그래서 ① 조건이 값을 켜는지 ② .hero 가 그 값을
+  // 실제로 읽는지, 두 쪽을 함께 본다.
   const block = /@media\s*\(display-mode:\s*standalone\)\s*\{[\s\S]*?\n\}/.exec(css);
   assert.ok(block, '(display-mode: standalone) 블록이 없다');
-  assert.match(block[0], /\.hero/, '설치형에서 히어로를 줄이지 않는다');
+  assert.match(block[0], /--hero-pad\s*:/, '설치형에서 헤더 여백을 줄이지 않는다');
+  assert.match(block[0], /--hero-sub\s*:\s*none/, '설치형에서 소개 문구를 감추지 않는다');
+
+  const hero = /\.hero\s*\{([^}]*)\}/.exec(css);
+  assert.ok(hero, '.hero 규칙이 없다');
+  assert.match(hero[1], /padding\s*:\s*var\(--hero-pad/, '.hero 가 --hero-pad 를 읽지 않는다');
+  const heroP = /\.hero p\s*\{([^}]*)\}/.exec(css);
+  assert.match(heroP[1], /display\s*:\s*var\(--hero-sub/, '.hero p 가 --hero-sub 를 읽지 않는다');
 });
 
 test('노치 아래로 내용이 숨지 않는다', () => {

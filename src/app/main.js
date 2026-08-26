@@ -19,6 +19,7 @@ import { trackEvent } from '../utils/analytics.js';
 import { affiliateAds } from '../config/ads.js';
 import { showErrorToast } from '../utils/toast.js';
 import { applyRouteTheme, releaseRouteTheme } from '../utils/route-theme.js';
+import { initMapSheet } from './map-sheet.js';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
 
@@ -332,6 +333,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // 결과 화면에서는 액자 여백을 걷어 지도가 무대를 채우게 한다.
+        // 여백이 남으면 지도가 배경이 아니라 액자 속 카드로 보인다.
+        document.body.classList.toggle('stage-map', path.startsWith('/view'));
+
         // 결과·지도 화면만 어둡게 한다(utils/route-theme.js).
         // **가드 뒤에** 부른다. 앞에서 부르면 로그인으로 튕겨 나갈 주소에도
         // 잠깐 다크가 얹혔다가 곧바로 되돌아와 화면이 한 번 껌뻑인다.
@@ -606,6 +611,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.navigate('/plan');
         });
     }
+
+    // ====== 결과 화면의 일정 시트 ======
+    // 마크업의 기본은 펼침이다. 여기까지 와야 접힌다 — 이 줄이 실행되지
+    // 못하면 사용자는 손잡이만 있는 빈 지도가 아니라 평소 일정 화면을 본다.
+    initMapSheet({
+        sheet: document.getElementById('itinerary-sheet'),
+        grip: document.getElementById('sheet-grip'),
+        body: document.getElementById('sheet-body'),
+        // t() 는 없는 키를 만나면 키 이름을 그대로 돌려준다. 그래서 이
+        // 저장소에 흔한 `t(k) || '기본값'` 은 한 번도 동작하지 않는다 —
+        // 실제로 손잡이에 "sheetExpand" 가 찍혀 있었다. 사전에 넣는 것이 답이다.
+        labels: { expand: t('sheetExpand'), collapse: t('sheetCollapse') },
+    });
 
     // ====== 테마 ======
     // 첫 페인트 전에 index.html 의 head 스크립트가 html[data-theme] 를 이미

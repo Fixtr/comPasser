@@ -70,21 +70,27 @@ h4 {
    보라 그라디언트 글씨를 없앤 이유는 두 가지다 — 캡처에서 글자가 통째로
    사라지고(PRD 3.7), "AI 가 만든 앱" 목록의 첫 항목이기도 하다. */
 .hero {
-  padding: 2.5rem 2rem;
-  text-align: center;
+  display: var(--hero-display, block);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: var(--hero-pad, 2.5rem 2rem);
+  text-align: var(--hero-align, center);
   background: var(--cp-surface);
   border-bottom: var(--cp-hair) solid var(--cp-rule);
 }
 
 .hero h1 {
-  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  font-size: var(--hero-title, clamp(1.9rem, 5vw, 2.6rem));
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--cp-ink);
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--hero-title-gap, 0.6rem);
 }
 
 .hero p {
+  display: var(--hero-sub, block);
   font-size: 1.02rem;
   color: var(--cp-ink-2);
   max-width: 52ch;
@@ -95,10 +101,38 @@ h4 {
 .header-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: var(--hero-actions-align, center);
   gap: 0.5rem;
-  margin-top: 1.4rem;
+  margin-top: var(--hero-actions-gap, 1.4rem);
   flex-wrap: wrap;
+}
+
+/* 헤더를 한 줄로 접는 값 묶음.
+   두 자리에서 같은 것을 원한다 — 설치형(주소창이 없어 이 헤더가 매 화면
+   위를 상시 점유한다)과 결과 화면(지도에 자리를 내줘야 한다). 값을 두 번
+   적으면 한쪽만 고쳐지는 날이 오므로 커스텀 속성 한 벌로 모았다. */
+@media (display-mode: standalone) {
+  body {
+    --hero-display: flex;
+    --hero-pad: 0.6rem 1rem;
+    --hero-align: left;
+    --hero-title: 1.15rem;
+    --hero-title-gap: 0;
+    --hero-sub: none;
+    --hero-actions-gap: 0;
+    --hero-actions-align: flex-end;
+  }
+}
+
+body.stage-map {
+  --hero-display: flex;
+  --hero-pad: 0.6rem 1rem;
+  --hero-align: left;
+  --hero-title: 1.15rem;
+  --hero-title-gap: 0;
+  --hero-sub: none;
+  --hero-actions-gap: 0;
+  --hero-actions-align: flex-end;
 }
 
 /* 알약 모양은 뱃지·칩에만 허용된 예외다. 헤더 토글은 각진 상자로 둔다. */
@@ -521,15 +555,78 @@ html[data-route="away"] #page-home {
    무채색 UI · 각진 형태 · 그림자 없음. 색은 지도 마커 규칙에만 쓴다.
    토큰 정의는 src/styles/tokens.css.
    ============================================================ */
+/* ====== 결과 화면 — 지도가 배경, 일정이 시트 ======
+   무대는 남은 높이를 전부 쓴다. .app-container 가 세로 flex 이고
+   .content 가 flex:1 이라, 여기서 .content 를 다시 flex 로 만들면
+   #page-view 가 자연스럽게 바닥까지 내려온다 — 헤더 높이를 세어
+   calc() 로 빼는 방식은 헤더가 바뀔 때마다 조용히 어긋난다. */
+/* 결과 화면은 스크롤되는 문서가 아니라 한 화면이다. 액자가 화면보다
+   길면 접힌 시트의 손잡이가 화면 아래로 내려가, 일정을 펼치려면 먼저
+   페이지를 스크롤해야 한다 — 그러면 "지도가 배경"이라는 말이 무색해진다.
+   dvh 는 모바일 브라우저의 주소창이 접혔다 펴질 때를 함께 본다. */
+body.stage-map {
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: stretch;
+}
+
+body.stage-map .app-container {
+  margin: 0;
+  min-height: 0;
+  border: 0;
+}
+
+body.stage-map .content {
+  /* 지도가 배경인데 안쪽 여백이 남으면 지도가 액자 속 카드로 보인다. */
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.stage-map #page-view {
+  /* flex 가 살아 있으면 basis 0 에서 자라 남은 자리를 정확히 채우고,
+     min-height: 0 이 있어 화면보다 커지지 않는다. */
+  flex: 1;
+  min-height: 0;
+  /* **사슬이 끊겼을 때의 바닥값.** flex 컨테이너가 아니면 위의 flex 는
+     무시되고 이 height 가 쓰인다. 이게 없으면 무대 높이가 0 이 되는데,
+     자식(지도·시트)이 전부 절대 배치라 내용으로 버텨 주지도 않아 결과
+     화면이 통째로 빈다 — 랜딩이 빈 화면이 되던 것과 같은 종류의 사고다.
+     실제로 렌더 검증에서 `stage: { h: 0 }` 을 보고 잡았다. */
+  height: min(70vh, 560px);
+}
+
 #page-view {
   display: none;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
   position: relative;
+  margin-top: 0;
+  min-height: 420px;
+  overflow: hidden;
+}
+
+/* 지도는 무대를 가득 채운다. 크기가 고정이라 시트가 오르내려도
+   google.maps 에 resize 를 알릴 일이 없다. */
+#page-view > map-view {
+  position: absolute;
+  inset: 0;
+  margin-top: 0;
+  min-height: 0;
+  /* **안쪽 z-index 가 밖으로 새지 않게 가둔다.**
+     position:absolute + z-index:auto 는 쌓임 맥락을 만들지 않는다. 그래서
+     지도 안의 로딩 막(z-index: 20)이 무대의 쌓임 맥락에 그대로 참여했고,
+     20 > 2 라 시트 손잡이 위를 덮었다 — 눈으로는 손잡이가 보이는데 눌리지
+     않는 상태였다. isolation 이 그 20 을 지도 안에 가둔다. */
+  isolation: isolate;
+  z-index: 0;
 }
 
 #page-view .view-actions {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
@@ -537,7 +634,9 @@ html[data-route="away"] #page-home {
 
 #page-view .view-actions button {
   width: fit-content;
-  background: transparent;
+  /* 예전에는 transparent 였다. 이제 지도 위에 떠 있어서, 투명하면
+     지명·도로 이름이 글자 뒤로 지나가 둘 다 안 읽힌다. */
+  background: var(--cp-surface);
   color: var(--cp-ink);
   border: var(--cp-hair) solid var(--cp-ink);
   border-radius: var(--cp-radius);
@@ -681,28 +780,131 @@ html[data-route="away"] #page-home {
    소개 문구는 처음 들어온 사람을 설득하기 위한 것이다. 이미 설치한
    사람에게는 필요 없으므로 감추고, 제목과 조작 버튼만 한 줄로 남긴다.
    body 가 이미 safe-area 여백을 주므로 여기서 또 주지 않는다. */
-@media (display-mode: standalone) {
-  .hero {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    padding: 0.6rem 1rem;
-    text-align: left;
+
+
+
+/* ====== 일정 시트 ======
+   동작은 src/app/map-sheet.js 가 맡는다. 여기서는 모양과 두 자리(접힘·펼침)
+   만 정한다. --sheet-offset 은 끌고 있는 동안 JS 가 픽셀로 덮어쓴다. */
+.map-sheet {
+  --sheet-peek-height: 6.5rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  /* 이 방향에는 그림자가 없다. 지도와 일정을 가르는 것은 실선 한 겹과
+     불투명한 지면색뿐이라, 반투명이면 글자와 지도가 겹쳐 둘 다 안 읽힌다. */
+  background: var(--cp-paper);
+  border-top: var(--cp-hair) solid var(--cp-rule-hard);
+  border-radius: var(--cp-radius);
+  transform: translateY(var(--sheet-offset, 0px));
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.map-sheet[data-state="peek"] {
+  --sheet-offset: calc(100% - var(--sheet-peek-height));
+}
+
+.map-sheet[data-state="full"] {
+  --sheet-offset: 0px;
+}
+
+/* 손가락을 따라오는 값에 transition 이 걸려 있으면 한 박자씩 늦게 붙는다. */
+.map-sheet[data-dragging="true"] {
+  transition: none;
+}
+
+.sheet-grip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.7rem 1rem 0.8rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--cp-radius);
+  color: var(--cp-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: grab;
+  /* 드래그를 여기서만 잡는다. 시트 전체에 걸면 안쪽 일정 목록을 손가락으로
+     굴릴 수 없다. */
+  touch-action: none;
+}
+
+.sheet-grip:active {
+  cursor: grabbing;
+}
+
+.sheet-grip:focus-visible {
+  outline: 2px solid var(--cp-ink);
+  outline-offset: -2px;
+}
+
+/* 알약이 아니라 각진 막대. 이 방향의 형태 규칙을 손잡이에서도 지킨다. */
+.sheet-grip-bar {
+  width: 2.5rem;
+  height: 3px;
+  background: var(--cp-rule-hard);
+}
+
+.sheet-grip-label {
+  color: var(--cp-muted);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* 시트 안쪽 끝까지 굴린 뒤에도 뒤의 문서가 따라 움직이지 않게 한다. */
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 접힌 채로 안쪽만 굴러가면 손잡이가 제자리에서 떠는 것처럼 보인다. */
+.map-sheet[data-state="peek"] .sheet-body {
+  overflow: hidden;
+}
+
+@media (pointer: coarse) {
+  .sheet-grip {
+    min-height: 56px;
+  }
+}
+
+/* 노트북에서 아래에서 올라오는 시트는 자리를 낭비하고 어색하다. 데모를
+   노트북으로 하는 것을 생각하면 이쪽이 더 자주 보인다. 넓은 화면에서는
+   시트가 아니라 오른쪽 패널이고, 손잡이는 할 일이 없으므로 감춘다. */
+@media (min-width: 900px) {
+  .map-sheet {
+    left: auto;
+    top: 0;
+    width: min(30rem, 42%);
+    height: auto;
+    transform: none;
+    border-top: none;
+    border-left: var(--cp-hair) solid var(--cp-rule-hard);
   }
 
-  .hero h1 {
-    font-size: 1.15rem;
-    margin-bottom: 0;
-  }
-
-  .hero p {
+  .map-sheet .sheet-grip {
     display: none;
   }
 
-  .header-actions {
-    margin-top: 0;
-    justify-content: flex-end;
+  .map-sheet[data-state="peek"] .sheet-body {
+    overflow-y: auto;
+  }
+
+  #page-view .view-actions {
+    right: auto;
+    width: min(30rem, 42%);
   }
 }

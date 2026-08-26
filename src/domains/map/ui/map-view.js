@@ -118,12 +118,14 @@ export class MapView extends HTMLElement {
   render() {
     this.shadowRoot.innerHTML = `
       <style>
+        /* 이 컴포넌트는 결과 화면의 배경이다. 높이를 여기서 정하지 않고
+           무대(#page-view)가 준 자리를 그대로 채운다 — 예전의 500px 고정과
+           margin-top: 2rem 은 지도가 일정 위에 얹힌 카드였을 때의 값이다. */
         :host {
           display: block;
+          width: 100%;
           height: 100%;
-          min-height: 500px;
           background: transparent;
-          margin-top: 2rem;
           color: var(--cp-muted);
           font-family: var(--cp-font);
           position: relative;
@@ -131,7 +133,7 @@ export class MapView extends HTMLElement {
 
         #map-container {
           width: 100%;
-          height: 500px;
+          height: 100%;
           border-radius: var(--cp-radius);
           border: var(--cp-hair) solid var(--cp-rule);
           transition: opacity 0.5s ease;
