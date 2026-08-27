@@ -7,6 +7,7 @@ import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor } from '../services/anchor-validation.mjs';
+import { findMissingLocation } from '../services/location-validation.mjs';
 
 /** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
 const ANCHOR_FIELD_SELECTOR = {
@@ -823,6 +824,19 @@ export default class TravelForm extends HTMLElement {
         }
       }
 
+      // 출발·도착 장소. 이 칸들은 커스텀 엘리먼트라 브라우저 기본 검사가
+      // 못 본다 — required 를 붙여도 소용없다. 여기서 막지 않으면 빈 채로
+      // 흘러가, AI 는 출발지를 "Unknown" 으로 듣고 경계 보정은 통째로 꺼진다.
+      const missingLocation = findMissingLocation(plannerRequest);
+      if (missingLocation) {
+        const control = this.shadowRoot.getElementById(missingLocation.id);
+        this._revealInvalidField(control, t('missingLocationError')
+          .replace('{0}', fieldLabelOf(control) || t(missingLocation.labelKey)));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
+
       // 손댔지만 덜 찬 고정 일정. 화면에 보이는 줄을 그대로 읽는다 —
       // plannerRequest.anchorSchedules 는 빈 줄이 이미 걸러져 번호가 어긋난다.
       const anchorRows = this._readAnchorRows();
@@ -909,8 +923,13 @@ export default class TravelForm extends HTMLElement {
     this.shadowRoot.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
     control.setAttribute('aria-invalid', 'true');
     control.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    // 스크롤과 다투지 않게 초점만 옮긴다.
-    control.focus({ preventScroll: true });
+    // 스크롤과 다투지 않게 초점만 옮긴다. 장소 칸은 껍데기가 커스텀
+    // 엘리먼트라 껍데기에 초점을 줘 봐야 커서가 안 뜬다 — 안쪽 input 을
+    // 찾아 준다(getAutocompleteValue 가 값을 읽는 자리와 같은 곳이다).
+    const focusTarget = control.shadowRoot?.querySelector('input')
+      || control.querySelector?.('input')
+      || control;
+    focusTarget.focus?.({ preventScroll: true });
   }
 
   _resetSubmitButton(btn) {

@@ -62,7 +62,9 @@ test('브라우저 검사에 걸리면 그 칸을 화면 안으로 끌어온다'
     "invalid 는 위로 타고 오르지 않는다 — 폼에서 잡으려면 캡처 단계여야 한다"
   );
   assert.match(form, /scrollIntoView\(/, '화면 밖 칸은 스크롤해 와야 보인다');
-  assert.match(form, /\.focus\(/, '초점까지 옮겨야 바로 고쳐 넣을 수 있다');
+  // `.focus?.(` 도 통과시킨다 — 장소 칸은 껍데기가 커스텀 엘리먼트라
+  // 안쪽 input 을 찾아 부르며, 못 찾은 경우를 옵셔널 호출로 넘긴다.
+  assert.match(form, /\.focus\??\.?\(/, '초점까지 옮겨야 바로 고쳐 넣을 수 있다');
   assert.match(form, /aria-invalid/, '눈으로도 귀로도 알 수 있어야 한다');
 });
 

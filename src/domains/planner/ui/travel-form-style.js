@@ -154,6 +154,14 @@ export const travelFormStyles = `
           border-left-width: 3px;
         }
 
+        /* 장소 칸은 <input> 이 아니라 구글의 커스텀 엘리먼트다. 위 규칙이
+           닿지 않으므로 같은 표시를 따로 적어 준다 — 안 적으면 걸려도
+           화면에 아무 변화가 없어 "버튼이 죽었다"로 보인다. */
+        gmp-place-autocomplete[aria-invalid="true"] {
+          border-color: var(--cp-ink);
+          border-left-width: 3px;
+        }
+
         /* 선호 단계에서 날짜를 이미 고른 경우 날짜 칸은 읽기 전용이 된다.
            예전에는 이 회색을 travel-form.js 가 인라인으로 칠했다. */
         input[readonly] {
