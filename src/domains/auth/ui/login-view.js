@@ -1,5 +1,4 @@
-import { loginWithGoogle, loginWithEmail, app } from '../services/firebase-auth.js';
-import { getAuth, signInWithCustomToken } from 'firebase/auth';
+import { loginWithGoogle, loginWithEmail, loginWithCustomToken, app } from '../services/firebase-auth.js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
@@ -7,7 +6,6 @@ import { showErrorToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { loadKakaoSdk } from '../../../utils/external-scripts.js';
 
-const auth = getAuth(app);
 const functions = getFunctions(app);
 export default class LoginView extends HTMLElement {
   constructor() {
@@ -188,7 +186,7 @@ export default class LoginView extends HTMLElement {
         const verifySocialToken = httpsCallable(functions, 'verifySocialToken');
         const result = await verifySocialToken({ provider: 'kakao', token: access_token });
         
-        await signInWithCustomToken(auth, result.data.customToken);
+        await loginWithCustomToken(result.data.customToken);
         const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
         window.navigate(targetPath);
       } catch (err) {
@@ -241,7 +239,7 @@ export default class LoginView extends HTMLElement {
                   const verifySocialToken = httpsCallable(functions, 'verifySocialToken');
                   const result = await verifySocialToken({ provider: 'naver', token: e.data.token });
                   
-                  await signInWithCustomToken(auth, result.data.customToken);
+                  await loginWithCustomToken(result.data.customToken);
                   const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
                   window.navigate(targetPath);
               } catch (err) {
