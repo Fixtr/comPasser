@@ -12,7 +12,7 @@ import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import '../domains/profile/ui/profile-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
-import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser } from '../domains/auth/services/firebase-auth.js';
+import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang, applyTranslations } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
@@ -143,6 +143,27 @@ function stopLoadingMessageRotation() {
     }
 }
 // ====== End Dynamic Loading Message Logic ======
+
+/**
+ * 빌드에 설정이 안 들어갔을 때 화면에 그 사실을 적는다.
+ *
+ * 값은 절대 찍지 않는다 — **빠진 변수의 이름만** 적는다. 배포 설정에서 그대로
+ * 찾을 수 있는 이름이라 이것만으로 충분하다.
+ */
+function showConfigError(missing) {
+    console.error('[Config] 빠진 환경 변수:', missing.join(', '));
+    const box = document.createElement('div');
+    box.className = 'config-error';
+    box.setAttribute('role', 'alert');
+    const title = document.createElement('strong');
+    title.textContent = t('configErrorTitle');
+    const body = document.createElement('p');
+    body.textContent = t('configErrorBody').replace('{0}', missing.join(', '));
+    const hint = document.createElement('p');
+    hint.textContent = t('configErrorHint');
+    box.append(title, body, hint);
+    document.body.prepend(box);
+}
 
 // PWA Service Worker 등록.
 // **개발 중에는 등록하지 않는다.** 워커가 껍데기를 캐시해 두면 dev 서버가
@@ -545,6 +566,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Subscribe to Firebase Auth and trigger initial route
     const userAvatar = document.getElementById('user-avatar');
+
+    // 설정이 비었으면 여기서 멈추고 **이유를 화면에 적는다.**
+    // 예전에는 이 줄까지 오지도 못하고 모듈 로딩 중에 터져서, 멀쩡한 화면에
+    // 죽은 버튼만 남았다(Cloudflare 미리보기 배포가 그 상태였다 — 미리보기
+    // 환경에는 환경 변수가 따로 들어간다). 무엇이 빠졌는지는 코드가 안다.
+    if (missingFirebaseConfig.length > 0) {
+        showConfigError(missingFirebaseConfig);
+        return;
+    }
 
     subscribeToAuthChanges((user) => {
         // 이제부터는 로그인 여부를 안다. 이 줄이 없으면 라우터가 영영

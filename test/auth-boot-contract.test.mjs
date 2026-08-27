@@ -48,7 +48,8 @@ test('새로고침해도 로그인이 풀리지 않게 지속성을 직접 준�
 test('팝업 로그인은 그 자리에서 해석기를 넘긴다', () => {
   assert.match(
     authService,
-    /signInWithPopup\(\s*auth\s*,\s*googleProvider\s*,\s*browserPopupRedirectResolver\s*\)/,
+    // 첫 인자는 auth 이거나 그것을 돌려주는 requireAuth() 다 — 중요한 것은 셋째다.
+    /signInWithPopup\([^,]+,\s*googleProvider\s*,\s*browserPopupRedirectResolver\s*\)/,
     '해석기를 안 넘기면 팝업 로그인이 아예 안 된다'
   );
 });

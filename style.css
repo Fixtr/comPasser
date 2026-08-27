@@ -1028,3 +1028,20 @@ body.has-tab-bar #page-profile {
     border-bottom: none;
   }
 }
+
+/* 빌드에 환경 변수가 안 들어갔을 때 뜨는 알림. 화면 맨 위에, 무채색으로.
+   이게 뜬다는 것은 앱이 시작조차 못 했다는 뜻이라 눈에 띄어야 한다. */
+.config-error {
+  padding: 1rem 1.25rem;
+  border-bottom: 2px solid var(--cp-ink);
+  background: var(--cp-sunken);
+  color: var(--cp-ink);
+  font-family: var(--cp-font);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.config-error strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}

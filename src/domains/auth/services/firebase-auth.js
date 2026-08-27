@@ -26,7 +26,33 @@ const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-export const app = initializeApp(firebaseConfig);
+/**
+ * 빌드할 때 채워졌어야 할 값들. 이름을 그대로 들고 있는 이유는, 빠졌을 때
+ * 화면에 **배포 설정에서 찾을 수 있는 이름 그대로** 적어 주기 위해서다.
+ */
+const REQUIRED_CONFIG = {
+    apiKey: 'VITE_FIREBASE_API_KEY',
+    authDomain: 'VITE_FIREBASE_AUTH_DOMAIN',
+    projectId: 'VITE_FIREBASE_PROJECT_ID',
+    appId: 'VITE_FIREBASE_APP_ID',
+};
+
+/** 비어 있는 설정의 **환경 변수 이름** 목록(없으면 빈 배열). */
+export const missingFirebaseConfig = Object.entries(REQUIRED_CONFIG)
+    .filter(([key]) => !firebaseConfig[key])
+    .map(([, envName]) => envName);
+
+/**
+ * 설정이 비었으면 **시작하지 않는다.**
+ *
+ * 예전에는 그냥 불렀다. 그러면 `initializeApp` 이 모듈을 읽는 도중
+ * `auth/invalid-api-key` 로 터지고, 이 모듈을 들여오는 `main.js` 가 통째로
+ * 죽는다 — 라우터도 안 돌고 커스텀 요소도 하나도 정의되지 않는다. 화면에는
+ * index.html 의 정적 마크업이 멀쩡히 떠 있으니 **멀쩡한 화면에 죽은 버튼**만
+ * 남고, 원인을 짐작할 단서가 하나도 없다. 실제로 Cloudflare 미리보기 배포가
+ * 그 상태였다(미리보기 환경에는 환경 변수가 따로 들어간다).
+ */
+export const app = missingFirebaseConfig.length === 0 ? initializeApp(firebaseConfig) : null;
 
 /**
  * `getAuth(app)` 을 쓰지 않는 이유.
@@ -42,7 +68,7 @@ export const app = initializeApp(firebaseConfig);
  * 같은 세 가지를 같은 순서로 적는다(firebase/auth 의 getAuth 구현에서 그대로
  * 옮겼다 — 눈대중으로 둘만 적었다가 실제 구현이 셋인 것을 보고 맞췄다).
  */
-const auth = initializeAuth(app, {
+const auth = app === null ? null : initializeAuth(app, {
     persistence: [
         indexedDBLocalPersistence,
         browserLocalPersistence,
@@ -51,10 +77,18 @@ const auth = initializeAuth(app, {
 });
 const googleProvider = new GoogleAuthProvider();
 
+/** 설정 없이 인증을 부르면 조용히 실패하는 대신 이유를 들고 터진다. */
+function requireAuth() {
+    if (!auth) {
+        throw new Error(`Firebase 설정이 없습니다: ${missingFirebaseConfig.join(', ')}`);
+    }
+    return auth;
+}
+
 export async function loginWithGoogle() {
     try {
         // 해석기는 여기서 넘긴다. 이 줄이 실행될 때 비로소 gapi 를 받는다.
-        const result = await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
+        const result = await signInWithPopup(requireAuth(), googleProvider, browserPopupRedirectResolver);
         return result.user;
     } catch (error) {
         console.error("Login failed", error);
@@ -66,7 +100,7 @@ export async function logout() {
     try {
         sessionStorage.removeItem('currentFormData');
         sessionStorage.removeItem('savedItineraryData');
-        await signOut(auth);
+        await signOut(requireAuth());
     } catch (error) {
         console.error("Logout failed", error);
         throw error;
@@ -83,24 +117,24 @@ export async function logout() {
  * 직접 들여오지 않는다"고 정해 둔 이유가 이것이다.
  */
 export async function loginWithCustomToken(token) {
-    const result = await signInWithCustomToken(auth, token);
+    const result = await signInWithCustomToken(requireAuth(), token);
     return result.user;
 }
 
 export function subscribeToAuthChanges(callback) {
-    return onAuthStateChanged(auth, callback);
+    return onAuthStateChanged(requireAuth(), callback);
 }
 
 export function getCurrentUser() {
-    return auth.currentUser;
+    return auth?.currentUser;
 }
 
 export async function signUpWithEmail(email, password) {
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(requireAuth(), email, password);
         const user = userCredential.user;
         await sendEmailVerification(user);
-        await signOut(auth);
+        await signOut(requireAuth());
         return user;
     } catch (error) {
         console.error("Sign up failed", error);
@@ -110,11 +144,11 @@ export async function signUpWithEmail(email, password) {
 
 export async function loginWithEmail(email, password) {
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(requireAuth(), email, password);
         const user = userCredential.user;
         
         if (!user.emailVerified) {
-            await signOut(auth);
+            await signOut(requireAuth());
             throw new Error("EMAIL_NOT_VERIFIED");
         }
         
@@ -126,7 +160,7 @@ export async function loginWithEmail(email, password) {
 }
 
 export async function deleteCurrentUser() {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (user) {
         localStorage.removeItem('hasSeenTutorial');
         sessionStorage.removeItem('currentFormData');
@@ -138,7 +172,7 @@ export async function deleteCurrentUser() {
 
 export async function verifyEmailCode(actionCode) {
     try {
-        await applyActionCode(auth, actionCode);
+        await applyActionCode(requireAuth(), actionCode);
         return true;
     } catch(err) {
         throw err;

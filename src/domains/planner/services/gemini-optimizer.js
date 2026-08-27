@@ -7,7 +7,19 @@ import {
 } from "./planner-constraints.mjs";
 import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
 
-const functions = getFunctions(app);
+/**
+ * Functions 핸들은 **쓸 때 만든다.**
+ *
+ * 예전에는 모듈 최상단에서 `getFunctions(app)` 을 불렀다. 그런데 설정이 빠진
+ * 빌드에서는 `app` 이 null 이라 그 줄이 그대로 터지고, 이 모듈을 들여오는
+ * 화면 전체가 죽는다 — "설정이 없다"고 화면에 적어 주려던 노력이 여기서
+ * 다시 무산된다. 늦게 만들면 그런 빌드에서도 화면은 뜬다.
+ */
+let _functions = null;
+function fns() {
+  if (!_functions) _functions = getFunctions(app);
+  return _functions;
+}
 
 // 서버에서 최대 2개 모델을 순차 시도(각 90초) + 콜드 스타트 여유.
 const CALL_TIMEOUT_MS = 200000;
@@ -26,7 +38,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
 
   console.log("Requesting itinerary from Cloud Function with constraints:", normalizedRequest);
 
-  const callGenerateItinerary = httpsCallable(functions, "generateItinerary", {
+  const callGenerateItinerary = httpsCallable(fns(), "generateItinerary", {
     timeout: CALL_TIMEOUT_MS
   });
 
