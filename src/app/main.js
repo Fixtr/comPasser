@@ -144,8 +144,12 @@ function stopLoadingMessageRotation() {
 }
 // ====== End Dynamic Loading Message Logic ======
 
-// PWA Service Worker 등록
-if ('serviceWorker' in navigator) {
+// PWA Service Worker 등록.
+// **개발 중에는 등록하지 않는다.** 워커가 껍데기를 캐시해 두면 dev 서버가
+// 죽어도 화면이 그대로 떠서, 고친 코드가 안 나오는 이유를 한참 못 찾는다.
+// (오늘 실제로 그랬다 — 토글이 전부 죽어 있길래 내 코드를 의심했는데
+//  `[vite] server connection lost` 였다.)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('ServiceWorker registered:', reg.scope))

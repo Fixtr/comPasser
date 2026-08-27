@@ -49,6 +49,13 @@ function isSameOrigin(url) {
   return url.origin === self.location.origin;
 }
 
+/** Vite 개발 서버가 주는 것들(모듈·HMR 클라이언트·소스 파일). */
+function isDevRequest(url) {
+  return url.pathname.startsWith('/@')        // /@vite/client, /@fs/, /@id/
+    || url.pathname.startsWith('/src/')
+    || url.pathname.startsWith('/node_modules/');
+}
+
 /** 콘텐츠 해시가 붙은 빌드 산출물인지. */
 function isHashedAsset(url) {
   return url.pathname.startsWith('/assets/');
@@ -68,13 +75,23 @@ self.addEventListener('fetch', (event) => {
   // 서비스 워커 자신은 캐시하지 않는다(업데이트가 막힌다).
   if (url.pathname === '/sw.js') return;
 
+  // 개발 서버가 주는 것은 통째로 건드리지 않는다. Vite 의 모듈을 캐시하면
+  // 고친 코드가 화면에 안 나온다 — 실제로 dev 서버가 죽은 줄 모르고 캐시된
+  // 옛 번들을 한참 들여다본 적이 있다. 등록 자체도 배포 빌드에서만 하지만,
+  // 예전에 등록된 워커가 남아 있을 수 있으니 여기서도 막는다.
+  if (isDevRequest(url)) return;
+
   // 1) 페이지 이동: 네트워크 우선 -> 실패 시 캐시된 셸
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(request);
-        const cache = await caches.open(SHELL_CACHE);
-        cache.put(SHELL_URL, fresh.clone());
+        if (fresh.ok) {
+          // 복제는 **돌려주기 전에** 한다. 넘겨준 뒤에는 몸통이 이미 읽히고
+          // 있을 수 있어 clone() 이 터진다.
+          const copy = fresh.clone();
+          caches.open(SHELL_CACHE).then(cache => cache.put(SHELL_URL, copy)).catch(() => {});
+        }
         return fresh;
       } catch {
         const cached = await caches.match(SHELL_URL);
@@ -90,12 +107,18 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       const cached = await caches.match(request);
       if (cached) return cached;
-      const fresh = await fetch(request);
-      if (fresh.ok) {
-        const cache = await caches.open(ASSET_CACHE);
-        cache.put(request, fresh.clone());
+      try {
+        const fresh = await fetch(request);
+        if (fresh.ok) {
+          const copy = fresh.clone();   // 돌려주기 전에 복제한다
+          caches.open(ASSET_CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+        }
+        return fresh;
+      } catch {
+        // 캐시에도 없고 네트워크도 죽었다. respondWith 에 아무것도 안 주면
+        // "Failed to convert value to 'Response'" 로 터진다.
+        return Response.error();
       }
-      return fresh;
     })());
     return;
   }
@@ -105,10 +128,16 @@ self.addEventListener('fetch', (event) => {
     const cached = await caches.match(request);
     const network = fetch(request).then(response => {
       if (response.ok) {
-        caches.open(ASSET_CACHE).then(cache => cache.put(request, response.clone()));
+        // **먼저 복제한다.** 예전에는 caches.open().then() 안에서 복제했는데,
+        // 그 시점에는 이미 return 으로 몸통을 넘겨준 뒤라 브라우저가 읽기
+        // 시작했으면 "Response body is already used" 로 터졌다.
+        const copy = response.clone();
+        caches.open(ASSET_CACHE).then(cache => cache.put(request, copy)).catch(() => {});
       }
       return response;
     }).catch(() => cached);
-    return cached || network;
+    // 캐시에도 없고 네트워크도 죽으면 network 는 undefined 로 끝난다.
+    // respondWith(undefined) 는 "Failed to convert value to 'Response'" 다.
+    return cached || (await network) || Response.error();
   })());
 });

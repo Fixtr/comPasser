@@ -12,9 +12,15 @@
  */
 import { isPublicPath } from './route-decision.mjs';
 
-/** 탭 셋. 순서가 화면 순서다(왼쪽부터 만들기 → 보기 → 나). */
+/**
+ * 탭 셋. 순서가 화면 순서다(왼쪽부터 만들기 → 보기 → 나).
+ *
+ * "새 일정"이 `/plan`(폼)이 아니라 `/preference/1` 인 이유: 처음에는 폼으로
+ * 보냈는데, "내 일정"에 갔다 "새 일정"을 누르면 **테마·예산 고르는 단계를
+ * 건너뛰고** 폼이 떴다. 탭 이름이 "새 일정"이면 새로 시작한다는 뜻이다.
+ */
 export const TABS = [
-  { id: 'plan', path: '/plan', labelKey: 'tabPlan', icon: 'calendar' },
+  { id: 'plan', path: '/preference/1', labelKey: 'tabPlan', icon: 'calendar' },
   { id: 'trips', path: '/profile/trips', labelKey: 'tabTrips', icon: 'list' },
   { id: 'profile', path: '/profile/personal', labelKey: 'tabProfile', icon: 'user' },
 ];

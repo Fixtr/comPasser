@@ -104,10 +104,20 @@ export const travelFormStyles = `
         label {
           display: block;
           margin-bottom: 0.4rem;
-          font-family: var(--cp-mono);
+          /* 모노 폰트를 쓰지 않는다. 라틴 대문자 라벨에는 어울리지만, 모노에는
+             한글 글자가 없어 **글자는 대체 폰트로, 띄어쓰기만 모노의 넓은
+             공백으로** 그려진다. 그래서 "시작 시간" 이 "시작  시간" 처럼
+             보였다(자간을 빼도 남던 문제의 진짜 원인이 이것이다).
+             크기·굵기·대문자·색으로도 "라벨"이라는 성격은 충분히 남는다. */
+          font-family: inherit;
           font-size: 0.7rem;
           font-weight: 600;
-          letter-spacing: 0.08em;
+          /* 자간을 주지 않는다. 대문자 라틴 라벨에는 어울리는 장식이지만
+             한글에는 **음절 사이가 벌어지고 띄어쓰기가 두 칸처럼** 보인다
+             ("시작 시간" 이 "시작  시간" 으로 읽혔다). 이 앱의 기본 언어가
+             한국어라 여기서는 자간을 빼는 쪽이 맞다. 모노·대문자 표기는
+             그대로 두어 "라벨"이라는 성격은 유지한다. */
+          letter-spacing: normal;
           text-transform: uppercase;
           color: var(--cp-ink-2);
         }
@@ -480,10 +490,10 @@ export const travelFormStyles = `
         }
 
         .daily-time-header {
-          font-family: var(--cp-mono);
+          font-family: inherit;
           font-weight: 700;
           font-size: 0.75rem;
-          letter-spacing: 0.08em;
+          letter-spacing: normal;
           text-transform: uppercase;
           color: var(--cp-ink);
           margin-bottom: 0.7rem;

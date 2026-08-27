@@ -60,11 +60,16 @@ export const preferenceStyles = `
           color: var(--cp-muted);
           border: var(--cp-hair) solid var(--cp-rule);
           border-radius: var(--cp-pill);
-          font-family: var(--cp-mono);
+          font-family: inherit;
           font-size: 0.68rem;
           font-weight: 600;
           padding: 0.25rem 0.75rem;
-          letter-spacing: 0.1em;
+          /* 자간을 주지 않는다. 대문자 라틴 라벨에는 어울리는 장식이지만
+             한글에는 **음절 사이가 벌어지고 띄어쓰기가 두 칸처럼** 보인다
+             ("시작 시간" 이 "시작  시간" 으로 읽혔다). 이 앱의 기본 언어가
+             한국어라 여기서는 자간을 빼는 쪽이 맞다. 모노·대문자 표기는
+             그대로 두어 "라벨"이라는 성격은 유지한다. */
+          letter-spacing: normal;
           text-transform: uppercase;
           margin-bottom: 1rem;
         }
@@ -87,10 +92,10 @@ export const preferenceStyles = `
 
         /* 결과 화면 .info-label · 폼 label 과 같은 표기(모노·대문자·자간). */
         .section-title {
-          font-family: var(--cp-mono);
+          font-family: inherit;
           font-size: 0.7rem;
           font-weight: 600;
-          letter-spacing: 0.1em;
+          letter-spacing: normal;
           text-transform: uppercase;
           color: var(--cp-ink-2);
           margin-bottom: 0.75rem;

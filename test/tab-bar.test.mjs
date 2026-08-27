@@ -16,6 +16,21 @@ import { TABS, shouldShowTabBar, activeTabId } from '../src/app/tab-bar.mjs';
 
 const user = { uid: 'u1' };
 
+/**
+ * "새 일정"은 **흐름의 처음**으로 간다.
+ *
+ * 처음에는 `/plan`(폼)으로 보냈다. 사용자가 바로 잡아 줬다 — "내 일정"에 갔다
+ * "새 일정"을 누르면 **테마·예산을 고르는 단계를 건너뛰고** 폼이 떴다.
+ * 탭 이름이 "새 일정"이면 새로 시작한다는 뜻이지, 지난번 조건을 물고 폼으로
+ * 들어간다는 뜻이 아니다. 선호 단계는 이미 같은 탭으로 묶여 있다.
+ */
+test('새 일정 탭은 선호 단계부터 시작한다', () => {
+  const plan = TABS.find(t => t.id === 'plan');
+  assert.equal(plan.path, '/preference/1', '폼으로 바로 보내면 테마·예산을 건너뛴다');
+  // 그 자리에서도 첫 탭이 켜져 있어야 한다(같은 흐름이다).
+  assert.equal(activeTabId(plan.path), 'plan');
+});
+
 test('탭은 셋이고 저마다 갈 곳과 사전 키를 갖는다', () => {
   assert.equal(TABS.length, 3);
   assert.deepEqual(TABS.map(t => t.id), ['plan', 'trips', 'profile']);
