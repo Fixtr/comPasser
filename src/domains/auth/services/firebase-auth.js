@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { initializeApp } from "firebase/app";
 import {
     initializeAuth,
@@ -7,6 +8,7 @@ import {
     browserPopupRedirectResolver,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithCredential,
     signInWithCustomToken,
     signOut,
     onAuthStateChanged,
@@ -16,6 +18,8 @@ import {
     deleteUser,
     applyActionCode
 } from "firebase/auth";
+
+import { signInWithNativeGoogle } from "./native-google-signin.mjs";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -85,8 +89,35 @@ function requireAuth() {
     return auth;
 }
 
+/**
+ * 네이티브에서 OS 계정 선택창을 띄우고, 받은 idToken 으로 **JS SDK** 세션을
+ * 만든다. 순서와 실패 처리는 `native-google-signin.mjs` 가 갖는다(브라우저
+ * 없이 검사하려고 떼어 뒀다). 여기서는 진짜 도구만 끼워 준다.
+ *
+ * 플러그인은 **동적 import** 다. 최상단에서 들여오면 웹 사용자도 이 코드를
+ * 받는데, 웹에서는 한 줄도 실행되지 않는다 — 캡처 엔진을 정적으로 묶었다가
+ * 첫 로드 preload 가 254KB 로 불었던 것과 같은 실수가 된다.
+ *
+ * `skipNativeAuth: true` 를 빠뜨리면 플러그인이 네이티브 층에만 로그인시킨다.
+ * 화면은 전부 JS SDK 의 `onAuthStateChanged` 를 보고 있으므로, 로그인은
+ * 성공했는데 앱은 로그인 화면에 그대로 머문다 — 버튼이 죽은 것으로 보인다.
+ */
+async function loginWithGoogleOnDevice() {
+    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+    return signInWithNativeGoogle({
+        requestGoogleIdToken: () => FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true }),
+        buildCredential: (idToken) => GoogleAuthProvider.credential(idToken),
+        signInWithCredential: (credential) => signInWithCredential(requireAuth(), credential),
+    });
+}
+
 export async function loginWithGoogle() {
     try {
+        // 안드로이드 WebView 에는 팝업 창이 없다 — `native-google-signin.mjs`
+        // 의 주석에 근거를 적어 뒀다. 웹에서만 팝업으로 간다.
+        if (Capacitor.isNativePlatform()) {
+            return await loginWithGoogleOnDevice();
+        }
         // 해석기는 여기서 넘긴다. 이 줄이 실행될 때 비로소 gapi 를 받는다.
         const result = await signInWithPopup(requireAuth(), googleProvider, browserPopupRedirectResolver);
         return result.user;
@@ -101,6 +132,19 @@ export async function logout() {
         sessionStorage.removeItem('currentFormData');
         sessionStorage.removeItem('savedItineraryData');
         await signOut(requireAuth());
+
+        // 네이티브에서는 OS 쪽 구글 계정 선택도 함께 푼다. 안 풀면 다음
+        // 로그인에서 계정 선택창이 뜨지 않고 방금 나간 계정으로 바로 들어간다
+        // — 기기를 나눠 쓰는 상황에서 남의 일정이 보인다. 여기서 실패해도
+        // JS 세션은 이미 끊겼으므로 로그아웃 자체를 되돌리지는 않는다.
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+                await FirebaseAuthentication.signOut();
+            } catch (nativeError) {
+                console.warn("Native sign-out skipped", nativeError);
+            }
+        }
     } catch (error) {
         console.error("Logout failed", error);
         throw error;

@@ -53,3 +53,24 @@ test('firebase 모듈별 청크 분리는 그대로다', () => {
   assert.equal(manualChunks(idFor('@firebase/app')), 'vendor-firebase-core');
   assert.equal(manualChunks(idFor('@googlemaps/js-api-loader')), 'vendor-maps');
 });
+
+test('네이티브 로그인 플러그인은 이름 붙은 청크를 받지 않는다', () => {
+  // 함정: `@capacitor-firebase/authentication` 라는 경로 안에는 문자열
+  // `firebase/auth` 가 **그대로 들어 있다**("@capacitor-firebase/authentication").
+  // 그래서 vendor-auth 규칙에 걸려 첫 로드 preload 청크로 빨려 들어갔다
+  // — 실측 124KB → 174KB. 웹에서는 한 줄도 실행되지 않는 코드다.
+  //
+  // 이름을 안 붙이면 Rollup 이 동적 import 지점을 보고 별도 async 청크로
+  // 뗀다. 네이티브 앱에서 로그인 버튼을 누른 그 순간에만 읽힌다.
+  assert.equal(
+    manualChunks(idFor('@capacitor-firebase/authentication')),
+    undefined,
+    '경로에 firebase/auth 가 들어 있어 vendor-auth 로 새기 쉽다'
+  );
+});
+
+test('Capacitor 코어는 첫 로드 청크에 남는다', () => {
+  // isNativePlatform() 은 로그인 분기에서 매번 부르므로 첫 화면 일이 맞다.
+  // 위 규칙이 여기까지 번지면 안 된다.
+  assert.equal(manualChunks(idFor('@capacitor/core')), 'vendor');
+});

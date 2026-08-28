@@ -25,6 +25,14 @@ export default defineConfig({
           // undefined 를 돌려주면 Rollup 이 알아서 별도 async 청크로 뗀다.
           if (id.includes('html2canvas')) return undefined;
 
+          // `@capacitor-firebase/authentication` 도 마찬가지다 — 네이티브
+          // 로그인에서만 동적으로 받는다. 그런데 이 경로 안에는 문자열
+          // `firebase/auth` 가 그대로 들어 있어("@capacitor-firebase/
+          // authentication") 아래 vendor-auth 규칙에 걸린다. 실제로 걸려서
+          // 첫 로드 청크가 124KB → 174KB 로 불었다. firebase 규칙보다
+          // **먼저** 걸러 낸다.
+          if (id.includes('@capacitor-firebase')) return undefined;
+
           // Firestore 는 저장/조회 화면에서만, Functions 는 일정 생성에서만
           // 쓰이므로 인증과 분리해 두면 캐시 무효화 범위가 좁아진다.
           //

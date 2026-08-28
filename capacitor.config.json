@@ -1,5 +1,10 @@
 {
   "appId": "com.compasser.app",
   "appName": "ComPasser",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "providers": ["google.com"]
+    }
+  }
 }

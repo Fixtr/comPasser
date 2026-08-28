@@ -81,3 +81,52 @@ test('UI 컴포넌트는 firebase/auth 를 직접 들여오지 않는다', () =>
   assert.deepEqual(offenders, [],
     'firebase-auth.js 를 거쳐야 한다(COMMAND_GUIDE.md):\n' + offenders.join('\n'));
 });
+
+/**
+ * ── 네이티브 구글 로그인 ────────────────────────────────────────────────
+ *
+ * 아래 셋은 전부 **조용히 망가지는** 종류다. 화면에는 오류가 안 뜨고
+ * "눌렀는데 아무 일도 안 일어난다"로만 보인다.
+ */
+
+test('네이티브에서는 팝업 대신 다른 길로 간다', () => {
+  // 안드로이드 WebView 에는 팝업 창이 없다(Bridge.java 가 다중 창을 켜지
+  // 않는다). 분기가 사라지면 앱의 유일한 문이 닫힌다.
+  assert.match(
+    authService,
+    /isNativePlatform\s*\(\s*\)/,
+    'Capacitor.isNativePlatform() 로 갈라야 한다 — 웹은 팝업, 네이티브는 OS 계정 선택창'
+  );
+});
+
+test('네이티브 로그인 플러그인은 동적 import 로만 들여온다', () => {
+  // 정적 import 로 바꾸면 **웹 사용자도** 이 플러그인을 받는다. 웹에서는
+  // 한 줄도 실행되지 않는 코드다. 캡처 엔진(html2canvas-pro)을 정적으로
+  // 묶었다가 첫 로드 preload 가 254KB 로 불었던 것과 같은 실수다.
+  const PLUGIN = '@capacitor-firebase/authentication';
+  assert.ok(
+    !new RegExp(`^\\s*import[^\\n]*from\\s+['"]${PLUGIN}['"]`, 'm').test(authService),
+    `${PLUGIN} 를 최상단에서 들여오면 웹 번들에 그대로 들어간다`
+  );
+  assert.match(
+    authService,
+    new RegExp(`import\\s*\\(\\s*['"]${PLUGIN}['"]\\s*\\)`),
+    '네이티브 분기 안에서 await import(...) 로 받아야 한다'
+  );
+});
+
+test('네이티브 로그인은 skipNativeAuth 로 JS SDK 쪽에 세션을 세운다', () => {
+  // 이 값을 빠뜨리면 플러그인이 **네이티브 층에만** 로그인시킨다. 화면은
+  // 전부 JS SDK 의 onAuthStateChanged 를 보고 있으므로, 로그인은 성공했는데
+  // 앱은 계속 로그인 화면에 머문다 — 사용자에게는 버튼이 죽은 것으로 보인다.
+  assert.match(
+    authService,
+    /skipNativeAuth\s*:\s*true/,
+    'skipNativeAuth: true 여야 JS SDK 가 세션의 주인이 된다'
+  );
+  assert.match(
+    authService,
+    /signInWithCredential\s*\(/,
+    '네이티브가 준 idToken 을 JS SDK 세션으로 바꾸는 자리가 있어야 한다'
+  );
+});
