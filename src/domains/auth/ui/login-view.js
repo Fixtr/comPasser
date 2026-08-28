@@ -1,4 +1,6 @@
+import { Capacitor } from '@capacitor/core';
 import { loginWithGoogle, loginWithEmail, loginWithCustomToken, app } from '../services/firebase-auth.js';
+import { availableSocialLogins } from '../services/available-logins.mjs';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
@@ -99,6 +101,11 @@ export default class LoginView extends HTMLElement {
   }
 
   render() {
+    // 되는 것만 보여 준다. 판단은 available-logins.mjs 가 갖는다 —
+    // 여기서 다시 조건을 적으면 고칠 자리가 둘이 된다.
+    const enabled = availableSocialLogins({ isNative: Capacitor.isNativePlatform() });
+    const off = (name) => (enabled.includes(name) ? '' : ' hidden');
+
     this.shadowRoot.innerHTML = `
       <style>${authStyles}</style>
 
@@ -125,11 +132,11 @@ export default class LoginView extends HTMLElement {
           <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.9c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.13-10.36 7.13-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
           <span data-i18n="loginBtn">${t('loginBtn')}</span>
         </button>
-        <button id="kakao-btn" class="social-btn kakao-btn">
+        <button id="kakao-btn" class="social-btn kakao-btn"${off('kakao')}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 3C6.47715 3 2 6.40243 2 10.5976C2 13.3444 3.7844 15.7483 6.47161 17.0673L5.59024 20.3164C5.45261 20.8242 6.00287 21.2212 6.45265 20.9419L10.5186 18.4204C11.0023 18.4719 11.4965 18.4984 12 18.4984C17.5228 18.4984 22 15.096 22 10.8984C22 6.70081 17.5228 3 12 3Z"/></svg>
           <span data-i18n="loginWithKakao">${t('loginWithKakao')}</span>
         </button>
-        <button id="naver-btn" class="social-btn naver-btn">
+        <button id="naver-btn" class="social-btn naver-btn"${off('naver')}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.0355 12.0128L8.12056 2.00843C7.94326 1.78502 7.67376 1.6521 7.39007 1.6521H2.41844C1.94326 1.6521 1.61348 2.11287 1.74468 2.56588L2.09574 3.8279L9.62411 13.9213L16.0355 12.0128Z" fill="white"/><path d="M16.5177 1.6521H21.4894C21.844 1.6521 22.1277 1.9358 22.1277 2.29043V21.7587C22.1277 22.1133 21.844 22.397 21.4894 22.397H16.5177C16.1631 22.397 15.8794 22.1133 15.8794 21.7587V13.8828L15.9362 12.0135L16.5177 1.6521Z" fill="white"/><path d="M7.39007 22.397H2.41844C2.06383 22.397 1.78014 22.1133 1.78014 21.7587V2.29043C1.78014 1.9358 2.06383 1.6521 2.41844 1.6521H7.39007C7.74468 1.6521 8.02837 1.9358 8.02837 2.29043V21.7587C8.02837 22.1133 7.74468 22.397 7.39007 22.397Z" fill="white"/><path d="M7.87234 11.9865L15.8794 22.0945C16.0567 22.3179 16.3262 22.4508 16.6099 22.4508H21.5816C22.0567 22.4508 22.3865 21.99 22.2553 21.537L21.9043 20.275L14.3759 10.1816L7.87234 11.9865Z" fill="white"/></svg>
           <span data-i18n="loginWithNaver">${t('loginWithNaver')}</span>
         </button>

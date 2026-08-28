@@ -263,6 +263,12 @@ export const authStyles = `
           margin: 0 auto;
         }
 
+        /* .social-btn 이 display:flex 라 브라우저 기본 [hidden] 규칙을 이긴다.
+           감추는 일은 여기가 갖는다 — .resolved-place[hidden] 과 같은 어휘. */
+        .social-btn[hidden] {
+          display: none;
+        }
+
         .social-btn {
           width: 100%;
           display: flex;

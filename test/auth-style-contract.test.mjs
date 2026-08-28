@@ -117,3 +117,33 @@ test('쓰이지 않는 규칙을 들고 있지 않다', () => {
     assert.ok(!css.includes(dead), `${dead}: 적용될 수 없는 규칙이다`);
   }
 });
+
+/**
+ * 네이티브에서 감추는 소셜 버튼(카카오·네이버).
+ *
+ * `.social-btn` 이 `display: flex` 라, 브라우저 기본의 `[hidden]` 규칙보다
+ * 특이도가 높아 **이긴다.** 즉 `hidden` 만 붙이면 버튼이 그대로 보인다.
+ * 결과 화면의 `.resolved-place[hidden]`·`.actions-primary` 에서 이미 한 번
+ * 겪은 것과 같은 자리다.
+ */
+test('감춤은 CSS 가 갖는다 — social-btn 은 display:flex 라 hidden 을 이긴다', () => {
+  assert.match(
+    css,
+    /\.social-btn\[hidden\][^{]*\{[^}]*display:\s*none/,
+    '.social-btn[hidden] { display: none } 이 없으면 hidden 을 붙여도 안 사라진다'
+  );
+});
+
+test('로그인 화면은 되는 방법만 그린다', () => {
+  // 판단은 available-logins.mjs 한 곳이 갖는다. 화면에서 다시 조건을 적으면
+  // 나중에 카카오를 네이티브로 붙일 때 고칠 자리가 둘이 된다.
+  assert.match(
+    viewSources['login-view.js'],
+    /availableSocialLogins\s*\(/,
+    '어느 버튼을 보여 줄지는 available-logins.mjs 가 정한다'
+  );
+  assert.ok(
+    !/isNativePlatform\s*\(\s*\)[^\n]*(kakao|naver)/i.test(viewSources['login-view.js']),
+    '화면에서 플랫폼 조건을 다시 적지 않는다'
+  );
+});
