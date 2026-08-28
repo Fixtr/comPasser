@@ -1,8 +1,27 @@
 apply plugin: 'com.android.application'
 
+// --- 릴리스 서명 ---
+// android/keystore.properties 가 있으면 릴리스 빌드에 서명이 붙는다.
+// 이 파일과 .jks 는 절대 커밋하지 않는다 (.gitignore 에 등록되어 있음).
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "com.compasser.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     defaultConfig {
         applicationId "com.compasser.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,6 +37,11 @@ android {
     }
     buildTypes {
         release {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("[ComPasser] android/keystore.properties 가 없다 \u2014 릴리스 AAB 에 서명이 붙지 않는다.")
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

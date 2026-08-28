@@ -33,3 +33,10 @@ phases/
 output/
 .codex_tmp/
 _to_delete/
+
+# --- Android 릴리스 서명 (절대 커밋 금지) ---
+android/keystore.properties
+*.jks
+*.keystore
+android/app/release/
+android/app/build/
