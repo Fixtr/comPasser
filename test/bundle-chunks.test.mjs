@@ -1,0 +1,55 @@
+/**
+ * 첫 화면이 받는 청크에 저장/조회 전용 코드가 섞이지 않는다.
+ *
+ * firebase 를 10 → 12 로 올리면서 첫 로드 preload 목록의 catch-all `vendor`
+ * 청크가 **3.4KB → 147KB** 로 불었다. 범인은 `re2js` — firebase 11 부터
+ * `@firebase/firestore` 가 끌어오는 정규식 엔진이다(144KB).
+ *
+ * Firestore 자체는 `src/lib/firestore-lazy.mjs` 가 동적 import 로 미뤄 두는데,
+ * `manualChunks` 의 마지막 `return 'vendor'` 가 그 딸린 패키지를 낚아채
+ * **이름 붙은 청크**로 만들어 버렸다. 이름이 붙으면 첫 화면 코드와 한 덩어리가
+ * 된다 — 캡처 엔진(html2canvas-pro)이 정확히 같은 이유로 preload 목록을
+ * 254KB 로 불렸던 적이 있다(vite.config.js 주석).
+ *
+ * 그래서 규칙은 하나다: **어떤 패키지가 Firestore 를 통해서만 들어온다면
+ * `vendor-firestore` 로 보낸다.** 그 청크는 preload 되지 않으므로, 저장 화면에
+ * 들어간 사람만 받는다.
+ *
+ * 텍스트로 "그렇게 적혀 있다"를 보지 않고 실제 함수를 불러 확인한다 —
+ * 조건의 순서가 뒤집혀도(catch-all 이 먼저 걸려도) 잡히도록.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+const config = (await import('../vite.config.js')).default;
+const manualChunks = config.build.rollupOptions.output.manualChunks;
+
+const idFor = pkg => `/repo/node_modules/${pkg}/dist/index.js`;
+
+test('Firestore 전용 의존성은 첫 로드 청크에 들어가지 않는다', () => {
+  // re2js: @firebase/firestore 의 dependencies 에만 있다(144KB).
+  assert.equal(
+    manualChunks(idFor('re2js')),
+    'vendor-firestore',
+    're2js 가 catch-all vendor 로 가면 첫 로드 preload 가 144KB 무거워진다'
+  );
+});
+
+test('인증이 쓰는 것은 그대로 첫 로드 청크에 남는다', () => {
+  // idb: @firebase/app 의 dependencies. indexedDBLocalPersistence 가 쓰므로
+  // 첫 화면 일이 맞다. 위 규칙이 여기까지 번지면 안 된다.
+  assert.equal(manualChunks(idFor('idb')), 'vendor');
+});
+
+test('앱 코드와 동적 import 전용 패키지는 이름을 받지 않는다', () => {
+  assert.equal(manualChunks('/repo/src/app/main.js'), undefined);
+  assert.equal(manualChunks(idFor('html2canvas-pro')), undefined);
+});
+
+test('firebase 모듈별 청크 분리는 그대로다', () => {
+  assert.equal(manualChunks(idFor('@firebase/firestore')), 'vendor-firestore');
+  assert.equal(manualChunks(idFor('@firebase/functions')), 'vendor-functions');
+  assert.equal(manualChunks(idFor('@firebase/auth')), 'vendor-auth');
+  assert.equal(manualChunks(idFor('@firebase/app')), 'vendor-firebase-core');
+  assert.equal(manualChunks(idFor('@googlemaps/js-api-loader')), 'vendor-maps');
+});

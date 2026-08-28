@@ -27,7 +27,14 @@ export default defineConfig({
 
           // Firestore 는 저장/조회 화면에서만, Functions 는 일정 생성에서만
           // 쓰이므로 인증과 분리해 두면 캐시 무효화 범위가 좁아진다.
-          if (id.includes('@firebase/firestore') || id.includes('firebase/firestore')) return 'vendor-firestore';
+          //
+          // `re2js` 는 firebase 11 부터 `@firebase/firestore` 가 끌어오는
+          // 정규식 엔진이다(144KB). 이름이 `firebase` 를 안 담고 있어 아래
+          // catch-all 'vendor' 로 떨어지는데, 그 청크는 **첫 로드에서
+          // preload 된다**(idb 가 거기 있고 인증이 그것을 쓴다). 실제로
+          // 10 → 12 업그레이드 직후 preload 목록이 3.4KB → 147KB 로 불었다.
+          // 쓰는 쪽과 같은 청크로 보내면 저장 화면에 들어간 사람만 받는다.
+          if (id.includes('@firebase/firestore') || id.includes('firebase/firestore') || id.includes('re2js')) return 'vendor-firestore';
           if (id.includes('@firebase/functions') || id.includes('firebase/functions')) return 'vendor-functions';
           if (id.includes('@firebase/auth') || id.includes('firebase/auth')) return 'vendor-auth';
           if (id.includes('@firebase') || id.includes('firebase')) return 'vendor-firebase-core';
