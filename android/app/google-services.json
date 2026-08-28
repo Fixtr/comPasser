@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "326371483849",
+    "project_id": "compasser-app",
+    "storage_bucket": "compasser-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326371483849:android:f2029f8f0f543ec2ae6d18",
+        "android_client_info": {
+          "package_name": "com.compasser.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326371483849-dbmv9cp61bk9i990oder4l8khj2dqbmj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.compasser.app",
+            "certificate_hash": "5909b90fb38a606641ac6106cc055f4189189180"
+          }
+        },
+        {
+          "client_id": "326371483849-c8bhbf489tj6vk76123vdnpng6i7gvlo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAebRDrgizF3F39y9-n5ylcID8zPFCykfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326371483849-c8bhbf489tj6vk76123vdnpng6i7gvlo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
