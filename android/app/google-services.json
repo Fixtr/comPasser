@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "326371483849-078j0dc6orq06qra7523lmpgqhvgam28.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.compasser.app",
+            "certificate_hash": "1f01dc0133357f7936833838a3a2c591c06da1a1"
+          }
+        },
+        {
           "client_id": "326371483849-dbmv9cp61bk9i990oder4l8khj2dqbmj.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
