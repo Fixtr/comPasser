@@ -415,7 +415,7 @@ export class MapView extends HTMLElement {
         background: fill,
         borderColor: fill,
         glyphColor: tokenColor('--cp-surface', '#ffffff'),
-        glyph: numbers.join('·'),
+        glyphText: numbers.join('·'),
         scale: numbers.length > 1 ? 1.25 : 1
       });
 
@@ -423,7 +423,7 @@ export class MapView extends HTMLElement {
         map: this.map,
         position: entries[0].item.latLng,
         title: entries.map(({ item }) => item.title).join(' / '),
-        content: pinView.element
+        content: pinView
       });
 
       this.markers.push(marker);
