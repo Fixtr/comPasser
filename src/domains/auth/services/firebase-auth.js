@@ -20,6 +20,7 @@ import {
 } from "firebase/auth";
 
 import { signInWithNativeGoogle } from "./native-google-signin.mjs";
+import { getEmailVerificationSettings } from "./email-verification-continuation.mjs";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -173,11 +174,17 @@ export function getCurrentUser() {
     return auth?.currentUser;
 }
 
-export async function signUpWithEmail(email, password) {
+export async function signUpWithEmail(email, password, returnTo = null) {
+    const verificationSettings = getEmailVerificationSettings({
+        returnTo,
+        origin: window.location.origin,
+        isNative: Capacitor.isNativePlatform(),
+    });
     try {
         const userCredential = await createUserWithEmailAndPassword(requireAuth(), email, password);
         const user = userCredential.user;
-        await sendEmailVerification(user);
+        if (verificationSettings) await sendEmailVerification(user, verificationSettings);
+        else await sendEmailVerification(user);
         await signOut(requireAuth());
         return user;
     } catch (error) {

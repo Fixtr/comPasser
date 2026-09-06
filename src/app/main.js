@@ -314,21 +314,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleRouteChange(); // Immediately trigger route change logic
     };
 
-    // handleRouteChange 는 popstate/navigate 뿐 아니라 Firebase
-    // onAuthStateChanged(토큰 확정 시 재발화 등)에서도 호출된다. /view 는
-    // 이동시간 보정(applyTransitDelays)이 반영된 뒤 sessionStorage 는
-    // 갱신되지 않으므로, 매 재호출마다 showResults/renderRoute 를 다시
-    // 부르면 원본(보정 전) 시각으로 되돌아간다. 같은 데이터를 이미
-    // 로드했다면 재호출을 건너뛴다.
-    let lastLoadedStaticViewData = null;
-    let lastLoadedViewId = null;
-
     /** Firebase 가 로그인 여부를 알려 줬는가. 그 전에는 판단하지 않는다. */
     let authSettled = false;
+    let lastRoutePath = null;
+    let routeVersion = 0;
 
     async function handleRouteChange() {
         const path = window.location.pathname;
         const user = getCurrentUser();
+        if (path !== lastRoutePath) {
+            itineraryView?.cancelPendingLoad();
+            lastRoutePath = path;
+            routeVersion += 1;
+        }
 
         console.log(`[Router] Navigation to: '${path}', User logged in: ${!!user}`);
 
@@ -345,6 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             user,
             authSettled,
             hasPreference: !!sessionStorage.getItem('userPreference'),
+            returnTo: new URLSearchParams(window.location.search).get('next'),
         });
 
         if (decision.action === 'wait') {
@@ -355,6 +354,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (decision.action === 'redirect') {
+            if (!user) {
+                itineraryView?.clear();
+                mapView?.clearMap();
+            }
             console.log(`[Router] Redirecting '${path}' → '${decision.to}'.`);
             window.navigate(decision.to);
             return;
@@ -362,7 +365,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 결과 화면에서는 액자 여백을 걷어 지도가 무대를 채우게 한다.
         // 여백이 남으면 지도가 배경이 아니라 액자 속 카드로 보인다.
-        document.body.classList.toggle('stage-map', path.startsWith('/view'));
+        const isResultPath = /^\/(view|share)(\/|$)/.test(path);
+        document.body.classList.toggle('stage-map', isResultPath);
         syncTabBar(path, user);
 
         // 결과·지도 화면만 어둡게 한다(utils/route-theme.js).
@@ -387,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 2. Evaluate Route
-        if (path.startsWith('/view')) {
+        if (isResultPath) {
             if (pageView) {
                 // 무대의 자식(지도·시트)은 절대 배치라 grid 가 할 일이 없다.
                 pageView.style.display = 'block';
@@ -396,57 +400,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // [Dynamic Parameter Routing]
-            // Format: /view/:id (e.g., /view/abc123def)
-            const idMatch = path.match(/^\/view\/([a-zA-Z0-9]+)$/);
+            // /share는 공유본 전용, /view는 개인 일정과 예전 공유 링크를 지원한다.
+            const idMatch = path.match(/^\/(view|share)\/([a-zA-Z0-9]+)$/);
             
-            if (idMatch && idMatch[1]) {
-                const docId = idMatch[1];
-
-                // 이미 이 id 를 로드한 상태면 재호출하지 않는다(예: 인증 상태
-                // 재발화로 handleRouteChange 가 다시 실행되는 경우). 그대로
-                // 다시 부르면 지도가 재계산한 이동시간 보정이 초기화된다.
-                if (docId !== lastLoadedViewId) {
-                    lastLoadedViewId = docId;
-                    console.log(`[Router] Dynamic route detected with ID: ${docId}`);
-
-                    try {
-                        const itineraryView = document.querySelector('itinerary-view');
-                        if (itineraryView && typeof itineraryView.loadItineraryById === 'function') {
-                            // 기존에 삽입되어 있는 컴포넌트에 명시적으로 로드 명령 하달
-                            itineraryView.loadItineraryById(docId);
-                        } else {
-                            throw new Error('ItineraryView 컴포넌트가 DOM에 존재하지 않거나 loadItineraryById 메서드가 없습니다.');
-                        }
-                    } catch (error) {
-                        console.error('🔥 라우팅/마운트 에러:', error);
-                    }
-                }
+            if (idMatch) {
+                const docId = idMatch[2];
+                const sharedOnly = idMatch[1] === 'share';
+                // 최신 일정/중복 조회/계정별 복원은 일정 도메인이 담당한다.
+                await itineraryView?.loadItineraryById(docId, { sharedOnly, userId: user?.uid });
+                itineraryView?.refreshAccessControls();
             } else if (path === '/view') {
-                // Case: /view (Temporary memory-based itinerary or just generated)
-                console.log('[Router] Static /view route: Looking for memory state.');
-
-                // 볼 일정이 있느냐만 보면 된다. 예전에는 currentPhase === '3'
-                // 도 함께 요구했는데, /plan 을 한 번 들르면 phase 가 '1' 로
-                // 바뀌어(아래 /plan 분기) 되돌아왔을 때 일정이 있는데도 복원되지
-                // 않고 빈 화면이 남았다(폼으로 돌아갔다가 뒤로 가기).
-                const rawData = sessionStorage.getItem('savedItineraryData');
-                if (!rawData) {
-                    window.navigate('/plan');
-                } else if (rawData !== lastLoadedStaticViewData) {
-                    // 같은 데이터를 이미 로드했다면 재호출하지 않는다(위와 같은 이유).
-                    lastLoadedStaticViewData = rawData;
-                    try {
-                        const parsedItinerary = JSON.parse(rawData);
-                        setTimeout(() => {
-                            if (mapView) mapView.renderRoute(parsedItinerary);
-                            if (itineraryView) itineraryView.showResults(parsedItinerary);
-                            window.dispatchEvent(new Event('resize'));
-                        }, 50);
-                    } catch (e) {
-                        console.error("[Router] State parse error", e);
-                        window.navigate('/plan');
-                    }
-                }
+                if (!itineraryView?.restoreDraft()) window.navigate('/plan');
+            } else {
+                window.navigate('/');
             }
         } else if (path.startsWith('/preference')) {
             if (path === '/preference/2') {
@@ -590,6 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
         }
+        itineraryView?.setSessionUser(user?.uid || null);
         if (user) {
             if (logoutBtn) logoutBtn.style.display = 'inline-block';
             if (userAvatar) {
@@ -637,6 +604,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (editItineraryBtn) {
         editItineraryBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (!itineraryView?.canEdit()) return;
             console.log('[Routing] "Edit Itinerary" clicked: Injecting data, then routing.');
             let requestData = null;
             if (itineraryView && itineraryView.currentItinerary && itineraryView.currentItinerary.request) {
@@ -809,8 +777,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    let generationVersion = 0;
     if (travelForm && itineraryView) {
         travelForm.addEventListener('generate-itinerary', async (e) => {
+            const userId = getCurrentUser()?.uid;
+            if (!userId || window.location.pathname !== '/plan') return;
+            const version = ++generationVersion;
+            const startRouteVersion = routeVersion;
+            const isCurrentGeneration = () => version === generationVersion
+                && startRouteVersion === routeVersion
+                && getCurrentUser()?.uid === userId && window.location.pathname === '/plan';
             console.log('App main received itinerary generation event.', e.detail);
 
             itineraryView.clear();
@@ -838,10 +814,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 const itineraryPlan = await generateOptimizedItinerary(e.detail);
+                // 생성 중 공유 링크를 열었거나 계정이 바뀌면 그 화면을 덮지 않는다.
+                if (!isCurrentGeneration()) return;
                 itineraryView.showResults(itineraryPlan);
-                if (mapView) mapView.renderRoute(itineraryPlan);
-
-                sessionStorage.setItem('savedItineraryData', JSON.stringify(itineraryPlan));
 
                 // Success State! Delay routing so user can process visual cue
                 loadingSpinner.style.display = 'none';
@@ -856,6 +831,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
 
             } catch (error) {
+                if (!isCurrentGeneration()) return;
                 console.error("Failed to generate itinerary:", error);
 
                 loadingSpinner.style.display = 'none';
@@ -881,9 +857,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     showErrorToast('⏳ ' + error.message);
                 }
             } finally {
-                stopBannerCarousel();
-                stopLoadingMessageRotation(); // Ensure timer is cleared in any case
-                window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
+                if (version === generationVersion) {
+                    stopBannerCarousel();
+                    stopLoadingMessageRotation();
+                    window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
+                }
             }
         });
     }

@@ -66,6 +66,7 @@ export class MapView extends HTMLElement {
     this.markers = [];
     this.directionsRenderers = [];
     this.fallbackPolylines = [];
+    this._renderVersion = 0;
 
     this.loader = getMapsLoader();
 
@@ -97,13 +98,17 @@ export class MapView extends HTMLElement {
     // Listen for manual route render requests (e.g. when loading by ID)
     window.removeEventListener('render-map-route', this._renderRouteHandler);
     this._renderRouteHandler = (e) => {
-      if (e.detail) this.renderRoute(e.detail);
+      if (e.detail?.plan) this.renderRoute(e.detail.plan, e.detail.context);
     };
     window.addEventListener('render-map-route', this._renderRouteHandler);
+    this._cancelRouteHandler = () => this.clearMap();
+    window.addEventListener('cancel-map-route', this._cancelRouteHandler);
   }
 
   disconnectedCallback() {
     window.removeEventListener('render-map-route', this._renderRouteHandler);
+    window.removeEventListener('cancel-map-route', this._cancelRouteHandler);
+    this.clearMap();
     if (this._visibilityObserver) {
       this._visibilityObserver.disconnect();
       this._visibilityObserver = null;
@@ -209,7 +214,6 @@ export class MapView extends HTMLElement {
     const apiKey = import.meta.env.VITE_MAPS_API_KEY;
     if (!apiKey) {
       console.error("VITE_MAPS_API_KEY is missing in .env");
-      this.setLoading(true, "Map API Key Missing");
       return;
     }
 
@@ -223,12 +227,8 @@ export class MapView extends HTMLElement {
         disableDefaultUI: true,
         zoomControl: true,
       });
-
-      this.setLoading(false);
-
     } catch (e) {
       console.error("Failed to load map:", e);
-      this.setLoading(true, "Failed to load map API");
     }
   }
 
@@ -242,7 +242,10 @@ export class MapView extends HTMLElement {
   }
 
   clearMap() {
+    // API 요청 자체를 취소할 수 없어도 완료된 결과는 더 이상 사용하지 않는다.
+    this._renderVersion += 1;
     this.clearMapLayers();
+    this.setLoading(false);
   }
 
   /**
@@ -252,52 +255,52 @@ export class MapView extends HTMLElement {
    * AI 추정 시각이 검증된 것처럼 남고 사용자는 그 사실을 알 수 없었다.
    * @param {string} reason 로그용 사유
    */
-  notifyTransitUnavailable(reason) {
+  notifyTransitUnavailable(reason, context) {
     console.warn(`[Map] 실제 이동시간을 계산하지 못했습니다: ${reason}`);
-    window.dispatchEvent(new CustomEvent('transit-unavailable', { detail: { reason } }));
+    window.dispatchEvent(new CustomEvent('transit-unavailable', { detail: { context, reason } }));
   }
 
-  async renderRoute(itineraryPlan) {
-    // 예전에는 지도가 없으면 여기서 포기했다. 지금은 지도를 늦게 켜므로,
-    // 그리라는 요청이 먼저 도착하는 것이 정상이다 — 그때 켜면 된다.
-    if (!await this.ensureMap()) {
-      this.notifyTransitUnavailable('지도를 초기화하지 못했습니다.');
-      return;
-    }
-
-    // Ensure map container is visible
-    const mapContainer = this.shadowRoot.getElementById('map-container');
-    if (mapContainer && mapContainer.style.display !== 'block') {
-      mapContainer.style.display = 'block';
-      // Inform Google Maps that the container size has changed (lazy load)
-      // Re-triggering resize event or setting center to force redraw if needed.
-      if (google && google.maps && google.maps.event) {
-        google.maps.event.trigger(this.map, 'resize');
-      }
-    }
-
-    // Clear Transit info for UI
-    window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: [] }));
-    this.setLoading(true, "Analyzing locations...");
+  async renderRoute(itineraryPlan, context) {
+    const version = ++this._renderVersion;
+    const isCurrent = () => version === this._renderVersion;
     this.clearMapLayers();
-
-    const day = itineraryPlan.days[0];
-    if (!day || !day.scheduleItems) {
-      this.notifyTransitUnavailable('일정에 표시할 항목이 없습니다.');
-      this.setLoading(false);
-      return;
-    }
-
+    this.setLoading(true, "Analyzing locations...");
     try {
+      // 예전에는 지도가 없으면 여기서 포기했다. 지금은 지도를 늦게 켜므로,
+      // 그리라는 요청이 먼저 도착하는 것이 정상이다 — 그때 켜면 된다.
+      const ready = await this.ensureMap();
+      if (!isCurrent()) return;
+      if (!ready) {
+        this.notifyTransitUnavailable('지도를 초기화하지 못했습니다.', context);
+        return;
+      }
+
+      // Ensure map container is visible
+      const mapContainer = this.shadowRoot.getElementById('map-container');
+      if (mapContainer && mapContainer.style.display !== 'block') {
+        mapContainer.style.display = 'block';
+        // Inform Google Maps that the container size has changed (lazy load)
+        // Re-triggering resize event or setting center to force redraw if needed.
+        if (google && google.maps && google.maps.event) {
+          google.maps.event.trigger(this.map, 'resize');
+        }
+      }
+
+      const day = itineraryPlan?.days?.[0];
+      if (!day || !day.scheduleItems) {
+        this.notifyTransitUnavailable('일정에 표시할 항목이 없습니다.', context);
+        return;
+      }
+
       // 1. Delegate Geocoding to GeocodingService
       // Tag every item with its timeline position first: geocoding drops
       // failures, so array order alone would desync pins from the list below.
       const scheduleItems = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
       const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems);
+      if (!isCurrent()) return;
 
       if (geocodedItems.length === 0) {
-        this.notifyTransitUnavailable('장소를 좌표로 변환하지 못했습니다.');
-        this.setLoading(false);
+        this.notifyTransitUnavailable('장소를 좌표로 변환하지 못했습니다.', context);
         return;
       }
 
@@ -305,37 +308,42 @@ export class MapView extends HTMLElement {
       //    예전에는 고정 일정 한 곳에 배율 14 를 박아, 나머지가 화면 밖에
       //    있어도 알 수 없었다. 한 곳뿐이면 그때 고정 일정을 가운데 둔다.
       const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
-      this.frameToItems(geocodedItems, anchorItem);
+      this.frameToItems(geocodedItems, anchorItem, isCurrent);
 
       // 3. Render Markers on Map
-      await this.renderMarkers(geocodedItems);
+      await this.renderMarkers(geocodedItems, isCurrent);
+      if (!isCurrent()) return;
 
       // 지도가 실제로 어떤 장소를 찾았는지 타임라인에 알린다. 화면에는 AI 가
       // 쓴 문자열이 그대로 떠 있어서, 엉뚱한 곳으로 매칭돼도 사용자가 알
       // 방법이 없었다. displayIndex 로 위치를 맞춰 보낸다(지오코딩에 실패한
       // 항목은 빠지므로 배열 순서만으로는 어긋난다).
       window.dispatchEvent(new CustomEvent('places-resolved', {
-        detail: geocodedItems
-          .filter(item => item.resolvedName || item.resolvedAddress)
-          .map(item => ({
-            index: (item.displayIndex ?? 0) - 1,
-            name: item.resolvedName || '',
-            address: item.resolvedAddress || ''
-          }))
+        detail: {
+          context,
+          places: geocodedItems
+            .filter(item => item.resolvedName || item.resolvedAddress)
+            .map(item => ({
+              index: (item.displayIndex ?? 0) - 1,
+              name: item.resolvedName || '',
+              address: item.resolvedAddress || ''
+            }))
+        }
       }));
 
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
         this.setLoading(true, "Calculating routes...");
-        await this.renderTransitSegments(geocodedItems, day.date);
+        await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent);
       } else {
-        this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.');
+        this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.', context);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       console.error("[Map Rendering Error]", err);
-      this.notifyTransitUnavailable(err?.message || '지도 렌더링 중 오류가 발생했습니다.');
+      this.notifyTransitUnavailable(err?.message || '지도 렌더링 중 오류가 발생했습니다.', context);
     } finally {
-      this.setLoading(false);
+      if (isCurrent()) this.setLoading(false);
     }
   }
 
@@ -360,7 +368,7 @@ export class MapView extends HTMLElement {
    * @param {Array} geocodedItems 좌표가 붙은 일정 항목들
    * @param {object|undefined} preferredItem 한 곳뿐일 때 가운데 둘 항목
    */
-  frameToItems(geocodedItems, preferredItem) {
+  frameToItems(geocodedItems, preferredItem, isCurrent = () => true) {
     const points = geocodedItems.map(item => toPoint(item.latLng)).filter(Boolean);
     if (points.length === 0) return;
 
@@ -384,12 +392,14 @@ export class MapView extends HTMLElement {
     // 가까운 두 곳만 있으면 여기서 배율이 20 을 넘는다. 한 번만 되돌린다
     // (계속 듣고 있으면 사용자가 직접 확대하는 것까지 막는다).
     google.maps.event.addListenerOnce(this.map, 'idle', () => {
+      if (!isCurrent()) return;
       if (this.map.getZoom() > MAX_FIT_ZOOM) this.map.setZoom(MAX_FIT_ZOOM);
     });
   }
 
-  async renderMarkers(geocodedItems) {
+  async renderMarkers(geocodedItems, isCurrent = () => true) {
     const { AdvancedMarkerElement, PinElement } = await this.loader.importLibrary("marker");
+    if (!isCurrent()) return;
 
     // Same-coordinate stops (e.g. a trip starting and ending at one hotel)
     // would stack pins and hide all but the last; merge them into one pin.
@@ -430,10 +440,13 @@ export class MapView extends HTMLElement {
     });
   }
 
-  async renderTransitSegments(geocodedItems, dayDate) {
+  async renderTransitSegments(geocodedItems, dayDate, context, isCurrent = () => true) {
     const { DirectionsRenderer } = await this.loader.importLibrary("routes");
+    if (!isCurrent()) return;
     const { Polyline } = await this.loader.importLibrary("maps");
+    if (!isCurrent()) return;
     const { SymbolPath } = await this.loader.importLibrary("core");
+    if (!isCurrent()) return;
 
     // 예전에는 구간마다 다른 색(빨강·주황·초록·파랑·보라 …)을 돌려 썼다.
     // 그런데 이 화면에서 색은 이미 뜻을 갖고 있다 — 보라는 고정 일정,
@@ -481,6 +494,7 @@ export class MapView extends HTMLElement {
 
       // Delegate to RoutingService
       return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {
+        if (!isCurrent()) return null;
         const renderer = new DirectionsRenderer({
           map: this.map,
           suppressMarkers: true,
@@ -572,6 +586,7 @@ export class MapView extends HTMLElement {
         }
         return routeResult;
       }).catch(err => {
+        if (!isCurrent()) return null;
         console.warn(`Transit route failed between "${geocodedItems[i].title}" and "${geocodedItems[i + 1].title}".Drawing walking line.`, err.message);
 
         const dashedPolyline = new Polyline({
@@ -603,10 +618,11 @@ export class MapView extends HTMLElement {
 
     // 한꺼번에 병렬로 요청 대기 및 결과 취합 (null 값 제외)
     let transitRoutes = await Promise.all(routePromises);
+    if (!isCurrent()) return;
     transitRoutes = transitRoutes.filter(route => route !== null);
 
     // Broadcast transit details back to itinerary view using the old bus channel
-    window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: transitRoutes }));
+    window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context, routes: transitRoutes } }));
   }
 }
 

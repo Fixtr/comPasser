@@ -1,4 +1,6 @@
 import { loadFirestore } from "../../../lib/firestore-lazy.mjs";
+import { getCurrentUser } from "../../auth/services/firebase-auth.js";
+import { createItineraryDocumentLoader } from "./itinerary-document-loader.mjs";
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
@@ -135,39 +137,21 @@ export async function getSharedItinerary(documentId) {
         throw error;
     }
 }
-export async function getItineraryById(documentId) {
-    try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
-        // 1. 먼저 프라이빗 itineraries 컬렉션 조회 시도
-        const docRef = doc(db, "itineraries", documentId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            return docSnap.data().itineraryPlan;
-        } else {
-            // 없으면 공유된 일정(shared_itineraries) 컬렉션에서 교차 조회
-            const sharedData = await getSharedItinerary(documentId);
-            if (sharedData) return sharedData;
-
-            console.log("No such itinerary document!");
-            return null;
-        }
-    } catch (error) {
-        // 본인 소유가 아닌 일정 접근 시 Firestore 권한 에러(permission-denied 등) 발동 가능
-        // 이 경우에도 공유된 공유 객체인지 확인
-        if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
-            console.log("Permission denied for private map. Checking shared_itineraries fallback...");
-            try {
-                const sharedData = await getSharedItinerary(documentId);
-                if (sharedData) return sharedData;
-            } catch (sharedError) {
-                console.error("Error fetching shared itinerary fallback:", sharedError);
-                return null;
-            }
-        }
-        
-        console.error("Error fetching itinerary by ID:", error);
-        throw error; // 실제 네트워크나 다른 치명적 예외인 경우 throw
+/**
+ * 명시적 공유 주소와 비로그인 조회에서는 공개 공유본만 읽는다.
+ * 로그인한 예전 /view 주소는 본인 일정 → 공유본 순으로 조회한다.
+ * 반환된 access로 화면에서도 공유본의 읽기 전용 상태를 유지한다.
+ */
+export const loadItineraryDocument = createItineraryDocumentLoader({
+    async readDocument(collectionName, documentId) {
+        const { db, doc, getDoc } = await loadFirestore();
+        const snapshot = await getDoc(doc(db, collectionName, documentId));
+        return snapshot.exists() ? snapshot.data() : null;
     }
+});
+
+// 일정 내용만 받던 기존 호출부를 위한 호환 API.
+export async function getItineraryById(documentId) {
+    const result = await loadItineraryDocument(documentId, { userId: getCurrentUser()?.uid ?? null });
+    return result?.itineraryPlan ?? null;
 }

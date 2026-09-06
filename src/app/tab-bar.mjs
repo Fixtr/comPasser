@@ -46,7 +46,7 @@ export function shouldShowTabBar({ path, user = null } = {}) {
   const target = normalize(path);
   if (!target) return false;
   if (isPublicPath(target)) return false;
-  if (target.startsWith('/view')) return false;
+  if (/^\/(?:view|share)(\/|$)/.test(target)) return false;
   return activeTabId(target) !== null;
 }
 

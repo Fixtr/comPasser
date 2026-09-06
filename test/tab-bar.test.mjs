@@ -56,6 +56,8 @@ test('결과 화면에서는 감춘다 — 바닥은 시트가 갖는다', () =>
   // 바닥에 막대가 둘이면 어느 쪽이 지금 화면의 것인지 알 수 없다.
   assert.equal(shouldShowTabBar({ path: '/view', user }), false);
   assert.equal(shouldShowTabBar({ path: '/view/abc123', user }), false);
+  assert.equal(shouldShowTabBar({ path: '/share/abc123', user }), false);
+  assert.equal(shouldShowTabBar({ path: '/share/abc123', user: null }), false);
 });
 
 test('일정을 만드는 자리와 계정 자리에서는 띄운다', () => {

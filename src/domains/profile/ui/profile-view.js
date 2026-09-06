@@ -409,15 +409,17 @@ class ProfileView extends HTMLElement {
     }
 
     async handleDeleteItinerary(id, cardEl) {
+        const userId = getCurrentUser()?.uid;
         const ok = await showConfirm({
             title: '일정 삭제',
             message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다.',
             confirmText: '삭제',
             cancelText: '취소'
         });
-        if (ok) {
+        if (ok && userId && getCurrentUser()?.uid === userId) {
             try {
                 await deleteItinerary(id);
+                window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id, userId } }));
                 cardEl.style.opacity = '0.5';
                 cardEl.style.pointerEvents = 'none';
                 setTimeout(() => {
@@ -477,6 +479,7 @@ class ProfileView extends HTMLElement {
                 try {
                     // 1. Delete all itineraries
                     await deleteAllUserItineraries(user.uid);
+                    window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id: null, userId: user.uid } }));
 
                     // 2. Delete user document from Firestore
                     const { db, doc, deleteDoc } = await loadFirestore();

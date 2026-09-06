@@ -1,4 +1,5 @@
 import { trackEvent } from '../../../utils/analytics.js';
+import { escapeHtml } from '../../../utils/html-safety.mjs';
 
 export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) {
 
@@ -210,7 +211,7 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
           <span class="popup-title">길찾기</span>
           <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="길찾기 창 닫기">&times;</button>
         </div>
-        <p class="popup-location" title="${locationName}">${locationName}</p>
+        <p class="popup-location" title="${escapeHtml(locationName)}">${escapeHtml(locationName)}</p>
         <div class="popup-options">
           <a href="https://map.naver.com/v5/search/${encoded}" target="_blank" rel="noopener noreferrer" class="pop-opt naver" data-svc="naver">
             <span class="pop-swatch" aria-hidden="true"></span>
@@ -295,4 +296,3 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     };
     window.addEventListener('scroll', scrollHandler, true);
   }
-

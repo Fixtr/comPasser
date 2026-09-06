@@ -7,6 +7,7 @@ import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser
 import { showErrorToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { loadKakaoSdk } from '../../../utils/external-scripts.js';
+import { getSafeReturnPath } from '../../../app/route-decision.mjs';
 
 /**
  * Functions 핸들은 **쓸 때 만든다.**
@@ -158,6 +159,7 @@ export default class LoginView extends HTMLElement {
     const emailInput = this.shadowRoot.getElementById('email-input');
     const passwordInput = this.shadowRoot.getElementById('password-input');
     const errorMsg = this.shadowRoot.getElementById('error-msg');
+    const returnPath = () => getSafeReturnPath(new URLSearchParams(window.location.search).get('next'));
 
     const checkInApp = () => {
       if (isInAppBrowser()) {
@@ -184,6 +186,8 @@ export default class LoginView extends HTMLElement {
 
     kakaoBtn.addEventListener('click', async () => {
       if (checkInApp()) return;
+      // 인증 구독이 먼저 주소를 바꿀 수 있으므로 로그인 시작 시 기억한다.
+      const targetPath = returnPath() || (sessionStorage.getItem('userPreference') ? '/plan' : '/preference/1');
       
       kakaoBtn.disabled = true;
       const originalHtml = kakaoBtn.innerHTML;
@@ -206,7 +210,6 @@ export default class LoginView extends HTMLElement {
         const result = await verifySocialToken({ provider: 'kakao', token: access_token });
         
         await loginWithCustomToken(result.data.customToken);
-        const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
         window.navigate(targetPath);
       } catch (err) {
         console.error('[Kakao] Social login failed:', err.message || 'Unknown error');
@@ -220,6 +223,7 @@ export default class LoginView extends HTMLElement {
 
     naverBtn.addEventListener('click', () => {
       if (checkInApp()) return;
+      const targetPath = returnPath() || (sessionStorage.getItem('userPreference') ? '/plan' : '/preference/1');
 
       const originalHtml = naverBtn.innerHTML;
       const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
@@ -259,7 +263,6 @@ export default class LoginView extends HTMLElement {
                   const result = await verifySocialToken({ provider: 'naver', token: e.data.token });
                   
                   await loginWithCustomToken(result.data.customToken);
-                  const targetPath = sessionStorage.getItem('userPreference') ? '/plan' : '/preference';
                   window.navigate(targetPath);
               } catch (err) {
                   console.error('[Naver] Social login failed:', err.message || 'Unknown error');
@@ -290,7 +293,8 @@ export default class LoginView extends HTMLElement {
     if (goToJoin) {
       goToJoin.addEventListener('click', (e) => {
         e.preventDefault();
-        window.navigate('/join');
+        const next = returnPath();
+        window.navigate(next ? `/join?next=${encodeURIComponent(next)}` : '/join');
       });
     }
 

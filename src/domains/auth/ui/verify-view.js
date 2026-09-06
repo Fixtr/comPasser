@@ -2,6 +2,7 @@ import { verifyEmailCode } from '../services/firebase-auth.js';
 import { authStyles } from './auth-style.js';
 import { icons } from '../../../ui/icons.js';
 import { t, applyTranslations } from '../../../utils/i18n.js';
+import { getSafeReturnPath } from '../../../app/route-decision.mjs';
 
 export default class VerifyView extends HTMLElement {
   constructor() {
@@ -39,7 +40,17 @@ export default class VerifyView extends HTMLElement {
     `;
 
     this.shadowRoot.getElementById('go-login-btn').addEventListener('click', () => {
-      window.navigate('/login');
+      const params = new URLSearchParams(window.location.search);
+      let next = getSafeReturnPath(params.get('next'));
+      if (!next && params.get('continueUrl')) {
+        try {
+          const continuation = new URL(params.get('continueUrl'), window.location.origin);
+          next = getSafeReturnPath(continuation.searchParams.get('next'));
+        } catch {
+          // 잘못된 인증 복귀 주소는 버리고 평범한 로그인 화면으로 간다.
+        }
+      }
+      window.navigate(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
     });
   }
 

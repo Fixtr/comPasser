@@ -34,6 +34,16 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
+        .shared-notice {
+          background: var(--cp-sunken);
+          border: 1px solid var(--cp-rule);
+          color: var(--cp-ink-2);
+          padding: 0.9rem 1rem;
+          margin: 0 0 0.75rem;
+          font-size: 0.9rem;
+          line-height: 1.55;
+        }
+
         .fallback-warning {
           background: var(--cp-danger-bg);
           border: 1px solid var(--cp-danger);

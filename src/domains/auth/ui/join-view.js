@@ -4,6 +4,7 @@ import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser
 import { showToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { icons } from '../../../ui/icons.js';
+import { getSafeReturnPath } from '../../../app/route-decision.mjs';
 
 export default class JoinView extends HTMLElement {
   constructor() {
@@ -103,7 +104,8 @@ export default class JoinView extends HTMLElement {
 
     // Goto Login View
     goToLogin.addEventListener('click', () => {
-      window.navigate('/login');
+      const next = getSafeReturnPath(new URLSearchParams(window.location.search).get('next'));
+      window.navigate(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
     });
 
     // Password Toggle
@@ -143,6 +145,7 @@ export default class JoinView extends HTMLElement {
 
     emailSignupBtn.addEventListener('click', async () => {
       if (checkInApp()) return;
+      const returnTo = getSafeReturnPath(new URLSearchParams(window.location.search).get('next'));
 
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -162,7 +165,7 @@ export default class JoinView extends HTMLElement {
       errorMsg.style.display = 'none';
 
       try {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, returnTo);
         // Do not redirect, just alert user as requested.
         showToast('이메일로 인증 링크가 발송되었습니다.', { tone: 'success' });
         passwordInput.value = '';

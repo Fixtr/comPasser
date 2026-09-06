@@ -24,7 +24,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decideRoute, isPublicPath, isHomePath } from '../src/app/route-decision.mjs';
+import { decideRoute, isPublicPath, isHomePath, getSafeReturnPath } from '../src/app/route-decision.mjs';
 
 const settled = (path, user, hasPreference = true) =>
   decideRoute({ path, user, authSettled: true, hasPreference });
@@ -32,11 +32,11 @@ const pending = (path) =>
   decideRoute({ path, user: null, authSettled: false, hasPreference: true });
 
 test('로그인 여부와 무관한 곳을 안다', () => {
-  for (const p of ['/', '/home', '/index.html', '/sub/index.html', '/login', '/join', '/verify', '/verify/abc']) {
+  for (const p of ['/', '/home', '/index.html', '/sub/index.html', '/login', '/join', '/verify', '/verify/abc', '/share/abc123']) {
     assert.equal(isPublicPath(p), true, `${p} 는 로그인 없이 볼 수 있어야 한다`);
   }
   for (const p of ['/plan', '/view', '/view/abc', '/profile', '/preference/1']) {
-    assert.equal(isPublicPath(p), false, `${p} 는 로그인이 필요하다`);
+    assert.equal(isPublicPath(p), false, `${p} 는 인증 확정이 필요하다`);
   }
 });
 
@@ -64,13 +64,48 @@ test('인증을 몰라도 랜딩과 로그인 문은 연다', () => {
   assert.deepEqual(pending('/join'), { action: 'render' });
 });
 
-test('인증이 확정되면 공유 링크가 그대로 열린다', () => {
+test('공유 전용 링크는 인증을 기다리지 않고 열린다', () => {
+  assert.deepEqual(pending('/share/abc123'), { action: 'render' });
+  assert.deepEqual(settled('/share/abc123', null), { action: 'render' });
+  assert.deepEqual(settled('/share/abc123', { uid: 'u1' }), { action: 'render' });
+});
+
+test('예전 일정 링크는 인증 확정 후 게스트도 공유본을 조회할 수 있다', () => {
   assert.deepEqual(settled('/view/abc123', { uid: 'u1' }), { action: 'render' });
+  assert.deepEqual(settled('/view/abc123', null), { action: 'render' });
 });
 
 test('로그인하지 않았으면 로그인으로 보낸다', () => {
-  assert.deepEqual(settled('/view/abc123', null), { action: 'redirect', to: '/login' });
-  assert.deepEqual(settled('/profile', null), { action: 'redirect', to: '/login' });
+  for (const path of ['/view', '/plan', '/profile', '/preference/1']) {
+    assert.deepEqual(settled(path, null), { action: 'redirect', to: '/login' });
+  }
+});
+
+test('공유 전용 경로와 기존 상세 경로는 유효한 문서 ID만 허용한다', () => {
+  for (const path of ['/share', '/share/', '/share/abc/extra', '/view/abc/extra']) {
+    assert.deepEqual(settled(path, null), { action: 'redirect', to: '/login' });
+  }
+});
+
+test('로그인·가입 이후 원래 일정으로 복귀한다', () => {
+  for (const path of ['/login', '/join']) {
+    for (const returnTo of ['/share/abc123', '/view/ABC123']) {
+      assert.deepEqual(decideRoute({ path, user: { uid: 'u1' }, authSettled: true, returnTo }), {
+        action: 'redirect', to: returnTo,
+      });
+    }
+  }
+});
+
+test('외부 주소·인코딩 우회·일정 외 주소는 복귀 주소로 사용하지 않는다', () => {
+  for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', '/\\evil.example',
+    '/share/abc?next=https://evil.example', '/view/abc#other', '/share/%2f%2fevil', '/share/../login',
+    '/share/abc\n', '/login', '/plan', '/view', '/share/']) {
+    assert.equal(getSafeReturnPath(value), null, String(value));
+    assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), {
+      action: 'redirect', to: '/preference/1',
+    });
+  }
 });
 
 test('로그인한 사람이 로그인 화면에 서 있으면 안으로 들여보낸다', () => {

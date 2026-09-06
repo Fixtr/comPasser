@@ -22,7 +22,7 @@ export const ROUTE_THEME_ATTR = 'data-route-theme';
  * 경계(`/` 또는 끝)를 요구한다.
  */
 export function isDarkRoute(path) {
-  return /^\/view(\/|$)/.test(String(path || ''));
+  return /^\/(?:view|share)(\/|$)/.test(String(path || ''));
 }
 
 /** 사용자가 이 화면에서 직접 바꿨는가. 한 번 바꾸면 이 세션 동안 강제하지 않는다. */

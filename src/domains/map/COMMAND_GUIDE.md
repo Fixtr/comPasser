@@ -28,3 +28,5 @@
   - 리스트의 첫 번째 장소일 경우 초록색 핀으로 렌더링.
   - 나머지 일반 장소는 파란색 핀으로 렌더링.
 - **TransitInfo 전달**: 라우팅 결과물(거리, 소요시간)은 전역 이벤트 버스(`transit-info-ready`)를 통해 다른 컴포넌트(예: Timeline)로 전달될 수 있지만, Map 도메인이 소비자의 형태를 알아서는 안 됩니다.
+- **비동기 결과 식별**: `render-map-route`의 `detail`은 `{ plan, context }`입니다. `plan`에는 선택한 하루의 스냅샷이 들어가고, 지도는 `context`를 해석하거나 변경하지 않고 결과에 그대로 돌려줍니다. 결과는 `transit-info-ready: { context, routes }`, `places-resolved: { context, places }`, `transit-unavailable: { context, reason }`입니다.
+- **이전 요청 무효화**: 새 요청, `cancel-map-route`, `clearMap()`, 컴포넌트 해제는 이전 렌더링을 무효화합니다. SDK 로딩·지오코딩·각 경로 응답 뒤에는 최신 요청인지 확인한 다음 마커/경로선/로딩 상태/결과 이벤트를 변경합니다. 이미 시작한 외부 API 호출은 끝날 수 있지만, 오래된 결과를 화면에 반영해서는 안 됩니다.

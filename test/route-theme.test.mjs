@@ -25,11 +25,13 @@ const view = readFileSync(`${ROOT}src/domains/itinerary/ui/itinerary-view.js`, '
 test('결과 화면만 어두운 경로다', () => {
   assert.equal(isDarkRoute('/view'), true);
   assert.equal(isDarkRoute('/view/abc123'), true);
+  assert.equal(isDarkRoute('/share/abc123'), true);
   assert.equal(isDarkRoute('/'), false);
   assert.equal(isDarkRoute('/plan'), false);
   assert.equal(isDarkRoute('/profile'), false);
   // 앞글자가 겹치는 경로에 걸리면 안 된다.
   assert.equal(isDarkRoute('/viewer'), false);
+  assert.equal(isDarkRoute('/shared'), false);
   assert.equal(isDarkRoute('/verify'), false);
   assert.equal(isDarkRoute(null), false);
 });
