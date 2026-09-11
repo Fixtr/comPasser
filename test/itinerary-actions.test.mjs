@@ -1,0 +1,237 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
+import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
+
+const plan = () => ({ days: [
+  { day: 1, date: '2026-09-08', scheduleItems: [{ title: '경복궁', time: '09:00' }] },
+  { day: 2, date: '2026-09-09', scheduleItems: [{ title: '서울숲', time: '10:00' }] },
+] });
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+function fixture({ user = { uid: 'owner' }, save, share } = {}) {
+  const session = { user };
+  const state = createItineraryState();
+  state.setUser(user?.uid);
+  const calls = { saves: [], shares: [], urls: [] };
+  const actions = createItineraryActions({
+    state,
+    getCurrentUser: () => session.user,
+    saveItinerary: async (...args) => {
+      calls.saves.push(args);
+      return save ? save(...args) : 'saved123';
+    },
+    createSharedItinerary: async snapshot => {
+      calls.shares.push(snapshot);
+      return share ? share(snapshot) : 'published123';
+    },
+    getSharedItineraryUrl: id => {
+      calls.urls.push(id);
+      return `https://app.example/share/${id}`;
+    },
+  });
+  return { state, session, calls, actions };
+}
+
+test('저장은 최신 일정의 사본과 제목을 전달하고 선택 날짜를 유지한 뒤 UI에 알린다', async () => {
+  const { state, calls, actions } = fixture();
+  const original = plan();
+  state.open(original);
+  state.selectDay(1);
+  const notifications = [];
+
+  const result = await actions.save({ onSaved(id) {
+    notifications.push(id);
+    assert.deepEqual(state.current.source, { kind: 'private', id: 'saved123', ownerId: 'owner' });
+    assert.equal(state.current.dayIndex, 1);
+  } });
+
+  assert.deepEqual(result, { status: 'saved', id: 'saved123' });
+  assert.deepEqual(calls.saves, [['owner', original, '9월 8일~9월 9일 · 1박 2일']]);
+  assert.notEqual(calls.saves[0][1], original);
+  assert.deepEqual(notifications, ['saved123']);
+});
+
+test('공유본 저장은 공개 원본을 수정하지 않고 로그인 계정의 개인 사본을 연다', async () => {
+  const { state, calls, actions } = fixture();
+  const original = plan();
+  const shared = state.open(original, { kind: 'shared', id: 'public123' });
+  state.selectDay(1);
+
+  assert.deepEqual(await actions.save({ language: 'en' }), { status: 'saved', id: 'saved123' });
+  assert.equal(calls.saves[0][2], '09/08–09/09 · 2 days');
+  assert.equal(state.current.source.kind, 'private');
+  assert.equal(state.current.dayIndex, 1);
+  assert.notEqual(state.current.plan, original);
+  assert.equal(state.activateDocument('public123', { sharedOnly: true }), shared);
+  assert.equal(shared.plan, original);
+  assert.deepEqual(original, plan());
+});
+
+test('저장 중 편집한 최신 일정은 저장 시작 시점의 사본으로 덮거나 이동시키지 않는다', async () => {
+  const pending = deferred();
+  const { state, calls, actions } = fixture({ save: () => pending.promise });
+  const original = plan();
+  state.open(original);
+  let notifications = 0;
+  const saving = actions.save({ onSaved: () => notifications++ });
+  state.replaceDayItems(0, [{ title: '편집한 장소', time: '11:00' }]);
+  pending.resolve('oldSnapshot123');
+
+  assert.deepEqual(await saving, { status: 'saved-earlier-version', id: 'oldSnapshot123' });
+  assert.equal(calls.saves[0][1].days[0].scheduleItems[0].title, '경복궁');
+  assert.equal(state.current.plan.days[0].scheduleItems[0].title, '편집한 장소');
+  assert.equal(state.current.source.kind, 'draft');
+  assert.equal(notifications, 0);
+});
+
+test('저장 중 계정이 바뀌면 새 계정의 일정과 화면을 건드리지 않는다', async () => {
+  const pending = deferred();
+  const { state, session, calls, actions } = fixture({ save: () => pending.promise });
+  state.open(plan());
+  let notifications = 0;
+  const saving = actions.save({ onSaved: () => notifications++ });
+  session.user = { uid: 'other' };
+  state.setUser('other');
+  const other = state.open(plan());
+  pending.resolve('previousAccount123');
+
+  assert.deepEqual(await saving, { status: 'account-changed' });
+  assert.equal(calls.saves[0][0], 'owner');
+  assert.equal(state.current, other);
+  assert.equal(state.current.source.ownerId, 'other');
+  assert.equal(notifications, 0);
+});
+
+test('저장 중 다른 날짜나 일정으로 이동하면 완료 후 이전 화면으로 되돌리지 않는다', async () => {
+  for (const move of ['day', 'document', 'leave']) {
+    const pending = deferred();
+    const { state, actions } = fixture({ save: () => pending.promise });
+    state.open(plan());
+    let notifications = 0;
+    const saving = actions.save({ onSaved: () => notifications++ });
+    if (move === 'day') state.selectDay(1);
+    else if (move === 'document') state.open(plan(), { kind: 'private', id: 'other123' });
+    else state.deactivate();
+    const active = state.current;
+    const before = state.snapshot();
+    pending.resolve('saved123');
+
+    assert.deepEqual(await saving, { status: 'saved-earlier-version', id: 'saved123' }, move);
+    assert.equal(state.current, active, move);
+    assert.deepEqual(state.snapshot(), before, move);
+    assert.equal(notifications, 0, move);
+  }
+});
+
+test('일정이 없거나 대체 예시 일정이면 저장과 공유 확인·쓰기를 실행하지 않는다', async () => {
+  for (const fallback of [false, true]) {
+    const { state, calls, actions } = fixture();
+    if (fallback) state.open({ ...plan(), isFallback: true });
+    let confirms = 0;
+    assert.deepEqual(await actions.save(), { status: 'unavailable' });
+    assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { confirms++; return true; } }), { status: 'unavailable' });
+    assert.deepEqual(calls, { saves: [], shares: [], urls: [] });
+    assert.equal(confirms, 0);
+  }
+});
+
+test('비로그인 사용자의 저장과 개인 초안 공개는 로그인 요구만 반환한다', async () => {
+  const { state, calls, actions } = fixture({ user: null });
+  state.open(plan());
+  let confirms = 0;
+  assert.deepEqual(await actions.save(), { status: 'login-required' });
+  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { confirms++; return true; } }), { status: 'login-required' });
+  assert.deepEqual(calls, { saves: [], shares: [], urls: [] });
+  assert.equal(confirms, 0);
+});
+
+test('공개 공유본의 링크는 비로그인도 확인이나 새 문서 생성 없이 재사용한다', async () => {
+  const { state, calls, actions } = fixture({ user: null });
+  state.open(plan(), { kind: 'shared', id: 'public123' });
+  const before = state.snapshot();
+  let confirms = 0;
+
+  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { confirms++; return true; } }), {
+    status: 'ready', url: 'https://app.example/share/public123',
+  });
+  assert.deepEqual(await actions.save(), { status: 'login-required' });
+  assert.deepEqual(state.snapshot(), before);
+  assert.deepEqual(calls, { saves: [], shares: [], urls: ['public123'] });
+  assert.equal(confirms, 0);
+});
+
+test('개인 일정 공개 확인을 취소하면 공개 문서를 만들지 않는다', async () => {
+  const { state, calls, actions } = fixture();
+  state.open(plan(), { kind: 'private', id: 'mine123' });
+  const before = state.snapshot();
+  let confirms = 0;
+
+  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: async () => { confirms++; return false; } }), { status: 'cancelled' });
+  assert.equal(confirms, 1);
+  assert.deepEqual(calls, { saves: [], shares: [], urls: [] });
+  assert.deepEqual(state.snapshot(), before);
+});
+
+test('공개 확인 중 일정이나 로그인 계정이 바뀌면 동의하더라도 공개하지 않는다', async () => {
+  for (const change of ['plan', 'account', 'logout']) {
+    const pending = deferred();
+    const { state, session, calls, actions } = fixture();
+    state.open(plan());
+    const sharing = actions.getShareLink({ confirmPublicShare: () => pending.promise });
+    if (change === 'plan') state.open(plan());
+    else session.user = change === 'account' ? { uid: 'other' } : null;
+    pending.resolve(true);
+
+    assert.deepEqual(await sharing, { status: 'cancelled' }, change);
+    assert.deepEqual(calls, { saves: [], shares: [], urls: [] }, change);
+  }
+});
+
+test('공개 확인 중 같은 일정을 편집하면 확인 시점의 최신 사본을 공개한다', async () => {
+  const confirmation = deferred();
+  const write = deferred();
+  const started = deferred();
+  const { state, calls, actions } = fixture({ share: snapshot => { started.resolve(snapshot); return write.promise; } });
+  const original = plan();
+  state.open(original, { kind: 'private', id: 'mine123' });
+  const sharing = actions.getShareLink({ confirmPublicShare: () => confirmation.promise });
+  state.replaceDayItems(0, [{ title: '동의 전 편집', time: '11:00' }]);
+  confirmation.resolve(true);
+  const snapshot = await started.promise;
+  assert.equal(snapshot.days[0].scheduleItems[0].title, '동의 전 편집');
+  assert.notEqual(snapshot, original);
+  state.replaceDayItems(0, [{ title: '공개 쓰기 중 추가 편집', time: '12:00' }]);
+  write.resolve('published123');
+
+  assert.deepEqual(await sharing, { status: 'ready', url: 'https://app.example/share/published123' });
+  assert.equal(calls.shares.length, 1);
+  assert.equal(snapshot.days[0].scheduleItems[0].title, '동의 전 편집');
+  assert.equal(state.current.plan, original);
+  assert.equal(state.current.source.id, 'mine123');
+});
+
+test('저장·공개 확인·공개 쓰기 오류는 호출자에게 전달하고 성공 처리하지 않는다', async () => {
+  for (const stage of ['save', 'confirm', 'share']) {
+    const failure = new Error(`${stage} failed`);
+    const fail = async () => { throw failure; };
+    const { state, calls, actions } = fixture({ save: stage === 'save' ? fail : undefined, share: stage === 'share' ? fail : undefined });
+    state.open(plan());
+    const before = state.snapshot();
+    let notifications = 0;
+    const operation = stage === 'save'
+      ? actions.save({ onSaved: () => notifications++ })
+      : actions.getShareLink({ confirmPublicShare: stage === 'confirm' ? fail : async () => true });
+
+    await assert.rejects(operation, error => error === failure, stage);
+    assert.deepEqual(state.snapshot(), before, stage);
+    assert.deepEqual(calls.urls, [], stage);
+    assert.equal(notifications, 0, stage);
+    if (stage === 'confirm') assert.deepEqual(calls.shares, []);
+  }
+});

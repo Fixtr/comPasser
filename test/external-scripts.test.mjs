@@ -32,8 +32,10 @@ test('캡처 라이브러리를 CDN 에서 받지 않는다', () => {
   // 주석은 지우고 본다 — 걷어낸 이유를 주석으로 남겼는데 그 글자에
   // 정규식이 걸리면, 기록을 지우거나 테스트를 무디게 만드는 선택을 강요받는다.
   assert.doesNotMatch(stripComments(html), /html2canvas/, 'index.html 이 아직 CDN 을 건다');
-  const view = src('../src/domains/itinerary/ui/itinerary-view.js');
-  assert.match(view, /import\(\s*['"]html2canvas-pro['"]\s*\)|loadHtml2Canvas/,
+  const exporter = src('../src/domains/itinerary/ui/itinerary-image-export.js');
+  assert.match(exporter, /loadHtml2Canvas/,
+    '이미지 내보내기는 공용 캡처 로더를 사용해야 한다');
+  assert.match(src('../src/utils/external-scripts.js'), /import\(\s*['"]html2canvas-pro['"]\s*\)/,
     '캡처 엔진을 동적 import 로 가져와야 한다');
   const pkg = JSON.parse(src('../package.json'));
   assert.ok(pkg.dependencies['html2canvas-pro'],
@@ -45,7 +47,8 @@ test('카카오 앱 키가 한 곳에서만 나온다', () => {
   // 있었다. 먼저 실행되는 쪽이 이겨서, 공유와 로그인이 다른 앱으로 붙을 수
   // 있었다.
   for (const f of ['../src/app/main.js', '../src/domains/auth/ui/login-view.js',
-                   '../src/domains/itinerary/ui/itinerary-view.js']) {
+                   '../src/domains/itinerary/ui/itinerary-view.js',
+                   '../src/domains/itinerary/ui/itinerary-share-delivery.js']) {
     assert.doesNotMatch(src(f), /Kakao\.init\(/, `${f} 이 직접 init 한다`);
     assert.doesNotMatch(src(f), /[0-9a-f]{32}/, `${f} 에 키처럼 보이는 값이 박혀 있다`);
   }
@@ -57,7 +60,7 @@ test('카카오 앱 키가 한 곳에서만 나온다', () => {
 test('호출부가 전역 대신 로더를 기다린다', () => {
   const cases = [
     ['../src/domains/auth/ui/login-view.js', /loadKakaoSdk/],
-    ['../src/domains/itinerary/ui/itinerary-view.js', /loadKakaoSdk/],
+    ['../src/domains/itinerary/ui/itinerary-share-delivery.js', /loadKakaoSdk/],
     ['../src/domains/profile/ui/profile-view.js', /loadPortOne/],
   ];
   for (const [file, re] of cases) {

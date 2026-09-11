@@ -97,6 +97,16 @@ test('로그인·가입 이후 원래 일정으로 복귀한다', () => {
   }
 });
 
+test('탈퇴 재로그인은 계정 관리 화면으로만 복귀하며 여전히 인증이 필요하다', () => {
+  assert.equal(getSafeReturnPath('/profile/security'),'/profile/security');
+  assert.equal(isPublicPath('/profile/security'),false);
+  assert.deepEqual(settled('/profile/security',null),{action:'redirect',to:'/login'});
+  assert.deepEqual(decideRoute({path:'/login',user:{uid:'u1'},authSettled:true,returnTo:'/profile/security'}),{action:'redirect',to:'/profile/security'});
+  for(const path of ['/profile','/profile/security?delete=true','/profile/security/','/profile/security\n','//profile/security']) {
+    assert.equal(getSafeReturnPath(path),null);
+  }
+});
+
 test('외부 주소·인코딩 우회·일정 외 주소는 복귀 주소로 사용하지 않는다', () => {
   for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', '/\\evil.example',
     '/share/abc?next=https://evil.example', '/view/abc#other', '/share/%2f%2fevil', '/share/../login',

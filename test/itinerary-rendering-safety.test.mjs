@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
+import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
 import { isEditableItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
@@ -38,6 +39,7 @@ function viewHarness({ user = null } = {}) {
     document: { createElement: element, getElementById: () => null },
     window: { dispatchEvent() {} }, CustomEvent: class {},
     getCurrentUser: () => user, escapeHtml, safeHttpUrl, normalizeData, isEditableItem, createItineraryState,
+    createItineraryActions, saveItinerary() {}, createSharedItinerary() {}, getSharedItineraryUrl() {},
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(),

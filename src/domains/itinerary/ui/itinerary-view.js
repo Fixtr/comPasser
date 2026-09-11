@@ -1,6 +1,7 @@
 import { saveItinerary, createSharedItinerary, loadItineraryDocument } from '../services/firestore-service.js';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
+import { createItineraryActions } from '../services/itinerary-actions.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
@@ -10,16 +11,14 @@ import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { icons, iconRow } from '../../../ui/icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
-import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
-import { loadKakaoSdk, loadHtml2Canvas, loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
+import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
-import { buildBoardingPass } from '../services/boarding-pass.mjs';
-import { ROUTE_THEME_ATTR } from '../../../utils/route-theme.js';
-import { boardingPassStyles, renderBoardingPass } from './boarding-pass-view.js';
+import { exportItineraryImage } from './itinerary-image-export.js';
+import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,
@@ -63,6 +62,9 @@ export default class ItineraryView extends HTMLElement {
     this.state = createItineraryState({
       getStorage: () => window.sessionStorage,
       onStorageError: () => this.showToast(t('itinerarySessionUnavailable'), true),
+    });
+    this.actions = createItineraryActions({
+      state: this.state, getCurrentUser, saveItinerary, createSharedItinerary, getSharedItineraryUrl,
     });
     this._loadVersion = 0;
     this._itineraryVersion = 0;
@@ -268,34 +270,21 @@ export default class ItineraryView extends HTMLElement {
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
         trackEvent('save_itinerary_click');
-        const user = getCurrentUser();
-        if (!user) {
-          this.loginToSave();
-          return;
-        }
-        if (!this.currentItinerary || this.currentItinerary.isFallback) return;
-
         try {
           saveBtn.disabled = true;
           saveBtn.textContent = t('savingStateBtn') || '저장 중...';
-          const snapshot = this.state.snapshot();
-          const revision = this.state.revision;
-          const title = buildItineraryTitle(snapshot.plan, getLang());
-          const newId = await saveItinerary(user.uid, snapshot.plan, title);
-          // 저장 대기 중 바뀐 일정이나 다른 계정의 화면을 예전 사본으로 덮지 않는다.
-          if (getCurrentUser()?.uid !== user.uid) return;
-          if (revision !== this.state.revision) {
+          const result = await this.actions.save({
+            language: getLang(),
+            onSaved: id => {
+              this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
+              this.renderCurrentState();
+              if (window.navigate) window.navigate('/view/' + id);
+            },
+          });
+          if (result.status === 'login-required') {
+            this.loginToSave();
+          } else if (result.status === 'saved-earlier-version') {
             this.showToast(t('itinerarySavedEarlierVersion'));
-            return;
-          }
-          this.showToast(t('itinerarySaveToast') || "일정이 성공적으로 저장되었습니다.");
-          this.state.open(snapshot.plan, { kind: 'private', id: newId });
-          this.state.selectDay(snapshot.dayIndex);
-          this.renderCurrentState();
-          
-          // 🚀 [Routing] URL 업데이트: /view/:id 로 이동
-          if (window.navigate) {
-            window.navigate('/view/' + newId);
           }
         } catch (error) {
           console.error("Save error:", error);
@@ -400,25 +389,17 @@ export default class ItineraryView extends HTMLElement {
   }
 
   async getShareUrl() {
-    if (!this.currentItinerary || this.currentItinerary.isFallback) return null;
-    // 이미 공개된 공유본은 같은 링크를 전달한다. 게스트의 재공유에는 쓰기가 없다.
-    if (this.sharedId) return getSharedItineraryUrl(this.sharedId);
-    const userId = getCurrentUser()?.uid;
-    if (!userId) {
-      this.loginToSave();
-      return null;
-    }
-      const source = this.currentItinerary;
-    const confirmed = await showConfirm({
-      title: t('sharePublicTitle'),
-      message: t('sharePublicNotice'),
-      confirmText: t('sharePublicConfirm'),
-      cancelText: t('cancelBtn'),
-      destructive: false
+    const result = await this.actions.getShareLink({
+      confirmPublicShare: () => showConfirm({
+        title: t('sharePublicTitle'),
+        message: t('sharePublicNotice'),
+        confirmText: t('sharePublicConfirm'),
+        cancelText: t('cancelBtn'),
+        destructive: false,
+      }),
     });
-    if (!confirmed || source !== this.currentItinerary || userId !== getCurrentUser()?.uid) return null;
-    const docId = await createSharedItinerary(this.state.snapshot().plan);
-    return getSharedItineraryUrl(docId);
+    if (result.status === 'login-required') this.loginToSave();
+    return result.status === 'ready' ? result.url : null;
   }
 
   setupShareListener() {
@@ -435,7 +416,7 @@ export default class ItineraryView extends HTMLElement {
           const shareUrl = await this.getShareUrl();
           if (!shareUrl) return;
 
-          await navigator.clipboard.writeText(shareUrl);
+          await itineraryShareDelivery.copyLink(shareUrl);
           showGlobalToast(t('shareSuccessAlert') || "공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
         } catch (error) {
           console.error("Share error:", error);
@@ -463,28 +444,7 @@ export default class ItineraryView extends HTMLElement {
           const shareUrl = await this.getShareUrl();
           if (!shareUrl) return;
 
-          const Kakao = await loadKakaoSdk();
-          Kakao.Share.sendDefault({
-            objectType: 'feed',
-            content: {
-              title: "✈️ 나만의 스마트한 여행 일정이 도착했어요!",
-              description: "ComPasser에서 만든 완벽한 여행 타임라인과 지도를 지금 바로 확인해 보세요.",
-              imageUrl: "https://images.unsplash.com/photo-1488646953014-c8c2eb5f2b2b",
-              link: {
-                mobileWebUrl: shareUrl,
-                webUrl: shareUrl,
-              },
-            },
-            buttons: [
-              {
-                title: "일정 자세히 보기",
-                link: {
-                  mobileWebUrl: shareUrl,
-                  webUrl: shareUrl,
-                },
-              },
-            ],
-          });
+          await itineraryShareDelivery.shareToKakao(shareUrl);
         } catch (error) {
           console.error("Kakao Share error:", error);
           this.showToast("카카오톡 공유 중 오류가 발생했습니다.", true);
@@ -503,102 +463,34 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
-  /**
-   * 하루 일정을 탑승권 한 장으로 만들어 공유하거나 저장한다.
-   *
-   * 예전에는 결과 화면(#results-content)을 그대로 찍었다. 받는 사람 손에는
-   * 버튼만 빠진 앱 스크린샷이 갔고, 우리 화면을 모르는 사람은 무엇을 보라는
-   * 것인지 알기 어려웠다. 지금은 공유를 위해 따로 그린 티켓을 찍는다 —
-   * 어디서 시작해 어디서 끝나는지, 그중 무엇이 확정인지가 한 장에 있다.
-   */
+  /** 내보낼 사본과 번역을 전달하고, 화면의 버튼·결과 알림만 관리한다. */
   async downloadAsImage() {
     if (!this.currentItinerary) return;
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     const originalText = downloadBtn ? downloadBtn.textContent : '';
 
-    const plan = this.normalizeData(this.currentItinerary);
-    const pass = buildBoardingPass({
-      plan,
-      dayIndex: this.activeDayIndex,
-      title: buildItineraryTitle(this.currentItinerary, getLang()),
-      language: getLang(),
-    });
-    // 방문지가 하나도 없으면 티켓에 적을 것이 없다. 빈 종이를 내보내지 않는다.
-    if (!pass) {
-      this.showToast(t('nothingToShare') || '아직 공유할 일정이 없습니다.', true);
-      return;
-    }
-
-    // 캡처 동안 라이트 테마로 고정한다. 다크 모드에서 그대로 찍으면
-    // 공유받은 사람에게 검은 판이 간다. 토큰이 html[data-theme] 와
-    // body.dark 두 곳에 걸리므로 한쪽만 되돌리면 여전히 어둡게 나간다.
-    const body = document.body;
-    const root = document.documentElement;
-    const wasDark = body.classList.contains('dark') || root.getAttribute('data-theme') === 'dark';
-    // 결과 화면은 경로만으로도 어두워진다(utils/route-theme.js). 토큰이 세
-    // 곳에서 걸리므로 둘만 되돌리면 여전히 어두운 이미지가 나간다.
-    const wasRouteDark = root.hasAttribute(ROUTE_THEME_ATTR);
-
-    // 티켓은 화면 밖에 세워 두고 찍는다. display:none 이면 크기가 0 이라
-    // 캡처가 빈 이미지를 돌려준다.
-    const stage = document.createElement('div');
-    stage.setAttribute('aria-hidden', 'true');
-    Object.assign(stage.style, {
-      position: 'fixed', left: '-10000px', top: '0', zIndex: '-1', pointerEvents: 'none',
-    });
-    const sheet = document.createElement('style');
-    sheet.textContent = boardingPassStyles;
-    const ticket = renderBoardingPass(pass, {
-      fixedLabel: t('anchorBadge') || '확정',
-      transitLabel: t('transitTotalLabel') || '이동',
-      costLabel: t('costLabel') || '비용',
-      moreLabel: n => (getLang() === 'en' ? `+ ${n} more` : `+ ${n}곳 더`),
-    });
-    // 섀도 DOM 이 아니라 문서에 붙인다 — 토큰은 :root 에서 상속되고,
-    // 캡처 엔진은 일반 DOM 에서 가장 잘 동작한다.
-    stage.append(sheet, ticket);
-
     try {
       if (downloadBtn) {
         downloadBtn.disabled = true;
         downloadBtn.textContent = t('generatingImage') || '이미지 만드는 중...';
       }
-      if (wasDark) {
-        body.classList.remove('dark');
-        root.setAttribute('data-theme', 'light');
-      }
-      if (wasRouteDark) root.removeAttribute(ROUTE_THEME_ATTR);
-      document.body.append(stage);
-
-      // 캔버스 바탕도 토큰에서 읽는다. 값을 박아 두면 지면색을 바꿨을 때
-      // 화면과 공유 이미지가 조용히 갈라진다.
-      const paper = getComputedStyle(document.documentElement)
-        .getPropertyValue('--cp-surface').trim() || '#FFFFFF';
-
-      // 캡처 엔진은 무겁다(gzip 기준 64KB). 첫 화면에서는 쓰이지 않으므로
-      // 이 버튼을 누른 지금 내려받는다.
-      const html2canvas = await loadHtml2Canvas();
-      const canvas = await html2canvas(ticket, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: paper,
-        logging: false,
+      const snapshot = this.state.snapshot();
+      const result = await exportItineraryImage({
+        plan: snapshot.plan,
+        dayIndex: snapshot.dayIndex,
+        language: getLang(),
+        labels: {
+          fixedLabel: t('anchorBadge') || '확정',
+          transitLabel: t('transitTotalLabel') || '이동',
+          costLabel: t('costLabel') || '비용',
+        },
       });
-
-      const fileName = `compasser-${pass.code}.png`;
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-
-      if (await this.shareImage(blob, fileName, pass)) {
+      if (result === 'empty') {
+        this.showToast(t('nothingToShare') || '아직 공유할 일정이 없습니다.', true);
+      } else if (result === 'shared') {
         this.showToast(t('shareImageDone') || '티켓을 공유했습니다.');
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        // 놓아주지 않으면 이미지 하나가 탭이 닫힐 때까지 메모리에 남는다.
-        URL.revokeObjectURL(url);
+      } else if (result === 'downloaded') {
         this.showToast(t('saveImageDone') || '티켓 이미지를 저장했습니다.');
       }
     } catch (error) {
@@ -606,47 +498,12 @@ export default class ItineraryView extends HTMLElement {
       this.showToast(t('captureUnsupported')
         || '이 브라우저에서는 이미지 만들기가 지원되지 않을 수 있습니다.', true);
     } finally {
-      stage.remove();
-      if (wasDark) {
-        body.classList.add('dark');
-        root.setAttribute('data-theme', 'dark');
-      }
-      if (wasRouteDark) root.setAttribute(ROUTE_THEME_ATTR, 'dark');
       if (downloadBtn) {
         downloadBtn.disabled = false;
         downloadBtn.textContent = originalText;
       }
     }
   }
-
-  /**
-   * 만든 이미지를 기기의 공유 시트로 넘긴다. 넘기지 못했으면 false —
-   * 부르는 쪽이 내려받기로 돌아간다.
-   *
-   * 두 가지를 실패가 아니라 "안 된 것"으로 다룬다.
-   *  - 사용자가 공유 시트를 닫은 경우(AbortError): 취소는 오류가 아니므로
-   *    조용히 끝낸다. 여기서 내려받기로 넘어가면 취소했는데 파일이 생긴다.
-   *  - 사파리가 제스처가 끝났다고 보는 경우(NotAllowedError): 이미지를
-   *    만드느라 await 를 여러 번 지났기 때문이다. 이때는 내려받기로 간다.
-   */
-  async shareImage(blob, fileName, pass) {
-    if (!blob || typeof File !== 'function' || !navigator.canShare || !navigator.share) return false;
-    const file = new File([blob], fileName, { type: 'image/png' });
-    if (!navigator.canShare({ files: [file] })) return false;
-    try {
-      await navigator.share({
-        files: [file],
-        title: pass.route || 'ComPasser',
-        text: `${pass.dayLabel} · ${pass.from} → ${pass.to}`,
-      });
-      return true;
-    } catch (error) {
-      if (error?.name === 'AbortError') return true;   // 취소는 오류가 아니다
-      console.warn('[boarding-pass] 공유 시트를 열지 못해 내려받기로 갑니다:', error);
-      return false;
-    }
-  }
-
 
   /**
    * 컴포넌트 안에 따로 두던 토스트를 앱 공용 토스트로 위임한다.

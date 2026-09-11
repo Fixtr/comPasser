@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "account_deletions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "itineraries",
       "queryScope": "COLLECTION",
       "fields": [

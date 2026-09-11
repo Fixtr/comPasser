@@ -1,5 +1,7 @@
 const functions = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { createAccountDeletion } = require('./account-deletion');
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -13,6 +15,21 @@ const {
 
 // Firebase Admin SDK 초기화
 admin.initializeApp();
+
+const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth() });
+const deletionHandler = handler => async request => {
+    try { return await handler(request); }
+    catch (error) {
+        if (['unauthenticated', 'invalid-argument', 'failed-precondition'].includes(error.code)) {
+            throw new HttpsError(error.code, error.message, error.details);
+        }
+        console.error('Account deletion endpoint failed', { code: error.code || 'unknown' });
+        throw new HttpsError('unavailable', 'Unable to confirm deletion status.');
+    }
+};
+exports.requestAccountDeletion = onCall({ timeoutSeconds: 60, maxInstances: 5 }, deletionHandler(accountDeletion.requestDeletion));
+exports.getAccountDeletionStatus = onCall({ timeoutSeconds: 30, maxInstances: 5 }, deletionHandler(accountDeletion.status));
+exports.retryAccountDeletions = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds: 60, maxInstances: 1 }, accountDeletion.retryDue);
 
 exports.verifySocialToken = functions.https.onRequest((req, res) => {
     // CORS 및 Preflight(OPTIONS) 요청 허용을 위해 전체 로직을 cors로 래핑
@@ -66,12 +83,14 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
             }
 
             // 2. Firebase Auth 유저 확인/생성 및 커스텀 토큰 발급
+            await accountDeletion.assertNotDeleting(uid);
             try {
                 // 가입된 유저인지 확인
                 await admin.auth().getUser(uid);
             } catch (error) {
                 // 미가입자(user-not-found)인 경우 신규 유저 생성
                 if (error.code === "auth/user-not-found") {
+                    await accountDeletion.assertNotDeleting(uid);
                     const userRecordData = { uid };
 
                     // 파싱해온 프로필 데이터 중 존재하는 값만 할당
@@ -87,6 +106,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
             }
 
             // 커스텀 토큰 생성
+            await accountDeletion.assertNotDeleting(uid);
             const customToken = await admin.auth().createCustomToken(uid);
 
             // 성공 응답: 클라이언트의 httpsCallable은 응답이 { data: ... } 형태로 오길 기대합니다.
@@ -173,6 +193,8 @@ exports.generateItinerary = onCall(
         if (!request.auth) {
             throw new HttpsError("unauthenticated", "로그인 후 이용할 수 있습니다.");
         }
+
+        await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
 
         const apiKey = GEMINI_API_KEY.value();
         if (!apiKey) {

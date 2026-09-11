@@ -2,23 +2,41 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function canWriteAccountData() {
+      let path = /databases/$(database)/documents/account_deletions/$(request.auth.uid);
+      // Completed jobs still fence old ID tokens. A new sign-in after completion
+      // can write again; a pending/blocked job can only be changed by Admin.
+      return !exists(path) || (get(path).data.state == 'completed'
+        && request.auth.token.auth_time > get(path).data.completedAt / 1000);
+    }
+
+    match /account_deletions/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /account_deletion_receipts/{receiptId} {
+      allow read, write: if false;
+    }
 
     // users/{uid}: 프로필 문서. phoneNumber, birthday 등 PII 포함 (src/domains/profile/ui/profile-view.js)
     // 본인만 읽고 쓸 수 있다.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId && canWriteAccountData();
     }
 
     // itineraries/{id}: 로그인 사용자가 저장한 개인 일정. userId 필드로 소유자를 식별한다.
     // (src/domains/itinerary/services/firestore-service.js: saveItinerary/getUserItineraries/deleteItinerary)
     match /itineraries/{itineraryId} {
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && canWriteAccountData();
 
       // 목록에서 일정 이름을 바꿀 수 있어야 하지만 그 외의 수정은 계속 막는다.
       // 소유자가 title 한 필드만 바꾸는 경우로 한정해, 저장된 일정 내용
       // (itineraryPlan)이나 소유자(userId)는 건드릴 수 없게 한다.
       allow update: if request.auth != null
+        && canWriteAccountData()
         && resource.data.userId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title'])
         && request.resource.data.title is string
@@ -32,7 +50,7 @@ service cloud.firestore {
     // 생성 후에는 불변 — 수정/삭제 불가.
     match /shared_itineraries/{sharedId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && canWriteAccountData();
       allow update, delete: if false;
     }
 

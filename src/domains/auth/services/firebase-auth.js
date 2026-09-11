@@ -16,11 +16,13 @@ import {
     signInWithEmailAndPassword,
     sendEmailVerification,
     deleteUser,
+    getIdTokenResult,
     applyActionCode
 } from "firebase/auth";
 
 import { signInWithNativeGoogle } from "./native-google-signin.mjs";
 import { getEmailVerificationSettings } from "./email-verification-continuation.mjs";
+import { createAccountDeletionGuard } from "./account-deletion-guard.mjs";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -210,13 +212,22 @@ export async function loginWithEmail(email, password) {
     }
 }
 
-export async function deleteCurrentUser() {
+export const requireRecentLoginForDeletion = createAccountDeletionGuard({
+    getCurrentUser,
+    getTokenResult: user => getIdTokenResult(user, true),
+});
+
+export async function deleteCurrentUser(expectedUserId) {
     const user = auth?.currentUser;
+    if (expectedUserId && user?.uid !== expectedUserId) {
+        throw Object.assign(new Error('로그인 계정이 변경되었습니다.'), { code: 'profile/account-changed' });
+    }
     if (user) {
+        await deleteUser(user);
+        // 인증 삭제 실패 때는 로컬 데이터까지 먼저 지우지 않는다.
         localStorage.removeItem('hasSeenTutorial');
         sessionStorage.removeItem('currentFormData');
         sessionStorage.removeItem('savedItineraryData');
-        await deleteUser(user);
     }
 }
 

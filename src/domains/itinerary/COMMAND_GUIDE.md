@@ -21,3 +21,17 @@
 - Shared copies stay read-only and are not written to local personal recovery storage. Saving creates a private snapshot; it never updates the shared source.
 - The router calls `restoreDraft()` or `loadItineraryById()` and does not parse itinerary JSON or maintain a separate loaded-document cache. Duplicate pending loads are coalesced by the itinerary view.
 - Successful profile deletion emits `itinerary-deleted` with `{ id, userId }` (`id: null` for all private documents), removing the same owner's local recovery copy too.
+
+## Save and Link Sharing
+
+- `services/itinerary-actions.mjs` owns save/share eligibility, snapshots, private-copy activation, public confirmation sequencing, and existing-share reuse. It uses the same state instance; no second cache or current-plan copy is kept.
+- Inject persistence/auth/URL dependencies at the view's composition boundary. Keep DOM, translated confirmations/toasts, and navigation out of the service.
+- Saving checks the current account and state revision after the write. Only an unchanged context activates the saved copy and invokes the synchronous `onSaved` UI callback; older snapshots may be saved but must not overwrite the current screen.
+- Public sharing requires confirmation before creating a shared copy. After confirmation, verify that the same account and plan are still active, then snapshot the latest edits. Re-sharing an existing shared copy requires neither confirmation nor a new write.
+- `ui/itinerary-share-delivery.js` only delivers a prepared URL to the clipboard or Kakao. Keep SDK loading lazy and propagate errors so the view can restore its buttons and show an error.
+
+## Image Export
+
+- `ui/itinerary-image-export.js` owns the temporary ticket DOM, light-theme capture, native share/download fallback, and cleanup. It takes a state snapshot's plan and selected day plus language/labels; it does not read the active view or mutate itinerary state.
+- `itinerary-view.js` only supplies the snapshot and handles button state and result/error messages. Cancellation is a separate result: it must not start a download or announce a successful share.
+- Keep the capture engine lazy-loaded. Restore the original theme attributes and remove temporary DOM on every exit; always release download object URLs, including failures.

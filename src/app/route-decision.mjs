@@ -27,8 +27,9 @@ export function isHomePath(path) {
   return p === '/' || p === '/home' || p.endsWith('/index.html');
 }
 
-/** 외부 주소나 임의 경로로 이동하지 않고, 원래 열던 일정 상세만 복귀한다. */
+/** 일정 상세와 재로그인 후 계정 관리만 허용한다. 복귀 자체가 삭제를 실행하지 않는다. */
 export function getSafeReturnPath(value) {
+  if (value === '/profile/security') return value;
   return typeof value === 'string' && value.match(/^\/(?:share|view)\/[a-zA-Z0-9]+$/)?.[0] === value
     ? value
     : null;

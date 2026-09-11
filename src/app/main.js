@@ -12,7 +12,7 @@ import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import '../domains/profile/ui/profile-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
-import { deleteCurrentUser, subscribeToAuthChanges, logout, getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
+import { subscribeToAuthChanges, logout, getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang, applyTranslations } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
@@ -24,125 +24,10 @@ import { framePadding } from '../domains/map/services/map-framing.mjs';
 import { TABS, shouldShowTabBar, activeTabId } from './tab-bar.mjs';
 import { icons } from '../ui/icons.js';
 import { decideRoute, isHomePath } from './route-decision.mjs';
+import { createGenerationController } from './generation-controller.mjs';
+import { createGenerationProgressView } from '../domains/planner/ui/generation-progress.js';
 
 window.addEventListener('unhandledrejection', event => console.error('🔥 숨겨진 비동기 에러:', event.reason));
-
-// ====== Affiliate Ad Banner Carousel Logic ======
-// Ads data is imported from src/config/ads.js
-
-let bannerIntervalId = null;
-let currentBannerIndex = 0;
-
-function renderBanner(container, index) {
-    const ad = affiliateAds[index];
-    if (!ad) return;
-
-    // Use image if available, fallback to icon
-    const iconContent = ad.imageUrl ? `<img src="${ad.imageUrl}" alt="${ad.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="width: 100%; height: 100%; object-fit: contain;">` : '';
-    const fallbackIcon = `<div class="ad-banner-icon-inner" style="display: ${ad.imageUrl ? 'none' : 'flex'};">${ad.icon}</div>`;
-
-    container.innerHTML = `
-    <div class="ad-banner" style="background-color: ${ad.bgColor};" onclick="window.open('${ad.link}', '_blank')">
-      <span class="ad-badge">AD</span>
-      <div class="ad-banner-icon">
-        ${iconContent}
-        ${fallbackIcon}
-      </div>
-      <div class="ad-banner-content">
-        <div class="ad-banner-title">${ad.title}</div>
-        <div class="ad-banner-desc">${ad.desc}</div>
-      </div>
-    </div>
-    <div class="ad-dots">
-      ${affiliateAds.map((_, i) => `<span class="ad-dot${i === index ? ' active' : ''}"></span>`).join('')}
-    </div>
-  `;
-    // Trigger fade-in on next frame
-    requestAnimationFrame(() => {
-        const bannerEl = container.querySelector('.ad-banner');
-        if (bannerEl) bannerEl.classList.add('fade-in');
-    });
-}
-
-function startBannerCarousel() {
-    const container = document.getElementById('ad-banner-carousel');
-    if (!container) return;
-
-    // Reset state
-    stopBannerCarousel();
-    currentBannerIndex = 0;
-    container.style.display = 'block';
-    renderBanner(container, currentBannerIndex);
-
-    bannerIntervalId = setInterval(() => {
-        const bannerEl = container.querySelector('.ad-banner');
-        if (bannerEl) {
-            bannerEl.classList.remove('fade-in');
-            bannerEl.classList.add('fade-out');
-        }
-        // After fade-out animation completes, switch to next banner
-        setTimeout(() => {
-            currentBannerIndex = (currentBannerIndex + 1) % affiliateAds.length;
-            renderBanner(container, currentBannerIndex);
-        }, 500); // matches CSS transition duration
-    }, 3500);
-}
-
-function stopBannerCarousel() {
-    if (bannerIntervalId) {
-        clearInterval(bannerIntervalId);
-        bannerIntervalId = null;
-    }
-    const container = document.getElementById('ad-banner-carousel');
-    if (container) {
-        container.style.display = 'none';
-        container.innerHTML = '';
-    }
-}
-// ====== End Ad Banner Carousel ======
-// ====== Dynamic Loading Message Logic ======
-const loadingMessages = [
-    "AI가 최적의 여행 장소를 탐색하고 있습니다",
-    "추천 장소 간의 이동 동선을 계산하는 중입니다",
-    "방문 시간에 맞춰 일정을 최적화하고 있습니다",
-    "거의 다 준비되었습니다! 조금만 더 기다려주세요"
-];
-
-let loadingMessageIntervalId = null;
-let currentMessageIndex = 0;
-
-function startLoadingMessageRotation() {
-    const loadingSubtext = document.getElementById('loading-subtext');
-    if (!loadingSubtext) return;
-
-    // Reset state
-    stopLoadingMessageRotation();
-    currentMessageIndex = 0;
-    
-    // Initial message
-    loadingSubtext.textContent = loadingMessages[currentMessageIndex];
-    loadingSubtext.classList.add('loading-text-fade');
-
-    loadingMessageIntervalId = setInterval(() => {
-        currentMessageIndex = (currentMessageIndex + 1) % loadingMessages.length;
-        
-        // CSS animation handles the transition if we just update the text 
-        // synchronized with the 3s interval defined in style.css (.loading-text-fade)
-        loadingSubtext.textContent = loadingMessages[currentMessageIndex];
-    }, 3000);
-}
-
-function stopLoadingMessageRotation() {
-    if (loadingMessageIntervalId) {
-        clearInterval(loadingMessageIntervalId);
-        loadingMessageIntervalId = null;
-    }
-    const loadingSubtext = document.getElementById('loading-subtext');
-    if (loadingSubtext) {
-        loadingSubtext.classList.remove('loading-text-fade');
-    }
-}
-// ====== End Dynamic Loading Message Logic ======
 
 /**
  * 빌드에 설정이 안 들어갔을 때 화면에 그 사실을 적는다.
@@ -288,23 +173,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const langToggleBtn = document.getElementById('lang-toggle');
     const mainHeader = document.getElementById('main-header');
 
-    // View Transition Elements
+    // 일정 생성 화면과 요청 수명은 전용 모듈이 맡고, 여기서는 앱에 연결한다.
     const travelFormView = document.getElementById('travel-form-view');
-    const loadingTransitionView = document.getElementById('loading-transition-view');
-    const loadingSpinner = document.getElementById('loading-spinner');
-    const loadingText = document.getElementById('loading-text');
-    const loadingSubtext = document.getElementById('loading-subtext');
-    const showResultsBtn = document.getElementById('show-results-btn');
-    const resultsLayout = document.getElementById('results-layout');
-
-    window.addEventListener('ai-retry-status', (e) => {
-        if (loadingText) {
-            loadingText.textContent = e.detail.message;
-            // 색은 style.css 의 #loading-text[data-tone] 이 맡는다.
-            // 여기서 직접 칠하면 다크 모드에서 대비가 무너진다.
-            loadingText.dataset.tone = 'warn';
-        }
+    const generationProgress = createGenerationProgressView({ document, translate: t, ads: affiliateAds });
+    const generationController = createGenerationController({
+        generate: generateOptimizedItinerary,
+        getContext: () => ({ path: window.location.pathname, userId: getCurrentUser()?.uid || null }),
+        view: generationProgress,
+        clearResults: () => {
+            itineraryView?.clear();
+            mapView?.clearMap();
+        },
+        applyResult: plan => itineraryView.showResults(plan),
+        navigate: path => window.navigate(path),
+        onComplete: () => window.dispatchEvent(new CustomEvent('itinerary-generation-complete')),
+        notifyError: showErrorToast,
     });
+    window.addEventListener('ai-retry-status', event => generationController.retry(event.detail?.message));
 
     // ----------------------------------------------------
     // [Paged Architecture] SPA Router
@@ -317,7 +202,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     /** Firebase 가 로그인 여부를 알려 줬는가. 그 전에는 판단하지 않는다. */
     let authSettled = false;
     let lastRoutePath = null;
-    let routeVersion = 0;
 
     async function handleRouteChange() {
         const path = window.location.pathname;
@@ -325,8 +209,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (path !== lastRoutePath) {
             itineraryView?.cancelPendingLoad();
             lastRoutePath = path;
-            routeVersion += 1;
         }
+        generationController.syncContext();
 
         console.log(`[Router] Navigation to: '${path}', User logged in: ${!!user}`);
 
@@ -458,15 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 travelForm.renderPreferenceBadges();
             }
 
-            // CRITICAL: State Preservation (Seamless Editor)
-            if (travelFormView) {
-                travelFormView.style.display = 'block';
-                travelFormView.classList.remove('hidden-view');
-            }
-            if (loadingTransitionView) {
-                loadingTransitionView.style.display = 'none';
-                loadingTransitionView.classList.add('hidden-view');
-            }
+            generationController.enterPlan();
         } else if (isHomePath(path)) {
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
@@ -777,92 +653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    let generationVersion = 0;
     if (travelForm && itineraryView) {
-        travelForm.addEventListener('generate-itinerary', async (e) => {
-            const userId = getCurrentUser()?.uid;
-            if (!userId || window.location.pathname !== '/plan') return;
-            const version = ++generationVersion;
-            const startRouteVersion = routeVersion;
-            const isCurrentGeneration = () => version === generationVersion
-                && startRouteVersion === routeVersion
-                && getCurrentUser()?.uid === userId && window.location.pathname === '/plan';
-            console.log('App main received itinerary generation event.', e.detail);
-
-            itineraryView.clear();
-            if (mapView) mapView.clearMap();
-
-            // Phase 2: Start Loading Transition INSIDE #page-plan
-            if (travelFormView) travelFormView.style.display = 'none';
-
-            loadingSpinner.style.display = 'block';
-            loadingText.textContent = t('loadingText');
-            delete loadingText.dataset.tone;
-            loadingSubtext.textContent = t('loadingSubtext');
-            loadingSubtext.style.display = 'block';
-            showResultsBtn.style.display = 'none';
-            showResultsBtn.textContent = t('showResultsBtn');
-
-            loadingTransitionView.style.display = 'flex';
-            void loadingTransitionView.offsetWidth; // Reflow
-            loadingTransitionView.classList.remove('hidden-view');
-
-            // Start ad banner carousel during loading
-            startBannerCarousel();
-            // Start dynamic loading messages
-            startLoadingMessageRotation();
-
-            try {
-                const itineraryPlan = await generateOptimizedItinerary(e.detail);
-                // 생성 중 공유 링크를 열었거나 계정이 바뀌면 그 화면을 덮지 않는다.
-                if (!isCurrentGeneration()) return;
-                itineraryView.showResults(itineraryPlan);
-
-                // Success State! Delay routing so user can process visual cue
-                loadingSpinner.style.display = 'none';
-                loadingText.textContent = t('planReadyText');
-                loadingSubtext.style.display = 'none';
-                stopLoadingMessageRotation(); // Stop rotation on success
-                showResultsBtn.style.display = 'inline-block';
-
-                showResultsBtn.onclick = () => {
-                    // 🚀 [Routing] Proceed to View via Router Function
-                    window.navigate('/view');
-                };
-
-            } catch (error) {
-                if (!isCurrentGeneration()) return;
-                console.error("Failed to generate itinerary:", error);
-
-                loadingSpinner.style.display = 'none';
-                loadingText.textContent = t('planFailedText');
-                loadingText.dataset.tone = 'danger';
-                loadingSubtext.textContent = error.message || t('tryAgainText');
-                loadingSubtext.style.display = 'block';
-                stopLoadingMessageRotation(); // Stop rotation on error
-
-                showResultsBtn.textContent = t('goBackBtn');
-                showResultsBtn.style.display = 'inline-block';
-                showResultsBtn.onclick = () => {
-                    // Safe reset within #page-plan
-                    loadingTransitionView.style.display = 'none';
-                    if (travelFormView) {
-                        travelFormView.style.display = 'block';
-                        void travelFormView.offsetWidth;
-                        travelFormView.classList.remove('hidden-view');
-                    }
-                };
-
-                if (error.message.includes("429")) {
-                    showErrorToast('⏳ ' + error.message);
-                }
-            } finally {
-                if (version === generationVersion) {
-                    stopBannerCarousel();
-                    stopLoadingMessageRotation();
-                    window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
-                }
-            }
-        });
+        travelForm.addEventListener('generate-itinerary', event => generationController.start(event.detail));
     }
 });

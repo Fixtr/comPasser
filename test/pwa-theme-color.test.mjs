@@ -118,15 +118,7 @@ test('노치 아래로 내용이 숨지 않는다', () => {
   assert.match(css, /env\(safe-area-inset-top\)/, '위쪽 안전 영역을 비켜 주지 않는다');
 });
 
-test('캡처는 두 표시를 함께 라이트로 되돌린다', () => {
-  // 토큰이 data-theme 와 body.dark 둘 다에 걸리므로, 캡처 때 한쪽만
-  // 되돌리면 여전히 어두운 이미지가 나간다.
-  const view = readFileSync(
-    new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8');
-  const fn = view.slice(view.indexOf('async downloadAsImage'));
-  assert.match(fn, /data-theme/, '캡처가 data-theme 를 되돌리지 않는다');
-  assert.match(fn, /classList\.(remove|toggle)\(\s*['"]dark['"]/, '캡처가 body.dark 를 되돌리지 않는다');
-});
+// 캡처의 라이트 팔레트와 원래 테마 복원은 itinerary-image-export.test.mjs에서 검증한다.
 
 test('테마 버튼 라벨이 언어를 바꿔도 상태를 지킨다', () => {
   // 버튼에 data-i18n 이 고정돼 있으면, 다크 모드에서 언어를 바꾸는 순간

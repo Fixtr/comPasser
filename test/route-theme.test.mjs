@@ -20,7 +20,6 @@ const ROOT = new URL('../', import.meta.url).pathname;
 const tokens = readFileSync(`${ROOT}src/styles/tokens.css`, 'utf8');
 const main = readFileSync(`${ROOT}src/app/main.js`, 'utf8');
 const source = readFileSync(`${ROOT}src/utils/route-theme.js`, 'utf8');
-const view = readFileSync(`${ROOT}src/domains/itinerary/ui/itinerary-view.js`, 'utf8');
 
 test('결과 화면만 어두운 경로다', () => {
   assert.equal(isDarkRoute('/view'), true);
@@ -67,16 +66,4 @@ test('직접 테마를 바꾸면 그 선택이 이긴다', () => {
     '토글이 경로 강제를 풀지 않는다 — 눌러도 아무 일이 없다');
 });
 
-test('캡처는 경로 강제도 함께 되돌린다', () => {
-  // 토큰이 세 곳에서 걸리므로 둘만 되돌리면 여전히 어두운 이미지가 나간다.
-  // 앞서 data-theme 와 body.dark 로 같은 실수를 한 적이 있다.
-  const fn = view.slice(view.indexOf('async downloadAsImage'), view.indexOf('async shareImage'));
-  // 이름을 문자열로 다시 적지 않고 공용 상수를 쓰는지까지 본다. 같은 이름이
-  // 두 곳에 적히면 한쪽만 고쳐지는 날이 온다.
-  assert.match(fn, /ROUTE_THEME_ATTR/,
-    '캡처가 경로 강제를 되돌리지 않는다 — 티켓이 어둡게 찍힌다');
-  assert.ok(!fn.includes(`'${ROUTE_THEME_ATTR}'`),
-    '속성 이름을 문자열로 다시 적었다. 공용 상수를 쓴다');
-  assert.match(fn, /removeAttribute\(ROUTE_THEME_ATTR\)/, '캡처 동안 꺼야 한다');
-  assert.match(fn, /setAttribute\(ROUTE_THEME_ATTR/, '캡처가 끝나면 되돌려야 한다');
-});
+// 캡처 전후의 테마 복원은 itinerary-image-export.test.mjs에서 실제 동작으로 검증한다.

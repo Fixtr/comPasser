@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
+import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
 import { reconcileWithConstraints, getEndTimeWarning, buildItineraryViewModel } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
@@ -24,7 +25,7 @@ function fakeElement() {
   };
 }
 
-function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save } = {}) {
+function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {} } = {}) {
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
@@ -32,7 +33,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     'day-tabs-container', 'day-title-header',
   ].map(id => [id, fakeElement()]));
   const editButton = fakeElement();
-  const calls = { loads: [], saves: [], shares: [], confirms: [], navigations: [], events: [], renders: [], errors: [] };
+  const calls = { loads: [], saves: [], shares: [], confirms: [], navigations: [], events: [], renders: [], errors: [], exports: [], toasts: [], copies: [], kakao: [] };
   const state = { user, confirm };
   const listeners = new Map();
   const dependencies = {
@@ -59,10 +60,15 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     },
     saveItinerary: async (...args) => { calls.saves.push(args); return save ? save(...args) : 'mycopy123'; },
     createSharedItinerary: async plan => { calls.shares.push(plan); return 'published123'; },
+    exportItineraryImage: input => { calls.exports.push(input); return exportImage(input); },
     getSharedItineraryUrl: id => `https://app.example/share/${id}`,
+    itineraryShareDelivery: {
+      copyLink: async url => { calls.copies.push(url); await copyLink(url); },
+      shareToKakao: async url => { calls.kakao.push(url); await shareToKakao(url); },
+    },
     showConfirm: async options => { calls.confirms.push(options); return typeof state.confirm === 'function' ? state.confirm() : state.confirm; },
-    t: key => key, getLang: () => 'ko', trackEvent() {}, showGlobalToast() {},
-    icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState,
+    t: key => key, getLang: () => 'ko', trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
+    icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getEndTimeWarning, buildItineraryViewModel,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
@@ -70,8 +76,10 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   // 타임라인 마크업/광고 렌더링은 이 회귀 테스트의 대상이 아니다.
   view.renderActiveDay = plan => calls.renders.push(plan);
   view.renderAds = () => {};
-  view.showToast = () => {};
+  view.showToast = (...args) => calls.toasts.push(args);
   view.setupSaveListener();
+  view.setupShareListener();
+  view.setupKakaoShareListener();
   if (mapEvents) {
     // 이벤트 수신과 데이터 보정은 실제 코드를 쓰고 DOM 표시만 대체한다.
     view.render = view.updateTexts = view.setupShareListener = view.setupKakaoShareListener = view.setupDownloadListener = () => {};
@@ -84,6 +92,8 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     view, calls, state, editButton,
     control: id => controls.get(id),
     save: () => controls.get('save-itinerary-btn').listeners.click(),
+    copyShare: () => controls.get('share-itinerary-btn').listeners.click(),
+    kakaoShare: () => controls.get('kakao-share-btn').listeners.click(),
     emit: (type, detail) => listeners.get(type)?.({ detail }),
   };
 }
@@ -434,4 +444,118 @@ test('다른 계정의 삭제 알림은 무시하고 본인 일정 삭제는 현
   app.emit('itinerary-deleted', { id: 'trip', userId: 'owner' });
   assert.equal(app.view.currentItinerary, null);
   assert.equal(app.view.state.activateDocument('trip', { userId: 'owner' }), null);
+});
+
+test('이미지 내보내기에는 선택 날짜의 사본을 전달하고 대기 중 버튼을 잠근다', async () => {
+  let finish;
+  const app = itineraryView({ user: { uid: 'owner' }, exportImage: () => new Promise(resolve => { finish = resolve; }) });
+  const plan = samplePlan();
+  plan.days.push({ ...structuredClone(plan.days[0]), day: 2, date: '2026-09-07' });
+  app.view.showResults(plan);
+  app.view.selectDay(1);
+  const button = app.control('download-image-btn');
+  button.textContent = '이미지로 저장';
+  const exporting = app.view.downloadAsImage();
+  const input = app.calls.exports[0];
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, 'generatingImage');
+  assert.equal(input.dayIndex, 1);
+  assert.equal(input.language, 'ko');
+  assert.deepEqual(input.labels, { fixedLabel: 'anchorBadge', transitLabel: 'transitTotalLabel', costLabel: 'costLabel' });
+  assert.deepEqual(input.plan, app.view.currentItinerary);
+  assert.notEqual(input.plan, app.view.currentItinerary);
+  app.view.state.replaceDayItems(1, []);
+  assert.equal(input.plan.days[1].scheduleItems.length, 4, '내보내기 중 편집해도 전달한 사본은 변하지 않는다');
+  finish('downloaded');
+  await exporting;
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, '이미지로 저장');
+  assert.deepEqual(app.calls.toasts, [['saveImageDone']]);
+});
+
+test('공유 성공·취소·빈 일정의 내보내기 결과에 맞게 알리고 버튼을 복구한다', async () => {
+  for (const [result, expected] of [
+    ['shared', [['shareImageDone']]],
+    ['cancelled', []],
+    ['empty', [['nothingToShare', true]]],
+  ]) {
+    const app = itineraryView({ exportImage: async () => result });
+    app.view.showResults(samplePlan(), { access: 'shared', id: 'public123' });
+    const button = app.control('download-image-btn');
+    button.textContent = '이미지로 저장';
+    await app.view.downloadAsImage();
+    assert.deepEqual(app.calls.toasts, expected, result);
+    assert.equal(button.disabled, false, result);
+    assert.equal(button.textContent, '이미지로 저장', result);
+  }
+});
+
+test('이미지 내보내기가 실패하면 오류를 알리고 다시 시도할 수 있다', async () => {
+  const app = itineraryView({ exportImage: async () => { throw new Error('capture failed'); } });
+  app.view.showResults(samplePlan(), { access: 'shared', id: 'public123' });
+  const button = app.control('download-image-btn');
+  button.textContent = '이미지로 저장';
+  await app.view.downloadAsImage();
+  assert.deepEqual(app.calls.toasts, [['captureUnsupported', true]]);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, '이미지로 저장');
+  assert.equal(app.calls.errors.length, 1);
+});
+
+test('공유 버튼은 같은 공개 확인을 거쳐 각 전달기로 URL을 넘기고 버튼을 복구한다', async () => {
+  for (const [action, buttonId, deliveries] of [
+    ['copyShare', 'share-itinerary-btn', 'copies'],
+    ['kakaoShare', 'kakao-share-btn', 'kakao'],
+  ]) {
+    let finish;
+    const waiting = new Promise(resolve => { finish = resolve; });
+    const app = itineraryView({ user: { uid: 'owner' }, copyLink: () => waiting, shareToKakao: () => waiting });
+    app.view.showResults(samplePlan());
+    const button = app.control(buttonId);
+    button.textContent = '공유하기';
+    const pending = app[action]();
+    assert.equal(button.disabled, true);
+    assert.equal(button.textContent, 'creatingLink');
+    finish();
+    await pending;
+    assert.equal(app.calls.confirms.length, 1);
+    assert.equal(app.calls.confirms[0].message, 'sharePublicNotice');
+    assert.equal(app.calls.confirms[0].destructive, false);
+    assert.equal(app.calls.shares.length, 1);
+    assert.deepEqual(app.calls[deliveries], ['https://app.example/share/published123']);
+    assert.equal(button.disabled, false);
+    assert.equal(button.textContent, '공유하기');
+  }
+});
+
+test('공개 확인 취소는 두 공유 방식 모두 쓰기·전달 없이 끝나고 버튼을 복구한다', async () => {
+  for (const [action, buttonId] of [['copyShare', 'share-itinerary-btn'], ['kakaoShare', 'kakao-share-btn']]) {
+    const app = itineraryView({ user: { uid: 'owner' }, confirm: false });
+    app.view.showResults(samplePlan());
+    const button = app.control(buttonId);
+    button.textContent = '공유하기';
+    await app[action]();
+    assert.deepEqual(app.calls.shares, []);
+    assert.deepEqual(app.calls.copies, []);
+    assert.deepEqual(app.calls.kakao, []);
+    assert.deepEqual(app.calls.toasts, []);
+    assert.equal(button.disabled, false);
+    assert.equal(button.textContent, '공유하기');
+  }
+});
+
+test('저장·공유 전달 실패는 화면에서 알리고 버튼을 다시 사용할 수 있게 한다', async () => {
+  const fail = async () => { throw new Error('unavailable'); };
+  for (const [action, buttonId] of [
+    ['save', 'save-itinerary-btn'], ['copyShare', 'share-itinerary-btn'], ['kakaoShare', 'kakao-share-btn'],
+  ]) {
+    const app = itineraryView({ user: { uid: 'owner' }, save: fail, copyLink: fail, shareToKakao: fail });
+    app.view.showResults(samplePlan());
+    await app[action]();
+    assert.equal(app.control(buttonId).disabled, false);
+    assert.equal(app.calls.errors.length, 1);
+    assert.equal(app.calls.toasts.length, 1);
+    assert.equal(app.calls.toasts[0][1], true);
+    assert.deepEqual(app.calls.navigations, []);
+  }
 });

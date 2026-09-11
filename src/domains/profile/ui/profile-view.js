@@ -1,8 +1,10 @@
-import { getCurrentUser, deleteCurrentUser, logout } from '../../auth/services/firebase-auth.js';
+import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
 import { loadPortOne } from '../../../utils/external-scripts.js';
-import { getUserItineraries, deleteItinerary, deleteAllUserItineraries, renameItinerary } from '../../itinerary/services/firestore-service.js';
+import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itinerary/services/firestore-service.js';
+import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
+import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
@@ -24,17 +26,21 @@ class ProfileView extends HTMLElement {
         this.activeTab = 'personal';
         this.itineraries = [];
         this.isLoadingItineraries = false;
-        this.userData = {
-            phoneNumber: '',
-            birthday: '',
-            isVerified: false
-        };
+        this.userData = createEmptyProfile();
+        this.profileService = createProfileService({
+            getCurrentUser, loadFirestore,
+            requireRecentLogin: requireRecentLoginForDeletion,
+            requestAccountDeletion: userId => accountDeletionClient.request(userId),
+        });
         this.editingField = null; // 'phoneNumber' or 'birthday'
         this.showCertificationInput = false;
     }
 
     disconnectedCallback() {
         window.removeEventListener('i18n-changed', this._i18nHandler);
+        clearTimeout(this._deletionTimer);
+        this._deletionWatch = null;
+        this._visibilityObserver?.disconnect();
     }
 
     connectedCallback() {
@@ -45,7 +51,7 @@ class ProfileView extends HTMLElement {
 
         // 언어를 바꾸면 이 화면도 따라와야 한다. 마크업의 data-i18n 은
         // 첫 그림만 t() 로 채워지고, 이후 전환은 이 자리가 맡는다.
-        this._i18nHandler = () => applyTranslations(this.shadowRoot);
+        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); };
         window.addEventListener('i18n-changed', this._i18nHandler);
 
         const observer = new MutationObserver((mutations) => {
@@ -62,6 +68,7 @@ class ProfileView extends HTMLElement {
                 }
             });
         });
+        this._visibilityObserver = observer;
         const container = this.closest('.page-container');
         if (container) {
             observer.observe(container, { attributes: true });
@@ -70,24 +77,81 @@ class ProfileView extends HTMLElement {
 
     async loadUserData() {
         const user = getCurrentUser();
+        this.watchDeletion(user);
         if (user) {
             // 1. Set Auth Data
             this.updateBasicAuthUI(user);
 
-            // 2. Fetch Firestore Data
+            // 2. 프로필 문서 접근과 기본값은 서비스가 담당한다.
             try {
-                const { db, doc, getDoc } = await loadFirestore();
-                const userDocRef = doc(db, "users", user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-
-                if (userDocSnap.exists()) {
-                    this.userData = { ...this.userData, ...userDocSnap.data() };
-                }
+                const result = await this.profileService.loadProfile();
+                if (!result || result.userId !== getCurrentUser()?.uid) return;
+                this.userData = result.profile;
                 this.updateExtendedProfileUI();
             } catch (error) {
                 console.error("Error loading extended profile:", error);
             }
         }
+    }
+
+    watchDeletion(user, { restart = false } = {}) {
+        if (!restart && this._deletionWatch?.user === user) return;
+        clearTimeout(this._deletionTimer);
+        const watch = user ? { user } : null;
+        this._deletionWatch = watch;
+        if (!restart) this.deletionState = null;
+        this.renderDeletionStatus();
+        if (!watch) return;
+        const stillCurrent = () => this._deletionWatch === watch && getCurrentUser()?.uid === user.uid
+            && getCurrentUser()?.metadata?.creationTime === user.metadata?.creationTime;
+        const check = async () => {
+            if (!stillCurrent()) return;
+            try {
+                const status = await accountDeletionClient.status(user);
+                if (!stillCurrent()) return;
+                if (status.state === 'not-found' && accountDeletionClient.hasReceipt(user)) {
+                    // Submission can still be in flight after a lost response.
+                    this.deletionState = 'unknown';
+                    this.renderDeletionStatus();
+                } else await this.applyDeletionStatus(status, user.uid, user.metadata?.creationTime);
+                if (status.state === 'completed' || status.state === 'blocked' || (status.state === 'not-found' && !accountDeletionClient.hasReceipt(user))) return;
+            } catch {
+                if (!stillCurrent()) return;
+                // Missing deployment/offline is not proof of either deletion or preservation.
+                if (accountDeletionClient.hasReceipt(user)) this.deletionState = 'unknown';
+                this.renderDeletionStatus();
+            }
+            if (stillCurrent()) {
+                this._deletionTimer = setTimeout(check, 15_000);
+            }
+        };
+        void check();
+    }
+
+    renderDeletionStatus() {
+        const status = this.shadowRoot.getElementById('account-deletion-status');
+        const key = { pending: 'accountDeletionPending', blocked: 'accountDeletionBlocked', unknown: 'accountDeletionUnknown', completed: 'accountDeletionCompleted' }[this.deletionState];
+        if (status) status.textContent = key ? t(key) : '';
+        const button = this.shadowRoot.getElementById('btn-delete-account-trigger');
+        if (button) button.disabled = ['pending', 'blocked', 'completed'].includes(this.deletionState);
+    }
+
+    async applyDeletionStatus(status, userId, identityCreatedAt = getCurrentUser()?.metadata?.creationTime) {
+        if (getCurrentUser()?.uid !== userId || getCurrentUser()?.metadata?.creationTime !== identityCreatedAt) return;
+        if (status.state === 'not-found' && ['pending', 'completed', 'blocked'].includes(this.deletionState)) return;
+        this.deletionState = status.state;
+        this.renderDeletionStatus();
+        if (status.state !== 'completed' || this._finishingDeletion) return;
+        this._finishingDeletion = true;
+        try {
+            window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id: null, userId } }));
+            await logout();
+            accountDeletionClient.forget(userId);
+            if (!getCurrentUser()) window.location.href = '/login';
+        } catch (error) {
+            console.error('Completed deletion sign-out failed:', error);
+            if (getCurrentUser()?.uid === userId) showErrorToast(t('accountDeletionSignOutFailed'));
+        } finally { this._finishingDeletion = false; }
     }
 
     updateBasicAuthUI(user) {
@@ -229,24 +293,16 @@ class ProfileView extends HTMLElement {
 
     async handleSave(field, isVerifiedUpdate = false) {
         const input = this.shadowRoot.getElementById(`input-${field}`);
-        const newValue = input.value.trim();
+        const newValue = input.value;
         const user = getCurrentUser();
 
         if (!user) return;
 
         try {
-            const { db, doc, setDoc } = await loadFirestore();
-            const userDocRef = doc(db, "users", user.uid);
-            const updateData = { [field]: newValue };
-            if (isVerifiedUpdate) {
-                updateData.isVerified = true;
-            }
-
-            await setDoc(userDocRef, updateData, { merge: true });
-
-            this.userData[field] = newValue;
-            if (isVerifiedUpdate) {
-                this.userData.isVerified = true;
+            const result = await this.profileService.saveField(field, newValue, { isVerifiedUpdate });
+            if (!result || result.userId !== getCurrentUser()?.uid) return;
+            this.userData = { ...this.userData, ...result.changes };
+            if (result.changes.isVerified) {
                 this.showCertificationInput = false;
             }
 
@@ -454,8 +510,18 @@ class ProfileView extends HTMLElement {
         const confirmBtn = this.shadowRoot.getElementById('btn-modal-confirm');
         const closeX = this.shadowRoot.getElementById('modal-close-x');
 
-        const openModal = () => modal.classList.add('show');
-        const closeModal = () => modal.classList.remove('show');
+        let deletionCancelled = false;
+        let deletionStarted = false;
+        const openModal = () => {
+            if (confirmBtn?.disabled || deleteBtn?.disabled) return;
+            deletionCancelled = false;
+            modal.classList.add('show');
+        };
+        const closeModal = () => {
+            if (deletionStarted) return;
+            deletionCancelled = true;
+            modal.classList.remove('show');
+        };
 
         if (deleteBtn) deleteBtn.addEventListener('click', openModal);
         if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
@@ -471,32 +537,53 @@ class ProfileView extends HTMLElement {
         if (confirmBtn) {
             confirmBtn.addEventListener('click', async () => {
                 const user = getCurrentUser();
-                if (!user) return;
+                if (!user || confirmBtn.disabled) return;
 
                 confirmBtn.disabled = true;
-                confirmBtn.textContent = t('deletingDataBtn');
+                confirmBtn.textContent = t('checkingAccountDeletionBtn');
 
                 try {
-                    // 1. Delete all itineraries
-                    await deleteAllUserItineraries(user.uid);
-                    window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id: null, userId: user.uid } }));
-
-                    // 2. Delete user document from Firestore
-                    const { db, doc, deleteDoc } = await loadFirestore();
-                    await deleteDoc(doc(db, "users", user.uid));
-
-                    // 3. Delete Auth account
-                    await deleteCurrentUser();
-
-                    window.location.href = '/login';
+                    const result = await this.profileService.deleteAccount({
+                        isCancelled: () => deletionCancelled,
+                        onDeletionStarted: () => {
+                            deletionStarted = true;
+                            if (cancelBtn) cancelBtn.disabled = true;
+                            confirmBtn.textContent = t('deletingDataBtn');
+                        },
+                    });
+                    if (result && getCurrentUser()?.uid === result.userId) {
+                        await this.applyDeletionStatus(result, result.userId, result.identityCreatedAt);
+                        if (result.state === 'pending') this.watchDeletion(user, { restart: true });
+                    }
                 } catch (err) {
                     console.error("Account deletion failed:", err);
+                    if (deletionCancelled) return;
+                    if (getCurrentUser()?.uid !== user.uid || getCurrentUser()?.metadata?.creationTime !== user.metadata?.creationTime) return;
                     if (err.code === 'auth/requires-recent-login') {
-                        showErrorToast('보안을 위해 다시 로그인한 후 탈퇴를 진행해 주세요.', { duration: 5000 });
-                        await logout();
+                        showErrorToast(t('accountDeletionSignInRequired'), { duration: 5000 });
+                        try {
+                            await logout();
+                            // 인증 구독이 먼저 /login으로 보내도 next를 붙여 계정 관리로 복귀한다.
+                            // 다른 계정으로 바뀌었으면 새 세션의 화면을 건드리지 않는다.
+                            if (!getCurrentUser()) {
+                                const path = '/login?next=%2Fprofile%2Fsecurity';
+                                if (window.navigate) window.navigate(path);
+                                else window.location.href = path;
+                            }
+                        } catch (logoutError) {
+                            console.error('Re-login preparation failed:', logoutError);
+                            if (getCurrentUser()?.uid === user.uid) showErrorToast(t('accountDeletionSignOutFailed'));
+                        }
                     } else {
-                        showErrorToast('회원 탈퇴 처리 중 오류가 발생했습니다.');
+                        showErrorToast(t(err.deletionStatusUnknown ? 'accountDeletionUnknown' : 'accountDeletionCheckFailed'));
+                        if (err.deletionStatusUnknown) {
+                            this.deletionState = 'unknown';
+                            this.watchDeletion(user, { restart: true });
+                        }
                     }
+                } finally {
+                    deletionStarted = false;
+                    if (cancelBtn) cancelBtn.disabled = false;
                     confirmBtn.disabled = false;
                     confirmBtn.textContent = t('confirmDeleteAccountBtn');
                     closeModal();
@@ -642,6 +729,7 @@ class ProfileView extends HTMLElement {
                             </div>
                             <button id="btn-delete-account-trigger" class="btn-danger-trigger" data-i18n="deleteAccountBtn">${t('deleteAccountBtn')}</button>
                         </div>
+                        <p id="account-deletion-status" role="status" aria-live="polite"></p>
                     </div>
                 </main>
             </div>
@@ -651,6 +739,7 @@ class ProfileView extends HTMLElement {
                     <span id="modal-close-x" class="modal-close-x">&times;</span>
                     <h3 data-i18n="deleteAccountConfirmTitle">${t('deleteAccountConfirmTitle')}</h3>
                     <p data-i18n="deleteAccountConfirmDesc">${t('deleteAccountConfirmDesc')}</p>
+                    <p data-i18n="accountDeletionAuthNotice">${t('accountDeletionAuthNotice')}</p>
                     <div class="modal-actions">
                         <button id="btn-modal-cancel" class="btn-modal-cancel" data-i18n="cancelBtn">${t('cancelBtn')}</button>
                         <button id="btn-modal-confirm" class="btn-modal-confirm" data-i18n="confirmDeleteAccountBtn">${t('confirmDeleteAccountBtn')}</button>

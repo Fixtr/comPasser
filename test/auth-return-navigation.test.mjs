@@ -106,6 +106,16 @@ test('카카오 인증 구독이 URL을 먼저 바꾸어도 일정으로 복귀�
   assert.deepEqual(login.navigations, ['/share/abc123']);
 });
 
+test('카카오·네이버 재로그인도 삭제 실행 없이 계정 관리 화면으로 복귀한다', async () => {
+  const kakao=authView('login-view.js','LoginView','?next=%2Fprofile%2Fsecurity');
+  await kakao.click('kakao-btn');
+  assert.deepEqual(kakao.navigations,['/profile/security']);
+  const naver=authView('login-view.js','LoginView','?next=%2Fprofile%2Fsecurity');
+  await naver.click('naver-btn');
+  await naver.messages.get('message')({origin:naver.location.origin,data:{type:'NAVER_OAUTH',token:'test-token',state:naver.session.get('naver_oauth_state')}});
+  assert.deepEqual(naver.navigations,['/profile/security']);
+});
+
 test('네이버 팝업을 기다리는 동안에도 로그인 시작 시의 목적지를 보존한다', async () => {
   const login = authView('login-view.js', 'LoginView', '?next=%2Fview%2FABC123');
   await login.click('naver-btn');
