@@ -88,7 +88,6 @@ function harness(options = {}) {
       createObjectURL(value) { calls.urls.push(value); return 'blob:ticket'; },
       revokeObjectURL(url) { calls.revoked.push(url); },
     },
-    getComputedStyle() { return { getPropertyValue: () => ' #fcfbf8 ' }; },
   };
   if (options.native) {
     browser.navigator.canShare = value => {
@@ -97,6 +96,7 @@ function harness(options = {}) {
     };
     browser.navigator.share = async value => {
       calls.share.push(value);
+      await options.waitAt?.('share');
       if (options.shareError) throw options.shareError;
     };
   }
@@ -108,24 +108,35 @@ function harness(options = {}) {
     },
     async loadCanvas() {
       calls.loads++;
+      await options.waitAt?.('load');
       if (options.loadError) throw options.loadError;
       return async (ticket, captureOptions) => {
-        calls.capture.push({ ticket, options: captureOptions, theme: themes(), mounted: body.contains(ticket) });
+        // The capture engine passes a different document to onclone.
+        const clonedRoot = element('html');
+        const clonedBody = element('body');
+        for (const [name, value] of root.attributes) clonedRoot.setAttribute(name, value);
+        for (const name of body.classes) clonedBody.classList.add(name);
+        captureOptions.onclone?.({ documentElement: clonedRoot, body: clonedBody });
+        calls.capture.push({ ticket, options: captureOptions, theme: themes(), mounted: body.contains(ticket),
+          cloneTheme: { dark: clonedBody.classList.contains('dark'), theme: clonedRoot.getAttribute('data-theme'), routeTheme: clonedRoot.getAttribute('data-route-theme') } });
+        await options.waitAt?.('capture');
         if (options.captureError) throw options.captureError;
         return {
           toBlob(callback, mimeType) {
             assert.equal(mimeType, 'image/png');
             if (options.encodingError) throw options.encodingError;
-            callback(options.nullBlob ? null : blob);
+            const waiting = options.waitAt?.('encode');
+            if (waiting) waiting.then(() => callback(options.nullBlob ? null : blob));
+            else callback(options.nullBlob ? null : blob);
           },
         };
       };
     },
   });
   return {
-    exportImage, calls, blob, browser,
-    assertClean() {
-      assert.deepEqual(themes(), originalTheme, '원래 테마 속성과 무관한 클래스까지 그대로 복원한다');
+    exportImage, calls, blob, browser, themes, originalTheme,
+    assertClean(expectedTheme = originalTheme) {
+      assert.deepEqual(themes(), expectedTheme, '현재 화면의 테마와 무관한 클래스를 변경하지 않는다');
       assert.deepEqual(body.children, [existingContent], '앱 내용은 남기고 캡처용 임시 화면만 제거한다');
       assert.equal(calls.revoked.length, calls.urls.length, '만든 이미지 URL은 모두 해제한다');
     },
@@ -165,8 +176,9 @@ test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변�
   assert.deepEqual(input, before);
   assert.deepEqual(h.calls.clicks, [{ href: 'blob:ticket', download: 'compasser-CP-260909-2.png' }]);
   assert.equal(h.calls.capture[0].mounted, true);
-  assert.deepEqual(h.calls.capture[0].theme, { classes: ['unrelated-class'], theme: 'light', routeTheme: null });
-  assert.equal(h.calls.capture[0].options.backgroundColor, '#fcfbf8');
+  assert.deepEqual(h.calls.capture[0].theme, h.originalTheme);
+  assert.deepEqual(h.calls.capture[0].cloneTheme, { dark: false, theme: 'light', routeTheme: null });
+  assert.equal(h.calls.capture[0].options.backgroundColor, null, '배경은 복제 티켓의 라이트 토큰으로 그린다');
   assert.equal(h.calls.capture[0].options.scale, 2);
   h.assertClean();
 });
@@ -213,7 +225,7 @@ test('공유 권한 오류는 캡처 오류로 취급하지 않고 다운로드�
   h.assertClean();
 });
 
-test('캡처 실패를 호출자에게 전달하고 원래 테마 값을 정확히 복원한다', async () => {
+test('캡처 실패를 호출자에게 전달하며 원본 테마 값은 건드리지 않는다', async () => {
   const error = new Error('capture failed');
   for (const theme of [
     { dark: true, theme: null, routeTheme: null },
@@ -229,7 +241,7 @@ test('캡처 실패를 호출자에게 전달하고 원래 테마 값을 정확�
   }
 });
 
-test('캡처 엔진을 불러오지 못해도 임시 화면과 테마 변경을 되돌린다', async () => {
+test('캡처 엔진을 불러오지 못해도 임시 화면을 제거하고 테마는 유지한다', async () => {
   const error = new Error('engine load failed');
   const h = harness({ loadError: error });
   await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
@@ -254,11 +266,75 @@ test('PNG 인코딩 예외도 호출자에게 전달하고 캡처 자원을 정�
   h.assertClean();
 });
 
-test('다운로드 클릭이 실패해도 이미지 URL을 해제하고 테마를 복원한다', async () => {
+test('다운로드 클릭이 실패해도 이미지 URL을 해제하고 테마를 유지한다', async () => {
   const error = new Error('download failed');
   const h = harness({ clickError: error });
   await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
   assert.deepEqual(h.calls.urls, [h.blob]);
   assert.deepEqual(h.calls.revoked, ['blob:ticket']);
   h.assertClean();
+});
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+for (const phase of ['load', 'capture', 'encode', 'share']) {
+  for (const fails of [false, true]) {
+    test(`${phase} 대기 중 화면·테마 변경을 ${fails ? '실패/취소' : '완료'} 후에도 유지한다`, async () => {
+      const entered = deferred();
+      const finish = deferred();
+      const error = new Error('delayed failure');
+      const h = harness({ native: true,
+        waitAt(point) { if (point === phase) { entered.resolve(); return finish.promise; } },
+        loadError: fails && phase === 'load' ? error : null,
+        captureError: fails && phase === 'capture' ? error : null,
+        nullBlob: fails && phase === 'encode',
+        shareError: fails && phase === 'share' ? new DOMException('취소', 'AbortError') : null,
+      });
+      const exporting = h.exportImage({ plan: plan() });
+      const settled = exporting.then(result => ({ result }), caught => ({ error: caught }));
+      await entered.promise;
+      assert.deepEqual(h.themes(), h.originalTheme, '캡처/공유 대기 중에도 실제 화면을 밝게 바꾸지 않는다');
+      if (phase === 'share' || phase === 'encode') {
+        assert.equal(h.browser.document.body.children.length, 1, '캡처가 끝나면 공유 전에 임시 티켓을 제거한다');
+      }
+      const { body, documentElement: root } = h.browser.document;
+      body.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
+      root.removeAttribute('data-route-theme');
+      const currentTheme = h.themes();
+      finish.resolve();
+      const outcome = await settled;
+      if (fails && phase !== 'share') assert.ok(outcome.error);
+      else assert.equal(outcome.result, fails ? 'cancelled' : 'shared');
+      h.assertClean(currentTheme);
+    });
+  }
+}
+
+test('동시 내보내기를 역순으로 끝내도 서로의 자원이나 최신 테마를 복원하지 않는다', async () => {
+  const gates = [deferred(), deferred()];
+  const bothSharing = deferred();
+  let sharing = 0;
+  const h = harness({ native: true, waitAt(phase) {
+    if (phase !== 'share') return;
+    const gate = gates[sharing++];
+    if (sharing === 2) bothSharing.resolve();
+    return gate.promise;
+  } });
+  const first = h.exportImage({ plan: plan() });
+  const second = h.exportImage({ plan: plan(), dayIndex: 1 });
+  await bothSharing.promise;
+  h.assertClean();
+  h.browser.document.documentElement.removeAttribute('data-route-theme');
+  const currentTheme = h.themes();
+  gates[1].resolve();
+  assert.equal(await second, 'shared');
+  h.assertClean(currentTheme);
+  gates[0].resolve();
+  assert.equal(await first, 'shared');
+  h.assertClean(currentTheme);
 });

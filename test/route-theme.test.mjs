@@ -66,4 +66,4 @@ test('직접 테마를 바꾸면 그 선택이 이긴다', () => {
     '토글이 경로 강제를 풀지 않는다 — 눌러도 아무 일이 없다');
 });
 
-// 캡처 전후의 테마 복원은 itinerary-image-export.test.mjs에서 실제 동작으로 검증한다.
+// 캡처가 현재 화면의 테마를 건드리지 않는지는 itinerary-image-export.test.mjs에서 검증한다.

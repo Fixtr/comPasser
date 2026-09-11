@@ -1,4 +1,4 @@
-// Run after refactor-smoke-profile.js. Records unresolved findings without fixing production code.
+// Run after refactor-smoke-profile.js. Regressions fail; unresolved findings are recorded separately.
 async (page) => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   page.smokeFindings = [];
@@ -31,7 +31,8 @@ async (page) => {
   await page.evaluate(() => window.__smoke.shareFinish());
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.getElementById('download-image-btn').disabled);
   const after = await page.evaluate(() => document.documentElement.getAttribute('data-route-theme'));
-  if(before!==after) page.smokeFindings.push({id:'F2',severity:'medium',issue:'Finishing export after navigation restores previous route dark theme on profile',before,after,path:page.url()});
+  check(before===after, 'Finishing export must not restore the previous route theme over profile');
+  page.smokeResults.push('PASS F2 delayed image share cancellation preserves the destination route theme');
   // Restore test route through the app router, not by changing production code.
   await page.evaluate(() => window.navigate('/profile/security'));
   await page.locator('profile-view #btn-delete-account-trigger').click();
@@ -40,6 +41,6 @@ async (page) => {
   check(await page.evaluate(() => window.__smoke.user)===null, 'Successful fake deletion must return to login');
   check(await page.evaluate(() => !JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1), 'Successful fake deletion must remove private itinerary');
   page.smokeResults.push('PASS successful fake account deletion/login navigation');
-  // Server retry semantics are covered by account-deletion-smoke.js. F2/F3 remain separate work.
+  // Server retry semantics are covered by account-deletion-smoke.js. F3 remains separate work.
   return {results:page.smokeResults,findings:page.smokeFindings,errors:page.smokeErrors};
 }

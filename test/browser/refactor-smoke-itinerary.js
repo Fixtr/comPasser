@@ -50,7 +50,7 @@ async (page) => {
   const after = await page.evaluate(() => ({dark:document.body.classList.contains('dark'),theme:document.documentElement.getAttribute('data-theme'),route:document.documentElement.getAttribute('data-route-theme')}));
   check(JSON.stringify(after)===JSON.stringify(page.smokeThemeBefore), 'Export must restore all theme attributes');
   check(await page.locator('body > div[aria-hidden="true"]').count()===0, 'Export stage must be removed');
-  page.smokeResults.push('PASS real html2canvas/PNG download/theme restoration/temporary DOM cleanup');
+  page.smokeResults.push('PASS real html2canvas/PNG download/theme preservation/temporary DOM cleanup');
 
   let cancelledDownload = false;
   const unexpectedDownload = () => {cancelledDownload=true;};
