@@ -24,7 +24,7 @@ export function getAutocompleteValue(element) {
   return '';
 }
 
-export function getFormData(shadowRoot) {
+export function getFormData(shadowRoot, draft = {}) {
   const anchorsElements = shadowRoot.querySelectorAll('.anchor-item');
   const anchors = Array.from(anchorsElements).map(el => {
     const daySelect = el.querySelector('.anchor-day');
@@ -37,25 +37,13 @@ export function getFormData(shadowRoot) {
     };
   }).filter(a => a.name || a.time || a.endTime || a.location);
 
-  // /preference 페이지에서 저장한 테마/예산/날짜 데이터 병합
-  let theme = null;
-  let budget = null;
-  let datePref = null; // Can be array or string
-  try {
-    const savedPref = sessionStorage.getItem('userPreference');
-    if (savedPref) {
-      const pref = JSON.parse(savedPref);
-      theme = pref.theme || null;
-      budget = pref.budget || null;
-      datePref = pref.date || null;
-    }
-  } catch (e) { /* ignore parse errors */ }
-
-  // Use datePref (which contains the raw array for multi-day trips) if form input is readOnly
+  // The caller supplies the same draft used to paint the form. A read-only
+  // date is presentation text, so use that draft's raw dates, not global storage.
+  const { theme = null, budget = null, date: draftDates = [] } = draft;
   const dateInput = shadowRoot.getElementById('schedule-date');
-  let finalDate = datePref;
+  let finalDate = structuredClone(draftDates);
   if (dateInput && !dateInput.readOnly) {
-    finalDate = dateInput.value || datePref;
+    finalDate = dateInput.value;
   }
 
   const globalStartTime = shadowRoot.getElementById('start-time').value;

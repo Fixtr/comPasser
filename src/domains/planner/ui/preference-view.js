@@ -9,6 +9,7 @@
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { preferenceStyles } from './preference-style.js';
 import { icons } from '../../../ui/icons.js';
+import { plannerDraftStore } from '../services/planner-draft.mjs';
 
 export default class PreferenceView extends HTMLElement {
   constructor() {
@@ -23,16 +24,7 @@ export default class PreferenceView extends HTMLElement {
   }
 
   connectedCallback() {
-    // 기존에 저장된 preference가 있으면 복원
-    const saved = sessionStorage.getItem('userPreference');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        this.selectedDates = parsed.date || null; // Can be an array
-        this.selectedTheme = parsed.theme || null;
-        this.selectedBudget = parsed.budget || null;
-      } catch (e) { /* ignore */ }
-    }
+    this.restoreSelection();
     this.render();
     this.setupEventListeners();
     
@@ -40,6 +32,16 @@ export default class PreferenceView extends HTMLElement {
     window.addEventListener('i18n-changed', () => {
       this.updateTexts();
     });
+  }
+
+  restoreSelection() {
+    const draft = plannerDraftStore.read();
+    this.selectedDates = draft.date;
+    this.selectedTheme = draft.theme;
+    this.selectedBudget = draft.budget;
+    this.startDateType = null;
+    this.startDateValue = null;
+    this.duration = null;
   }
 
   render() {
@@ -173,6 +175,8 @@ export default class PreferenceView extends HTMLElement {
   }
 
   setupEventListeners() {
+    // Reconstructing the controls is not a new preference selection.
+    let restoring = true;
     const dateChipContainer = this.shadowRoot.getElementById('date-chip-container');
     const durationChipContainer = this.shadowRoot.getElementById('duration-chip-container');
     const customDateInput = this.shadowRoot.getElementById('custom-date-input');
@@ -198,11 +202,7 @@ export default class PreferenceView extends HTMLElement {
       if (!this.startDateValue || !this.duration) {
         this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
         
-        try {
-          const prefs = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
-          prefs.date = this.selectedDates;
-          sessionStorage.setItem('userPreference', JSON.stringify(prefs));
-        } catch(e) {}
+        if (!restoring) plannerDraftStore.updatePreferences({ date: this.selectedDates });
         return;
       }
       
@@ -217,11 +217,7 @@ export default class PreferenceView extends HTMLElement {
       
       this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
 
-      try {
-        const prefs = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
-        prefs.date = this.selectedDates;
-        sessionStorage.setItem('userPreference', JSON.stringify(prefs));
-      } catch(e) {}
+      if (!restoring) plannerDraftStore.updatePreferences({ date: this.selectedDates });
     };
 
     const applyDateSelection = (type, customValue = null, isToggleClick = false) => {
@@ -342,6 +338,7 @@ export default class PreferenceView extends HTMLElement {
         this.selectedTheme = card.dataset.value;
       }
       
+      plannerDraftStore.updatePreferences({ theme: this.selectedTheme });
       this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     });
 
@@ -360,6 +357,7 @@ export default class PreferenceView extends HTMLElement {
         this.selectedBudget = card.dataset.value;
       }
 
+      plannerDraftStore.updatePreferences({ budget: this.selectedBudget });
       this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     });
 
@@ -410,6 +408,7 @@ export default class PreferenceView extends HTMLElement {
       if (budgetCard) budgetCard.classList.add('selected');
     }
     this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
+    restoring = false;
 
     // [Step 1] Next Button
     nextStepBtn.addEventListener('click', () => {
@@ -417,9 +416,7 @@ export default class PreferenceView extends HTMLElement {
       if (!this.selectedDates || this.selectedDates.length === 0) return;
       
       // Save Step 1 state
-      const currentPref = JSON.parse(sessionStorage.getItem('userPreference') || '{}');
-      currentPref.date = this.selectedDates;
-      sessionStorage.setItem('userPreference', JSON.stringify(currentPref));
+      plannerDraftStore.updatePreferences({ date: this.selectedDates });
       
       // Navigate to Step 2
       if (window.navigate) {
@@ -445,7 +442,7 @@ export default class PreferenceView extends HTMLElement {
         budget: this.selectedBudget
       };
 
-      sessionStorage.setItem('userPreference', JSON.stringify(preference));
+      plannerDraftStore.updatePreferences(preference);
       console.log('[Preference] Saved Final:', preference);
 
       if (window.navigate) {
@@ -461,7 +458,9 @@ export default class PreferenceView extends HTMLElement {
         theme: null,
         budget: null
       };
-      sessionStorage.setItem('userPreference', JSON.stringify(preference));
+      this.selectedTheme = null;
+      this.selectedBudget = null;
+      plannerDraftStore.updatePreferences(preference);
       console.log('[Preference] Skipped theme/budget — continuing to plan.');
 
       if (window.navigate) {
@@ -496,6 +495,12 @@ export default class PreferenceView extends HTMLElement {
   }
 
   setStep(step) {
+    const { date, theme, budget } = plannerDraftStore.read();
+    if (JSON.stringify([date, theme, budget]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget])) {
+      this.restoreSelection();
+      this.render();
+      this.setupEventListeners();
+    }
     const step1 = this.shadowRoot.getElementById('step1-container');
     const step2 = this.shadowRoot.getElementById('step2-container');
     const badge = this.shadowRoot.getElementById('step-badge');

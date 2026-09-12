@@ -4,6 +4,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { icons } from '../../../ui/icons.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
+import { plannerDraftStore, toPlannerDraft } from '../services/planner-draft.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor } from '../services/anchor-validation.mjs';
@@ -38,6 +39,7 @@ export default class TravelForm extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.anchorCount = 0;
     this.isSubmitting = false;
+    this.draft = plannerDraftStore.read();
     this.loader = getMapsLoader();
   }
 
@@ -101,75 +103,20 @@ export default class TravelForm extends HTMLElement {
     dateInput.min = todayString();
   }
 
-  /**
-   * 다음에 폼이 보일 때 채울 데이터를 예약한다.
-   *
-   * populateForm() 을 직접 부르고 곧바로 /plan 으로 이동하면, 폼이 보이는
-   * 순간 refreshFromStorage() 가 form.reset() 후 sessionStorage 값으로 다시
-   * 채우면서 방금 넣은 값을 지운다. 그래서 "무엇으로 채울지"를 예약해 두고
-   * refreshFromStorage() 가 그것을 우선 쓰도록 한다.
-   */
+  /** 기존 일정 수정도 같은 초안을 교체한다. 화면 재진입·새로고침에 남는다. */
   setPendingFormData(requestData) {
-    this._pendingFormData = requestData || null;
+    // Update the hidden controls together with the draft, before navigation.
+    // Waiting for IntersectionObserver would briefly pair old UI with new data.
+    if (requestData) this.populateForm(requestData);
   }
 
   refreshFromStorage() {
     this.syncDateFloor();
-    this.renderPreferenceBadges();
-
-    // 예약된 데이터가 있으면 그것으로 채우고 한 번 쓰고 버린다.
-    if (this._pendingFormData) {
-      const pending = this._pendingFormData;
-      this._pendingFormData = null;
-      const form = this.shadowRoot.getElementById('travel-form');
-      if (form) form.reset();
-      this.populateForm(pending);
-      return;
-    }
-
-    const savedForm = sessionStorage.getItem('currentFormData');
-    const savedPrefStr = sessionStorage.getItem('userPreference');
-    
-    let prefDate = null;
-    let prefTheme = null;
-    let prefBudget = null;
-    
-    if (savedPrefStr) {
-      try {
-        const pref = JSON.parse(savedPrefStr);
-        prefDate = pref.date || null;
-        prefTheme = pref.theme || null;
-        prefBudget = pref.budget || null;
-      } catch (e) {}
-    }
-
-    // 폼 입력 데이터 찌꺼기 방어를 위해 reset() 호출 (populateForm 내부에서도 호출되지만 이중 방어)
-    const form = this.shadowRoot.getElementById('travel-form');
-    if (form) form.reset();
-
-    // 예전에는 sessionStorage 의 currentPhase 가 '3'(생성 완료)이면 상세 입력을
-    // 복원하지 않아, /view 에서 폼으로 돌아오면 출발지·도착지·시간·필수 일정이
-    // 통째로 비워졌다. 그 플래그는 제거했고, 저장된 폼이 있으면 항상 복원한다.
-    if (savedForm) {
-      try {
-        const formData = JSON.parse(savedForm);
-        // 데이터 수신부 강제 초기화: 무조건 최신 userPreference 값으로 덮어씌움
-        if (prefDate) formData.date = prefDate;
-        if (prefTheme) formData.theme = prefTheme;
-        if (prefBudget) formData.budget = prefBudget;
-        
-        this.populateForm(formData);
-      } catch (e) {
-        console.error('Form parse error', e);
-      }
-    } else {
-      // 저장된 폼이 없을 경우, preference에서 가져온 데이터로 초기 폼 세팅
-      this.populateForm({ date: prefDate, theme: prefTheme, budget: prefBudget });
-    }
+    this.populateForm(plannerDraftStore.read(), { persist: false });
   }
 
   /**
-   * sessionStorage의 userPreference를 읽어
+   * 현재 입력 초안을 읽어
    * 헤더의 #preference-chips-container에 칩(Badge) UI를 렌더링합니다.
    * 값이 없으면 컨테이너가 빈 채로 숨겨집니다.
    */
@@ -191,26 +138,10 @@ export default class TravelForm extends HTMLElement {
         return chip;
       };
 
-      let theme = null;
-      let budget = null;
-      let date = null;
-      
-      const saved = sessionStorage.getItem('userPreference');
-      if (saved) {
-        try {
-          const pref = JSON.parse(saved);
-          if (pref && typeof pref === 'object') {
-            theme = pref.theme || null;
-            budget = pref.budget || null;
-            date = pref.date || null;
-          }
-        } catch (e) {
-          console.warn('Failed to parse userPreference from sessionStorage', e);
-        }
-      }
+      const { theme, budget, date } = this.draft;
 
       // 선택값이 하나도 없으면 '선택 없음' 배지 노출
-      if (!theme && !budget && !date) {
+      if (!theme && !budget && !date?.length) {
         container.style.display = 'flex';
         container.appendChild(makeChip('no_preference'));
         return;
@@ -408,16 +339,7 @@ export default class TravelForm extends HTMLElement {
     const container = this.shadowRoot.getElementById('anchors-container');
     const id = `anchor-${Date.now()}`;
 
-    let daysCount = 1;
-    try {
-      const savedPrefStr = sessionStorage.getItem('userPreference');
-      if (savedPrefStr) {
-        const pref = JSON.parse(savedPrefStr);
-        if (Array.isArray(pref.date) && pref.date.length > 1) {
-          daysCount = pref.date.length;
-        }
-      }
-    } catch (e) {}
+    const daysCount = Math.max(this.draft.date.length, 1);
 
     let daySelectorHTML = '';
     if (daysCount > 1) {
@@ -483,8 +405,11 @@ export default class TravelForm extends HTMLElement {
     }
   }
 
-  populateForm(requestData) {
+  populateForm(requestData, { persist = true } = {}) {
     if (!requestData) return;
+
+    this.draft = persist ? plannerDraftStore.save(requestData) : toPlannerDraft(requestData);
+    requestData = this.draft;
 
     try {
       // 1. Reset Form
@@ -503,7 +428,11 @@ export default class TravelForm extends HTMLElement {
           // If the field is schedule-date and the value is an array
           if (id === 'schedule-date') {
             if (Array.isArray(val)) {
-              if (val.length > 1) {
+              if (val.length === 0) {
+                el.type = 'date';
+                el.value = '';
+                el.readOnly = false;
+              } else if (val.length > 1) {
                 // Multi-day
                 const nights = val.length - 1;
                 const reqDays = val.length;
@@ -646,6 +575,7 @@ export default class TravelForm extends HTMLElement {
           });
         }
       }
+      this.renderPreferenceBadges();
       this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
       console.error("[Auto-fill Error] Failed to populate form:", error);
@@ -653,13 +583,18 @@ export default class TravelForm extends HTMLElement {
   }
 
   getFormData() {
-    return getFormData(this.shadowRoot);
+    return getFormData(this.shadowRoot, this.draft);
+  }
+
+  saveDraft() {
+    this.draft = plannerDraftStore.save(this.getFormData());
+    this.renderPreferenceBadges();
   }
 
   setupEventListeners() {
     this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
       this.addAnchor();
-      sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+      this.saveDraft();
     });
 
     const preferenceBtn = this.shadowRoot.getElementById('reselect-preference-btn');
@@ -696,7 +631,7 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('input', (e) => {
       // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
       if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
-      sessionStorage.setItem('currentFormData', JSON.stringify(this.getFormData()));
+      this.saveDraft();
     });
     
     const dailyToggle = this.shadowRoot.getElementById('daily-times-toggle');
@@ -753,8 +688,8 @@ export default class TravelForm extends HTMLElement {
         input.style.borderColor = '';
       });
 
-      // 5. Purge the internal storage backup
-      sessionStorage.removeItem('currentFormData');
+      // 날짜·선호는 유지하고 상세 입력만 비운다. 복원도 같은 빈 초안을 쓴다.
+      this.populateForm(plannerDraftStore.resetDetails(), { persist: false });
     });
 
     form.addEventListener('submit', (e) => {
@@ -777,6 +712,7 @@ export default class TravelForm extends HTMLElement {
       }
 
       const plannerRequest = this.getFormData();
+      this.draft = plannerDraftStore.save(plannerRequest);
 
       // --- Date Validation ---
       // 과거 날짜로 만들면 화면 날짜와 실제 계산되는 경로가 어긋난다

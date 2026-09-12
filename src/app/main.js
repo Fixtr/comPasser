@@ -494,10 +494,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // populateForm 을 직접 부르면 /plan 으로 이동한 뒤 폼이 보이는 순간
-            // refreshFromStorage() 가 form.reset() 후 sessionStorage 값으로 다시
-            // 채우면서 방금 넣은 값을 덮어썼다(그래서 이 버튼이 '이전 화면으로'와
-            // 똑같이 동작했다). 무엇으로 채울지 예약해 두고 이동한다.
+            // 현재 일정의 조건으로 입력 초안을 교체한 뒤 이동한다.
+            // 폼 복원·조건 배지·제출은 모두 이 초안을 사용한다.
             if (travelFormView && travelFormView.setPendingFormData && requestData) {
                 travelFormView.setPendingFormData(requestData);
             } else {

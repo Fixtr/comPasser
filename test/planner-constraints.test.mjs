@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { toPlannerDraft } from '../src/domains/planner/services/planner-draft.mjs';
 
 import {
   enforcePlannerConstraints,
@@ -20,6 +21,17 @@ const flatRequest = {
     location: '국립중앙박물관'
   }]
 };
+
+test('editing a previously normalized request rebuilds daily constraints from the current draft', () => {
+  const draft = toPlannerDraft(normalizePlannerRequest(flatRequest));
+  draft.date = ['2026-10-01'];
+  draft.startTime = '10:00';
+  draft.anchorSchedules = [];
+  const request = normalizePlannerRequest(draft);
+  assert.equal(request.dailyData[0].date, '2026-10-01');
+  assert.equal(request.dailyData[0].startTime, '10:00');
+  assert.deepEqual(request.dailyData[0].anchors, []);
+});
 
 test('flat form fields are converted to optimizer dailyData', () => {
   const normalized = normalizePlannerRequest(flatRequest);

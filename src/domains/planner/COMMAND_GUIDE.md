@@ -14,6 +14,14 @@
 - **Error Handling**: 429 Too Many Requests or other AI API errors are caught and thrown in `gemini-optimizer.js` and properly surfaced to the user in the main app lifecycle.
 - **Tests**: Any planner contract change MUST update `test/planner-constraints.test.mjs` and pass `npm test` plus `npm run build`.
 
+## Input Draft
+
+- `services/planner-draft.mjs` owns the editable flat input shared by preference selection, form restoration, and editing a saved itinerary. `currentFormData` is its per-tab recovery copy; `userPreference` is only a compatibility projection for route guards.
+- Editing a saved itinerary replaces the whole input draft before navigation. Displayed dates, preference badges, anchor day options, daily-time inputs, and submitted data must use that same draft. `travel-form-data.js` receives it explicitly and must not reread session storage.
+- Preference controls update the draft only on explicit user changes, not while reconstructing controls. Re-entering the preference page restores the current draft; skipping clears theme and budget, including explicit null values.
+- Keep only editable fields in the draft. Saved derived `dailyData` must be rebuilt by `normalizePlannerRequest` after editing, so it cannot resurrect old dates, times, or deleted anchors.
+- Form reset clears detailed inputs while preserving the selected dates/theme/budget. The cleared draft must also survive reload.
+
 ## Generation Lifecycle
 
 - `app/generation-controller.mjs` owns the active generation attempt, success/failure transitions, and result/navigation guards. `app/main.js` wires the form event, auth/route context, result application, and completion notification into it.
