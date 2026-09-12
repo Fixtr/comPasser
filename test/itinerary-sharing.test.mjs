@@ -9,6 +9,7 @@ import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { trimScheduleToEndTime } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
+import { t, getLang, setLang, applyTranslations } from '../src/utils/i18n.js';
 
 // Firebase 초기화와 브라우저 렌더링만 대체하고, 실제 화면 클래스의
 // 불러오기·권한·공유·저장·편집 핸들러를 실행한다. 문자열 모양 검사가 아니다.
@@ -20,12 +21,13 @@ function fakeElement() {
   return {
     style: {}, dataset: {}, disabled: false, hidden: false,
     innerHTML: '', textContent: '', listeners: {},
+    getAttribute(name) { return name === 'data-i18n' ? this.dataset.i18n : null; },
     children: [], appendChild(child) { this.children.push(child); },
     addEventListener(type, handler) { this.listeners[type] = handler; },
   };
 }
 
-function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {} } = {}) {
+function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false } = {}) {
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
@@ -38,7 +40,10 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   const listeners = new Map();
   const dependencies = {
     HTMLElement: class {
-      attachShadow() { this.shadowRoot = { getElementById: id => controls.get(id) || null, querySelectorAll: () => [] }; }
+      attachShadow() { this.shadowRoot = {
+        getElementById: id => controls.get(id) || null,
+        querySelectorAll: selector => selector === '[data-i18n]' ? [...controls.values()].filter(el => el.dataset.i18n) : [],
+      }; }
       setAttribute() {}
     },
     customElements: { define() {} },
@@ -67,7 +72,8 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
       shareToKakao: async url => { calls.kakao.push(url); await shareToKakao(url); },
     },
     showConfirm: async options => { calls.confirms.push(options); return typeof state.confirm === 'function' ? state.confirm() : state.confirm; },
-    t: key => key, getLang: () => 'ko', trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
+    t: realTranslations ? t : key => key, getLang: realTranslations ? getLang : () => 'ko', applyTranslations,
+    trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getEndTimeWarning, buildItineraryViewModel,
   };
@@ -469,7 +475,7 @@ test('이미지 내보내기에는 선택 날짜의 사본을 전달하고 대�
   finish('downloaded');
   await exporting;
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, '이미지로 저장');
+  assert.equal(button.textContent, 'downloadTicketBtn');
   assert.deepEqual(app.calls.toasts, [['saveImageDone']]);
 });
 
@@ -486,7 +492,7 @@ test('공유 성공·취소·빈 일정의 내보내기 결과에 맞게 알리�
     await app.view.downloadAsImage();
     assert.deepEqual(app.calls.toasts, expected, result);
     assert.equal(button.disabled, false, result);
-    assert.equal(button.textContent, '이미지로 저장', result);
+    assert.equal(button.textContent, 'downloadTicketBtn', result);
   }
 });
 
@@ -498,9 +504,86 @@ test('이미지 내보내기가 실패하면 오류를 알리고 다시 시도�
   await app.view.downloadAsImage();
   assert.deepEqual(app.calls.toasts, [['captureUnsupported', true]]);
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, '이미지로 저장');
+  assert.equal(button.textContent, 'downloadTicketBtn');
   assert.equal(app.calls.errors.length, 1);
 });
+
+const exportCopy = {
+  ko: {
+    generating: '이미지 만드는 중...', idle: '티켓 이미지로 저장·공유',
+    labels: { fixedLabel: '확정', transitLabel: '이동', costLabel: '1인 비용' },
+    shared: '티켓을 공유했습니다.', downloaded: '티켓 이미지를 저장했습니다.',
+    empty: '아직 공유할 일정이 없습니다.',
+    failed: '티켓 이미지를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  },
+  en: {
+    generating: 'Creating image...', idle: 'Save or share as a ticket image',
+    labels: { fixedLabel: 'FIXED', transitLabel: 'Travel time', costLabel: 'Cost per person' },
+    shared: 'Ticket image shared.', downloaded: 'Ticket image saved.',
+    empty: 'There is no itinerary to share yet.',
+    failed: 'Could not create the ticket image. Please try again.',
+  },
+};
+
+for (const [lang, copy] of Object.entries(exportCopy)) {
+  test(`${lang}: 실제 사전으로 생성 버튼·티켓·모든 결과 문구를 번역한다`, async () => {
+    const previousLang = getLang();
+    try {
+      setLang(lang);
+      for (const result of ['downloaded', 'shared', 'cancelled', 'empty', 'failed']) {
+        let finish;
+        const app = itineraryView({ realTranslations: true, exportImage: () => new Promise((resolve, reject) => {
+          finish = () => result === 'failed' ? reject(new Error('capture failed')) : resolve(result);
+        }) });
+        app.view.showResults(samplePlan());
+        const button = app.control('download-image-btn');
+        button.dataset.i18n = 'downloadTicketBtn';
+        button.textContent = copy.idle;
+        const pending = app.view.downloadAsImage();
+        assert.equal(button.textContent, copy.generating, result);
+        assert.equal(button.dataset.i18n, 'generatingImage');
+        assert.equal(button.disabled, true);
+        assert.equal(app.calls.exports[0].language, lang);
+        assert.deepEqual(app.calls.exports[0].labels, copy.labels);
+        finish();
+        await pending;
+        assert.deepEqual(app.calls.toasts, result === 'cancelled' ? []
+          : [[copy[result], ...(['empty', 'failed'].includes(result) ? [true] : [])]]);
+        assert.equal(button.textContent, copy.idle);
+        assert.equal(button.dataset.i18n, 'downloadTicketBtn');
+        assert.equal(button.disabled, false);
+      }
+    } finally { setLang(previousLang); }
+  });
+
+  test(`${lang}: 생성 중 언어 전환은 진행 문구와 완료 버튼에 반영하고 티켓 사본은 유지한다`, async () => {
+    const previousLang = getLang();
+    try {
+      setLang(lang);
+      let finish;
+      const app = itineraryView({ realTranslations: true, exportImage: () => new Promise(resolve => { finish = resolve; }) });
+      app.view.showResults(samplePlan());
+      const button = app.control('download-image-btn');
+      button.dataset.i18n = 'downloadTicketBtn';
+      button.textContent = copy.idle;
+      // DOM 의 동적 안내 영역만 대체하고 실제 updateTexts/applyTranslations 경로를 실행한다.
+      app.view.refreshEndTimeWarning = app.view.refreshTransitNotice = app.view.refreshCostSummary = () => {};
+      const pending = app.view.downloadAsImage();
+      const nextLang = lang === 'ko' ? 'en' : 'ko';
+      setLang(nextLang);
+      app.view.updateTexts();
+      assert.equal(button.textContent, exportCopy[nextLang].generating);
+      assert.equal(button.disabled, true);
+      assert.deepEqual(app.calls.exports[0].labels, copy.labels);
+      assert.equal(app.calls.exports[0].language, lang);
+      finish('shared');
+      await pending;
+      assert.deepEqual(app.calls.toasts, [[exportCopy[nextLang].shared]]);
+      assert.equal(button.textContent, exportCopy[nextLang].idle);
+      assert.equal(button.disabled, false);
+    } finally { setLang(previousLang); }
+  });
+}
 
 test('공유 버튼은 같은 공개 확인을 거쳐 각 전달기로 URL을 넘기고 버튼을 복구한다', async () => {
   for (const [action, buttonId, deliveries] of [

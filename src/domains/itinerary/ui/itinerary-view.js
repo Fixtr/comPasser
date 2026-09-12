@@ -468,12 +468,13 @@ export default class ItineraryView extends HTMLElement {
     if (!this.currentItinerary) return;
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
-    const originalText = downloadBtn ? downloadBtn.textContent : '';
 
     try {
       if (downloadBtn) {
         downloadBtn.disabled = true;
-        downloadBtn.textContent = t('generatingImage') || '이미지 만드는 중...';
+        // 언어 전환 시에도 진행 상태를 번역하고, 완료 후에는 현재 언어를 사용한다.
+        downloadBtn.dataset.i18n = 'generatingImage';
+        downloadBtn.textContent = t('generatingImage');
       }
       const snapshot = this.state.snapshot();
       const result = await exportItineraryImage({
@@ -481,26 +482,26 @@ export default class ItineraryView extends HTMLElement {
         dayIndex: snapshot.dayIndex,
         language: getLang(),
         labels: {
-          fixedLabel: t('anchorBadge') || '확정',
-          transitLabel: t('transitTotalLabel') || '이동',
-          costLabel: t('costLabel') || '비용',
+          fixedLabel: t('anchorBadge'),
+          transitLabel: t('transitTotalLabel'),
+          costLabel: t('costLabel'),
         },
       });
       if (result === 'empty') {
-        this.showToast(t('nothingToShare') || '아직 공유할 일정이 없습니다.', true);
+        this.showToast(t('nothingToShare'), true);
       } else if (result === 'shared') {
-        this.showToast(t('shareImageDone') || '티켓을 공유했습니다.');
+        this.showToast(t('shareImageDone'));
       } else if (result === 'downloaded') {
-        this.showToast(t('saveImageDone') || '티켓 이미지를 저장했습니다.');
+        this.showToast(t('saveImageDone'));
       }
     } catch (error) {
       console.error('[boarding-pass] 이미지 생성 실패:', error);
-      this.showToast(t('captureUnsupported')
-        || '이 브라우저에서는 이미지 만들기가 지원되지 않을 수 있습니다.', true);
+      this.showToast(t('captureUnsupported'), true);
     } finally {
       if (downloadBtn) {
         downloadBtn.disabled = false;
-        downloadBtn.textContent = originalText;
+        downloadBtn.dataset.i18n = 'downloadTicketBtn';
+        downloadBtn.textContent = t('downloadTicketBtn');
       }
     }
   }

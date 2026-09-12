@@ -34,5 +34,6 @@
 
 - `ui/itinerary-image-export.js` owns the temporary ticket DOM, light-theme capture, native share/download fallback, and cleanup. It takes a state snapshot's plan and selected day plus language/labels; it does not read the active view or mutate itinerary state.
 - `itinerary-view.js` only supplies the snapshot and handles button state and result/error messages. Cancellation is a separate result: it must not start a download or announce a successful share.
+- Export labels and messages must exist in both translation dictionaries; `t(key)` returns the key when missing, so `t(key) || fallback` does not protect the UI. Snapshot ticket language/labels at export start. Keep the button's `data-i18n` synchronized with its busy/idle state, and translate completion messages in the currently selected language.
 - Keep the capture engine lazy-loaded. Apply the light palette only to the capture engine's cloned document via `onclone`; never modify or restore the live page's theme attributes/classes. Navigation and user theme changes must remain authoritative throughout capture, encoding, and sharing.
 - Remove the temporary ticket immediately after capture, before encoding or waiting for the share sheet. Always release download object URLs, including failures. Concurrent exports must own only their own temporary DOM and URLs.

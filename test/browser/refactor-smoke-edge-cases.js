@@ -24,7 +24,9 @@ async (page) => {
   await page.locator('itinerary-view #download-image-btn').click();
   await page.waitForFunction(() => typeof window.__smoke.shareFinish==='function');
   const label=await page.locator('itinerary-view #download-image-btn').textContent();
-  if(label==='generatingImage') page.smokeFindings.push({id:'F3',severity:'low',issue:'Image export displays untranslated generatingImage key'});
+  const expectedLabel = await page.evaluate(async () => (await import('/src/utils/i18n.js')).getLang() === 'en' ? 'Creating image...' : '이미지 만드는 중...');
+  check(label === expectedLabel, 'F3: Image export must display translated progress, not a dictionary key');
+  page.smokeResults.push('PASS F3 image export progress is translated');
   await page.evaluate(() => window.navigate('/profile/personal'));
   await page.locator('#page-profile').waitFor({state:'visible'});
   const before = await page.evaluate(() => document.documentElement.getAttribute('data-route-theme'));
@@ -41,6 +43,6 @@ async (page) => {
   check(await page.evaluate(() => window.__smoke.user)===null, 'Successful fake deletion must return to login');
   check(await page.evaluate(() => !JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1), 'Successful fake deletion must remove private itinerary');
   page.smokeResults.push('PASS successful fake account deletion/login navigation');
-  // Server retry semantics are covered by account-deletion-smoke.js. F3 remains separate work.
+  // Server retry semantics are covered by account-deletion-smoke.js; bilingual PNGs by image-export-i18n-smoke.js.
   return {results:page.smokeResults,findings:page.smokeFindings,errors:page.smokeErrors};
 }
