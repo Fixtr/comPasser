@@ -6,6 +6,10 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --test test/*.test.mjs",
+    "test:browser": "playwright test",
+    "test:browser:install": "node scripts/install-test-browser.mjs",
+    "test:emulator": "node scripts/test-emulators.mjs",
+    "check": "npm test && npm run build && npm run test:browser && npm run test:emulator",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync",
     "cap:open:android": "npx cap open android",
@@ -31,6 +35,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.0",
+    "@playwright/test": "1.63.0",
+    "firebase-tools": "15.30.0",
     "vite": "^5.2.0"
   }
 }

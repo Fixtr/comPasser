@@ -1,8 +1,8 @@
 // Run only against the explicitly selected demo Firestore emulator, never production.
+import './assert-local.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 const host = process.env.FIRESTORE_EMULATOR_HOST;
-if (!host || !/^(127\.0\.0\.1|localhost):\d+$/.test(host)) throw new Error('Local Firestore emulator required');
 const project = 'demo-hackerton-deletion';
 const root = `http://${host}/v1/projects/${project}/databases/(default)/documents`;
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');

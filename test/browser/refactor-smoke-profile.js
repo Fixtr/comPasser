@@ -44,7 +44,7 @@ async (page) => {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1), 'Mobile result must not overflow horizontally');
   await page.locator('itinerary-view #share-itinerary-btn').click();
   await page.locator('#app-confirm-host .confirm-cancel').click();
-  await page.screenshot({path:'/private/tmp/hackerton-smoke-mobile-itinerary.png'});
+  if (page.smokeOutputDir) await page.screenshot({path:page.smokeOutputDir + '/mobile-itinerary.png'});
   await page.evaluate(() => window.navigate('/profile/personal'));
   await birthdayEdit.waitFor({state:'visible'});
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1), 'Mobile profile must not overflow horizontally');
@@ -52,7 +52,7 @@ async (page) => {
   await page.locator('profile-view #input-birthday').fill('1996-06-21');
   await page.locator('profile-view #field-birthday .btn-save').click();
   await page.locator('profile-view #input-birthday').waitFor({state:'detached'});
-  await page.screenshot({path:'/private/tmp/hackerton-smoke-mobile-profile.png'});
+  if (page.smokeOutputDir) await page.screenshot({path:page.smokeOutputDir + '/mobile-profile.png'});
   page.smokeResults.push('PASS 390px viewport/share dialog/profile edit/no horizontal overflow');
 
   await page.getByRole('button',{name:'보안 및 계정',exact:true}).click();

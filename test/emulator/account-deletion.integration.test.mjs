@@ -1,14 +1,13 @@
+import './assert-local.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../../functions/index.js', import.meta.url));
-for (const variable of ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST']) {
-    if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env[variable] || '')) throw new Error(`Local ${variable} required`);
-}
 const admin = require('firebase-admin');
 const { createAccountDeletion } = require('./account-deletion');
 const app = admin.initializeApp({ projectId: 'demo-hackerton-deletion' }, 'deletion-integration');
 const db = app.firestore(); const auth = app.auth();
+test.after(() => app.delete());
 
 test('real Admin SDK transactions and Auth emulator: failure checkpoint, retry, receipt after Auth deletion', async () => {
     const uid = 'integration-owner';
@@ -32,5 +31,4 @@ test('real Admin SDK transactions and Auth emulator: failure checkpoint, retry, 
     await assert.rejects(auth.getUser(uid), { code: 'auth/user-not-found' });
     assert.equal((await service.status({ data: { receipt } })).state, 'completed');
     assert.equal((await db.collection('account_deletions').doc(uid).get()).data().state, 'completed');
-    await app.delete();
 });

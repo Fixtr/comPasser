@@ -1,12 +1,9 @@
+import './assert-local.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { once } from 'node:events';
 const require = createRequire(new URL('../../functions/index.js', import.meta.url));
-for (const variable of ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST']) {
-    if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env[variable] || '')) throw new Error(`Local ${variable} required`);
-}
-if (process.env.GCLOUD_PROJECT !== 'demo-hackerton-deletion') throw new Error('Demo project required');
 const express = require('express');
 const endpoints = require('./index');
 const admin = require('firebase-admin');

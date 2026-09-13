@@ -6,6 +6,7 @@ import {
   normalizePlannerRequest
 } from "./planner-constraints.mjs";
 import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
+import { findPlannerInputIssue, plannerValidationMessage } from './planner-validation.js';
 
 /**
  * Functions 핸들은 **쓸 때 만든다.**
@@ -33,6 +34,8 @@ const CALL_TIMEOUT_MS = 200000;
  * 클라이언트에 그대로 남겨 둔다.
  */
 export async function generateOptimizedItinerary(plannerRequest) {
+  const issue = findPlannerInputIssue(plannerRequest);
+  if (issue) throw new Error(plannerValidationMessage(issue));
   const normalizedRequest = normalizePlannerRequest(plannerRequest);
   const currentLang = getLang();
 
@@ -58,6 +61,10 @@ export async function generateOptimizedItinerary(plannerRequest) {
       days: enforcePlannerConstraints(days, normalizedRequest, currentLang)
     };
   } catch (error) {
+    // Bad input needs editing, never a generated-looking fallback result.
+    if (error?.code === 'functions/invalid-argument') {
+      throw new Error(plannerValidationMessage(error.details));
+    }
     // 인증 문제는 Mock 으로 감추면 원인을 알 수 없으므로 그대로 노출한다.
     if (error?.code === "functions/unauthenticated" || error?.code === "functions/permission-denied") {
       throw new Error(

@@ -224,9 +224,10 @@ ComPasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 2.  **라우팅 규정**: `public/_redirects` 파일에 `/* /index.html 200` 규칙이 포함되어 있어, 모든 서브 경로 접속 시에도 `index.html`이 정상적으로 로드됩니다.
 3.  **자동 배포**: GitHub의 `main` 브랜치에 코드를 Push 하면 Cloudflare Pages에서 자동으로 빌드 및 배포가 진행됩니다.
 
-배포 전에는 아래 검증을 모두 통과해야 합니다.
+배포 전에는 기본 테스트·빌드·브라우저·서버 에뮬레이터 검사를 모두 통과해야 합니다.
 
 ```bash
-npm test
-npm run build
+npm run check
 ```
+
+최초 검사 환경 설치, 부분 실행, 실패 기록 확인은 [검사 실행 안내](docs/TESTING.md)를 참고하세요. GitHub 자동 검사 설정도 포함되어 있으며, 원격에 반영되면 PR과 `main` 푸시에서 실행됩니다. 이 검사는 배포를 수행하거나 기존 Cloudflare 자동 배포를 차단하지 않습니다.

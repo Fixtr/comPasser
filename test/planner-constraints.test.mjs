@@ -57,6 +57,13 @@ test('daily custom times are assigned to their matching day', () => {
   assert.equal(normalized.dailyData[1].endTime, '22:00');
 });
 
+test('cleared custom times remain empty so client/server validation cannot accept hidden global defaults', () => {
+  const normalized = normalizePlannerRequest({ ...flatRequest,
+    dailyTimes: [{ day: 1, startTime: '', endTime: '', isCustom: true }] });
+  assert.equal(normalized.dailyData[0].startTime, '');
+  assert.equal(normalized.dailyData[0].endTime, '');
+});
+
 test('AI output is bounded by the exact selected locations and includes anchors', () => {
   const generatedDays = [{
     day: 1,

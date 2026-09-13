@@ -1,7 +1,9 @@
 // Playwright MCP browser_run_code_unsafe(filename=...) callback.
 // Local-only browser harness: production UI/services stay real; external boundaries are fakes.
 async (page) => {
-  const origin = 'http://127.0.0.1:4173';
+  const origin = page.smokeOrigin || 'http://127.0.0.1:4173';
+  if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) throw new Error('Local smoke origin required');
+  if (!page.url().startsWith(origin + '/')) throw new Error('Open the isolated local page before setup');
   await page.unrouteAll({ behavior: 'wait' });
   await page.evaluate(() => {
     for (const key of ['__smoke_user','__smoke_db','userPreference','currentFormData']) sessionStorage.removeItem(key);

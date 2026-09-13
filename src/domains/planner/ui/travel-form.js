@@ -7,8 +7,9 @@ import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { plannerDraftStore, toPlannerDraft } from '../services/planner-draft.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
-import { findIncompleteAnchor } from '../services/anchor-validation.mjs';
+import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
+import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 
 /** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
 const ANCHOR_FIELD_SELECTOR = {
@@ -725,41 +726,6 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
-      // --- Time Validation Logic ---
-      const tripStart = plannerRequest.startTime;
-      const tripEnd = plannerRequest.endTime;
-
-      if (plannerRequest.dailyTimes && plannerRequest.dailyTimes.some(dt => dt.isCustom)) {
-        for (const dt of plannerRequest.dailyTimes) {
-          if (!dt.startTime || !dt.endTime) {
-            showErrorToast(`[Day ${dt.day}] ` + t('emptyTimeValidationError'));
-            this._resetSubmitButton(btn);
-            this.isSubmitting = false;
-            return;
-          }
-          if (dt.startTime >= dt.endTime) {
-            showErrorToast(`[Day ${dt.day}] ` + t('basicTimeValidationError'));
-            this._resetSubmitButton(btn);
-            this.isSubmitting = false;
-            return;
-          }
-        }
-      } else {
-        if (!tripStart || !tripEnd) {
-          showErrorToast(t('emptyTimeValidationError'));
-          this._resetSubmitButton(btn);
-          this.isSubmitting = false;
-          return;
-        }
-        // Rule D: Basic Trip Start Time >= Basic Trip End Time
-        if (tripStart >= tripEnd) {
-          showErrorToast(t('basicTimeValidationError'));
-          this._resetSubmitButton(btn);
-          this.isSubmitting = false;
-          return;
-        }
-      }
-
       // 출발·도착 장소. 이 칸들은 커스텀 엘리먼트라 브라우저 기본 검사가
       // 못 본다 — required 를 붙여도 소용없다. 여기서 막지 않으면 빈 채로
       // 흘러가, AI 는 출발지를 "Unknown" 으로 듣고 경계 보정은 통째로 꺼진다.
@@ -788,33 +754,29 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
-      for (const anchor of plannerRequest.anchorSchedules) {
-        // Skip empty anchors if they aren't filled yet
-        if (!anchor.time || !anchor.endTime) continue;
-
-        // Rule C: Anchor Start Time >= Anchor End Time
-        if (anchor.time >= anchor.endTime) {
-          const msg = t('invalidAnchorTime').replace('{0}', anchor.name || 'Anchor');
-          showErrorToast(msg);
-          this._resetSubmitButton(btn);
-          this.isSubmitting = false;
-          return;
-        }
-
-        // Rule A & B: We only apply global time constraint if daily times are NOT custom.
-        // If daily times are custom, anchor time bounds check is relaxed since we don't know the exact day.
-        if (!plannerRequest.dailyTimes || !plannerRequest.dailyTimes[0]?.isCustom) {
-          if (anchor.time < tripStart || anchor.endTime > tripEnd) {
-            const msg = t('timeValidationError')
-              .replace('{0}', anchor.name || 'Anchor')
-              .replace('{1}', tripStart)
-              .replace('{2}', tripEnd);
-            showErrorToast(msg);
-            this._resetSubmitButton(btn);
-            this.isSubmitting = false;
-            return;
+      // Same canonical contract as the server, including each anchor's own
+      // day's custom times. DOM-only checks above preserve precise row feedback.
+      const issue = findPlannerInputIssue(plannerRequest);
+      if (issue) {
+        const fieldIds = { date: 'schedule-date', startTime: 'start-time', endTime: 'end-time',
+          startLocation: 'start-location', endLocation: 'end-location' };
+        let control = this.shadowRoot.getElementById(fieldIds[issue.field] || 'schedule-date');
+        if (issue.field === 'startTime' || issue.field === 'endTime') {
+          if (plannerRequest.dailyTimes?.some(dt => dt.isCustom)) {
+            const selector = issue.field === 'startTime' ? '.daily-start-time' : '.daily-end-time';
+            control = this.shadowRoot.querySelector(`.daily-time-row[data-day="${issue.day}"] ${selector}`) || control;
           }
         }
+        if (issue.anchorIndex !== undefined) {
+          const row = anchorRows.filter(row => row.day === issue.day && !isAnchorBlank(row))[issue.anchorIndex];
+          control = row?.el.querySelector(ANCHOR_FIELD_SELECTOR[issue.field] || '.anchor-day') || control;
+        } else if (issue.reason === 'anchor-limit' || issue.reason === 'anchor-day') {
+          control = this.shadowRoot.getElementById('add-anchor-btn');
+        }
+        this._revealInvalidField(control, plannerValidationMessage(issue));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
       }
       // --- End Validation ---
 
@@ -840,6 +802,7 @@ export default class TravelForm extends HTMLElement {
   _readAnchorRows() {
     return Array.from(this.shadowRoot.querySelectorAll('.anchor-item')).map((el) => ({
       el,
+      day: Number(el.querySelector('.anchor-day')?.value || 1),
       name: el.querySelector('.anchor-name')?.value || '',
       time: el.querySelector('.anchor-time')?.value || '',
       endTime: el.querySelector('.anchor-end-time')?.value || '',

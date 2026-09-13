@@ -6,6 +6,7 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const cors = require("cors")({ origin: true });
+const { findPlannerRequestIssue } = require('./planner-request-validation.mjs');
 
 const {
     ITINERARY_SCHEMA,
@@ -194,16 +195,18 @@ exports.generateItinerary = onCall(
             throw new HttpsError("unauthenticated", "로그인 후 이용할 수 있습니다.");
         }
 
+        // Reject malformed input before defaults, account reads, secrets or AI.
+        const issue = findPlannerRequestIssue(request.data?.request);
+        if (issue) {
+            throw new HttpsError("invalid-argument", "여행 일정 조건을 확인해 주세요.", issue);
+        }
+        const constraints = sanitizePlannerRequest(request.data.request);
+
         await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
 
         const apiKey = GEMINI_API_KEY.value();
         if (!apiKey) {
             throw new HttpsError("failed-precondition", "서버에 Gemini API 키가 설정되지 않았습니다.");
-        }
-
-        const constraints = sanitizePlannerRequest(request.data?.request);
-        if (constraints.dailyData.length === 0) {
-            throw new HttpsError("invalid-argument", "여행 일정 조건이 비어 있습니다.");
         }
 
         const lang = request.data?.lang === "en" ? "en" : "ko";

@@ -61,8 +61,10 @@ export function normalizePlannerRequest(plannerRequest = {}) {
       ...existingDay,
       day: dayNumber,
       date: existingDay.date || dates[index] || dates[0] || '',
-      startTime: dayTimes.startTime || existingDay.startTime || plannerRequest.startTime || '',
-      endTime: dayTimes.endTime || existingDay.endTime || plannerRequest.endTime || '',
+      // A cleared custom time is invalid input, not permission to restore a
+      // different global time. Validation must see the value the user sees.
+      startTime: dayTimes.startTime ?? existingDay.startTime ?? plannerRequest.startTime ?? '',
+      endTime: dayTimes.endTime ?? existingDay.endTime ?? plannerRequest.endTime ?? '',
       startLocation: existingDay.startLocation || plannerRequest.startLocation || '',
       endLocation: existingDay.endLocation || plannerRequest.endLocation || '',
       anchors: existingAnchors.length > 0 ? existingAnchors : flatAnchors

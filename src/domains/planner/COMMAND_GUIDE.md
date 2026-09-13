@@ -22,6 +22,15 @@
 - Keep only editable fields in the draft. Saved derived `dailyData` must be rebuilt by `normalizePlannerRequest` after editing, so it cannot resurrect old dates, times, or deleted anchors.
 - Form reset clears detailed inputs while preserving the selected dates/theme/budget. The cleared draft must also survive reload.
 
+## Input Validation Boundary
+
+- `functions/planner-request-validation.mjs` is the dependency-free canonical `dailyData` validator shared by the form, optimizer and server. It lives under `functions/` so Firebase packaging includes it; the browser imports only this pure module, never server SDKs or prompts. The server's configured Node 24 runtime can require this synchronous ES module from CommonJS.
+- `generateItinerary` checks authentication, then validates the raw canonical request **before** sanitization, account reads, secret access or Gemini calls. Invalid input returns `invalid-argument` with safe reason/field indexes, not input text. The sanitizer only projects/clamps validated fields; it must not be used to prove validity or invent a day for empty input.
+- Require 1–4 ordered calendar dates, matching date/day representations, valid same-day `HH:mm` ranges and non-empty departure/arrival locations. Anchors are optional, but submitted anchors need a name and valid times within their own day's range, including custom daily times; do not silently truncate more than 10 anchors per day.
+- Keep the existing optional-anchor-location policy and ignore untouched empty UI rows. Preserve explicit empty custom times through normalization so global defaults cannot mask them. The form owns row-specific feedback/focus and the existing local-calendar past-date check; no server timezone/past-date policy is introduced here.
+- `planner-validation.js` translates safe reason codes. `functions/invalid-argument` must surface as a correctable error, never mock itinerary success. Existing auth failure and marked quota/network fallback behavior stays unchanged.
+- Validation changes must pass the planner request, server callback, optimizer error, and planner constraints tests, plus the browser validation/draft/generation scenarios.
+
 ## Generation Lifecycle
 
 - `app/generation-controller.mjs` owns the active generation attempt, success/failure transitions, and result/navigation guards. `app/main.js` wires the form event, auth/route context, result application, and completion notification into it.

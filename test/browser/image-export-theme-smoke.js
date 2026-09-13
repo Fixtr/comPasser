@@ -1,7 +1,7 @@
 // Run after refactor-smoke-setup.js. Real router, DOM and html2canvas; no external sharing.
 async (page) => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
-  check(page.url().startsWith('http://127.0.0.1:4173/'), 'Local harness required');
+  check(page.url().startsWith((page.smokeOrigin || 'http://127.0.0.1:4173') + '/'), 'Local harness required');
   check(await page.evaluate(() => !!window.__smoke), 'Run the isolated smoke setup first');
   const results = [];
   await page.evaluate(() => {

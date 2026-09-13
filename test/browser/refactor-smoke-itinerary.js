@@ -29,7 +29,7 @@ async (page) => {
   await page.locator('#app-confirm-host .confirm-ok').click();
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.getElementById('share-itinerary-btn').disabled);
   page.smokeShareUrl = await page.evaluate(() => navigator.clipboard.readText());
-  check(page.smokeShareUrl==='http://127.0.0.1:4173/share/smoke1', 'Clipboard must contain correct public link');
+  check(page.smokeShareUrl===(page.smokeOrigin || 'http://127.0.0.1:4173')+'/share/smoke1', 'Clipboard must contain correct public link');
   page.smokeResults.push('PASS public-share consent/fake document/real browser clipboard');
 
   await page.locator('itinerary-view #kakao-share-btn').click();
@@ -45,7 +45,7 @@ async (page) => {
   await page.locator('itinerary-view #download-image-btn').click();
   const download = await downloading;
   check((await download.failure())===null, 'PNG download must complete');
-  await download.saveAs('/private/tmp/hackerton-smoke-ticket.png');
+  if (page.smokeOutputDir) await download.saveAs(page.smokeOutputDir + '/ticket.png');
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.getElementById('download-image-btn').disabled);
   const after = await page.evaluate(() => ({dark:document.body.classList.contains('dark'),theme:document.documentElement.getAttribute('data-theme'),route:document.documentElement.getAttribute('data-route-theme')}));
   check(JSON.stringify(after)===JSON.stringify(page.smokeThemeBefore), 'Export must restore all theme attributes');

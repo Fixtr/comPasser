@@ -2,7 +2,7 @@
 // Native sharing is faked; optional page.exportI18nOutputDir retains actual downloaded PNGs.
 async (page) => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
-  check(page.url().startsWith('http://127.0.0.1:4173/'), 'Local harness required');
+  check(page.url().startsWith((page.smokeOrigin || 'http://127.0.0.1:4173') + '/'), 'Local harness required');
   check(await page.evaluate(() => !!window.__smoke), 'Run the isolated smoke setup first');
   const copy = {
     ko: { busy: '이미지 만드는 중...', idle: '티켓 이미지로 저장·공유', badge: '확정',

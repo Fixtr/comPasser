@@ -7,8 +7,7 @@
  */
 "use strict";
 
-const MAX_DAYS = 4;
-const MAX_ANCHORS_PER_DAY = 10;
+const { MAX_DAYS, MAX_ANCHORS_PER_DAY } = require('./planner-request-validation.mjs');
 const MAX_TEXT = 200;
 const MAX_SHORT = 40;
 
@@ -172,7 +171,7 @@ function sanitizePlannerRequest(raw) {
     .slice(0, MAX_DAYS);
 
   const rawDaily = Array.isArray(input.dailyData) ? input.dailyData : [];
-  const dayCount = Math.min(Math.max(dates.length, rawDaily.length, 1), MAX_DAYS);
+  const dayCount = Math.min(Math.max(dates.length, rawDaily.length), MAX_DAYS);
 
   const dailyData = Array.from({ length: dayCount }, (_, index) => {
     const day = rawDaily[index] && typeof rawDaily[index] === "object" ? rawDaily[index] : {};
