@@ -21,6 +21,18 @@ const geocoded = items => items.map((item, index) => ({
 }));
 const response = () => ({ routes: [{ legs: [{ duration: { text: '30분', value: 1800 }, distance: { text: '1km' }, steps: [] }] }] });
 
+test('위치를 확인하지 못한 중간 장소를 건너뛰는 경로를 만들지 않는다', async () => {
+  let calls = 0;
+  const app = harness({ route: async () => { calls++; return response(); } });
+  await app.map.renderTransitSegments([
+    {latLng: {lat:37,lng:127}, displayIndex:1},
+    {latLng: {lat:38,lng:127}, displayIndex:3}
+  ], '2026-09-14', context(0));
+  assert.equal(calls, 0);
+  assert.equal(app.created.routes.length, 0);
+  assert.deepEqual(app.events[0].detail.routes, []);
+});
+
 // 지도 클래스의 실제 async 경로를 실행한다. Google 통신과 그리기 객체만 대체한다.
 function harness({ geocode = async items => geocoded(items), route = async () => response(), library } = {}) {
   const events = [], created = { markers: [], routes: [], fallbacks: [] }, frames = [], listeners = new Map();

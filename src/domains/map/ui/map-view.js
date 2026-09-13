@@ -321,13 +321,14 @@ export class MapView extends HTMLElement {
       window.dispatchEvent(new CustomEvent('places-resolved', {
         detail: {
           context,
-          places: geocodedItems
-            .filter(item => item.resolvedName || item.resolvedAddress)
-            .map(item => ({
-              index: (item.displayIndex ?? 0) - 1,
-              name: item.resolvedName || '',
-              address: item.resolvedAddress || ''
-            }))
+          places: scheduleItems.map(item => {
+            const found = geocodedItems.find(result => result.displayIndex === item.displayIndex);
+            return {
+              index: item.displayIndex - 1,
+              name: found?.resolvedName || '',
+              address: found?.resolvedAddress || ''
+            };
+          })
         }
       }));
 
@@ -464,6 +465,8 @@ export class MapView extends HTMLElement {
       // segment to the right cards even when geocoding dropped items.
       const fromIndex = (geocodedItems[i].displayIndex ?? i + 1) - 1;
       const toIndex = (geocodedItems[i + 1].displayIndex ?? i + 2) - 1;
+      // An unresolved stop is not permission to bypass it with a direct route.
+      if (toIndex !== fromIndex + 1) return Promise.resolve(null);
       // Route for the scheduled departure (origin item's end time), not "now".
       const departureTime = buildTransitDepartureTime(
         dayDate,

@@ -58,6 +58,8 @@ export function applyTransitDelays(scheduleItems, transitRoutes) {
     });
 
     for (let i = 1; i < result.length; i++) {
+      // A late journey cannot reschedule a user's fixed appointment.
+      if (result[i].type === 'AnchorSchedule') continue;
       const originalStart = minutesOf(result[i].time);
       if (originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
 
@@ -224,6 +226,7 @@ function pullForward(items) {
   const result = items.map(item => ({ ...item }));
 
   for (let i = 1; i < result.length; i++) {
+    if (result[i].type === 'AnchorSchedule') continue;
     const prevEnd = minutesOf(result[i - 1].endTime) ?? minutesOf(result[i - 1].time);
     const start = minutesOf(result[i].time);
     if (prevEnd === null || start === null) continue;

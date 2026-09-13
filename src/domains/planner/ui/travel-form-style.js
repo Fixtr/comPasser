@@ -214,7 +214,12 @@ export const travelFormStyles = `
           background-color: transparent;
         }
 
-        gmp-place-autocomplete:focus-within {
+        /* 같은 z-index의 다음 입력창이 검색 결과를 덮지 않도록,
+           내부 입력/결과에 초점이 있는 위젯만 한 단계 올린다.
+           :focus-within은 Google의 닫힌 Shadow DOM 초점도 포함한다. */
+        gmp-place-autocomplete:focus-within,
+        gmp-basic-place-autocomplete:focus-within {
+          z-index: 11;
           border-color: var(--cp-ink);
           outline: 2px solid var(--cp-ink);
           outline-offset: 2px;

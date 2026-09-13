@@ -7,7 +7,8 @@ import { createItineraryActions } from '../src/domains/itinerary/services/itiner
 import { reconcileWithConstraints, getEndTimeWarning, buildItineraryViewModel } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
-import { trimScheduleToEndTime } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
+import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
+import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
 import { t, getLang, setLang, applyTranslations } from '../src/utils/i18n.js';
 
@@ -76,6 +77,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getEndTimeWarning, buildItineraryViewModel,
+    applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
   const view = new View();

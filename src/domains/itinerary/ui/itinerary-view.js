@@ -15,12 +15,12 @@ import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mj
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem } from '../services/itinerary-edit.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
-import { trimScheduleToEndTime } from '../services/itinerary-schedule-adjust.mjs';
+import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
+import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { exportItineraryImage } from './itinerary-image-export.js';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
-  buildItineraryViewModel,
   reconcileWithConstraints,
   getEndTimeWarning,
   getTransitCoverage
@@ -50,9 +50,9 @@ function fallbackDuration(item) {
   const total = end - start;
   const hours = Math.floor(total / 60);
   const mins = total % 60;
-  if (hours && mins) return `${hours}시간 ${mins}분`;
-  if (hours) return `${hours}시간`;
-  return `${mins}분`;
+  if (hours && mins) return t('durationHoursMinutes').replace('{0}', hours).replace('{1}', mins);
+  if (hours) return t('durationHours').replace('{0}', hours);
+  return t('durationMinutes').replace('{0}', mins);
 }
 
 export default class ItineraryView extends HTMLElement {
@@ -103,7 +103,7 @@ export default class ItineraryView extends HTMLElement {
       // 45분이 걸리는데 다음 항목이 이동시간 없이 바로 시작하는 것처럼
       // 생성되는 경우). 실제 이동시간이 밝혀졌으니 뒤 항목들의 시각을
       // 필요한 만큼만 보정한다.
-      if (transitRoutes.length) this.applyTransitDelaysToActiveDay(transitRoutes);
+      if (transitRoutes.length && this.applyTransitDelaysToActiveDay(transitRoutes)) return;
       this.renderTransitInfo(transitRoutes);
     };
     window.addEventListener('transit-info-ready', this._transitInfoHandler);
@@ -209,7 +209,8 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /** 생성·불러오기·날짜 전환·편집 모두 이곳에서 같은 요청 표식을 붙인다. */
-  requestMapRoute() {
+  requestMapRoute({ automaticFit = false } = {}) {
+    if (!automaticFit) this._automaticFitCount = 0;
     const plan = this.normalizeData(this.currentItinerary);
     const day = plan?.days?.[this.activeDayIndex];
     if (!day) return;
@@ -222,6 +223,8 @@ export default class ItineraryView extends HTMLElement {
     this.lastTransitRoutes = [];
     this.lastResolvedPlaces = [];
     this.transitUnavailable = false;
+    const anchorWarning = this.shadowRoot.getElementById('anchor-time-warning');
+    if (anchorWarning) anchorWarning.hidden = true;
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
@@ -931,19 +934,31 @@ export default class ItineraryView extends HTMLElement {
   applyTransitDelaysToActiveDay(transitRoutes) {
     if (!this.currentItinerary) return;
 
-    const { scheduleItems } = buildItineraryViewModel({
-      rawItinerary: this.currentItinerary,
-      activeDayIndex: this.activeDayIndex,
-      transitRoutes,
-      language: getLang()
-    });
-    if (!scheduleItems.length) return;
-
-    // 보정 결과를 currentItinerary 에 반영해 저장/공유에도 그대로 담기게 한다.
     const plan = this.normalizeData(this.currentItinerary);
     const dayData = plan?.days?.[this.activeDayIndex];
-    if (!dayData) return;
+    if (!dayData?.scheduleItems?.length) return;
+    const { endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex);
+    // Do not reconcile saved/user-edited constraints again during a map response.
+    const fit = this.canEdit() && (this._automaticFitCount || 0) < 2
+      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime)
+      : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes), adjusted: false };
+    const scheduleItems = fit.items;
     this.state.replaceDayItems(this.activeDayIndex, scheduleItems);
+
+    const anchorWarning = this.shadowRoot.getElementById('anchor-time-warning');
+    if (anchorWarning) {
+      anchorWarning.hidden = !hasFixedArrivalConflict(scheduleItems, transitRoutes);
+      anchorWarning.textContent = t('anchorTransitConflict');
+    }
+
+    if (fit.adjusted) {
+      this._automaticFitCount = (this._automaticFitCount || 0) + 1;
+      showGlobalToast(t('endTimeAutoFit'), { tone: 'info', duration: 5000 });
+      // Earlier departure can change the available bus/train: verify again,
+      // with a hard retry bound rather than recursively generating requests.
+      this.requestMapRoute({ automaticFit: true });
+      return true;
+    }
 
     this.refreshEndTimeWarning();
     this.refreshTransitNotice();
@@ -973,6 +988,7 @@ export default class ItineraryView extends HTMLElement {
           <div id="fallback-warning" class="fallback-warning" role="alert" style="display: none;"></div>
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
+          <p id="anchor-time-warning" class="shared-notice" role="alert" data-i18n="anchorTransitConflict" hidden></p>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
           <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
           <div id="day-tabs-container" class="day-tabs-container" style="display: none;">

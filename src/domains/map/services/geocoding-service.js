@@ -1,3 +1,5 @@
+import { matchesPlaceIdentity, schedulePlaceName } from './place-match.mjs';
+
 /** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
 const SUPPORTED_LANGUAGES = new Set(['ko', 'en']);
 
@@ -52,13 +54,13 @@ export class GeocodingService {
      * @param {{lat:number,lng:number}} [biasCenter] Optional point to bias results toward
      * @returns {Promise<{latLng: object, displayName: string, formattedAddress: string}|null>}
      */
-    async resolvePlace(location, biasCenter = null) {
+    async resolvePlace(location, biasCenter = null, expectedName = '') {
         if (!location) return null;
         await this.init();
 
         try {
             const request = {
-                textQuery: location,
+                textQuery: expectedName ? `${expectedName} ${location}` : location,
                 // 한국어로 고정돼 있던 값. 영어 모드에서 AI 가 쓴 영문 이름과
                 // 지도가 돌려준 한글 이름이 맞붙어, 같은 곳인데도 거의 모든
                 // 항목에 "다른 곳을 찾았다" 경고가 붙었다.
@@ -70,9 +72,17 @@ export class GeocodingService {
             if (biasCenter) {
                 request.locationBias = biasCenter;
             }
-            const { places } = await this.Place.searchByText(request);
-            if (places && places.length > 0) {
-                const place = places[0];
+            let { places = [] } = await this.Place.searchByText(request);
+            const select = candidates => candidates.find(place => place.location &&
+                (!expectedName || matchesPlaceIdentity(expectedName, place.displayName)));
+            let place = select(places);
+            // An AI-supplied street address can itself be wrong. Retry once by
+            // venue name with the trip bias, never fall back to that wrong address.
+            if (!place && expectedName && location !== expectedName) {
+                ({ places = [] } = await this.Place.searchByText({ ...request, textQuery: expectedName }));
+                place = select(places);
+            }
+            if (place) {
                 return {
                     latLng: place.location,
                     displayName: place.displayName || '',
@@ -109,10 +119,11 @@ export class GeocodingService {
         if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return [];
 
         const geocodeOne = async (item, biasCenter) => {
+            const expectedName = schedulePlaceName(item);
             // Already geocoded (e.g., loaded from a shared or saved itinerary)
-            if (item.latLng) return item;
+            if (item.latLng && (!expectedName || matchesPlaceIdentity(expectedName, item.resolvedName))) return item;
 
-            const resolved = await this.resolvePlace(item.location, biasCenter);
+            const resolved = await this.resolvePlace(item.location, biasCenter, expectedName);
             if (resolved) {
                 // 지도가 실제로 찾은 장소를 함께 실어 보낸다. 타임라인이 이걸
                 // 표시하면 오매칭이 화면에서 바로 드러난다.

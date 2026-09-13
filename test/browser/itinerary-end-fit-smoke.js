@@ -1,0 +1,50 @@
+// Real itinerary state/view; map responses and persistence use isolated fixtures.
+async page => {
+  await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    view.state.open({request:{date:['2026-10-20'], startTime:'10:00',endTime:'16:00',startLocation:'서울역',endLocation:'서울역'}, days:[{date:'2026-10-20',scheduleItems:[
+      {type:'departure',title:'서울역',location:'서울역',time:'10:00',endTime:''},
+      {type:'attraction',title:'식물원',location:'식물원',time:'10:35',endTime:'12:35'},
+      {type:'dining',title:'점심',location:'점심',time:'12:35',endTime:'13:35'},
+      {type:'attraction',title:'쇼핑몰',location:'쇼핑몰',time:'13:35',endTime:'15:35',duration:'2시간'},
+      {type:'arrival',title:'서울역',location:'서울역',time:'16:00',endTime:''}
+    ]}]});
+    window.navigate('/view');
+    view.renderCurrentState();
+    window.__fitMapRequests = [];
+    window.addEventListener('render-map-route', event => window.__fitMapRequests.push(event.detail));
+  });
+  await page.locator('itinerary-view .schedule-title').filter({hasText:'쇼핑몰'}).waitFor({state:'visible'});
+  const dispatch = durations => page.evaluate(durations => {
+    const view = document.querySelector('itinerary-view');
+    window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:view._mapRequest,
+      routes:durations.map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes,mode:'TRANSIT'}))}}));
+  }, durations);
+  await dispatch([35,27,10,41]);
+  await page.waitForFunction(() => document.querySelector('itinerary-view').shadowRoot.querySelectorAll('.time-badge')[4]?.textContent === '16:00');
+  const first = await page.evaluate(() => ({plan:document.querySelector('itinerary-view').state.snapshot().plan,requests:window.__fitMapRequests.length}));
+  if (first.requests !== 1 || first.plan.days[0].scheduleItems[3].endTime !== '15:19') throw new Error('Auto fit must update state and recheck transport once');
+  // New bus departure costs more time; second adjustment is followed by one
+  // final check. A third response may warn, but must never loop indefinitely.
+  await dispatch([35,27,10,51]);
+  await dispatch([35,27,10,61]);
+  const last = await page.evaluate(() => ({plan:document.querySelector('itinerary-view').state.snapshot().plan,requests:window.__fitMapRequests.length}));
+  if (last.requests !== 2 || last.plan.days[0].scheduleItems.at(-1).time !== '16:10') throw new Error('Recheck bound must keep honest late arrival');
+  await page.locator('itinerary-view #end-time-warning').waitFor({state:'visible'});
+  await page.locator('itinerary-view #save-itinerary-btn').click();
+  await page.waitForURL('**/view/smoke1');
+  await page.reload();
+  await page.locator('itinerary-view .schedule-title').filter({hasText:'쇼핑몰'}).waitFor({state:'visible'});
+  const saved = await page.evaluate(() => document.querySelector('itinerary-view').state.snapshot().plan.days[0].scheduleItems[3]);
+  if (saved.endTime !== '15:09') throw new Error('Adjusted visit duration must survive save/reload');
+  const shared = await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    view.state.open(view.state.snapshot().plan,{kind:'shared',id:'read-only-fixture'});
+    view.renderCurrentState();
+    const before = view.currentItinerary.days[0].scheduleItems[3].endTime;
+    const retried = view.applyTransitDelaysToActiveDay([35,27,10,90].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes})));
+    return {before, after:view.currentItinerary.days[0].scheduleItems[3].endTime, retried:!!retried};
+  });
+  if (shared.retried || shared.before !== shared.after) throw new Error('Shared plans must not auto-trim');
+  return {results:['PASS automatic fitting, measured recheck, bounded retries, warning and saved duration'],errors:page.smokeErrors};
+}

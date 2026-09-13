@@ -46,4 +46,6 @@ for (const [title, file] of [
   ['image export translations', 'image-export-i18n-smoke.js'],
   ['planner draft restoration', 'planner-draft-smoke.js'],
   ['planner input validation and retry', 'planner-validation-smoke.js'],
+  ['planner autocomplete dropdown stacking', 'planner-autocomplete-layer-smoke.js'],
+  ['measured transit end-time fitting', 'itinerary-end-fit-smoke.js'],
 ]) test(title, async ({ page }, testInfo) => { await scenario(file, page, testInfo); });
