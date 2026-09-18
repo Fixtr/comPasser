@@ -22,6 +22,19 @@ const flatRequest = {
   }]
 };
 
+test('near-location intents remain visits, not departure/arrival or anchor identities', () => {
+  const request={date:['2026-10-20'],startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'서울역',
+    anchorSchedules:[{day:1,name:'박물관 예약',location:'박물관',time:'13:00',endTime:'14:00'}]};
+  const visit=(purpose,nearLocation,time,endTime)=>({type:'dining',title:purpose,location:nearLocation,time,endTime,
+    placeIntent:{purpose,nearLocation,category:'restaurant'}});
+  const [day]=enforcePlannerConstraints([{scheduleItems:[visit('아침','서울역','09:30','10:30'),
+    visit('점심','박물관','13:00','14:00'),visit('저녁','서울역','16:00','17:00')]}],request);
+  assert.equal(day.scheduleItems.filter(i=>i.type==='dining').length,3);
+  assert.equal(day.scheduleItems.filter(i=>i.type==='AnchorSchedule').length,1);
+  assert.equal(day.scheduleItems[0].type,'departure');
+  assert.equal(day.scheduleItems.at(-1).type,'arrival');
+});
+
 test('editing a previously normalized request rebuilds daily constraints from the current draft', () => {
   const draft = toPlannerDraft(normalizePlannerRequest(flatRequest));
   draft.date = ['2026-10-01'];
@@ -194,7 +207,8 @@ test('an AI endpoint that already matches is corrected instead of duplicated', (
 
   assert.equal(day.scheduleItems.length, 2);
   assert.equal(day.scheduleItems[0].time, '09:06');
-  assert.equal(day.scheduleItems[1].endTime, '21:06');
+  assert.equal(day.scheduleItems[1].time, '21:06');
+  assert.equal(day.scheduleItems[1].endTime, '');
 });
 
 test('an AI item scheduled past the day end time is dropped instead of leaving the arrival out of order', () => {
@@ -417,7 +431,8 @@ test('a transit-narration item is removed even when it is not the last item', ()
 
   const last = day.scheduleItems.at(-1);
   assert.equal(last.type, 'arrival', '목적지에 붙은 AI 항목은 도착 지점으로 승격돼야 한다');
-  assert.equal(last.endTime, '21:48');
+  assert.equal(last.time, '21:48');
+  assert.equal(last.endTime, '');
   assert.equal(last.location, request.endLocation);
 });
 

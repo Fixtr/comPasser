@@ -1,3 +1,14 @@
+import { normalizeSelectedPlace } from './selected-place.mjs';
+
+function selectedFields(location) {
+  const selectedPlace = normalizeSelectedPlace(location);
+  // Explicitly clear stale AI/previous-selection coordinates on reconciliation.
+  return selectedPlace ? {
+    selectedPlace, latLng: {lat:selectedPlace.lat,lng:selectedPlace.lng},
+    resolvedName:selectedPlace.displayName, resolvedAddress:selectedPlace.formattedAddress
+  } : { selectedPlace: null, latLng: null, resolvedName: '', resolvedAddress: '' };
+}
+
 function asNonEmptyString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -81,6 +92,9 @@ function normalizeForComparison(value) {
 }
 
 function isSameLocation(actual, expected) {
+  const actualPlace = normalizeSelectedPlace(actual);
+  const expectedPlace = normalizeSelectedPlace(expected);
+  if (actualPlace && expectedPlace) return actualPlace.placeId === expectedPlace.placeId;
   const actualText = normalizeForComparison(actual);
   const expectedText = normalizeForComparison(expected);
   if (!actualText || !expectedText) return false;
@@ -93,7 +107,8 @@ function mapsSearchUrl(location) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 }
 
-function makeBoundaryItem(kind, location, time, isKo) {
+function makeBoundaryItem(kind, source, time, isKo) {
+  const location = getLocationName(source);
   const isStart = kind === 'departure';
   return {
     time,
@@ -106,6 +121,7 @@ function makeBoundaryItem(kind, location, time, isKo) {
       ? (isKo ? '지정한 출발지에서 일정을 시작합니다.' : 'Start the itinerary at the selected departure point.')
       : (isKo ? '지정한 도착지에서 일정을 마칩니다.' : 'Finish the itinerary at the selected destination.'),
     location,
+    ...selectedFields(source),
     duration: isStart ? (isKo ? '출발' : 'Departure') : (isKo ? '도착' : 'Arrival'),
     officialWebsiteUrl: '',
     googleMapsUrl: mapsSearchUrl(location),
@@ -122,6 +138,7 @@ function makeAnchorItem(anchor, isKo) {
     title: anchor.name || (isKo ? '필수 일정' : 'Anchor schedule'),
     description: isKo ? '사용자가 지정한 필수 일정입니다.' : 'A required schedule selected by the user.',
     location,
+    ...selectedFields(anchor.location),
     duration: isKo ? '고정 일정' : 'Fixed schedule',
     officialWebsiteUrl: '',
     googleMapsUrl: mapsSearchUrl(location),
@@ -179,9 +196,11 @@ function isSameTime(a, b) {
  * Treat an item as the anchor's event on corroborating signals instead.
  */
 function matchesAnchor(item, anchor) {
+  // A recommendation near an anchor is not the anchor itself.
+  if (item.type !== 'AnchorSchedule' && item.placeIntent?.purpose) return false;
   const sameTitle = titlesLooselyMatch(item.title, anchor.name);
   const sameTime = isSameTime(item.time, anchor.time);
-  const samePlace = isSameLocation(item.location, anchor.location);
+  const samePlace = isSameLocation(item.selectedPlace || item.location, anchor.location);
 
   if (item.type === 'AnchorSchedule') return sameTitle || sameTime || samePlace;
   return (sameTime && samePlace) || (sameTime && sameTitle) || (sameTitle && samePlace);
@@ -309,15 +328,20 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
 
     const startLocation = getLocationName(constraints.startLocation);
     if (startLocation) {
-      const requiredStart = makeBoundaryItem('departure', startLocation, constraints.startTime, isKo);
-      if (scheduleItems[0] && isSameLocation(scheduleItems[0].location, startLocation)) {
+      const requiredStart = makeBoundaryItem('departure', constraints.startLocation, constraints.startTime, isKo);
+      if (scheduleItems[0] && scheduleItems[0].type !== 'AnchorSchedule' &&
+          !scheduleItems[0].placeIntent?.purpose &&
+          isSameLocation(scheduleItems[0].selectedPlace || scheduleItems[0].location, constraints.startLocation)) {
         scheduleItems[0] = {
           ...scheduleItems[0],
           // AI 가 만든 항목을 출발 지점으로 승격한다. type 까지 맞춰야
           // 타임라인이 다른 방문지가 아니라 경계 항목으로 렌더링한다.
           type: 'departure',
           time: constraints.startTime || scheduleItems[0].time,
+          endTime: '',
+          duration: requiredStart.duration,
           location: startLocation,
+          ...selectedFields(constraints.startLocation),
           googleMapsUrl: mapsSearchUrl(startLocation)
         };
       } else {
@@ -327,16 +351,21 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
 
     const endLocation = getLocationName(constraints.endLocation);
     if (endLocation) {
-      const requiredEnd = makeBoundaryItem('arrival', endLocation, constraints.endTime, isKo);
+      const requiredEnd = makeBoundaryItem('arrival', constraints.endLocation, constraints.endTime, isKo);
       const lastIndex = scheduleItems.length - 1;
-      if (scheduleItems[lastIndex] && isSameLocation(scheduleItems[lastIndex].location, endLocation)) {
+      if (scheduleItems[lastIndex] && scheduleItems[lastIndex].type !== 'AnchorSchedule' &&
+          !scheduleItems[lastIndex].placeIntent?.purpose &&
+          isSameLocation(scheduleItems[lastIndex].selectedPlace || scheduleItems[lastIndex].location, constraints.endLocation)) {
         scheduleItems[lastIndex] = {
           ...scheduleItems[lastIndex],
           // 위와 같은 이유로 도착 지점으로 승격한다("인천 도착" 처럼 AI 가
           // 목적지에 붙여 놓은 항목이 일반 카드로 남지 않게 한다).
           type: 'arrival',
-          endTime: constraints.endTime || scheduleItems[lastIndex].endTime,
+          time: constraints.endTime || scheduleItems[lastIndex].time,
+          endTime: '',
+          duration: requiredEnd.duration,
           location: endLocation,
+          ...selectedFields(constraints.endLocation),
           googleMapsUrl: mapsSearchUrl(endLocation)
         };
       } else {

@@ -1,4 +1,6 @@
 import { getLocationName } from './planner-constraints.mjs';
+import { normalizeSelectedPlace } from './selected-place.mjs';
+const preserveLocation = value => normalizeSelectedPlace(value) || getLocationName(value);
 
 /** Editable, flat input only. Derived dailyData must not override later edits. */
 export function toPlannerDraft(request = {}) {
@@ -12,8 +14,8 @@ export function toPlannerDraft(request = {}) {
     budget: input.budget ?? null,
     startTime: input.startTime ?? first.startTime ?? '',
     endTime: input.endTime ?? first.endTime ?? '',
-    startLocation: getLocationName(input.startLocation ?? first.startLocation),
-    endLocation: getLocationName(input.endLocation ?? first.endLocation),
+    startLocation: preserveLocation(input.startLocation ?? first.startLocation),
+    endLocation: preserveLocation(input.endLocation ?? first.endLocation),
     dailyTimes: Array.isArray(input.dailyTimes)
       ? structuredClone(input.dailyTimes)
       : (daily.length > 1 ? daily.map((day, index) => ({
@@ -22,7 +24,7 @@ export function toPlannerDraft(request = {}) {
     anchorSchedules: structuredClone(Array.isArray(input.anchorSchedules)
       ? input.anchorSchedules
       : daily.flatMap((day, index) => (day.anchors || []).map(anchor => ({ ...anchor, day: index + 1 }))))
-      .map(anchor => ({ ...anchor, location: getLocationName(anchor.location) })),
+      .map(anchor => ({ ...anchor, location: preserveLocation(anchor.location) })),
   };
 }
 

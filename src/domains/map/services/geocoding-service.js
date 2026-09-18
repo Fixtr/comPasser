@@ -1,4 +1,6 @@
-import { matchesPlaceIdentity, schedulePlaceName } from './place-match.mjs';
+import { matchesPlaceIdentity, matchesPlaceArea, schedulePlaceName } from './place-match.mjs';
+import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
+import { isFixedPlace, normalizePlaceIntent, recommendationFields, reusableRecommendation, selectRecommendation } from './recommendation-place.mjs';
 
 /** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
 const SUPPORTED_LANGUAGES = new Set(['ko', 'en']);
@@ -56,9 +58,9 @@ export class GeocodingService {
      */
     async resolvePlace(location, biasCenter = null, expectedName = '') {
         if (!location) return null;
-        await this.init();
 
         try {
+            await this.init();
             const request = {
                 textQuery: expectedName ? `${expectedName} ${location}` : location,
                 // 한국어로 고정돼 있던 값. 영어 모드에서 AI 가 쓴 영문 이름과
@@ -67,14 +69,15 @@ export class GeocodingService {
                 language: this.resolveLanguage(),
                 // 지역은 KR 로 유지한다(PRD: 한국 여행 한정 서비스).
                 region: 'kr',
-                fields: ['location', 'displayName', 'formattedAddress']
+                fields: ['id', 'location', 'displayName', 'formattedAddress']
             };
             if (biasCenter) {
                 request.locationBias = biasCenter;
             }
             let { places = [] } = await this.Place.searchByText(request);
             const select = candidates => candidates.find(place => place.location &&
-                (!expectedName || matchesPlaceIdentity(expectedName, place.displayName)));
+                (!expectedName || (matchesPlaceIdentity(expectedName, place.displayName) &&
+                    matchesPlaceArea(location, place.formattedAddress))));
             let place = select(places);
             // An AI-supplied street address can itself be wrong. Retry once by
             // venue name with the trip bias, never fall back to that wrong address.
@@ -84,6 +87,7 @@ export class GeocodingService {
             }
             if (place) {
                 return {
+                    resolvedPlace: normalizeSelectedPlace(place),
                     latLng: place.location,
                     displayName: place.displayName || '',
                     formattedAddress: place.formattedAddress || ''
@@ -104,6 +108,36 @@ export class GeocodingService {
         return resolved ? resolved.latLng : null;
     }
 
+    async resolveRecommendation(item, center, excluded, timeoutMs = 6000) {
+        const intent = normalizePlaceIntent(item.placeIntent);
+        if (!intent || !center) return null;
+        const saved = reusableRecommendation(item, center);
+        if (saved && !excluded.has(saved.placeId)) return { ...item, ...recommendationFields(item, saved) };
+        let timer;
+        try {
+            const result = await Promise.race([
+                (async () => {
+                    await this.init();
+                    return this.Place.searchByText({
+                        // Only a trusted user location defines the search area;
+                        // model-provided nearLocation is a hint, never an address.
+                        textQuery: `${center.displayName} ${center.formattedAddress} ${intent.category.replaceAll('_', ' ')}`,
+                        language: this.resolveLanguage(), region: 'kr',
+                        includedType: intent.category, useStrictTypeFiltering: true,
+                        locationBias: { lat: center.lat, lng: center.lng },
+                        fields: ['id', 'displayName', 'formattedAddress', 'location', 'types', 'businessStatus', 'addressComponents'],
+                        maxResultCount: 10,
+                    });
+                })(),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Place search timeout')), timeoutMs); }),
+            ]);
+            const place = selectRecommendation(result.places, intent, center, excluded);
+            return place ? { ...item, ...recommendationFields(item, place) } : null;
+        } catch {
+            return null; // No address-only fallback on denial, timeout or no candidate.
+        } finally { clearTimeout(timer); }
+    }
+
     /**
      * Processes a list of schedule items and adds a latLng property to each.
      *
@@ -119,9 +153,19 @@ export class GeocodingService {
         if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return [];
 
         const geocodeOne = async (item, biasCenter) => {
+            const selected = normalizeSelectedPlace(item.selectedPlace);
+            if (selected && (isFixedPlace(item) || item.addedByUser === true)) {
+                return { ...item, selectedPlace: selected,
+                    latLng: {lat:selected.lat,lng:selected.lng},
+                    resolvedName:selected.displayName, resolvedAddress:selected.formattedAddress };
+            }
             const expectedName = schedulePlaceName(item);
+            // Missing identity must not turn an AI address into a trusted POI,
+            // including when an older saved result contains wrong coordinates.
+            if (expectedName === null) return null;
             // Already geocoded (e.g., loaded from a shared or saved itinerary)
-            if (item.latLng && (!expectedName || matchesPlaceIdentity(expectedName, item.resolvedName))) return item;
+            if (item.latLng && (!expectedName || (matchesPlaceIdentity(expectedName, item.resolvedName) &&
+                matchesPlaceArea(item.location, item.resolvedAddress)))) return item;
 
             const resolved = await this.resolvePlace(item.location, biasCenter, expectedName);
             if (resolved) {
@@ -129,6 +173,7 @@ export class GeocodingService {
                 // 표시하면 오매칭이 화면에서 바로 드러난다.
                 return {
                     ...item,
+                    resolvedPlace: resolved.resolvedPlace,
                     latLng: resolved.latLng,
                     resolvedName: resolved.displayName,
                     resolvedAddress: resolved.formattedAddress
@@ -136,6 +181,36 @@ export class GeocodingService {
             }
             return null;
         };
+
+        // Resolve authoritative fixed locations before recommendation searches.
+        // This path is explicit, so legacy named recommendations keep their
+        // strict name-matching behavior rather than silently changing venues.
+        if (scheduleItems.some(item => !isFixedPlace(item) && Object.hasOwn(item, 'placeIntent'))) {
+            const fixed = await Promise.all(scheduleItems.map(item => isFixedPlace(item) ? geocodeOne(item, null) : null));
+            const centers = fixed.flatMap((item, index) => {
+                const place = normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.resolvedPlace);
+                return place ? [{ index, place }] : [];
+            });
+            const excluded = new Set(centers.map(c => c.place.placeId));
+            const results = [...fixed];
+            const deadline = Date.now() + 30000;
+            for (const [index, item] of scheduleItems.entries()) {
+                if (isFixedPlace(item)) continue;
+                const hint = normalizePlaceIntent(item.placeIntent)?.nearLocation;
+                const nearest = [...centers].sort((a, b) => {
+                    const exact = c => hint && [c.place.displayName, c.place.formattedAddress].includes(hint) ? 0 : 1;
+                    return exact(a) - exact(b) || Math.abs(a.index - index) - Math.abs(b.index - index);
+                })[0]?.place;
+                if (Object.hasOwn(item, 'placeIntent')) {
+                    if (Date.now() >= deadline) continue;
+                    results[index] = await this.resolveRecommendation(item, nearest, excluded, Math.min(6000, deadline - Date.now()));
+                    if (results[index]) excluded.add(results[index].verifiedPlace.placeId);
+                } else {
+                    results[index] = await geocodeOne(item, nearest ? { lat: nearest.lat, lng: nearest.lng } : null);
+                }
+            }
+            return results.filter(Boolean);
+        }
 
         const [first, ...rest] = scheduleItems;
         const firstResult = await geocodeOne(first, null);

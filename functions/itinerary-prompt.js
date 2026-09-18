@@ -92,20 +92,30 @@ const ITINERARY_SCHEMA = {
                 type: { type: "STRING", description: "Must be one of: 'attraction', 'dining', 'leisure', 'AnchorSchedule'" },
                 title: { type: "STRING" },
                 description: { type: "STRING" },
-                location: { type: "STRING", description: "Specific real world Address or accurate Place Name in Korea" },
+                location: { type: "STRING", description: "Copy user location for anchors/boundaries; copy placeIntent.nearLocation for recommendations. Never invent an address." },
+                placeIntent: {
+                  type: "OBJECT",
+                  description: "Ordinary recommendations describe a purpose, not a business. Fixed user locations use empty purpose.",
+                  properties: {
+                    purpose: { type: "STRING", description: "Activity goal without venue facts, e.g. Lunch near the museum." },
+                    category: { type: "STRING", enum: ["restaurant", "cafe", "park", "museum", "tourist_attraction", "shopping_mall"] },
+                    nearLocation: { type: "STRING", description: "Exact name of a user-provided departure, destination or anchor location." }
+                  },
+                  required: ["purpose", "category", "nearLocation"]
+                },
                 duration: { type: "STRING" },
-                officialWebsiteUrl: { type: "STRING", description: "Official website URL of the place. Return an empty string if unknown." },
-                googleMapsUrl: { type: "STRING", description: "Google Maps search URL for this place. e.g. https://www.google.com/maps/search/?api=1&query=[Place Name]" },
-                transitInfo: { type: "STRING", description: "Detailed transit route and estimated time from the previous location to this location. MUST include precise transfer stations. (e.g., 'Take Line 3 at Express Bus Terminal -> Transfer to Line 9 at Dongjak -> Alight at Samgakji (approx. 30 mins)')." },
+                officialWebsiteUrl: { type: "STRING", description: "Empty string; the app verifies place data." },
+                googleMapsUrl: { type: "STRING", description: "Empty string; the app builds a Place ID link after lookup." },
+                transitInfo: { type: "STRING", description: "Empty string; actual routes are calculated after place resolution." },
                 practicalInfo: {
                   type: "OBJECT",
                   properties: {
                     estimatedCost: { type: "STRING", description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
-                    operatingHours: { type: "STRING", description: "General opening/closing hours and holidays (e.g. '10:00 - 22:00 (Closed on Mons)')" },
-                    localTip: { type: "STRING", description: "A SINGLE specific, highly actionable pro-tip ONLY (e.g. 'Catchtable app reservation is required', 'Signature menu: Einspanner coffee'). Do NOT include any restaurant/cafe recommendation lists here. NEVER write vague tips like 'Visit on weekdays'." },
+                    operatingHours: { type: "STRING", description: "Empty string; do not invent hours." },
+                    localTip: { type: "STRING", description: "Empty string; no actual venue has been selected." },
                     top3Recommendations: {
                       type: "ARRAY",
-                      description: "ONLY for 'dining' or 'cafe' type items: List exactly 3 real, highly-rated (4.0+) specific venues near the location. Leave as an empty array [] for non-dining/cafe items.",
+                      description: "Always empty []; never invent venue names or ratings.",
                       items: {
                         type: "OBJECT",
                         properties: {
@@ -121,7 +131,7 @@ const ITINERARY_SCHEMA = {
                   required: ["estimatedCost", "operatingHours", "localTip", "top3Recommendations"]
                 }
               },
-              required: ["time", "endTime", "type", "title", "description", "location", "duration", "googleMapsUrl", "transitInfo", "practicalInfo"]
+              required: ["time", "endTime", "type", "title", "description", "location", "placeIntent", "duration", "googleMapsUrl", "transitInfo", "practicalInfo"]
             }
           }
         },
@@ -262,31 +272,23 @@ ${anchorText}
 ${buildStyleBlock(constraints)}
 
 The primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.
-Fill the rest of the day prior to and after the AnchorSchedules with highly-rated attractions, cafes, and restaurants geographically close to the route to minimize travel time. Provide REAL street addresses or recognizable place names in Korea in the location fields so Google Maps can geocode them.
+Fill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.
 For every single place, you MUST provide a 'practicalInfo' object containing:
   - estimatedCost: Approximate spending per person in KRW or 'Free'.
-  - operatingHours: Opening hours and regular holidays.
-  - localTip: A crucial pro-tip specially for tourists in Korea (e.g. availability of English menus, tax-free info, or waiting time advice).
+  - operatingHours and localTip: empty strings; the actual venue is not yet known.
 The first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.
 The last ScheduleItem of each day MUST end at the End Location near that day's End Time.
 
 CRITICAL RULES:
 ${anchorRule}
-2. All alternative locations MUST be real places in Korea, close to the route.
-3. Obey the JSON schema exactly. You MUST provide a valid 'googleMapsUrl' for every single schedule item. Provide 'officialWebsiteUrl' if available, otherwise an empty string.
+2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.
+3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.
 4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
 5. ${langRule}
 6. Transit realism: The 'description' and 'transitInfo' MUST match 100% in terms of transport mode and travel time. NEVER hallucinate physically impossible routes (e.g., taking a local village bus for 74km). Calculate logical transport modes and travel times based on actual geography in Korea.
-7. Detailed Transit Route: If taking public transit, 'transitInfo' MUST specify exact departure, transfer, and arrival points (e.g. "[Board at A Station -> Transfer at B Station -> Alight at C Station]").
-8. Explicit Transit Exception (Rule 1): If an activity occurs entirely within one single venue (e.g., Palace Viewing, Museum Exhibition, Theme Park), DO NOT generate fake physical movement texts like "Walking inside the palace" in 'transitInfo'. You MUST write explicitly "[Place Name] Viewing" or "[Place Name] Experience" instead.
-9. Dining & Cafe Data Split (Rule 2 & 3): For ANY 'dining' or 'cafe' type schedule item, you MUST split the recommendation data into TWO separate fields:
-   - 'localTip': Write ONE single, specific, highly actionable tip ONLY (e.g., 'Remote queuing via the Catchtable app is essential', 'Signature menu: Einspanner coffee'). You are STRICTLY FORBIDDEN from writing vague tips like 'Visit on weekdays' or 'Arrive early'. Do NOT put any restaurant/cafe list in this field.
-   - 'top3Recommendations': Generate an array of EXACTLY 3 objects for real, highly-rated (4.0+) venues near the location. Each object MUST contain:
-     * 'name': the venue's name (string)
-     * 'rating': the venue's rating as a string (e.g., "4.3")
-     * 'reviewUrl': a Google Maps search URL for the venue's reviews (e.g., "https://www.google.com/maps/search/?api=1&query=[Venue+Name+encoded]")
-     * 'directionUrl': a Google Maps directions URL to the venue (e.g., "https://www.google.com/maps/dir/?api=1&destination=[Venue+Name+encoded]")
-   For non-dining/non-cafe items, set 'top3Recommendations' to an empty array [].
+7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.
+8. Do not generate movement inside a venue as a separate stop.
+9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.
 10. Time Logic Rule (Rule 4): The total 'duration' value for any schedule item MUST be greater than or equal to the transit time stated in 'transitInfo'. You MUST NOT create a time paradox where the transit travel time EXCEEDS the total allocated duration for the item. (e.g., if transit is 40 minutes, duration must be at least 40 minutes).
 11. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
 12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.

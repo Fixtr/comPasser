@@ -116,12 +116,15 @@ export function getTransitCoverage(scheduleItems, transitRoutes, mapFailed = fal
  * @param {number} activeDayIndex 보고 있는 날짜 인덱스(0-base)
  * @returns {{endTime: string|null, overflowMinutes: number}}
  */
-export function getEndTimeWarning(itinerary, activeDayIndex = 0) {
+export function getEndTimeWarning(itinerary, activeDayIndex = 0, transitRoutes = []) {
   const plan = normalizeData(itinerary);
   const items = plan?.days?.[activeDayIndex]?.scheduleItems;
   const endTime = getDayConstraints(itinerary, activeDayIndex)?.endTime || null;
   if (!Array.isArray(items) || !endTime) return { endTime, overflowMinutes: 0 };
-  return { endTime, overflowMinutes: getEndTimeOverflowMinutes(items, endTime) };
+  // Reading a saved snapshot does not move its times. Project current route
+  // evidence separately so freezing the snapshot cannot hide a new delay.
+  const projected = applyTransitDelays(items, transitRoutes);
+  return { endTime, overflowMinutes: Math.max(getEndTimeOverflowMinutes(items, endTime), getEndTimeOverflowMinutes(projected, endTime)) };
 }
 
 /**

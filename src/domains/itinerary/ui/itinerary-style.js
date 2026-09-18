@@ -1,4 +1,15 @@
 export const itineraryStyles = `
+        .visit-time-btn, .visit-time-editor button, .visit-time-editor input { min-height:44px; padding:8px; margin:4px; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
+        .visit-time-editor label { display:block; }
+        .visit-time-editor p { font-size:.85rem; line-height:1.5; }
+        .visit-hours { font-size: .85rem; line-height: 1.5; padding: 8px; border: 1px solid var(--cp-rule); }
+        .visit-hours[hidden] { display: none; }
+        .visit-hours[data-status="conflict"], .visit-hours[data-status="closed"] { color: var(--cp-danger); background: var(--cp-danger-bg); border-color: var(--cp-danger); }
+        .place-replacement { position: relative; padding: 12px 0; overflow: visible; }
+        .place-replacement gmp-place-autocomplete { display: block; width: 100%; min-height: 48px; color-scheme: light; position: relative; z-index: 20; }
+        :host-context(body.dark) .place-replacement gmp-place-autocomplete { color-scheme: dark; }
+        .place-replacement button, .replace-place-btn { min-height: 44px; padding: 8px 12px; margin: 4px 8px 4px 0; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
+        .place-replacement button:disabled { opacity: .5; cursor: not-allowed; }
         :host {
           display: block;
           /* 카드가 흰색이므로 호스트는 한 톤 낮은 지면을 깐다.
@@ -527,6 +538,7 @@ export const itineraryStyles = `
         }
 
         /* ====== Action Links & Nav Button ====== */
+        .action-links[hidden], #recalculate-times-btn[hidden], #improve-route-btn[hidden] { display: none; }
         .action-links {
           margin-top: 1rem;
           display: flex;

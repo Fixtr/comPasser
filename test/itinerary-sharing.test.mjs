@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
 import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
-import { reconcileWithConstraints, getEndTimeWarning, buildItineraryViewModel } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
+import { reconcileWithConstraints, getDayConstraints, getEndTimeWarning, buildItineraryViewModel } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
@@ -76,8 +76,8 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     t: realTranslations ? t : key => key, getLang: realTranslations ? getLang : () => 'ko', applyTranslations,
     trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
-    insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getEndTimeWarning, buildItineraryViewModel,
-    applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict,
+    insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning, buildItineraryViewModel,
+    applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {},
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
   const view = new View();
@@ -119,6 +119,22 @@ function samplePlan() {
     }],
   };
 }
+
+test('개인/공유 문서를 불러올 때 생성 제약을 재실행하거나 실측 응답으로 저장 시각을 덮지 않는다', () => {
+  for (const access of ['private','shared']) {
+    const app=itineraryView({user:{uid:'owner'},mapEvents:true});
+    const plan=samplePlan();
+    plan.request={date:['2026-09-06'],startTime:'09:00',endTime:'23:51',startLocation:'서울역',endLocation:'서울역'};
+    plan.days[0].scheduleItems.at(-1).time='21:52';
+    plan.days[0].scheduleItems.at(-1).endTime='00:43';
+    app.view.reconcileWithConstraints=()=>{throw Error('저장 시각 재보정 금지');};
+    app.view.showResults(plan,{access,id:'saved'});
+    const before=structuredClone(app.view.currentItinerary.days[0].scheduleItems);
+    app.emit('transit-info-ready',{context:app.view._mapRequest,routes:[{fromIndex:2,toIndex:3,durationMinutes:999}]});
+    assert.deepEqual(app.view.currentItinerary.days[0].scheduleItems,before);
+    assert.equal(app.view.currentItinerary.days[0].scheduleItems.at(-1).endTime,'00:43');
+  }
+});
 
 test('비로그인 공유 일정은 읽기 전용으로 표시하고 지도에는 같은 일정을 전달한다', async () => {
   const plan = samplePlan();

@@ -6,6 +6,7 @@ import { normalizePlannerRequest, enforcePlannerConstraints } from '../src/domai
 import { findPlannerInputIssue, plannerValidationMessage } from '../src/domains/planner/services/planner-validation.js';
 import { buildMockItinerary, isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
 import { setLang } from '../src/utils/i18n.js';
+import { prepareGeneratedPlaces } from '../src/domains/map/services/recommendation-place.mjs';
 
 const source = readFileSync(new URL('../src/domains/planner/services/gemini-optimizer.js', import.meta.url), 'utf8')
   .replace(/^import\s[\s\S]*?from\s+['"][^'"]+['"];\s*/gm, '').replace(/^export /gm, '');
@@ -13,7 +14,7 @@ assert.doesNotMatch(source, /^import /m);
 function fixture(error) {
   const calls = [];
   const context = { normalizePlannerRequest, enforcePlannerConstraints, findPlannerInputIssue, plannerValidationMessage,
-    buildMockItinerary, isValidGeneratedDays, app: {}, getLang: () => 'en',
+    buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, app: {}, getLang: () => 'en',
     getFunctions: () => { calls.push('functions'); return {}; },
     httpsCallable: () => async () => { calls.push('call'); if (error) throw error;
       return { data: { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };

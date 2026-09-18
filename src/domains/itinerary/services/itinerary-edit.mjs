@@ -7,6 +7,42 @@
  * 고정할 수 있다.
  */
 
+import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
+
+export function editVisitTime(items, index, start, end) {
+  const item=items?.[index];
+  const valid=t=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t || '');
+  if(!Array.isArray(items) || !Number.isInteger(index) || !item ||
+    ['departure','arrival','AnchorSchedule'].includes(item.type) || !valid(start) || !valid(end) || end<=start)
+    return {items,changed:false};
+  const fixed=i=>['departure','arrival','AnchorSchedule'].includes(i.type);
+  const previous=items.slice(0,index).filter(fixed).at(-1), next=items.slice(index+1).find(fixed);
+  const lower=previous?.endTime || previous?.time, upper=next?.time;
+  if ((lower && (!valid(lower) || start<lower)) || (upper && (!valid(upper) || end>upper))) return {items,changed:false};
+  return {items:items.map((i,n)=>n===index ? {...i,time:start,endTime:end,visitNotBefore:start,duration:'',transitInfo:''} : i),changed:true};
+}
+
+// Replace a venue, not its time slot. Do not carry AI claims about the old
+// venue (costs, hours, links, reviews or recommendation intent) to the new one.
+export function replaceSchedulePlace(scheduleItems, index, value) {
+  const selectedPlace = normalizeSelectedPlace(value);
+  const previous = scheduleItems?.[index];
+  if (!Array.isArray(scheduleItems) || !Number.isInteger(index) || !previous || !selectedPlace ||
+      ['departure', 'arrival', 'AnchorSchedule'].includes(previous.type)) {
+    return { items: scheduleItems, replaced: null };
+  }
+  const replaced = {
+    type: previous.type, time: previous.time || '', endTime: previous.endTime || '',
+    duration: previous.duration || '', title: selectedPlace.displayName,
+    location: selectedPlace.formattedAddress, selectedPlace,
+    latLng: { lat: selectedPlace.lat, lng: selectedPlace.lng },
+    resolvedName: selectedPlace.displayName, resolvedAddress: selectedPlace.formattedAddress,
+    googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPlace.displayName)}&query_place_id=${encodeURIComponent(selectedPlace.placeId)}`,
+    addedByUser: true,
+  };
+  return { items: scheduleItems.map((item, i) => i === index ? replaced : item), replaced };
+}
+
 /** 출발/도착은 사용자가 폼에서 지정한 경계라 편집 대상이 아니다. */
 export function isEditableItem(item) {
   return item?.type !== 'departure' && item?.type !== 'arrival';

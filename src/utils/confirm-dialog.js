@@ -26,6 +26,7 @@ function ensureStyle() {
     #${HOST_ID} .confirm-box {
       background: var(--cp-surface); border: var(--cp-hair) solid var(--cp-rule); border-radius: var(--cp-radius); padding: 1.4rem;
       width: min(92vw, 26rem);
+      max-height: 85dvh; overflow-y: auto;
       font-family: inherit;
     }
     #${HOST_ID} .confirm-title {

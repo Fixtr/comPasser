@@ -1,6 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+test('requested departure overrides preparation start and survives repeated recalculation', () => {
+  const items = [{type:'departure',time:'07:51',endTime:'09:00',duration:'01:09'},
+    {type:'attraction',time:'08:00',endTime:'08:30'}];
+  const before = structuredClone(items);
+  const routes = [{fromIndex:0,toIndex:1,durationMinutes:8}];
+  const adjusted = applyTransitDelays(items, routes, '09:30');
+  assert.equal(adjusted[0].time, '09:30');
+  assert.equal(adjusted[0].endTime, '');
+  assert.equal(adjusted[1].time, '09:38');
+  assert.deepEqual(applyTransitDelays(adjusted,routes,'09:30'),adjusted);
+  assert.deepEqual(items,before);
+  assert.equal(applyTransitDelays(items,routes)[0].time,'09:00');
+  assert.equal(applyTransitDelays(items,routes,'25:99')[0].time,'09:00');
+  assert.equal(applyTransitDelays([{type:'departure',time:'07:51'}],[], '09:00')[0].time,'09:00');
+});
+
+test('도착에 붙은 가짜 체류시간을 이동 지연으로 자정 이후까지 밀지 않는다', () => {
+  const result=applyTransitDelays([{type:'attraction',time:'20:00',endTime:'21:38'},
+    {type:'arrival',time:'21:00',endTime:'23:51',duration:'02:51'}], [{fromIndex:0,toIndex:1,durationMinutes:14}]);
+  assert.equal(result[1].time,'21:52');
+  assert.equal(result[1].endTime,'');
+  assert.equal(result[1].duration,'');
+  assert.deepEqual(applyTransitDelays(result,[{fromIndex:0,toIndex:1,durationMinutes:14}]),result);
+});
+
 import {
   applyTransitDelays,
   getEndTimeOverflowMinutes,

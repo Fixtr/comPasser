@@ -162,9 +162,8 @@ export function summarizeCosts(scheduleItems) {
     const raw = item?.practicalInfo?.estimatedCost;
     const cost = parseCost(raw);
     if (!cost) {
-      // 값이 아예 없는 항목은 "비용 정보 없음"으로 세지 않는다(무료 관광지 등
-      // 정보 자체가 비어 있는 경우와, 금액이 적혀 있는데 못 읽은 경우를 구분).
-      if (typeof raw === 'string' && raw.trim()) unknownCount += 1;
+      // Missing information is not evidence of free admission/food.
+      unknownCount += 1;
       return;
     }
     parsed.push(cost);
@@ -226,6 +225,9 @@ function money(amount, currency, language, distinct) {
  * @returns {string|null} 합산할 게 없으면 null
  */
 export function formatCostAmount(summary, language = 'ko') {
+  if (summary?.unknownCount > 0 && (!summary.totals?.length || summary.totals.every(total => total.max === 0))) {
+    return language === 'ko' ? '비용 미확인' : 'Cost unknown';
+  }
   if (!summary || !Array.isArray(summary.totals) || summary.totals.length === 0) return null;
   const distinct = summary.totals.length > 1;
   return summary.totals
@@ -237,6 +239,10 @@ export function formatCostAmount(summary, language = 'ko') {
 
 /** 1인 기준 합계를 사람이 읽는 문구로. 합산할 게 없으면 null. */
 export function formatCostSummary(summary, language = 'ko') {
+  if (summary?.unknownCount > 0 && (!summary.totals?.length || summary.totals.every(total => total.max === 0))) {
+    return language === 'ko' ? `예상 비용 미확인 · ${summary.unknownCount}곳은 금액 미정`
+      : `Estimated cost unknown · ${summary.unknownCount} stop(s) not priced`;
+  }
   const amount = formatCostAmount(summary, language);
   if (amount === null) return null;
 

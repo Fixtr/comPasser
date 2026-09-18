@@ -5,11 +5,13 @@
  * "폼 → 데이터" 책임을 나눈다.
  */
 
+import { readPlaceInput } from '../services/selected-place.mjs';
+
 export function getAutocompleteValue(element) {
   if (!element) return '';
   // 만약 element.value가 문자열이고 비어있지 않다면 리턴
   if (typeof element.value === 'string' && element.value.trim() !== '') {
-    return element.value.trim();
+    return readPlaceInput(element, element.value.trim());
   }
   // Shadow DOM 내부의 input 요소에서 실제 텍스트 값 추출 시도
   const shadowInput = element.shadowRoot?.querySelector('input');

@@ -29,10 +29,20 @@ function formatMinutes(totalMinutes) {
  * @param {Array<{fromIndex: number, durationMinutes?: number|null}>} transitRoutes map-view.js 가 계산한 구간별 실제 소요시간
  * @returns {Array} 시각이 보정된 새 scheduleItems 배열 (입력은 변경하지 않음)
  */
-export function applyTransitDelays(scheduleItems, transitRoutes) {
+export function applyTransitDelays(scheduleItems, transitRoutes, requestedStartTime) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return scheduleItems;
 
-  const result = scheduleItems.map(item => ({ ...item }));
+  const validTime = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '');
+  const result = scheduleItems.map(item => {
+    if (item.type === 'departure') {
+      // The user's requested start is authoritative, not an AI preparation
+      // start. Legacy plans without a request retain the preparation end.
+      const departureTime = validTime(requestedStartTime) ? requestedStartTime
+        : validTime(item.endTime) ? item.endTime : item.time;
+      return { ...item, time: departureTime, endTime: '', duration: '' };
+    }
+    return item.type === 'arrival' ? { ...item, endTime: '', duration: '' } : { ...item };
+  });
 
   // 실제 이동시간 데이터가 있을 때만 지연 보정 루프를 돈다.
   //
@@ -82,6 +92,7 @@ export function applyTransitDelays(scheduleItems, transitRoutes) {
         earliestArrival = prevEnd;
       }
 
+      if (validTime(result[i].visitNotBefore)) earliestArrival=Math.max(earliestArrival,minutesOf(result[i].visitNotBefore));
       if (earliestArrival <= originalStart) continue; // 이미 여유가 있으면 그대로 둔다
 
       const delay = earliestArrival - originalStart;

@@ -19,6 +19,27 @@ const plan = name => ({ days: [{ date: '2026-09-08', scheduleItems: [
 const geocoded = items => items.map((item, index) => ({
   ...item, latLng: { lat: 37 + index, lng: 127 }, resolvedName: item.title, resolvedAddress: `${item.title} 주소`,
 }));
+
+test('all unresolved recommendations still emit a clearing result with the current request context', async () => {
+  const app=harness({geocode:async()=>[]});
+  const data={days:[{scheduleItems:[{type:'dining',title:'점심',placeIntent:{purpose:'점심',category:'restaurant'}}]}]};
+  await app.map.renderRoute(data,context(0));
+  const event=app.events.find(e=>e.type==='places-resolved');
+  assert.deepEqual(event.detail.context,context(0));
+  assert.deepEqual(event.detail.places,[{index:0,name:'',address:'',resolvedPlace:null,verifiedPlace:null}]);
+});
+
+test('map event includes the actual recommended Place ID and original item index', async () => {
+  const verifiedPlace={placeId:'real-place'};
+  const app=harness({geocode:async items=>geocoded(items).map(i=>({...i,verifiedPlace}))});
+  const data=plan('점심');
+  data.days[0].scheduleItems[1].placeIntent={purpose:'점심',category:'restaurant'};
+  await app.map.renderRoute(data,context(0));
+  const places=app.events.find(e=>e.type==='places-resolved').detail.places;
+  assert.equal(places[1].index,1);
+  assert.deepEqual(places[1].verifiedPlace,verifiedPlace);
+  assert.equal(Object.hasOwn(places[0],'verifiedPlace'),false);
+});
 const response = () => ({ routes: [{ legs: [{ duration: { text: '30분', value: 1800 }, distance: { text: '1km' }, steps: [] }] }] });
 
 test('위치를 확인하지 못한 중간 장소를 건너뛰는 경로를 만들지 않는다', async () => {

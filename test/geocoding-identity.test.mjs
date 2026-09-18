@@ -4,7 +4,7 @@ import { GeocodingService } from '../src/domains/map/services/geocoding-service.
 import { matchesPlaceIdentity, schedulePlaceName } from '../src/domains/map/services/place-match.mjs';
 
 const point = { lat: 37.5, lng: 127 };
-const place = name => ({ location: point, displayName: name, formattedAddress: '서울 주소' });
+const place = name => ({ location: point, displayName: name, formattedAddress: '서울특별시 강서구 주소' });
 const mall = { title: '롯데몰 김포공항점', location: '서울특별시 강서구 공항대로 270' };
 function setup(respond) {
   const requests = [];
@@ -53,7 +53,7 @@ test('저장된 불일치 좌표는 재검증하며 원본 일정은 변경하�
 });
 
 test('이미 검증한 장소 좌표는 불필요하게 재검색하지 않는다', async () => {
-  const item = { ...mall, latLng: point, resolvedName: mall.title };
+  const item = { ...mall, latLng: point, resolvedName: mall.title, resolvedAddress:'서울특별시 강서구 주소' };
   const { service, requests } = setup(() => []);
   assert.equal((await service.geocodeSchedule([item]))[0], item);
   assert.equal(requests.length, 0);
@@ -78,4 +78,34 @@ test('앵커 행사명을 상호명으로 오인하지 않으며 구체적인 �
 test('좌표가 없는 동명 후보도 채택하지 않는다', async () => {
   const { service } = setup(() => [{displayName:mall.title}]);
   assert.deepEqual(await service.geocodeSchedule([mall]), []);
+});
+
+test('공원 산책은 도로가 아니라 공원 이름으로 검증한다', async () => {
+  const { service, requests } = setup((_, n) => [{...place(n === 1 ? '이촌로' : '용산가족공원'),formattedAddress:'서울특별시 용산구 서빙고로 185'}]);
+  const [result] = await service.geocodeSchedule([{title:'용산가족공원 산책',location:'서울특별시 용산구 이촌로242'}]);
+  assert.equal(result.resolvedName, '용산가족공원');
+  assert.equal(requests[1].textQuery, '용산가족공원');
+});
+
+test('이름이 같아도 다른 구의 식당과 이전 저장 좌표는 채택하지 않는다', async () => {
+  const {service,requests} = setup(() => [place('남도반찬')]);
+  assert.deepEqual(await service.geocodeSchedule([{title:'점심 식사 - 남도반찬',location:'서울특별시 용산구 이촌로 129',latLng:point,resolvedName:'남도반찬',resolvedAddress:'서울특별시 강서구 방화동'}]), []);
+  assert.equal(requests.length, 2);
+});
+
+test('일반 식사 추천은 다른 주소의 첫 후보나 오래된 좌표를 사용하지 않는다', async () => {
+  const { service, requests } = setup(() => [place('에어파인')]);
+  for (const title of ['마곡 맛집 (점심)', '점심 식사', '주변 맛집', 'Lunch nearby']) {
+    assert.deepEqual(await service.geocodeSchedule([{title,location:'마곡중앙8로 35',latLng:point,resolvedName:'에어파인'}]), []);
+  }
+  assert.equal(requests.length, 0);
+});
+
+test('활동 접미사를 제거하되 남은 장소 이름의 일치는 여전히 요구한다', () => {
+  assert.equal(schedulePlaceName({title:'국립중앙박물관 관람'}), '국립중앙박물관');
+  assert.equal(schedulePlaceName({title:'서울숲 (산책)'}), '서울숲');
+  assert.equal(schedulePlaceName({title:'Walk around Seoul Forest'}), 'Seoul Forest');
+  assert.equal(schedulePlaceName({title:''}), null);
+  assert.equal(schedulePlaceName({title:'점심 식사 - 남도반찬'}), '남도반찬');
+  assert.equal(schedulePlaceName({title:'Lunch: Restaurant A'}), 'Restaurant A');
 });

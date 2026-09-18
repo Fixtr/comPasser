@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+test('저장 시각을 수정하지 않아도 새 이동시간에 따른 종료 초과는 경고한다', () => {
+  const plan={request:{endTime:'18:00'},days:[{scheduleItems:[
+    {type:'attraction',time:'16:00',endTime:'17:30'}, {type:'arrival',time:'18:00'}
+  ]}]};
+  const before=structuredClone(plan);
+  assert.equal(getEndTimeWarning(plan,0,[{fromIndex:0,toIndex:1,durationMinutes:60}]).overflowMinutes,30);
+  assert.deepEqual(plan,before);
+});
+
 import {
   buildItineraryViewModel,
   reconcileWithConstraints,

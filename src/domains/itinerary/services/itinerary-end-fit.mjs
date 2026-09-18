@@ -9,6 +9,16 @@ const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${Stri
 
 export function hasFixedArrivalConflict(items, routes) {
   if (!Array.isArray(items)) return false;
+  // Known overlapping visits are impossible even when a missing place means
+  // Google cannot return the intervening route. Do not require a route to warn.
+  if (items.some((item, index) => {
+    if (item.type !== 'AnchorSchedule') return false;
+    const deadline = minutes(item.time);
+    return deadline !== null && items.slice(0, index).some(previous => {
+      const end = minutes(previous.endTime) ?? minutes(previous.time);
+      return end !== null && end > deadline;
+    });
+  })) return true;
   return (routes || []).some(route => {
     const to = route.toIndex ?? route.fromIndex + 1;
     const origin = items[route.fromIndex], target = items[to];
@@ -20,10 +30,10 @@ export function hasFixedArrivalConflict(items, routes) {
   });
 }
 
-// All-or-nothing fitting between fixed boundaries. Never invent transit times,
+// Fit each fully measured block independently. Never invent transit times,
 // remove stops, move anchors, or claim success when the minimum stays cannot fit.
-export function fitMeasuredSchedule(items, routes, endTime) {
-  const delayed = applyTransitDelays(items, routes);
+export function fitMeasuredSchedule(items, routes, endTime, startTime) {
+  const delayed = applyTransitDelays(items, routes, startTime);
   const unchanged = { items: delayed, adjusted: false };
   const ceiling = minutes(endTime);
   if (!Array.isArray(items) || items.length < 2 || ceiling === null ||
@@ -36,33 +46,45 @@ export function fitMeasuredSchedule(items, routes, endTime) {
       travel.set(to, Math.ceil(route.durationMinutes));
     }
   }
-  if (items.some((_, i) => i > 0 && !travel.has(i))) return unchanged;
-  const starts = items.map(item => minutes(item.time));
-  const ends = items.map((item, i) => minutes(item.endTime) ?? starts[i]);
-  if (starts.some((start, i) => start === null || ends[i] < start || (i && start < starts[i - 1]))) return unchanged;
-  if (getEndTimeOverflowMinutes(delayed, endTime) <= 0 &&
-      !items.some((item, i) => item.type === 'AnchorSchedule' && i > 0 &&
-        (minutes(delayed[i - 1].endTime) ?? minutes(delayed[i - 1].time)) + travel.get(i) > starts[i])) return unchanged;
-
-  const result = items.map(item => ({ ...item }));
+  const starts = items.map((item, i) => minutes(item.type === 'departure' ? delayed[i].time : item.time));
+  const ends = items.map((item, i) => ['departure', 'arrival'].includes(item.type) ? starts[i] : minutes(item.endTime) ?? starts[i]);
+  const result = delayed.map(item => ({ ...item }));
+  let adjusted = false;
   const stays = ends.map((end, i) => end - starts[i]);
   const fixed = [0, ...items.flatMap((item, i) => i > 0 && i < items.length - 1 && item.type === 'AnchorSchedule' ? [i] : []), items.length - 1];
   for (let block = 1; block < fixed.length; block++) {
     const left = fixed[block - 1], right = fixed[block];
     const deadline = right === items.length - 1 ? ceiling : starts[right];
-    let required = 0;
-    for (let i = left + 1; i <= right; i++) required += travel.get(i) + (i < right ? stays[i] : 0);
-    let excess = Math.max(0, ends[left] + required - deadline);
+    // An unknown afternoon route must not prevent repairing the measured
+    // morning block. Never use a missing route as a zero-minute journey.
+    if (deadline === null || ends[left] === null || Array.from({length:right-left}, (_, n) => left+n+1)
+      .some(i => !travel.has(i) || starts[i] === null || ends[i] < starts[i])) continue;
+    const previousEnd = minutes(delayed[right-1].endTime) ?? minutes(delayed[right-1].time);
+    const conflict = right === items.length - 1
+      ? getEndTimeOverflowMinutes(delayed, endTime) > 0
+      : previousEnd + travel.get(right) > deadline;
+    if (!conflict) continue;
+    const projectedEnd = () => {
+      let cursor=ends[left];
+      for(let i=left+1;i<=right;i++) {
+        cursor+=travel.get(i);
+        if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor)+stays[i];
+      }
+      return cursor;
+    };
+    let excess = Math.max(0, projectedEnd() - deadline);
     for (let i = right - 1; i > left && excess > 0; i--) {
       const reduction = Math.min(excess, Math.max(0, stays[i] - 20));
       stays[i] -= reduction;
-      excess -= reduction;
+      excess = Math.max(0, projectedEnd() - deadline);
     }
-    if (excess > 0) return unchanged;
+    if (excess > 0) continue;
+    adjusted = true;
     let cursor = ends[left];
     for (let i = left + 1; i <= right; i++) {
       cursor += travel.get(i);
       if (i === right && i !== items.length - 1) break; // fixed anchor may include waiting
+      if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor);
       result[i].time = time(cursor);
       if (i < right) {
         cursor += stays[i];
@@ -71,5 +93,5 @@ export function fitMeasuredSchedule(items, routes, endTime) {
       } else result[i].endTime = '';
     }
   }
-  return { items: result, adjusted: true };
+  return { items: result, adjusted };
 }

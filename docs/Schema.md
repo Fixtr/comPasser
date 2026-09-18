@@ -71,3 +71,38 @@ Each `scheduleItems` entry contains `time`, `endTime`, `type`, `title`, `descrip
 - first item location/time = selected departure/start time;
 - last item location/time = selected destination/end time;
 - every Anchor exists with its original day, time range, title, and location.
+
+## Recommendation place resolution (2026-09-15)
+
+New AI responses include `placeIntent: { purpose, category, nearLocation }` on each item.
+Ordinary items describe an activity goal, not a business identity. Categories are
+`restaurant`, `cafe`, `park`, `museum`, `tourist_attraction`, `shopping_mall`.
+`nearLocation` is an exact hint to a user-specified fixed place; it is not used as
+an arbitrary geocoding address. Fixed user items use an empty purpose and are
+still reconciled against the original request.
+
+The generation boundary strips model-supplied `selectedPlace`, `verifiedPlace`,
+coordinates and resolved names. User selections are restored by constraint
+enforcement. Valid ordinary intents start with `placeStatus: "pending"`; invalid
+intents start unresolved and cannot trigger an address-only lookup.
+
+Google Places text search supplies actual candidates. The client checks country
+KR, category, valid ID/name/address/coordinates, known closure status, duplicate
+IDs and a 5 km straight-line radius around the chosen fixed location. The nearest
+remaining candidate is adopted. This is a proximity rule, not proof of travel time,
+opening hours, budget fit, accessibility, or availability.
+
+Verified items carry JSON-only `verifiedPlace` fields:
+`{ placeId, displayName, formattedAddress, lat, lng, source: "google_places",
+category, intentKey, centerPlaceId }` and `placeStatus: "verified"`.
+Canonical title/address, literal coordinates and a Place-ID-based Maps link are
+propagated through `places-resolved` → itinerary state → save/share snapshots.
+The model's invented hours, tips, ratings, website and route text are removed.
+`placeIntent` remains on the item so activity purpose and lookup provenance survive.
+
+Reload reuses a valid verified identity only when intent, fixed-center ID and
+distance still match. No-match, invalid intent, timeout or API error does not
+fall back to the model's address: it leaves an explicit unresolved card and no
+navigation links/coordinate. Unknown intermediate stops are not bridged by a
+direct route. Legacy recommendations without `placeIntent` retain the previous
+strict named-place matching behavior; they are not silently replaced.

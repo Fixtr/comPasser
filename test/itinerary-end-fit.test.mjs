@@ -10,7 +10,71 @@ const items = () => [
   { type:'attraction', time:'13:35', endTime:'15:35', title:'쇼핑몰', duration:'2시간' },
   { type:'arrival', time:'16:00', endTime:'', title:'서울역' }
 ];
+
+test('이동 경로가 없어도 고정 일정과 이미 겹치는 방문은 경고한다', () => {
+  const plan = [
+    {type:'departure',time:'10:00'},
+    {type:'dining',time:'12:32',endTime:'13:32'},
+    {type:'AnchorSchedule',time:'13:00',endTime:'14:00'}
+  ];
+  assert.equal(hasFixedArrivalConflict(plan, []), true);
+  assert.equal(hasFixedArrivalConflict(plan, [{fromIndex:0,toIndex:1,durationMinutes:32}]), true);
+  plan[1].endTime = '12:30';
+  assert.equal(hasFixedArrivalConflict(plan, []), false);
+});
 const routes = [35,27,10,41].map((durationMinutes, fromIndex) => ({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+
+test('fitting cannot borrow time before the requested departure', () => {
+  const plan = [{type:'departure',time:'07:51',endTime:'09:00'},
+    {type:'attraction',time:'08:10',endTime:'09:10'},
+    {type:'AnchorSchedule',time:'09:40',endTime:'10:00'},
+    {type:'arrival',time:'18:00'}];
+  const measured = [10,10].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+  const fitted = fitMeasuredSchedule(plan,measured,'18:00','09:00');
+  assert.equal(fitted.adjusted,true);
+  assert.equal(fitted.items[0].time,'09:00');
+  assert.equal(fitted.items[1].time,'09:10');
+  assert.equal(fitted.items[1].endTime,'09:30');
+  assert.equal(fitted.items[2].time,'09:40');
+  assert.deepEqual(fitMeasuredSchedule(fitted.items,measured,'18:00','09:00').items,fitted.items);
+  const impossible = fitMeasuredSchedule(plan,measured,'18:00','09:20');
+  assert.equal(impossible.adjusted,false);
+  assert.equal(impossible.items[0].time,'09:20');
+  assert.equal(hasFixedArrivalConflict(impossible.items,measured),true);
+});
+
+test('실제 제보: 오후 미확인 장소가 있어도 박물관 이전 측정 구간은 독립 조정한다', () => {
+  const plan=[
+    {type:'departure',time:'09:00'},
+    {type:'attraction',time:'09:08',endTime:'11:38'},
+    {type:'dining',time:'11:55',endTime:'12:25'},
+    {type:'dining',time:'12:46',endTime:'13:40'},
+    {type:'AnchorSchedule',time:'12:54',endTime:'14:55'},
+    {type:'leisure',time:'14:55',endTime:'15:25'},
+    {type:'arrival',time:'18:00'}
+  ];
+  const measured=[8,10,21,27].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+  const result=fitMeasuredSchedule(plan,measured,'18:00');
+  assert.equal(result.adjusted,true);
+  assert.equal(result.items[3].endTime,'12:27');
+  assert.deepEqual(result.items[4],plan[4]);
+  assert.equal(hasFixedArrivalConflict(result.items,measured),false);
+  assert.equal(result.items[5].time,'14:55');
+  const again=fitMeasuredSchedule(result.items,measured,'18:00');
+  assert.equal(again.adjusted,false);
+  assert.deepEqual(again.items,result.items);
+});
+
+test('앞 고정 구간이 불가능해도 뒤쪽의 가능한 측정 구간은 조정한다', () => {
+  const plan=[{type:'departure',time:'09:00'}, {type:'AnchorSchedule',time:'09:05',endTime:'10:00'},
+    {type:'attraction',time:'10:10',endTime:'12:10'}, {type:'arrival',time:'12:30'}];
+  const measured=[30,10,30].map((durationMinutes,fromIndex)=>({fromIndex,durationMinutes}));
+  const result=fitMeasuredSchedule(plan,measured,'12:00');
+  assert.equal(result.adjusted,true);
+  assert.equal(result.items.at(-1).time,'12:00');
+  assert.equal(result.items[1].time,'09:05');
+  assert.equal(hasFixedArrivalConflict(result.items,measured),true);
+});
 
 test('53분 초과 사례는 쇼핑몰 체류를 줄여 16:00에 실제 도착한다', () => {
   const original = items(), before = structuredClone(original);

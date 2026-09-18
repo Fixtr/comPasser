@@ -4,6 +4,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { icons } from '../../../ui/icons.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
+import { bindPlaceSelection, restorePlaceInput } from '../services/selected-place.mjs';
 import { plannerDraftStore, toPlannerDraft } from '../services/planner-draft.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
@@ -306,33 +307,9 @@ export default class TravelForm extends HTMLElement {
   }
 
   setupAutocompleteListener(autocomplete) {
-    if (!autocomplete) return;
-
-    // Safety check to prevent duplicate listeners
-    if (autocomplete.dataset.listenerBound) return;
-
-    // 💎 핵심 2: 최신 규격인 gmp-placeselect 이벤트를 사용 💎
-    autocomplete.addEventListener('gmp-placeselect', (event) => {
-      const place = event.place;
-
-      // 장소 선택 시 내부 value에 명칭을 동기화 (getFormData에서 읽기 위함)
-      if (place && place.displayName) {
-        // gmp-place-autocomplete는 .value를 프로퍼티로 갖거나 
-        // 혹은 내부 input의 가시적인 값을 string으로 유지합니다.
-        // 선택된 값으로 명시적으로 업데이트
-        autocomplete.value = place.displayName;
-      }
-
-      // 폼 자동 저장 트리거
+    bindPlaceSelection(autocomplete, () => {
       this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
-
-    // 사용자가 수동으로 타이핑하는 경우도 반영
-    autocomplete.addEventListener('input', () => {
-      // value가 알아서 업데이트되겠지만 확실히 하기 위해 커스텀 로직 추가 가능
-    });
-
-    autocomplete.dataset.listenerBound = "true";
   }
 
   addAnchor(data = null) {
@@ -392,7 +369,7 @@ export default class TravelForm extends HTMLElement {
       template.querySelector('.anchor-time').value = data.time || '';
       template.querySelector('.anchor-end-time').value = data.endTime || '';
       const ac = template.querySelector('.anchor-location');
-      if (ac) ac.value = data.location || '';
+      restorePlaceInput(ac, data.location || '');
       const daySelect = template.querySelector('.anchor-day');
       if (daySelect && data.day) daySelect.value = data.day;
     }
@@ -466,14 +443,12 @@ export default class TravelForm extends HTMLElement {
       this.syncDateFloor();
       setVal('start-time', requestData?.startTime);
       setVal('end-time', requestData?.endTime);
-      setVal('start-location', requestData?.startLocation);
-      setVal('end-location', requestData?.endLocation);
 
       // 💎 핵심 3: Autocomplete 컴포넌트의 가시적인 값도 즉시 업데이트 💎
       const startAC = this.shadowRoot.getElementById('start-location');
       const endAC = this.shadowRoot.getElementById('end-location');
-      if (startAC) startAC.value = requestData?.startLocation || '';
-      if (endAC) endAC.value = requestData?.endLocation || '';
+      restorePlaceInput(startAC, requestData?.startLocation || '');
+      restorePlaceInput(endAC, requestData?.endLocation || '');
 
       // 4. Inject Anchors dynamically safely
       if (requestData?.anchorSchedules && Array.isArray(requestData.anchorSchedules) && requestData.anchorSchedules.length > 0) {
@@ -693,7 +668,7 @@ export default class TravelForm extends HTMLElement {
       this.populateForm(plannerDraftStore.resetDetails(), { persist: false });
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       if (this.isSubmitting) {
@@ -712,6 +687,15 @@ export default class TravelForm extends HTMLElement {
         btn.style.cursor = 'not-allowed';
       }
 
+      await Promise.all(Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete'))
+        .map(element => element.placeSelectionPending));
+      if (Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete')).some(element => element.placeSelectionError)) {
+        showErrorToast(getLang() === 'ko' ? '선택한 장소 정보를 가져오지 못했습니다. 장소를 다시 선택해 주세요.'
+          : 'Could not load the selected place. Please select it again.');
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
       const plannerRequest = this.getFormData();
       this.draft = plannerDraftStore.save(plannerRequest);
 

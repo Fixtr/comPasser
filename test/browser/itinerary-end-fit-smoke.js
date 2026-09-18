@@ -46,5 +46,18 @@ async page => {
     return {before, after:view.currentItinerary.days[0].scheduleItems[3].endTime, retried:!!retried};
   });
   if (shared.retried || shared.before !== shared.after) throw new Error('Shared plans must not auto-trim');
+  const missingRouteConflict = await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    view.state.open({request:{endTime:'16:00'},days:[{scheduleItems:[
+      {type:'departure',title:'서울역',time:'10:00'},
+      {type:'dining',title:'미확인 점심',time:'12:32',endTime:'13:32'},
+      {type:'AnchorSchedule',title:'박물관',time:'13:00',endTime:'14:00'},
+      {type:'arrival',title:'서울역',time:'16:00'}
+    ]}]});
+    view.lastTransitRoutes = [];
+    view.refreshEndTimeWarning();
+    return !view.shadowRoot.getElementById('anchor-time-warning').hidden;
+  });
+  if (!missingRouteConflict) throw new Error('Known overlap must warn before any route is available');
   return {results:['PASS automatic fitting, measured recheck, bounded retries, warning and saved duration'],errors:page.smokeErrors};
 }

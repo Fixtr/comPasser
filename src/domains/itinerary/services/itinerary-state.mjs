@@ -1,4 +1,5 @@
 import { normalizeData } from './itinerary-normalize.mjs';
+import { isFixedPlace, recommendationFields } from '../../map/services/recommendation-place.mjs';
 
 export const ITINERARY_SESSION_KEY = 'compasser.itineraries.v1';
 const LEGACY_DRAFT_KEY = 'savedItineraryData';
@@ -157,8 +158,17 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       const items = normalizeData(current()?.plan)?.days?.[index]?.scheduleItems;
       if (!items || !Array.isArray(places) || !places.length) return;
       let updated = false;
-      for (const { index: itemIndex, name, address } of places) {
+      for (const result of places) {
+        const { index: itemIndex, name, address } = result;
         const item = items[itemIndex];
+        if (item && !isFixedPlace(item) && Object.hasOwn(item, 'placeIntent') && Object.hasOwn(result, 'verifiedPlace')) {
+          const fields = recommendationFields(item, result.verifiedPlace);
+          if (Object.entries(fields).some(([key, value]) => JSON.stringify(item[key]) !== JSON.stringify(value))) {
+            Object.assign(item, fields);
+            updated = true;
+          }
+          continue;
+        }
         if (!item || (item.resolvedName === name && item.resolvedAddress === address)) continue;
         item.resolvedName = name;
         item.resolvedAddress = address;

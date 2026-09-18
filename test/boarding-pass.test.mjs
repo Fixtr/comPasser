@@ -68,7 +68,7 @@ test('비용은 금액만, 단서는 따로 — 라벨과 겹치지 않게', () 
   // 티켓에는 '비용' 라벨이 이미 붙는다. 값에 '1인 예상 비용' 이 또 들어가면
   // 같은 말이 두 번 적힌다.
   assert.ok(!/예상|비용|per person/i.test(pass.cost));
-  assert.equal(pass.costNote, null);
+  assert.equal(pass.costNote, '1곳 미정');
 });
 
 test('도쿄 일정의 티켓에는 엔이 찍힌다', () => {

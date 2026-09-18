@@ -148,7 +148,10 @@ async (page) => {
         set value(v){this._value=v;if(this.shadowRoot.querySelector('input'))this.shadowRoot.querySelector('input').value=v;}
       }
       if(!customElements.get('gmp-place-autocomplete')) customElements.define('gmp-place-autocomplete',PlaceInput);
-      export const getMapsLoader=()=>({importLibrary:async()=>({})});
+      export const getMapsLoader=()=>({importLibrary:async()=>({Place:class {
+        constructor({id}) { this.id=id; }
+        async fetchFields() { Object.assign(this,window.__hoursFixtures?.[this.id] || {}); }
+      }})});
     `,
     '/src/domains/map/ui/map-view.js': `
       export class MapView extends HTMLElement {

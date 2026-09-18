@@ -119,10 +119,10 @@ test('unparseable stops are counted so the UI can disclose them', () => {
   assert.equal(summary.unknownCount, 2);
 });
 
-test('a stop with no cost field at all is not counted as unpriced', () => {
+test('a stop with no cost field is unknown, never implicitly free', () => {
   // 값이 비어 있는 것과, 금액이 적혀 있는데 못 읽은 것은 다르다.
   const summary = summarizeCosts([{ type: 'attraction' }, { type: 'attraction', practicalInfo: {} }]);
-  assert.equal(summary.unknownCount, 0);
+  assert.equal(summary.unknownCount, 2);
   assert.equal(summary.knownCount, 0);
 });
 
@@ -148,7 +148,7 @@ test('섞인 통화는 한 줄에 나란히 — 사이에 환산이 없다', () 
 });
 
 test('nothing to sum yields no text at all', () => {
-  assert.equal(formatCostSummary(sum('업체별 상이')), null);
+  assert.equal(formatCostSummary(sum('업체별 상이')), '예상 비용 미확인 · 1곳은 금액 미정');
   assert.equal(formatCostSummary(null), null);
   assert.equal(formatCostAmount(null), null);
 });
@@ -156,4 +156,15 @@ test('nothing to sum yields no text at all', () => {
 test('english output is produced for the en locale', () => {
   const summary = summarizeCosts([stop('₩1,000'), stop('₩2,000'), stop('업체별 상이')]);
   assert.equal(formatCostSummary(summary, 'en'), 'Est. ₩3,000 per person · 1 stop(s) not priced');
+});
+
+test('무료 앵커와 비용 없는 추천을 합쳐 무료 여행으로 표시하지 않는다', () => {
+  const summary=summarizeCosts([{type:'AnchorSchedule',practicalInfo:{estimatedCost:'무료'}},
+    {type:'dining',verifiedPlace:{placeId:'real'},practicalInfo:{}}, {type:'leisure'}]);
+  assert.equal(summary.unknownCount,2);
+  assert.equal(formatCostAmount(summary),'비용 미확인');
+  assert.equal(formatCostAmount(summary,'en'),'Cost unknown');
+  assert.doesNotMatch(formatCostSummary(summary),/₩0/);
+  assert.match(formatCostSummary(summary),/2곳은 금액 미정/);
+  assert.equal(formatCostAmount(sum('무료','Free')),'₩0');
 });
