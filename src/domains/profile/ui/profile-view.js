@@ -468,7 +468,7 @@ class ProfileView extends HTMLElement {
         const userId = getCurrentUser()?.uid;
         const ok = await showConfirm({
             title: '일정 삭제',
-            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다.',
+            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다. 이 일정에 연결된 공유 링크에서도 내용을 볼 수 없게 됩니다. 다른 사람이 저장한 사본과 원본 연결이 없는 구버전 공유본은 유지됩니다.',
             confirmText: '삭제',
             cancelText: '취소'
         });

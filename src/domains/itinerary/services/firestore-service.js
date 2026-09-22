@@ -1,6 +1,7 @@
 import { loadFirestore } from "../../../lib/firestore-lazy.mjs";
 import { getCurrentUser } from "../../auth/services/firebase-auth.js";
 import { createItineraryDocumentLoader } from "./itinerary-document-loader.mjs";
+import { watchSharedAccess } from './shared-access-watch.mjs';
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
@@ -103,15 +104,18 @@ export async function deleteAllUserItineraries(userId) {
     }
 }
 
-export async function createSharedItinerary(itineraryPlan) {
+export async function createSharedItinerary(itineraryPlan, sourceId) {
     try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
-        const sharedRef = collection(db, "shared_itineraries");
-        const docRef = await addDoc(sharedRef, {
-            itineraryPlan: itineraryPlan,
-            createdAt: serverTimestamp()
+        const ownerId = getCurrentUser()?.uid;
+        if (!ownerId || !/^[a-zA-Z0-9]+$/.test(sourceId || '')) throw new Error('A saved source itinerary is required');
+        const { db, collection, serverTimestamp, doc, writeBatch } = await loadFirestore();
+        const docRef = doc(collection(db, 'shared_itineraries'));
+        const batch = writeBatch(db);
+        batch.set(docRef, {
+            itineraryPlan, sourceId, ownerId, createdAt: serverTimestamp()
         });
+        batch.set(doc(db, 'shared_itinerary_status', docRef.id), { sourceId, ownerId });
+        await batch.commit();
         return docRef.id;
     } catch (error) {
         console.error("Error creating shared itinerary:", error);
@@ -120,22 +124,8 @@ export async function createSharedItinerary(itineraryPlan) {
 }
 
 export async function getSharedItinerary(documentId) {
-    try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
-        const docRef = doc(db, "shared_itineraries", documentId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            return docSnap.data().itineraryPlan;
-        } else {
-            console.log("No such shared itinerary!");
-            return null;
-        }
-    } catch (error) {
-        console.error("Error fetching shared itinerary:", error);
-        throw error;
-    }
+    const result = await loadItineraryDocument(documentId, { sharedOnly: true });
+    return result?.itineraryPlan ?? null;
 }
 /**
  * 명시적 공유 주소와 비로그인 조회에서는 공개 공유본만 읽는다.
@@ -144,11 +134,19 @@ export async function getSharedItinerary(documentId) {
  */
 export const loadItineraryDocument = createItineraryDocumentLoader({
     async readDocument(collectionName, documentId) {
-        const { db, doc, getDoc } = await loadFirestore();
-        const snapshot = await getDoc(doc(db, collectionName, documentId));
+        const { db, doc, getDoc, getDocFromServer } = await loadFirestore();
+        // Never resurrect revoked shared content from the persistent offline cache.
+        const read = collectionName === 'itineraries' ? getDoc : getDocFromServer;
+        const snapshot = await read(doc(db, collectionName, documentId));
         return snapshot.exists() ? snapshot.data() : null;
     }
 });
+
+export async function watchSharedItinerary(documentId, onInvalidated) {
+    const { db, doc, getDocFromServer } = await loadFirestore();
+    return watchSharedAccess(async () =>
+        (await getDocFromServer(doc(db, 'shared_itineraries', documentId))).exists(), onInvalidated);
+}
 
 // 일정 내용만 받던 기존 호출부를 위한 호환 API.
 export async function getItineraryById(documentId) {

@@ -142,5 +142,8 @@ test('server schema and prompt require intent, not model-generated business iden
   assert.ok(schema.required.includes('placeIntent'));
   const prompt=buildPrompt(sanitizePlannerRequest({date:['2026-10-20']}),'ko');
   assert.match(prompt,/Google Places selects the actual venue/);
+  assert.match(prompt,/Google route results are the sole source of transport facts/);
+  assert.match(prompt,/Never put public-transit, train, taxi or other transport fares/);
+  assert.doesNotMatch(prompt,/describe that whole multi-leg journey in the transitInfo/);
   assert.doesNotMatch(prompt,/EXACTLY 3 objects|Provide REAL street addresses|MUST specify exact departure/);
 });

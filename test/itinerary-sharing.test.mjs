@@ -28,7 +28,7 @@ function fakeElement() {
   };
 }
 
-function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false } = {}) {
+function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false, watch = async () => () => {} } = {}) {
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
@@ -66,6 +66,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     },
     saveItinerary: async (...args) => { calls.saves.push(args); return save ? save(...args) : 'mycopy123'; },
     createSharedItinerary: async plan => { calls.shares.push(plan); return 'published123'; },
+    watchSharedItinerary: watch,
     exportItineraryImage: input => { calls.exports.push(input); return exportImage(input); },
     getSharedItineraryUrl: id => `https://app.example/share/${id}`,
     itineraryShareDelivery: {
@@ -119,6 +120,33 @@ function samplePlan() {
     }],
   };
 }
+
+test('공유 재방문은 메모리 사본을 쓰지 않고 삭제 상태를 다시 확인한다', async () => {
+  let deleted=false;
+  const app=itineraryView({realTranslations:true,load:async()=>deleted
+    ? {access:'shared',deleted:true} : {access:'shared',itineraryPlan:samplePlan()}});
+  await app.view.loadItineraryById('linked',{sharedOnly:true});
+  assert.ok(app.view.currentItinerary);
+  deleted=true;
+  assert.equal(await app.view.loadItineraryById('linked',{sharedOnly:true}),false);
+  assert.equal(app.calls.loads.length,2);
+  assert.equal(app.view.currentItinerary,null);
+  assert.match(app.control('timeline-container').innerHTML,/이 일정은 삭제된 일정입니다/);
+  assert.equal(app.control('day-title-header').textContent,'');
+  assert.equal(app.control('actions-primary').hidden,true);
+  assert.equal(app.control('share-itinerary-btn').style.display,'none');
+  assert.ok(app.calls.events.some(e=>e.type==='cancel-map-route'));
+});
+
+test('공유본을 개인 사본으로 저장하면 원본 접근 감시를 중단한다', async()=>{
+  let stopped=0;
+  const app=itineraryView({user:{uid:'recipient'},load:async()=>({access:'shared',itineraryPlan:samplePlan()}),watch:async()=>()=>stopped++});
+  await app.view.loadItineraryById('linked',{sharedOnly:true});
+  await app.save();
+  assert.equal(stopped,1);
+  assert.equal(app.view.isReadOnly,false);
+  assert.equal(app.view.state.current.source.id,'mycopy123');
+});
 
 test('개인/공유 문서를 불러올 때 생성 제약을 재실행하거나 실측 응답으로 저장 시각을 덮지 않는다', () => {
   for (const access of ['private','shared']) {
@@ -310,7 +338,7 @@ test('게스트가 공유본을 재공유하면 새 문서나 공개 확인 없�
 test('개인 일정은 공개 안내를 취소하면 공유하지 않고 동의한 뒤에만 공유본을 만든다', async () => {
   const app = itineraryView({ user: { uid: 'owner123' }, confirm: false });
   const plan = samplePlan();
-  app.view.showResults(plan);
+  app.view.showResults(plan, { id: 'mine123' });
 
   assert.equal(await app.view.getShareUrl(), null);
   assert.deepEqual(app.calls.shares, []);
@@ -611,7 +639,7 @@ test('공유 버튼은 같은 공개 확인을 거쳐 각 전달기로 URL을 �
     let finish;
     const waiting = new Promise(resolve => { finish = resolve; });
     const app = itineraryView({ user: { uid: 'owner' }, copyLink: () => waiting, shareToKakao: () => waiting });
-    app.view.showResults(samplePlan());
+    app.view.showResults(samplePlan(), { id: 'mine123' });
     const button = app.control(buttonId);
     button.textContent = '공유하기';
     const pending = app[action]();
@@ -632,7 +660,7 @@ test('공유 버튼은 같은 공개 확인을 거쳐 각 전달기로 URL을 �
 test('공개 확인 취소는 두 공유 방식 모두 쓰기·전달 없이 끝나고 버튼을 복구한다', async () => {
   for (const [action, buttonId] of [['copyShare', 'share-itinerary-btn'], ['kakaoShare', 'kakao-share-btn']]) {
     const app = itineraryView({ user: { uid: 'owner' }, confirm: false });
-    app.view.showResults(samplePlan());
+    app.view.showResults(samplePlan(), { id: 'mine123' });
     const button = app.control(buttonId);
     button.textContent = '공유하기';
     await app[action]();
@@ -651,7 +679,7 @@ test('저장·공유 전달 실패는 화면에서 알리고 버튼을 다시 �
     ['save', 'save-itinerary-btn'], ['copyShare', 'share-itinerary-btn'], ['kakaoShare', 'kakao-share-btn'],
   ]) {
     const app = itineraryView({ user: { uid: 'owner' }, save: fail, copyLink: fail, shareToKakao: fail });
-    app.view.showResults(samplePlan());
+    app.view.showResults(samplePlan(), { id: 'mine123' });
     await app[action]();
     assert.equal(app.control(buttonId).disabled, false);
     assert.equal(app.calls.errors.length, 1);

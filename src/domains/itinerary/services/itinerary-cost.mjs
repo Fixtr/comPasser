@@ -21,6 +21,20 @@
 
 const FREE_PATTERNS = /(무료|free|없음|no charge)/i;
 
+// 이동 경로는 Google Directions가 유일한 기준이다. AI가 장소 비용 필드에
+// 교통비를 섞어 넣은 구버전 일정은 금액 합계에서 제외하고 미확인으로 센다.
+// 입장·식사처럼 장소 자체의 비용이 함께 적힌 경우에는 이 필터를 적용하지
+// 않아 유효한 방문 비용까지 버리지 않는다.
+const TRANSPORT_COST = /(?:대중교통|교통비|교통\s*요금|운임|승차권|버스|지하철|전철|공항철도|철도|열차|기차|택시|\bktx\b|\barex\b|public\s+transit|transport(?:ation)?|transit|\bfare\b|\bbus\b|subway|metro|airport\s+rail(?:road)?|rail(?:way)?|\btrain\b|\btaxi\b|\bcab\b)/i;
+const VENUE_COST = /(?:입장|관람|전시|체험|식사|음식|음료|메뉴|숙박|쇼핑|admission|entrance|entry|exhibit|activity|meal|food|drink|hotel|shopping)/i;
+
+export function isTransportEstimatedCost(value, itemType = '') {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return false;
+  if (itemType === 'departure' || itemType === 'arrival') return true;
+  return TRANSPORT_COST.test(text) && !VENUE_COST.test(text);
+}
+
 /**
  * 표기 → ISO 코드. **숫자에 붙어 있을 때만** 통화로 본다.
  *
@@ -160,6 +174,10 @@ export function summarizeCosts(scheduleItems) {
     if (item?.type === 'departure' || item?.type === 'arrival') return;
 
     const raw = item?.practicalInfo?.estimatedCost;
+    if (isTransportEstimatedCost(raw, item?.type)) {
+      unknownCount += 1;
+      return;
+    }
     const cost = parseCost(raw);
     if (!cost) {
       // Missing information is not evidence of free admission/food.

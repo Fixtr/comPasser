@@ -23,7 +23,19 @@ export function createItineraryDocumentLoader({ readDocument }) {
             }
         }
 
-        const sharedDocument = await readDocument('shared_itineraries', documentId);
+        let sharedDocument;
+        try {
+            sharedDocument = await readDocument('shared_itineraries', documentId);
+        } catch (error) {
+            if (['permission-denied', 'firestore/permission-denied'].includes(error?.code)) {
+                // Rules expose this content-free receipt only after source deletion.
+                try {
+                    const receipt = await readDocument('shared_itinerary_status', documentId);
+                    if (receipt?.sourceId && receipt?.ownerId) return { access: 'shared', deleted: true };
+                } catch { /* Do not mislabel network/configuration failures as deletion. */ }
+            }
+            throw error;
+        }
         return sharedDocument
             ? { itineraryPlan: sharedDocument.itineraryPlan, access: 'shared' }
             : null;

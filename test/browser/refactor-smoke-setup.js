@@ -88,7 +88,8 @@ async (page) => {
       const read = () => JSON.parse(sessionStorage.getItem('__smoke_db') || '{}');
       const write = data => sessionStorage.setItem('__smoke_db', JSON.stringify(data));
       const fail = kind => { if(window.__smoke.dbError === kind) throw new Error('TEST: '+kind+' failed'); };
-      const ref = (_db, collection, id) => ({collection, id});
+      const ref = (_db, collection, id) => collection ? ({collection, id})
+        : ({collection:_db.collection,id:'smoke'+(Object.keys(read()[_db.collection]||{}).length+1)});
       const snapshot = (r, data) => ({id:r.id, ref:r, exists:()=>data!==undefined, data:()=>{
         const copy=structuredClone(data);
         if(copy?.createdAt?.seconds) copy.createdAt.toDate=()=>new Date(copy.createdAt.seconds*1000);
@@ -101,6 +102,18 @@ async (page) => {
           where:(field, operator, value)=>({field, operator, value}), orderBy:()=>null,
           query:(ref,...filters)=>({...ref,filters:filters.filter(Boolean)}),
           async getDoc(r) { fail('read'); return snapshot(r, read()[r.collection]?.[r.id]); },
+          async getDocFromServer(r) {
+            fail('read'); const db=read(), data=db[r.collection]?.[r.id];
+            if(r.collection==='shared_itineraries' && data?.sourceId && db.itineraries?.[data.sourceId]?.userId!==data.ownerId)
+              throw Object.assign(new Error('revoked'),{code:'permission-denied'});
+            return snapshot(r,data);
+          },
+          writeBatch() {
+            const ops=[]; return {set:(r,data)=>ops.push([r,data]), async commit(){
+              fail('write'); const db=read(); for(const [r,data] of ops){db[r.collection]||={};db[r.collection][r.id]=data;}
+              write(db); for(const [r] of ops)window.__smoke.calls.push('add:'+r.collection+':'+r.id);
+            }};
+          },
           async getDocs(q) {
             fail('read');
             const docs = Object.entries(read()[q.collection] || {})

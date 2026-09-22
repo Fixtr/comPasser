@@ -1,4 +1,4 @@
-import { saveItinerary, createSharedItinerary, loadItineraryDocument } from '../services/firestore-service.js';
+import { saveItinerary, createSharedItinerary, loadItineraryDocument, watchSharedItinerary } from '../services/firestore-service.js';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
@@ -11,7 +11,7 @@ import { itineraryStyles } from './itinerary-style.js';
 import { openNavPopup } from './nav-popup.js';
 import { icons, iconRow } from '../../../ui/icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
-import { summarizeCosts, formatCostSummary } from '../services/itinerary-cost.mjs';
+import { summarizeCosts, formatCostSummary, isTransportEstimatedCost } from '../services/itinerary-cost.mjs';
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem, replaceSchedulePlace } from '../services/itinerary-edit.mjs';
 import { openPlaceReplacement } from './place-replacement.js';
 import { refreshHours } from './itinerary-hours.js';
@@ -138,10 +138,17 @@ export default class ItineraryView extends HTMLElement {
       if (!this.currentItinerary) this.clear();
     };
     window.addEventListener('itinerary-deleted', this._deletedHandler);
+    this._sharedRecheck = () => {
+      if (this.sharedId) this.loadItineraryById(this.sharedId, { sharedOnly: true });
+    };
+    window.addEventListener('focus', this._sharedRecheck);
+    window.addEventListener('offline', this._sharedRecheck);
   }
 
   disconnectedCallback() {
     this.cancelPendingLoad();
+    window.removeEventListener('focus', this._sharedRecheck);
+    window.removeEventListener('offline', this._sharedRecheck);
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
     window.removeEventListener('transit-unavailable', this._transitUnavailableHandler);
     window.removeEventListener('places-resolved', this._placesResolvedHandler);
@@ -257,6 +264,10 @@ export default class ItineraryView extends HTMLElement {
   }
 
   refreshAccessControls() {
+    if (!this.isReadOnly) {
+      this._stopSharedWatch?.();
+      this._stopSharedWatch = null;
+    }
     const hasPlan = Boolean(this.currentItinerary);
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     const saveKey = this.isReadOnly
@@ -339,8 +350,8 @@ export default class ItineraryView extends HTMLElement {
     const key = `${sharedOnly ? 'shared' : userId || 'guest'}:${id}`;
     if (this._pendingDocument?.key === key) return this._pendingDocument.promise;
     const previous = this.state.current;
-    const cached = this.state.activateDocument(id, { sharedOnly, userId });
-    if (cached) {
+    const cached = !sharedOnly && this.state.activateDocument(id, { sharedOnly, userId });
+    if (cached && cached.source.kind !== 'shared') {
       if (cached !== previous) {
         this.cancelPendingLoad();
         this.renderCurrentState();
@@ -368,6 +379,11 @@ export default class ItineraryView extends HTMLElement {
       const document = await loadItineraryDocument(id, { sharedOnly, userId });
       if (version !== this._loadVersion) return false;
 
+      if (document?.deleted) {
+        this.setError(`<div class="state-block"><h3 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h3></div>`);
+        return false;
+      }
+
       if (!document) {
         // 예전 /view 링크는 개인·공유가 섞여 있다. 게스트는 공유본만 조회한
         // 뒤, 개인 일정일 수 있는 경우 로그인하고 같은 주소로 돌아온다.
@@ -387,10 +403,21 @@ export default class ItineraryView extends HTMLElement {
       }
 
       this.showResults(document.itineraryPlan, { access: document.access, id });
+      if (document.access === 'shared') {
+        const stop = await watchSharedItinerary(id, () => {
+          if (version === this._loadVersion && this.sharedId === id) {
+            // Drop cached content before the authoritative deletion/error check.
+            this.fetchItineraryById(id, { sharedOnly: true, userId: getCurrentUser()?.uid });
+          }
+        });
+        if (version === this._loadVersion && this.sharedId === id) this._stopSharedWatch = stop;
+        else stop();
+      }
 
       return true;
     } catch (error) {
       if (version !== this._loadVersion) return false;
+      this.clear();
       console.error('🔥 렌더링 치명적 오류:', error);
       this.setError(`
         <div class="state-block danger">
@@ -416,6 +443,7 @@ export default class ItineraryView extends HTMLElement {
       }),
     });
     if (result.status === 'login-required') this.loginToSave();
+    if (result.status === 'save-required') showGlobalToast(t('shareSaveFirst'), { tone: 'warning' });
     return result.status === 'ready' ? result.url : null;
   }
 
@@ -1131,6 +1159,8 @@ export default class ItineraryView extends HTMLElement {
   }
 
   cancelPendingLoad() {
+    this._stopSharedWatch?.();
+    this._stopSharedWatch = null;
     this._loadVersion += 1;
     this._pendingDocument = null;
     this.invalidateMapRequest();
@@ -1142,6 +1172,10 @@ export default class ItineraryView extends HTMLElement {
     this.refreshAccessControls();
     const container = this.shadowRoot.getElementById('timeline-container');
     if (container) container.innerHTML = '';
+    const dayTitle = this.shadowRoot.getElementById('day-title-header');
+    if (dayTitle) dayTitle.textContent = '';
+    const dayTabs = this.shadowRoot.getElementById('day-tabs-container');
+    if (dayTabs) dayTabs.innerHTML = '';
     const primaryBar = this.shadowRoot.getElementById('actions-primary');
     if (primaryBar) primaryBar.hidden = true;
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
@@ -1358,7 +1392,7 @@ export default class ItineraryView extends HTMLElement {
             
             // 색은 지도 마커 규칙에만 쓴다(보라=고정, 초록=첫 장소, 파랑=나머지).
             // 이동 안내가 초록을 쓰면 같은 초록이 두 가지를 뜻하게 된다.
-            return `<div class="schedule-desc gemini-transit">${icons.route}<span>${t('transitGuideLabel') || '이동 안내'} · ${escapeHtml(trimmedInfo)}</span></div>`;
+            return `<div class="schedule-desc gemini-transit">${icons.route}<span>${t('unverifiedTransitGuideLabel') || 'AI 예상 이동 · 확인 필요'} · ${escapeHtml(trimmedInfo)}</span></div>`;
           })()}
           <div class="resolved-place" ${isRecommendation ? '' : 'hidden'}>${isRecommendation ? escapeHtml(t(scheduleItem.placeStatus === 'verified' ? 'recommendationVerified' : scheduleItem.placeStatus === 'unresolved' ? 'recommendationUnresolved' : 'recommendationPending')) : ''}</div>
           <p class="visit-hours" role="status" ${['departure', 'arrival'].includes(scheduleItem.type) ? 'hidden' : ''}></p>
@@ -1428,11 +1462,11 @@ export default class ItineraryView extends HTMLElement {
 
               // 값이 없는 줄은 아예 그리지 않는다. "현지 팁: —" 은 정보가
               // 없다는 뜻이 아니라 앱이 부실하다는 인상만 남긴다.
-              const infoLine = (icon, label, value) => {
+              const infoLine = (icon, label, value, className = '') => {
                 const text = typeof value === 'string' ? value.trim() : '';
                 if (!text || text === '—') return '';
                 return `
-                    <div class="info-row">
+                    <div class="info-row${className ? ` ${className}` : ''}">
                       <span class="info-icon">${icon}</span>
                       <span class="info-value"><span class="info-label">${label}</span> ${escapeHtml(text)}</span>
                     </div>`;
@@ -1448,8 +1482,14 @@ export default class ItineraryView extends HTMLElement {
                       <span class="info-value"><span class="info-label">${t('localTipLabel') || '현지 팁'}</span>${escapeHtml(tipText)}</span>
                     </div>`;
 
+              const transportCost = isTransportEstimatedCost(info.estimatedCost, scheduleItem.type);
               const lines = [
-                infoLine(icons.cost, `${t('estimatedCostLabel') || '예상 비용'}`, info.estimatedCost),
+                infoLine(
+                  icons.cost,
+                  transportCost ? (t('unverifiedTransitCostLabel') || 'AI 예상 교통비 · 확인 필요') : `${t('estimatedCostLabel') || '예상 비용'}`,
+                  info.estimatedCost,
+                  transportCost ? 'gemini-transport-cost' : ''
+                ),
                 infoLine(icons.hours, t('hoursUnverifiedText'), info.operatingHours),
               ].join('');
 

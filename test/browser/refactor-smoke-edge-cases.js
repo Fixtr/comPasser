@@ -7,6 +7,16 @@ async (page) => {
     window.__smoke.setUser({uid:'smokeCopyOwner',displayName:'복사 검증 계정',email:'copy@example.invalid',emailVerified:true,providerData:[]});
     window.navigate('/share/smoke1');
   });
+  await page.getByText('이 일정은 삭제된 일정입니다.',{exact:true}).waitFor({state:'visible'});
+  page.smokeResults.push('PASS account deletion revokes linked shares');
+  // Legacy shares have no source metadata. Preserve explicit compatibility,
+  // rather than incorrectly expecting a revoked linked share to remain readable.
+  await page.evaluate(()=>{
+    const db=JSON.parse(sessionStorage.getItem('__smoke_db'));
+    db.shared_itineraries.legacy={itineraryPlan:db.shared_itineraries.smoke1.itineraryPlan};
+    sessionStorage.setItem('__smoke_db',JSON.stringify(db));
+    window.navigate('/share/legacy');
+  });
   await page.locator('itinerary-view #shared-notice').waitFor({state:'visible'});
   await page.locator('itinerary-view #save-itinerary-btn').click();
   await page.waitForURL('**/view/smoke1');

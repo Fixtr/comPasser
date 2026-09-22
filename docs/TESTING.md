@@ -19,7 +19,7 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 | --- | --- |
 | `npm test` | 빠른 단위·계약 검사. 서버 콜백과 클라이언트 오류 처리 격리 검사 포함 |
 | `npm run build` | 실제 Vite 빌드 가능 여부 |
-| `npm run test:browser` | 브라우저 시나리오 전체. 현재 등록된 15개 검사 실행 (`test/browser/smoke.spec.mjs`) |
+| `npm run test:browser` | 브라우저 시나리오 전체. 현재 등록된 17개 검사 실행 (`test/browser/smoke.spec.mjs`) |
 | `npm run test:emulator` | 실제 Auth·Firestore 에뮬레이터, 서버 탈퇴 처리·HTTP 호출·보안 규칙 |
 | `npm run check` | 위 네 단계를 순서대로 실행. 하나라도 실패하면 즉시 실패로 종료 |
 

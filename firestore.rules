@@ -49,8 +49,32 @@ service cloud.firestore {
     // 생성은 로그인 사용자만 가능 (generateItinerary 자체가 로그인 필수이므로 공유 버튼 노출 시점엔 항상 인증됨).
     // 생성 후에는 불변 — 수정/삭제 불가.
     match /shared_itineraries/{sharedId} {
-      allow read: if true;
-      allow create: if request.auth != null && canWriteAccountData();
+      // Legacy snapshots have no reliable source identity. New snapshots are
+      // readable only while the original private document still belongs to its owner.
+      allow get: if !exists(/databases/$(database)/documents/shared_itineraries/$(sharedId)) || !('sourceId' in resource.data)
+        || (exists(/databases/$(database)/documents/itineraries/$(resource.data.sourceId))
+          && get(/databases/$(database)/documents/itineraries/$(resource.data.sourceId)).data.userId == resource.data.ownerId);
+      allow create: if request.auth != null && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['itineraryPlan', 'createdAt', 'sourceId', 'ownerId'])
+        && request.resource.data.sourceId is string
+        && request.resource.data.sourceId.matches('^[a-zA-Z0-9]+$')
+        && request.resource.data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/itineraries/$(request.resource.data.sourceId)).data.userId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/shared_itinerary_status/$(sharedId)).data.sourceId == request.resource.data.sourceId
+        && getAfter(/databases/$(database)/documents/shared_itinerary_status/$(sharedId)).data.ownerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // A content-free deletion receipt: only readable when the source is gone.
+    // Its successful server read distinguishes deletion from network/auth errors.
+    match /shared_itinerary_status/{sharedId} {
+      allow get: if !exists(/databases/$(database)/documents/itineraries/$(resource.data.sourceId))
+        || get(/databases/$(database)/documents/itineraries/$(resource.data.sourceId)).data.userId != resource.data.ownerId;
+      allow create: if request.auth != null && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['sourceId', 'ownerId'])
+        && request.resource.data.ownerId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/shared_itineraries/$(sharedId)).data.sourceId == request.resource.data.sourceId
+        && getAfter(/databases/$(database)/documents/shared_itineraries/$(sharedId)).data.ownerId == request.auth.uid;
       allow update, delete: if false;
     }
 

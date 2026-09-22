@@ -45,13 +45,14 @@ export function createItineraryActions({
       }
       const userId = getCurrentUser()?.uid;
       if (!userId) return { status: 'login-required' };
+      if (entry.source.kind !== 'private' || !entry.source.id) return { status: 'save-required' };
 
       const confirmed = await confirmPublicShare();
-      if (!confirmed || entry.plan !== state.current?.plan || userId !== getCurrentUser()?.uid) {
+      if (!confirmed || entry !== state.current || userId !== getCurrentUser()?.uid) {
         return { status: 'cancelled' };
       }
       // 같은 일정의 편집은 확인 이후의 최신 사본을 공유한다.
-      const id = await createSharedItinerary(state.snapshot().plan);
+      const id = await createSharedItinerary(state.snapshot().plan, entry.source.id);
       return { status: 'ready', url: getSharedItineraryUrl(id) };
     },
   };

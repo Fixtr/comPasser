@@ -373,6 +373,17 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       }
     }
 
+    // 이동수단·소요시간·교통비의 단일 기준은 지도 경로 결과다. 모델 응답이
+    // 프롬프트를 어기거나 구버전 응답을 돌려줘도 일정 상태에 AI 이동 설명을
+    // 남기지 않는다. 출발/도착은 방문지가 아니므로 장소 비용도 비운다.
+    scheduleItems = scheduleItems.map(item => {
+      const boundary = item.type === 'departure' || item.type === 'arrival';
+      const practicalInfo = boundary && item.practicalInfo && typeof item.practicalInfo === 'object'
+        ? { ...item.practicalInfo, estimatedCost: '' }
+        : item.practicalInfo;
+      return { ...item, transitInfo: '', ...(practicalInfo ? { practicalInfo } : {}) };
+    });
+
     return { ...day, day: dayNumber, scheduleItems };
   });
 }

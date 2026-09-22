@@ -35,6 +35,18 @@ test('near-location intents remain visits, not departure/arrival or anchor ident
   assert.equal(day.scheduleItems.at(-1).type,'arrival');
 });
 
+test('actual map routes own transit facts even when the model invents KTX text and fare', () => {
+  const request={date:['2026-10-20'],startTime:'10:00',endTime:'11:00',startLocation:'서울역',endLocation:'인천국제공항',anchorSchedules:[]};
+  const modelItems=[
+    {type:'attraction',title:'서울역 출발',location:'서울역',time:'10:00',endTime:'',transitInfo:'KTX로 공항 이동',practicalInfo:{estimatedCost:'KTX 요금 ₩59,800'}},
+    {type:'attraction',title:'공항 도착',location:'인천국제공항',time:'11:00',endTime:'',transitInfo:'KTX 약 1시간',practicalInfo:{estimatedCost:'KTX 요금 ₩59,800'}},
+  ];
+  const [day]=enforcePlannerConstraints([{day:1,scheduleItems:modelItems}],request);
+  assert.deepEqual(day.scheduleItems.map(item=>item.type),['departure','arrival']);
+  assert.deepEqual(day.scheduleItems.map(item=>item.transitInfo),['','']);
+  assert.deepEqual(day.scheduleItems.map(item=>item.practicalInfo?.estimatedCost || ''),['','']);
+});
+
 test('editing a previously normalized request rebuilds daily constraints from the current draft', () => {
   const draft = toPlannerDraft(normalizePlannerRequest(flatRequest));
   draft.date = ['2026-10-01'];

@@ -52,3 +52,74 @@ test('other owners retain access and existing public shares remain guest-readabl
     assert.equal((await request('shared_itineraries/public', { method: 'PATCH', user: 'unaffected', data: { title: 'changed' } })).status, 403);
     assert.equal((await request('users/unaffected', { user: 'other' })).status, 403);
 });
+
+async function publishLinked(id, sourceId, ownerId, user=ownerId) {
+    const base=`projects/${project}/databases/(default)/documents`;
+    return fetch(`${root}:commit`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token(user)}`},body:JSON.stringify({writes:[
+        {update:{name:`${base}/shared_itineraries/${id}`,fields:fields({sourceId,ownerId,itineraryPlan:'test snapshot'})}},
+        {update:{name:`${base}/shared_itinerary_status/${id}`,fields:fields({sourceId,ownerId})}}
+    ]})});
+}
+
+test('open-share access recheck detects source deletion despite cached Firestore content',async()=>{
+    const {initializeApp,deleteApp}=await import('firebase/app');
+    const {getFirestore,connectFirestoreEmulator,doc,getDocFromServer,terminate}=await import('firebase/firestore');
+    const {watchSharedAccess}=await import('../../src/domains/itinerary/services/shared-access-watch.mjs');
+    await seed('itineraries/liveSource',{userId:'liveOwner'});
+    assert.equal((await publishLinked('liveShare','liveSource','liveOwner')).status,200);
+    const app=initializeApp({projectId:project},'share-revocation-test');
+    const db=getFirestore(app);
+    const [hostname,port]=host.split(':');
+    connectFirestoreEmulator(db,hostname,Number(port));
+    let stop,timer;
+    try {
+        const reference=doc(db,'shared_itineraries','liveShare');
+        assert.equal((await getDocFromServer(reference)).exists(),true);
+        let revokedResolve;
+        const revoked=new Promise(resolve=>revokedResolve=resolve);
+        stop=watchSharedAccess(async()=>(await getDocFromServer(reference)).exists(),revokedResolve,{intervalMs:30,timeoutMs:3000});
+        const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('recheck timeout')),10000);});
+        assert.equal((await request('itineraries/liveSource',{method:'DELETE',user:'liveOwner'})).status,200);
+        await Promise.race([revoked,deadline]);
+        await assert.rejects(getDocFromServer(reference),error=>error.code==='permission-denied');
+    } finally {clearTimeout(timer);stop?.();await terminate(db);await deleteApp(app);}
+});
+
+test('linked share content is revoked on source deletion, receipt is public, independent copy survives', async()=>{
+    await seed('itineraries/sourceTrip',{userId:'shareOwner'});
+    await seed('itineraries/recipientCopy',{userId:'recipient',title:'independent copy'});
+    const created=await publishLinked('linkedShare','sourceTrip','shareOwner');
+    assert.equal(created.status,200,await created.text());
+    assert.equal((await request('shared_itineraries/linkedShare')).status,200);
+    assert.equal((await request('shared_itinerary_status/linkedShare')).status,403);
+    assert.equal((await request('itineraries/sourceTrip')).status,403);
+    assert.equal((await request('itineraries/sourceTrip',{method:'DELETE',user:'recipient'})).status,403);
+    assert.equal((await request('itineraries/sourceTrip',{method:'DELETE',user:'shareOwner'})).status,200);
+    for(const user of [undefined,'shareOwner','recipient']) {
+        assert.equal((await request('shared_itineraries/linkedShare',{user})).status,403);
+        const receipt=await request('shared_itinerary_status/linkedShare',{user});
+        assert.equal(receipt.status,200);
+        assert.deepEqual(Object.keys((await receipt.json()).fields).sort(),['ownerId','sourceId']);
+    }
+    assert.equal((await request('itineraries/recipientCopy',{user:'recipient'})).status,200);
+    // Reusing the private ID under another owner must not revive the old snapshot.
+    await seed('itineraries/sourceTrip',{userId:'someoneElse'});
+    assert.equal((await request('shared_itineraries/linkedShare')).status,403);
+});
+
+test('unlinked/forged/missing-source shares and mutable receipts are rejected',async()=>{
+    await seed('itineraries/ownedTrip',{userId:'legitimate'});
+    assert.equal((await publishLinked('forged','ownedTrip','attacker')).status,403);
+    assert.equal((await publishLinked('missing','absentTrip','legitimate')).status,403);
+    assert.equal((await publishLinked('wrongOwner','ownedTrip','legitimate','attacker')).status,403);
+    assert.equal((await request('shared_itineraries/unlinked',{method:'PATCH',user:'legitimate',data:{itineraryPlan:'unlinked'}})).status,403);
+    assert.equal((await request('shared_itineraries/noReceipt',{method:'PATCH',user:'legitimate',data:{sourceId:'ownedTrip',ownerId:'legitimate'}})).status,403);
+    assert.equal((await request('shared_itinerary_status/forgedReceipt',{method:'PATCH',user:'legitimate',data:{sourceId:'ownedTrip',ownerId:'legitimate'}})).status,403);
+    const created=await publishLinked('immutable','ownedTrip','legitimate');
+    assert.equal(created.status,200,await created.text());
+    for(const path of ['shared_itineraries/immutable','shared_itinerary_status/immutable']) {
+        assert.equal((await request(path,{method:'DELETE',user:'legitimate'})).status,403);
+        assert.equal((await request(path,{method:'PATCH',user:'legitimate',data:{sourceId:'other',ownerId:'legitimate'}})).status,403);
+    }
+    assert.equal((await request('shared_itineraries/neverCreated')).status,404);
+});

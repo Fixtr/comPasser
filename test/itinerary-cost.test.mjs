@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  parseCost, summarizeCosts, formatCostSummary, formatCostAmount,
+  parseCost, summarizeCosts, formatCostSummary, formatCostAmount, isTransportEstimatedCost,
 } from '../src/domains/itinerary/services/itinerary-cost.mjs';
 
 const stop = (cost, type = 'attraction') => ({ type, practicalInfo: { estimatedCost: cost } });
@@ -66,6 +66,22 @@ test('values with no usable amount are reported as unparseable, not as zero', ()
   assert.equal(parseCost('업체별 상이'), null);
   assert.equal(parseCost(''), null);
   assert.equal(parseCost(null), null);
+});
+
+test('AI transport fares are not treated as venue costs', () => {
+  assert.equal(isTransportEstimatedCost('KTX 요금 ₩59,800'), true);
+  assert.equal(isTransportEstimatedCost('공항철도 직통열차 ₩9,500'), true);
+  assert.equal(isTransportEstimatedCost('Public transit fare $5'), true);
+  assert.equal(isTransportEstimatedCost('입장료 ₩15,000'), false);
+  assert.equal(isTransportEstimatedCost('기차 박물관 입장료 ₩12,000'), false,
+    '장소 비용임을 밝힌 값까지 교통비로 버리면 안 된다');
+
+  const summary = summarizeCosts([
+    stop('KTX 요금 ₩59,800'),
+    stop('식사 ₩20,000', 'dining'),
+  ]);
+  assert.deepEqual(summary.totals, [{ currency: 'KRW', min: 20000, max: 20000, count: 1 }]);
+  assert.equal(summary.unknownCount, 1);
 });
 
 test('small non-monetary numbers are not mistaken for amounts', () => {

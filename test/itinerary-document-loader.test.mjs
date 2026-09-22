@@ -114,3 +114,25 @@ test('a shared network failure is propagated both for guests and after a denied 
     });
     await assert.rejects(legacy.load('trip', { userId: 'visitor' }), thrown => thrown === error);
 });
+
+test('server denial plus deletion receipt yields no itinerary content', async () => {
+  const reads=[];
+  const load=createItineraryDocumentLoader({async readDocument(collection,id){
+    reads.push(collection);
+    if(collection==='shared_itineraries') throw Object.assign(Error('denied'),{code:'permission-denied'});
+    return {sourceId:'original',ownerId:'owner'};
+  }});
+  assert.deepEqual(await load('share',{sharedOnly:true}),{access:'shared',deleted:true});
+  assert.deepEqual(reads,['shared_itineraries','shared_itinerary_status']);
+});
+
+test('unconfirmed permission denial is an error, never a deletion claim', async () => {
+  const failure=Object.assign(Error('denied'),{code:'permission-denied'});
+  for(const receipt of [null,{}]) {
+    const load=createItineraryDocumentLoader({async readDocument(collection){
+      if(collection==='shared_itineraries') throw failure;
+      return receipt;
+    }});
+    await assert.rejects(load('share'),e=>e===failure);
+  }
+});

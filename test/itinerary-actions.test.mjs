@@ -26,7 +26,8 @@ function fixture({ user = { uid: 'owner' }, save, share } = {}) {
       calls.saves.push(args);
       return save ? save(...args) : 'saved123';
     },
-    createSharedItinerary: async snapshot => {
+    createSharedItinerary: async (snapshot, sourceId) => {
+      assert.equal(sourceId, state.current.source.id);
       calls.shares.push(snapshot);
       return share ? share(snapshot) : 'published123';
     },
@@ -182,7 +183,7 @@ test('공개 확인 중 일정이나 로그인 계정이 바뀌면 동의하더�
   for (const change of ['plan', 'account', 'logout']) {
     const pending = deferred();
     const { state, session, calls, actions } = fixture();
-    state.open(plan());
+    state.open(plan(), { kind: 'private', id: 'mine123' });
     const sharing = actions.getShareLink({ confirmPublicShare: () => pending.promise });
     if (change === 'plan') state.open(plan());
     else session.user = change === 'account' ? { uid: 'other' } : null;
@@ -221,7 +222,7 @@ test('저장·공개 확인·공개 쓰기 오류는 호출자에게 전달하�
     const failure = new Error(`${stage} failed`);
     const fail = async () => { throw failure; };
     const { state, calls, actions } = fixture({ save: stage === 'save' ? fail : undefined, share: stage === 'share' ? fail : undefined });
-    state.open(plan());
+    state.open(plan(), { kind: 'private', id: 'mine123' });
     const before = state.snapshot();
     let notifications = 0;
     const operation = stage === 'save'
@@ -234,4 +235,11 @@ test('저장·공개 확인·공개 쓰기 오류는 호출자에게 전달하�
     assert.equal(notifications, 0, stage);
     if (stage === 'confirm') assert.deepEqual(calls.shares, []);
   }
+});
+
+test('새 초안은 원본 삭제를 추적할 수 있도록 저장 후 공유를 요구한다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { throw Error('must not confirm'); } }), { status: 'save-required' });
+  assert.deepEqual(calls.shares, []);
 });

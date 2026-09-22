@@ -74,6 +74,8 @@ Each `scheduleItems` entry contains `time`, `endTime`, `type`, `title`, `descrip
 
 ## Recommendation place resolution (2026-09-15)
 
+For source-linked sharing/deletion behavior introduced on 2026-09-18, see [shared deletion](SHARED_DELETION_2026-09-18.md).
+
 New AI responses include `placeIntent: { purpose, category, nearLocation }` on each item.
 Ordinary items describe an activity goal, not a business identity. Categories are
 `restaurant`, `cafe`, `park`, `museum`, `tourist_attraction`, `shopping_mall`.

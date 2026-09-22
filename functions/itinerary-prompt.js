@@ -110,7 +110,7 @@ const ITINERARY_SCHEMA = {
                 practicalInfo: {
                   type: "OBJECT",
                   properties: {
-                    estimatedCost: { type: "STRING", description: "Expected cost per person (e.g. 'Approx. ₩15,000', 'Free entrance')" },
+                    estimatedCost: { type: "STRING", description: "Venue/activity spending only (admission, meal, activity), e.g. 'Approx. ₩15,000', 'Free entrance', or 'Cost unknown'. Empty for departure/arrival. Never include transport fares." },
                     operatingHours: { type: "STRING", description: "Empty string; do not invent hours." },
                     localTip: { type: "STRING", description: "Empty string; no actual venue has been selected." },
                     top3Recommendations: {
@@ -274,7 +274,7 @@ ${buildStyleBlock(constraints)}
 The primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.
 Fill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.
 For every single place, you MUST provide a 'practicalInfo' object containing:
-  - estimatedCost: Approximate spending per person in KRW or 'Free'.
+  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.
   - operatingHours and localTip: empty strings; the actual venue is not yet known.
 The first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.
 The last ScheduleItem of each day MUST end at the End Location near that day's End Time.
@@ -285,12 +285,12 @@ ${anchorRule}
 3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.
 4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.
 5. ${langRule}
-6. Transit realism: The 'description' and 'transitInfo' MUST match 100% in terms of transport mode and travel time. NEVER hallucinate physically impossible routes (e.g., taking a local village bus for 74km). Calculate logical transport modes and travel times based on actual geography in Korea.
+6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.
 7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.
 8. Do not generate movement inside a venue as a separate stop.
 9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.
-10. Time Logic Rule (Rule 4): The total 'duration' value for any schedule item MUST be greater than or equal to the transit time stated in 'transitInfo'. You MUST NOT create a time paradox where the transit travel time EXCEEDS the total allocated duration for the item. (e.g., if transit is 40 minutes, duration must be at least 40 minutes).
-11. Strict Cost Rule: 'estimatedCost' MUST have a concrete value or range (e.g., "₩10,000 - ₩15,000" or "Free"). Do NOT use "0 KRW" or leave it empty, and do NOT specify exact base fares for public transit (use "Public transit fare" instead).
+10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.
+11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, "Free", or "Cost unknown"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.
 12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.
 13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).
 14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.
@@ -298,7 +298,7 @@ ${anchorRule}
 16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism ("food"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate "lunch" stop) after a brunch already covered that time slot.
 17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra "moving to end location" stop after it.
 18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.
-19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. "Moving to X Station", "Heading to the airport", "Transfer preparation"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself, even if reaching it requires multiple transfers — describe that whole multi-leg journey in the transitInfo of the End Location item, never as separate fake stops.
+19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. "Moving to X Station", "Heading to the airport", "Transfer preparation"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.
   `;
 }
 

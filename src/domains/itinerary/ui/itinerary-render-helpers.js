@@ -119,7 +119,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
     // 실제 경로 데이터가 도착한 구간은 Gemini 추정치(안내문/이동시간)를 감춤
     const destCard = shadowRoot.querySelector(`.schedule-card[data-index="${destIndex + 1}"]`);
     if (destCard) {
-      destCard.querySelectorAll('.gemini-transit, .gemini-transit-meta').forEach(node => {
+      destCard.querySelectorAll('.gemini-transit, .gemini-transit-meta, .gemini-transport-cost').forEach(node => {
         node.style.display = 'none';
       });
     }
@@ -191,4 +191,3 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
     el.classList.remove('hidden');
   });
 }
-
