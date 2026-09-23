@@ -55,12 +55,16 @@ test('every emulator test checks isolation before loading SDKs', () => {
   for (const key of ['auth', 'firestore', 'hub', 'logging']) assert.equal(config.emulators[key].host, '127.0.0.1');
 });
 
-test('CI is read-only, credential-free and never deploys', () => {
+test('CI stays read-only and deploys main only after every check passes', () => {
   const workflow = read('.github/workflows/checks.yml');
   assert.match(workflow, /contents: read/);
-  assert.doesNotMatch(workflow, /pull_request_target|secrets\.|run:.*(?:deploy|git push)/);
+  assert.doesNotMatch(workflow, /pull_request_target|git push/);
   assert.match(workflow, /npm ci --prefix functions/);
   for (const script of ['npm test', 'npm run build', 'npm run test:browser', 'npm run test:emulator']) assert.ok(workflow.includes(script));
+  assert.match(workflow, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+  assert.match(workflow, /needs: \[unit-build, browser, emulator\]/);
+  assert.match(workflow, /secrets\.CLOUDFLARE_PAGES_DEPLOY_HOOK/);
+  assert.match(workflow, /curl .*--request POST/);
   for (const [, ref] of workflow.matchAll(/uses: ([^\s]+)/g)) assert.match(ref, /^actions\/[^@]+@[a-f0-9]{40}$/);
 });
 

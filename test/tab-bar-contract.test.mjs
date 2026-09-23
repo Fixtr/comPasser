@@ -60,6 +60,9 @@ test('본문이 탭바 뒤로 숨지 않는다', () => {
   // 마지막 버튼이 막대 뒤에 있으면 사용자는 그 버튼을 영영 못 누른다.
   const pad = tabCss.split(/\n(?=[.#@:a-zA-Z])/).find(b => /has-tab-bar/.test(b) && /padding-bottom/.test(b));
   assert.ok(pad, '탭바가 있는 화면에 아래 여백을 주는 규칙이 없다');
+  const preferencePad = tabCss.split(/\n(?=[.#@:a-zA-Z])/)
+    .find(b => /has-tab-bar\s+#page-preference/.test(b) && /padding-bottom/.test(b));
+  assert.ok(preferencePad, 'content 밖의 선호 화면이 탭바 뒤에 숨는다');
 });
 
 test('탭바는 마크업에 있고 JS 가 죽어도 자리를 안 차지한다', () => {
