@@ -11,8 +11,9 @@ test.after(() => app.delete());
 
 test('real Admin SDK transactions and Auth emulator: failure checkpoint, retry, receipt after Auth deletion', async () => {
     const uid = 'integration-owner';
-    let now = Date.now(); let authOffline = true;
+    let now; let authOffline = true;
     const user = await auth.createUser({ uid });
+    now = Math.max(Date.now(), Date.parse(user.metadata.creationTime));
     await db.collection('users').doc(uid).set({ phoneNumber: 'fixture-only' });
     await db.collection('itineraries').doc('integration-trip').set({ userId: uid });
     await db.collection('itineraries').doc('integration-other').set({ userId: 'other' });
