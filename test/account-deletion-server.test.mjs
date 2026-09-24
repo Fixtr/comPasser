@@ -156,8 +156,30 @@ test('a different Auth generation with reused UID is blocked without deleting it
     const count = app.state.deletes.length;
     await app.service.retryDue();
     assert.equal(app.job().state, 'blocked'); assert.equal(app.state.deletes.length, count);
+    assert.deepEqual(app.state.logs.filter(([, data]) => data?.event === 'account_deletion_attention').map(([, data]) => data.reason), ['blocked']);
     assert.equal(app.docs.has('itineraries/new'), true);
     await assert.rejects(app.service.assertNotDeleting('owner'), { code: 'failed-precondition' });
+});
+
+test('반복 실패나 오래된 pending 작업은 개인정보 없이 한 번만 운영 주의 로그를 남긴다', async () => {
+    const failed = fixture();
+    failed.state.beforeAuth = () => { throw new Error('Auth offline'); };
+    await failed.service.requestDeletion(failed.request);
+    for (const delay of [60_001, 120_001, 240_001]) {
+        failed.state.time += delay;
+        await failed.service.retryDue();
+    }
+    const retryAlerts = failed.state.logs.filter(([, data]) => data?.event === 'account_deletion_attention');
+    assert.deepEqual(retryAlerts.map(([, data]) => data.reason), ['retries']);
+    assert.equal(JSON.stringify(retryAlerts).includes('owner'), false);
+    assert.equal(JSON.stringify(retryAlerts).includes('a'.repeat(64)), false);
+
+    const overdue = fixture({ trips: 5, maxBatches: 1 });
+    await overdue.service.requestDeletion(overdue.request);
+    overdue.state.time += 60 * 60 * 1000 + 1;
+    await overdue.service.retryDue();
+    await overdue.service.retryDue();
+    assert.deepEqual(overdue.state.logs.filter(([, data]) => data?.event === 'account_deletion_attention').map(([, data]) => data.reason), ['overdue']);
 });
 
 test('completed old job does not block an explicitly confirmed fresh account generation', async () => {

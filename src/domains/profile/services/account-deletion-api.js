@@ -9,6 +9,8 @@ async function call(name, data) {
 export const accountDeletionClient = createAccountDeletionClient({
     getCurrentUser,
     storage: {
+        get length() { return localStorage.length; },
+        key: index => localStorage.key(index),
         getItem: key => localStorage.getItem(key),
         setItem: (key, value) => localStorage.setItem(key, value),
         removeItem: key => localStorage.removeItem(key),

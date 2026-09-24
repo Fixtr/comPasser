@@ -26,12 +26,10 @@ async (page) => {
   await page.locator('profile-view #field-birthday .btn-cancel').click();
   page.smokeResults.push('PASS profile save failure/message/input preservation');
 
-  await page.locator('profile-view #field-phoneNumber .btn-edit-inline').click();
-  await page.locator('profile-view #input-phoneNumber').fill('01012345678');
-  await page.locator('profile-view #field-phoneNumber .btn-save').click();
-  await page.locator('profile-view #field-phoneNumber .verified-badge').waitFor({state:'visible'});
-  check(await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).users.smokeOwner.isVerified)===true, 'Existing verification flag must be saved');
-  page.smokeResults.push('PASS PortOne callback/phone save/verified badge (certification SDK is fake)');
+  check(await page.locator('profile-view #field-phoneNumber').count()===0, 'Retired phone field must not be displayed');
+  check(await page.locator('profile-view .verified-badge').count()===0, 'Retired verification badge must not be displayed');
+  check(await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).users.smokeOwner.phoneNumber)==='01000000000', 'Legacy phone data must not be deleted');
+  page.smokeResults.push('PASS retired phone/verification UI with legacy data retained');
 
   await page.getByRole('button',{name:'내 여행 일정',exact:true}).click();
   await page.locator('profile-view .trip-card').waitFor({state:'visible'});
@@ -75,7 +73,8 @@ async (page) => {
   page.smokeResults.push('PASS server deletion outage/pending/duplicate guard/reload receipt recovery');
   await page.evaluate(() => window.__smoke.finishServerDeletion());
   await page.reload();
-  await page.waitForURL('**/login');
+  await page.waitForURL('**/account-deletion-status');
+  await page.locator('account-deletion-status-view #statuses').filter({hasText:'완료'}).waitFor({state:'visible'});
   check(await page.evaluate(() => !JSON.parse(sessionStorage.getItem('__smoke_db')).users.smokeOwner), 'Server completion removes profile');
   page.smokeResults.push('PASS server retry completes before client logout');
   check(page.smokeErrors.length===0, 'Unexpected page errors: '+page.smokeErrors.join(','));

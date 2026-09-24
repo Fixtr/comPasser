@@ -52,11 +52,11 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
 }
 
 test('기본 프로필은 호출마다 새 객체이며 문서가 없는 사용자도 기본값으로 조회한다', async () => {
-  const defaults = { phoneNumber: '', birthday: '', isVerified: false };
+  const defaults = { birthday: '' };
   const first = createEmptyProfile();
   assert.deepEqual(first, defaults);
   assert.notEqual(first, createEmptyProfile());
-  first.phoneNumber = '변경';
+  first.birthday = '변경';
   assert.deepEqual(createEmptyProfile(), defaults);
 
   const { service, calls } = fixture();
@@ -65,7 +65,7 @@ test('기본 프로필은 호출마다 새 객체이며 문서가 없는 사용�
   assert.deepEqual(calls.writes, []);
 });
 
-test('저장된 프로필은 누락된 필드만 기본값으로 채우고 원본 문서를 변경하지 않는다', async () => {
+test('저장된 프로필은 이전 휴대전화·인증 값을 노출하지 않고 원본 문서를 변경하지 않는다', async () => {
   const data = { phoneNumber: '01012345678', isVerified: true, customSetting: 'keep' };
   const { service } = fixture({ data });
 
@@ -73,7 +73,7 @@ test('저장된 프로필은 누락된 필드만 기본값으로 채우고 원�
 
   assert.deepEqual(result, {
     userId: 'owner',
-    profile: { phoneNumber: '01012345678', birthday: '', isVerified: true, customSetting: 'keep' },
+    profile: { birthday: '' },
   });
   assert.notEqual(result.profile, data);
   assert.equal(Object.hasOwn(data, 'birthday'), false);
@@ -83,7 +83,7 @@ test('로그인하지 않았으면 조회·저장·탈퇴 모두 데이터나 �
   const { service, calls } = fixture({ user: null });
 
   assert.equal(await service.loadProfile(), null);
-  assert.equal(await service.saveField('phoneNumber', '01012345678'), null);
+  assert.equal(await service.saveField('birthday', '2000-01-02'), null);
   assert.equal(await service.deleteAccount(), null);
   assert.deepEqual(calls, { loads: 0, reads: [], writes: [], mutations: [], notifications: [] });
 });
@@ -106,12 +106,9 @@ test('조회 완료 전에 계정이 바뀌거나 로그아웃하면 이전 계�
   }
 });
 
-test('연락처·생일 저장은 값을 정리해서 해당 필드만 병합하고 인증 업데이트를 유지한다', async () => {
+test('생일 저장은 값만 정리해 병합하고 이전 휴대전화·인증 값은 건드리지 않는다', async () => {
   const { service, calls } = fixture();
 
-  assert.deepEqual(await service.saveField('phoneNumber', ' 01012345678 ', { isVerifiedUpdate: true }), {
-    userId: 'owner', changes: { phoneNumber: '01012345678', isVerified: true },
-  });
   assert.deepEqual(await service.saveField('birthday', ' 2000-01-02 '), {
     userId: 'owner', changes: { birthday: '2000-01-02' },
   });
@@ -119,7 +116,6 @@ test('연락처·생일 저장은 값을 정리해서 해당 필드만 병합하
     userId: 'owner', changes: { birthday: '' },
   });
   assert.deepEqual(calls.writes, [
-    { ref: { collection: 'users', id: 'owner' }, changes: { phoneNumber: '01012345678', isVerified: true }, options: { merge: true } },
     { ref: { collection: 'users', id: 'owner' }, changes: { birthday: '2000-01-02' }, options: { merge: true } },
     { ref: { collection: 'users', id: 'owner' }, changes: { birthday: '' }, options: { merge: true } },
   ]);
@@ -128,7 +124,7 @@ test('연락처·생일 저장은 값을 정리해서 해당 필드만 병합하
 test('허용하지 않은 프로필 필드는 저장하지 않는다', async () => {
   const { service, calls } = fixture();
 
-  for (const field of ['userId', 'isVerified', '__proto__', '']) {
+  for (const field of ['userId', 'phoneNumber', 'isVerified', '__proto__', '']) {
     await assert.rejects(service.saveField(field, 'unexpected'));
   }
 
@@ -182,7 +178,7 @@ test('조회·저장 오류를 성공으로 처리하지 않는다', async () =>
   for (const [operation, stage] of [['loadProfile','load'],['loadProfile','read'],['saveField','load'],['saveField','write']]) {
     const failure = new Error('offline');
     const { service } = fixture({ hooks: { [stage]: () => { throw failure; } } });
-    await assert.rejects(service[operation]('phoneNumber', '01012345678'), error => error === failure);
+    await assert.rejects(service[operation]('birthday', '2000-01-02'), error => error === failure);
   }
 });
 test('재로그인 필요·인증 실패는 접수 전에 멈춘다', async () => {

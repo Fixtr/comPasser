@@ -1,6 +1,5 @@
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
-import { loadPortOne } from '../../../utils/external-scripts.js';
 import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itinerary/services/firestore-service.js';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
@@ -32,8 +31,7 @@ class ProfileView extends HTMLElement {
             requireRecentLogin: requireRecentLoginForDeletion,
             requestAccountDeletion: userId => accountDeletionClient.request(userId),
         });
-        this.editingField = null; // 'phoneNumber' or 'birthday'
-        this.showCertificationInput = false;
+        this.editingField = null;
     }
 
     disconnectedCallback() {
@@ -99,7 +97,7 @@ class ProfileView extends HTMLElement {
         clearTimeout(this._deletionTimer);
         const watch = user ? { user } : null;
         this._deletionWatch = watch;
-        if (!restart) this.deletionState = null;
+        if (!restart) this.deletionState = user ? 'checking' : null;
         this.renderDeletionStatus();
         if (!watch) return;
         const stillCurrent = () => this._deletionWatch === watch && getCurrentUser()?.uid === user.uid
@@ -118,7 +116,7 @@ class ProfileView extends HTMLElement {
             } catch {
                 if (!stillCurrent()) return;
                 // Missing deployment/offline is not proof of either deletion or preservation.
-                if (accountDeletionClient.hasReceipt(user)) this.deletionState = 'unknown';
+                this.deletionState = accountDeletionClient.hasReceipt(user) ? 'unknown' : null;
                 this.renderDeletionStatus();
             }
             if (stillCurrent()) {
@@ -130,10 +128,13 @@ class ProfileView extends HTMLElement {
 
     renderDeletionStatus() {
         const status = this.shadowRoot.getElementById('account-deletion-status');
-        const key = { pending: 'accountDeletionPending', blocked: 'accountDeletionBlocked', unknown: 'accountDeletionUnknown', completed: 'accountDeletionCompleted' }[this.deletionState];
-        if (status) status.textContent = key ? t(key) : '';
+        const key = { checking: 'accountDeletionChecking', pending: 'accountDeletionPending', blocked: 'accountDeletionBlocked', unknown: 'accountDeletionUnknown', completed: 'accountDeletionCompleted' }[this.deletionState];
+        if (status) {
+            status.textContent = key ? t(key) : '';
+            status.dataset.state = this.deletionState || '';
+        }
         const button = this.shadowRoot.getElementById('btn-delete-account-trigger');
-        if (button) button.disabled = ['pending', 'blocked', 'completed'].includes(this.deletionState);
+        if (button) button.disabled = ['checking', 'pending', 'unknown', 'blocked', 'completed'].includes(this.deletionState);
     }
 
     async applyDeletionStatus(status, userId, identityCreatedAt = getCurrentUser()?.metadata?.creationTime) {
@@ -146,8 +147,7 @@ class ProfileView extends HTMLElement {
         try {
             window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id: null, userId } }));
             await logout();
-            accountDeletionClient.forget(userId);
-            if (!getCurrentUser()) window.location.href = '/login';
+            if (!getCurrentUser()) window.location.href = '/account-deletion-status';
         } catch (error) {
             console.error('Completed deletion sign-out failed:', error);
             if (getCurrentUser()?.uid === userId) showErrorToast(t('accountDeletionSignOutFailed'));
@@ -176,42 +176,15 @@ class ProfileView extends HTMLElement {
 
     updateExtendedProfileUI() {
         this.renderField('birthday', '생년월일', this.userData.birthday, 'date');
-        this.renderField('phoneNumber', '휴대전화', this.userData.phoneNumber, 'tel', this.userData.isVerified);
     }
 
-    renderField(field, label, value, inputType, isVerified = false) {
+    renderField(field, label, value, inputType) {
         const container = this.shadowRoot.getElementById(`field-${field}`);
         if (!container) return;
 
         const isEditing = this.editingField === field;
         const displayValue = value || '설정되지 않음';
         const hasValue = !!value;
-
-        // Special Case: PortOne Certification Flow for Phone Number
-        if (field === 'phoneNumber' && this.showCertificationInput) {
-            container.innerHTML = `
-                <div class="edit-mode-container certification-success">
-                    <div class="cert-msg">${icons.check}<span data-i18n="phoneVerifiedHint">${t('phoneVerifiedHint')}</span></div>
-                    <input type="tel" id="input-phoneNumber" class="inline-input" value="${value || ''}" data-i18n-placeholder="phoneInputPlaceholder" placeholder="${t('phoneInputPlaceholder')}">
-                    <div class="edit-actions">
-                        <button class="btn-save" data-field="phoneNumber" data-i18n="saveBtn">${t('saveBtn')}</button>
-                        <button class="btn-cancel" data-field="phoneNumber" data-i18n="cancelBtn">${t('cancelBtn')}</button>
-                    </div>
-                </div>
-            `;
-            const input = container.querySelector('input');
-            input.focus();
-            input.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/[^0-9-]/g, '');
-            });
-
-            container.querySelector('.btn-save').onclick = () => this.handleSave('phoneNumber', true);
-            container.querySelector('.btn-cancel').onclick = () => {
-                this.showCertificationInput = false;
-                this.updateExtendedProfileUI();
-            };
-            return;
-        }
 
         if (isEditing) {
             container.innerHTML = `
@@ -225,60 +198,17 @@ class ProfileView extends HTMLElement {
             `;
             const input = container.querySelector('input');
             input.focus();
-            if (inputType === 'tel') {
-                input.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/[^0-9-]/g, '');
-                });
-            }
-
             container.querySelector('.btn-save').onclick = () => this.handleSave(field);
             container.querySelector('.btn-cancel').onclick = () => this.handleCancel();
         } else {
-            const isPhone = field === 'phoneNumber';
-            const badge = (isPhone && isVerified) ? `<span class="verified-badge" data-i18n="verifiedBadge">${t('verifiedBadge')}</span>` : '';
-            const buttonText = isPhone ? '본인인증' : '수정';
-
             container.innerHTML = `
                 <div class="value-wrapper">
                     <span class="value-text ${!hasValue ? 'not-set' : ''}">${displayValue}</span>
-                    ${badge}
                 </div>
-                <button class="btn-edit-inline" data-field="${field}">${buttonText}</button>
+                <button class="btn-edit-inline" data-field="${field}" data-i18n="editFieldBtn">${t('editFieldBtn')}</button>
             `;
-
-            if (isPhone) {
-                container.querySelector('.btn-edit-inline').onclick = () => this.handleCertification();
-            } else {
-                container.querySelector('.btn-edit-inline').onclick = () => this.handleEdit(field);
-            }
+            container.querySelector('.btn-edit-inline').onclick = () => this.handleEdit(field);
         }
-    }
-
-    async handleCertification() {
-        // 본인인증을 시작한 지금 불러온다. 실패해도 이 기능 하나만 막히고
-        // 앱 전체는 살아 있다.
-        let IMP;
-        try {
-            IMP = await loadPortOne();
-        } catch (e) {
-            showErrorToast("본인인증 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-            return;
-        }
-
-        IMP.init('imp66802662'); // TODO: 실제 식별코드로 변경 (현재는 테스트 가맹점 코드)
-
-        IMP.certification({
-            pg: 'inicis_unified',
-            merchant_uid: 'cert_' + new Date().getTime(),
-            popup: true
-        }, (rsp) => {
-            if (rsp.success) {
-                this.showCertificationInput = true;
-                this.updateExtendedProfileUI();
-            } else {
-                showErrorToast("본인인증에 실패했습니다: " + rsp.error_msg);
-            }
-        });
     }
 
     handleEdit(field) {
@@ -291,7 +221,7 @@ class ProfileView extends HTMLElement {
         this.updateExtendedProfileUI();
     }
 
-    async handleSave(field, isVerifiedUpdate = false) {
+    async handleSave(field) {
         const input = this.shadowRoot.getElementById(`input-${field}`);
         const newValue = input.value;
         const user = getCurrentUser();
@@ -299,12 +229,9 @@ class ProfileView extends HTMLElement {
         if (!user) return;
 
         try {
-            const result = await this.profileService.saveField(field, newValue, { isVerifiedUpdate });
+            const result = await this.profileService.saveField(field, newValue);
             if (!result || result.userId !== getCurrentUser()?.uid) return;
             this.userData = { ...this.userData, ...result.changes };
-            if (result.changes.isVerified) {
-                this.showCertificationInput = false;
-            }
 
             this.editingField = null;
             this.updateExtendedProfileUI();
@@ -690,12 +617,6 @@ class ProfileView extends HTMLElement {
                                     <span id="user-email" class="value-text" data-i18n="loadingShort">${t('loadingShort')}</span>
                                 </div>
                             </div>
-                            <div class="list-item">
-                                <div class="list-label" data-i18n="labelPhone">${t('labelPhone')}</div>
-                                <div id="field-phoneNumber" class="list-value">
-                                    <span class="not-set" data-i18n="loadingShort">${t('loadingShort')}</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -728,8 +649,8 @@ class ProfileView extends HTMLElement {
                                 <p data-i18n="deleteAccountDesc">${t('deleteAccountDesc')}</p>
                             </div>
                             <button id="btn-delete-account-trigger" class="btn-danger-trigger" data-i18n="deleteAccountBtn">${t('deleteAccountBtn')}</button>
+                            <p id="account-deletion-status" role="status" aria-live="polite"></p>
                         </div>
-                        <p id="account-deletion-status" role="status" aria-live="polite"></p>
                     </div>
                 </main>
             </div>

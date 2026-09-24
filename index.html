@@ -61,8 +61,8 @@
     gtag('config', '%VITE_GA_MEASUREMENT_ID%');
   </script>
 
-  <!-- html2canvas · Kakao · PortOne · 애드센스는 여기서 걷어냈다.
-       넷 다 첫 화면에는 쓰이지 않는다 — 이미지 저장·카카오 로그인·본인인증을
+  <!-- html2canvas · Kakao · 애드센스는 여기서 걷어냈다.
+       셋 다 첫 화면에는 쓰이지 않는다 — 이미지 저장·카카오 로그인을
        누를 때, 광고는 결과 화면에 광고 자리가 생길 때 필요하다.
        src/utils/external-scripts.js 가 그 순간에 불러온다.
 
@@ -145,6 +145,10 @@
     <!-- Profile & Settings Page -->
     <div id="page-profile" class="page-container" style="display: none;">
       <profile-view id="profile-view"></profile-view>
+    </div>
+
+    <div id="page-account-deletion-status" class="page-container" style="display: none;">
+      <account-deletion-status-view id="account-deletion-status-view"></account-deletion-status-view>
     </div>
 
     <!-- Preference Selection Page (Theme & Budget) -->

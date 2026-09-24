@@ -7,13 +7,13 @@ import { stripComments } from './helpers/style-contract.mjs';
 /**
  * 외부 SDK 를 언제 불러오는가.
  *
- * index.html 은 html2canvas·Kakao·PortOne 을 async 없이 동기 <script> 로
- * 걸고 있었다. 브라우저는 세 CDN 의 응답을 다 받을 때까지 문서 파싱을
+ * index.html 은 html2canvas·Kakao 를 async 없이 동기 <script> 로
+ * 걸고 있었다. 브라우저는 CDN 의 응답을 다 받을 때까지 문서 파싱을
  * 멈춘다. 네트워크가 느리거나 CDN 이 막힌 곳에서는 앱이 아예 뜨지 않고,
  * 오프라인에서는 sw.js 가 외부 요청을 캐시하지 않아 매번 실패한다.
  *
- * 셋 다 첫 화면에는 필요 없다 — 이미지 저장을 누를 때, 카카오 로그인을
- * 누를 때, 본인인증을 시작할 때 필요하다.
+ * 둘 다 첫 화면에는 필요 없다 — 이미지 저장이나 카카오 로그인을
+ * 누를 때 필요하다.
  */
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -61,7 +61,6 @@ test('호출부가 전역 대신 로더를 기다린다', () => {
   const cases = [
     ['../src/domains/auth/ui/login-view.js', /loadKakaoSdk/],
     ['../src/domains/itinerary/ui/itinerary-share-delivery.js', /loadKakaoSdk/],
-    ['../src/domains/profile/ui/profile-view.js', /loadPortOne/],
   ];
   for (const [file, re] of cases) {
     assert.match(src(file), re, `${file} 이 로더를 쓰지 않는다`);

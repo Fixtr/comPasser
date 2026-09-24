@@ -178,9 +178,8 @@ async (page) => {
     const requestUrl = route.request().url();
     const pathname = requestUrl.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
     if (!requestUrl.startsWith(origin+'/')) {
-      // No analytics, real auth, AI, Maps, Kakao, or PortOne requests leave this harness.
+      // No analytics, real auth, AI, Maps, or Kakao requests leave this harness.
       if(pathname.includes('kakao.min.js')) return route.fulfill({contentType:'text/javascript',body:`window.Kakao={isInitialized:()=>true,Share:{sendDefault:payload=>window.__smoke.kakao.push(payload)}};`});
-      if(pathname.endsWith('iamport.js')) return route.fulfill({contentType:'text/javascript',body:`window.IMP={init:()=>{},certification:(_options,cb)=>cb({success:true})};`});
       if(route.request().resourceType()==='script') return route.fulfill({contentType:'text/javascript',body:''});
       if(route.request().resourceType()==='image') return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'});
       return route.fulfill({status:200,body:''});

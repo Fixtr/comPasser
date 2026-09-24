@@ -4,6 +4,8 @@ const RECEIPT = /^[a-f0-9]{64}$/;
 const JOBS = 'account_deletions';
 const RECEIPTS = 'account_deletion_receipts';
 const LEASE_MS = 10 * 60 * 1000; // Longer than either deployed function's 60s lifetime.
+const ATTENTION_AGE_MS = 60 * 60 * 1000;
+const ATTENTION_ATTEMPTS = 3;
 
 function failure(code, message, details) {
     return Object.assign(new Error(message), { code, details });
@@ -108,11 +110,14 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 return next;
             });
         }
+        async function blockIdentity() {
+            const blocked = await change({ state: 'blocked', lastErrorCode: 'identity-changed', leaseOwner: null, leaseUntil: 0 });
+            if (blocked) log('Account deletion needs operator attention', { event: 'account_deletion_attention', reason: 'blocked', stage: blocked.stage });
+        }
         try {
             const user = await userOrNull(uid);
             if (user && user.metadata.creationTime !== claimed.identityCreatedAt) {
-                await change({ state: 'blocked', lastErrorCode: 'identity-changed', leaseOwner: null, leaseUntil: 0 });
-                log('Account deletion needs identity review', { code: 'identity-changed' });
+                await blockIdentity();
                 return;
             }
             let job = claimed;
@@ -132,8 +137,7 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 if (!owns(current)) return;
                 const identity = await userOrNull(uid);
                 if (identity && identity.metadata.creationTime !== claimed.identityCreatedAt) {
-                    await change({ state: 'blocked', lastErrorCode: 'identity-changed', leaseOwner: null, leaseUntil: 0 });
-                    log('Account deletion needs identity review', { code: 'identity-changed' });
+                    await blockIdentity();
                     return;
                 }
                 try { await auth.deleteUser(uid); }
@@ -141,12 +145,18 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 await change({ state: 'completed', stage: 'done', completedAt: now(), leaseOwner: null, leaseUntil: 0, lastErrorCode: null });
                 return;
             }
-            if (job) await change({ nextAttemptAt: now(), leaseOwner: null, leaseUntil: 0 });
+            if (job) {
+                const attention = now() - job.createdAt >= ATTENTION_AGE_MS && !job.attentionLoggedAt;
+                const updated = await change({ nextAttemptAt: now(), leaseOwner: null, leaseUntil: 0, ...(attention ? { attentionLoggedAt: now() } : {}) });
+                if (updated && attention) log('Account deletion needs operator attention', { event: 'account_deletion_attention', reason: 'overdue', stage: updated.stage });
+            }
         } catch (error) {
             // A failed Auth call may already have succeeded remotely. Next run treats not-found as success.
             const delay = Math.min(3_600_000, 60_000 * 2 ** Math.min(claimed.attempts - 1, 6));
-            await change({ nextAttemptAt: now() + delay, lastErrorCode: 'retry-required', leaseOwner: null, leaseUntil: 0 });
+            const attention = !claimed.attentionLoggedAt && (claimed.attempts >= ATTENTION_ATTEMPTS || now() - claimed.createdAt >= ATTENTION_AGE_MS);
+            const updated = await change({ nextAttemptAt: now() + delay, lastErrorCode: 'retry-required', leaseOwner: null, leaseUntil: 0, ...(attention ? { attentionLoggedAt: now() } : {}) });
             log('Account deletion will retry', { code: 'retry-required', attempt: claimed.attempts });
+            if (updated && attention) log('Account deletion needs operator attention', { event: 'account_deletion_attention', reason: 'retries', stage: updated.stage });
         }
     }
     async function retryDue() {

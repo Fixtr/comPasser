@@ -1,15 +1,14 @@
 /**
  * 외부 SDK 를 "필요해진 순간"에만 불러온다.
  *
- * 예전에는 index.html <head> 에 html2canvas·Kakao·PortOne 을 async/defer
- * 없이 동기 <script> 로 걸어 두었다. 브라우저는 세 CDN 의 응답을 다 받을
+ * 예전에는 index.html <head> 에 html2canvas·Kakao 를 async/defer
+ * 없이 동기 <script> 로 걸어 두었다. 브라우저는 CDN 의 응답을 다 받을
  * 때까지 문서 파싱을 멈추므로, 네트워크가 느리거나 CDN 이 막힌 환경에서는
  * 앱이 아예 뜨지 않았다. 게다가 sw.js 는 외부 요청을 캐시하지 않기 때문에
  * 오프라인에서는 매번 실패한다.
  *
- * 셋 다 첫 화면에는 쓰이지 않는다. 로그인 버튼을 누를 때 Kakao 를,
- * 본인인증을 시작할 때 PortOne 을 불러오면 첫 화면은 두 CDN 과 무관하게
- * 뜬다. 로드에 실패해도 그 기능 하나만 막히고 앱 전체는 살아 있다.
+ * Kakao 는 로그인 버튼을 누를 때만 불러온다. 로드에 실패해도 그 기능
+ * 하나만 막히고 앱 전체는 살아 있다.
  */
 
 /** src 하나당 Promise 를 한 번만 만들어 재사용한다(중복 로드 방지). */
@@ -55,7 +54,6 @@ export function loadScriptOnce(src, options = {}) {
 }
 
 const KAKAO_SDK_URL = 'https://t1.kakaocdn.net/kakao_js_sdk/1.43.1/kakao.min.js';
-const PORTONE_SDK_URL = 'https://cdn.iamport.kr/v1/iamport.js';
 
 /**
  * Kakao SDK 를 불러오고 초기화까지 끝낸 뒤 window.Kakao 를 돌려준다.
@@ -78,16 +76,6 @@ export async function loadKakaoSdk() {
     Kakao.init(appKey);
   }
   return Kakao;
-}
-
-/**
- * PortOne(iamport) SDK 를 불러와 window.IMP 를 돌려준다.
- * @returns {Promise<any>}
- */
-export async function loadPortOne() {
-  await loadScriptOnce(PORTONE_SDK_URL);
-  if (!window.IMP) throw new Error('본인인증 모듈을 불러오지 못했습니다.');
-  return window.IMP;
 }
 
 /**

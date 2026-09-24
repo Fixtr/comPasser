@@ -146,6 +146,9 @@ export default class LoginView extends HTMLElement {
       <div class="join-link">
         <span data-i18n="loginNoAccount">${t('loginNoAccount')}</span> <a href="#" id="go-to-join" data-i18n="loginGoToJoin">${t('loginGoToJoin')}</a>
       </div>
+      <div class="join-link">
+        <a href="/account-deletion-status" data-i18n="accountDeletionStatusLink">${t('accountDeletionStatusLink')}</a>
+      </div>
     `;
   }
 

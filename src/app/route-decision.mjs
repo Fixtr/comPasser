@@ -48,7 +48,7 @@ export function getSafeReturnPath(value) {
 export function isPublicPath(path) {
   if (path == null) return true;
   const p = String(path);
-  return isHomePath(p) || p === '/login' || p === '/join' || p.startsWith('/verify')
+  return isHomePath(p) || p === '/login' || p === '/join' || p === '/account-deletion-status' || p.startsWith('/verify')
     || (/^\/share\//.test(p) && getSafeReturnPath(p) !== null);
 }
 

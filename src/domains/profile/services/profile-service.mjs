@@ -1,5 +1,5 @@
 export function createEmptyProfile() {
-    return { phoneNumber: '', birthday: '', isVerified: false };
+    return { birthday: '' };
 }
 
 /**
@@ -31,19 +31,17 @@ export function createProfileService({
             if (!isCurrentUser(userId)) return null;
             return {
                 userId,
-                profile: { ...createEmptyProfile(), ...(snapshot.exists() ? snapshot.data() : {}) },
+                profile: { birthday: snapshot.exists() ? (snapshot.data().birthday ?? '') : '' },
             };
         },
 
-        async saveField(field, value, { isVerifiedUpdate = false } = {}) {
+        async saveField(field, value) {
             const userId = getCurrentUser()?.uid;
             if (!userId) return null;
-            if (!['phoneNumber', 'birthday'].includes(field)) {
+            if (field !== 'birthday') {
                 throw new Error('지원하지 않는 프로필 항목입니다.');
             }
             const changes = { [field]: String(value ?? '').trim() };
-            // 본인인증 판정 방식은 기존대로 둔다. 여기서는 문서 저장만 담당한다.
-            if (isVerifiedUpdate) changes.isVerified = true;
             const { db, doc, setDoc } = await loadFirestore();
             if (!isCurrentUser(userId)) return null;
             await setDoc(doc(db, 'users', userId), changes, { merge: true });

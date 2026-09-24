@@ -2,14 +2,29 @@
 // ability to check completion after the Auth account has already been deleted.
 export function createAccountDeletionClient({ getCurrentUser, storage, randomReceipt, submit, getStatus }) {
     const key = uid => `accountDeletionReceipt:${uid}`;
+    const validReceipt = value => /^[a-f0-9]{64}$/.test(value);
     const identity = user => user.metadata?.creationTime || '';
     function read(user) {
         const raw = storage.getItem(key(user.uid));
         if (!raw) return null;
         try {
             const record = JSON.parse(raw);
-            return record.identity === identity(user) && /^[a-f0-9]{64}$/.test(record.receipt) ? record : null;
+            return record.identity === identity(user) && validReceipt(record.receipt) ? record : null;
         } catch { return null; }
+    }
+    function storedReceipts() {
+        const receipts = new Set();
+        try {
+            for (let index = 0; index < storage.length; index++) {
+                const name = storage.key(index);
+                if (!name?.startsWith('accountDeletionReceipt:')) continue;
+                try {
+                    const record = JSON.parse(storage.getItem(name));
+                    if (typeof record.identity === 'string' && validReceipt(record.receipt)) receipts.add(record.receipt);
+                } catch { /* Ignore malformed local records. */ }
+            }
+        } catch { /* Storage can be unavailable in private browsing. */ }
+        return [...receipts];
     }
     function remember(user, receipt) {
         storage.setItem(key(user.uid), JSON.stringify({ identity: identity(user), receipt }));
@@ -46,6 +61,13 @@ export function createAccountDeletionClient({ getCurrentUser, storage, randomRec
             if (result.receipt) remember(user, result.receipt);
             return result;
         },
-        forget(userId) { storage.removeItem(key(userId)); },
+        async localStatuses() {
+            return Promise.all(storedReceipts().map(async receipt => {
+                try {
+                    const result = await getStatus({ receipt });
+                    return ['pending', 'blocked', 'completed'].includes(result.state) ? result.state : 'unknown';
+                } catch { return 'unknown'; }
+            }));
+        },
     };
 }

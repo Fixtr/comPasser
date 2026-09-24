@@ -65,11 +65,19 @@ async (page) => {
   results.push('PASS reload resumes status from persisted receipt without starting deletion');
   await page.evaluate(()=>window.__smoke.finishServerDeletion());
   await page.reload();
-  await page.waitForURL('**/login');
+  await page.waitForURL('**/account-deletion-status');
+  await page.locator('account-deletion-status-view #statuses').filter({hasText:'완료'}).waitFor({state:'visible'});
   const db=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('__smoke_db')));
   check(!db.itineraries.deleteFixture&&!db.users.smokeOwner,'Fresh confirmed deletion must remove intended fixture data');
   check(await page.evaluate(()=>window.__smoke.user)===null,'Fresh confirmed deletion must finish auth deletion');
   results.push('PASS server completion: intended fixture data removed, then logout');
+  await page.reload();
+  await page.locator('account-deletion-status-view #statuses').filter({hasText:'완료'}).waitFor({state:'visible'});
+  await page.locator('account-deletion-status-view a[href="/login"]').click();
+  await page.locator('login-view a[href="/account-deletion-status"]').click();
+  await page.locator('account-deletion-status-view #statuses').filter({hasText:'완료'}).waitFor({state:'visible'});
+  check(!(await page.evaluate(()=>window.__smoke.calls)).includes('server-request'),'Public status navigation must not submit deletion');
+  results.push('PASS logged-out status survives reload and is reachable from sign-in');
   check(page.smokeErrors.length===0,'Unexpected page errors: '+page.smokeErrors.join(','));
   return {results,errors:page.smokeErrors,externalServices:'all faked; no real account used'};
 }

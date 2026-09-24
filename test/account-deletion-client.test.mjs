@@ -6,6 +6,8 @@ function fixture() {
     const values = new Map();
     const state = { user: { uid: 'owner', metadata: { creationTime: 'first' } }, failure: null, result: { state: 'pending', receipt: 'a'.repeat(64) }, failStorage: false, submitted: [], reads: [] };
     const storage = {
+        get length() { return values.size; },
+        key: index => [...values.keys()][index] ?? null,
         getItem: key => values.get(key) || null,
         setItem(key, value) { if (state.failStorage) throw new Error('storage disabled'); values.set(key, value); },
         removeItem: key => values.delete(key),
@@ -37,6 +39,16 @@ test('lost response retains receipt across reload and reads status without an Au
     const reloaded = app.create();
     assert.equal((await reloaded.status(user)).state, 'completed');
     assert.deepEqual(app.state.reads, [{ receipt: 'a'.repeat(64) }]);
+});
+test('로그아웃 뒤에도 로컬 접수번호만으로 조회하고 여러 계정을 섞지 않는다', async () => {
+    const app = fixture();
+    await app.client.request('owner');
+    app.values.set('accountDeletionReceipt:other', JSON.stringify({ identity: 'second', receipt: 'b'.repeat(64) }));
+    app.values.set('accountDeletionReceipt:invalid', JSON.stringify({ identity: 'third', receipt: 'bad' }));
+    app.state.user = null;
+    assert.deepEqual(await app.client.localStatuses(), ['pending', 'pending']);
+    assert.deepEqual(app.state.reads, [{ receipt: 'a'.repeat(64) }, { receipt: 'b'.repeat(64) }]);
+    assert.deepEqual(app.state.submitted.length, 1);
 });
 test('explicit server recent-login rejection clears receipt and maps to existing re-login flow', async () => {
     const app = fixture(); app.state.failure = Object.assign(new Error('old'), { code: 'functions/failed-precondition', details: { reason: 'requires-recent-login' } });

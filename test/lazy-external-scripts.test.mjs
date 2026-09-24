@@ -1,7 +1,7 @@
 /**
  * 첫 화면은 바깥 도메인을 기다리지 않는다.
  *
- * html2canvas·카카오·PortOne 을 미뤄 둔 적이 있는데(external-scripts.js),
+ * html2canvas·카카오를 미뤄 둔 적이 있는데(external-scripts.js),
  * 실제 빌드를 띄워 재 보니 첫 화면에서 여전히 네 곳이 나가고 있었다 —
  * Google Maps, 애드센스, GA, gapi. 랜딩에는 지도도 광고도 없다.
  *

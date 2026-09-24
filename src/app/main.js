@@ -11,6 +11,7 @@ import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import '../domains/profile/ui/profile-view.js';
+import '../domains/profile/ui/account-deletion-status-view.js';
 import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
 import { subscribeToAuthChanges, logout, getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
@@ -160,6 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pagePreference = document.getElementById('page-preference');
     const pageView = document.getElementById('page-view');
     const pageProfile = document.getElementById('page-profile');
+    const pageAccountDeletionStatus = document.getElementById('page-account-deletion-status');
+    const accountDeletionStatusView = document.getElementById('account-deletion-status-view');
 
     // 보임/숨김만 여기서 정하고 배치는 CSS 가 갖는다.
     // 예전에는 style.display = 'block' 을 박았는데, 인라인은 어떤 CSS 규칙도
@@ -247,6 +250,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        if (path !== '/account-deletion-status') accountDeletionStatusView?.stop();
+
         // 결과 화면에서는 액자 여백을 걷어 지도가 무대를 채우게 한다.
         // 여백이 남으면 지도가 배경이 아니라 액자 속 카드로 보인다.
         const isResultPath = /^\/(view|share)(\/|$)/.test(path);
@@ -268,6 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pagePlan) pagePlan.style.display = 'none';
         if (pageView) pageView.style.display = 'none';
         if (pageProfile) pageProfile.style.display = 'none';
+        if (pageAccountDeletionStatus) pageAccountDeletionStatus.style.display = 'none';
 
         // 1.5 Toggle Main Header Visibility (Hide on Profile Page)
         if (mainHeader) {
@@ -347,6 +353,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
             if (pageLogin) pageLogin.style.display = 'block';
+        } else if (path === '/account-deletion-status') {
+            if (pageAccountDeletionStatus) pageAccountDeletionStatus.style.display = 'block';
+            await accountDeletionStatusView?.refresh();
         } else if (path === '/join') {
             if (pageJoin) pageJoin.style.display = 'block';
         } else if (path.startsWith('/verify')) {

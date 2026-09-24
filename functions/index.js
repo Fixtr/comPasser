@@ -1,6 +1,7 @@
 const functions = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { error: logError } = require('firebase-functions/logger');
 const { createAccountDeletion } = require('./account-deletion');
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -17,7 +18,7 @@ const {
 // Firebase Admin SDK 초기화
 admin.initializeApp();
 
-const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth() });
+const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth(), log: logError });
 const deletionHandler = handler => async request => {
     try { return await handler(request); }
     catch (error) {

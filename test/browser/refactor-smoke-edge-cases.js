@@ -49,10 +49,10 @@ async (page) => {
   await page.evaluate(() => window.navigate('/profile/security'));
   await page.locator('profile-view #btn-delete-account-trigger').click();
   await page.locator('profile-view #btn-modal-confirm').click();
-  await page.waitForURL('**/login');
-  check(await page.evaluate(() => window.__smoke.user)===null, 'Successful fake deletion must return to login');
+  await page.waitForURL('**/account-deletion-status');
+  check(await page.evaluate(() => window.__smoke.user)===null, 'Successful fake deletion must show public status after logout');
   check(await page.evaluate(() => !JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1), 'Successful fake deletion must remove private itinerary');
-  page.smokeResults.push('PASS successful fake account deletion/login navigation');
+  page.smokeResults.push('PASS successful fake account deletion/public status navigation');
   // Server retry semantics are covered by account-deletion-smoke.js; bilingual PNGs by image-export-i18n-smoke.js.
   return {results:page.smokeResults,findings:page.smokeFindings,errors:page.smokeErrors};
 }

@@ -16,7 +16,7 @@ function deferred() {
 function element() {
   const classes = new Set();
   return {
-    value: '', disabled: false, textContent: '', listeners: {},
+    value: '', disabled: false, textContent: '', dataset: {}, listeners: {},
     classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) },
     addEventListener(type, handler) { this.listeners[type] = handler; },
   };
@@ -26,7 +26,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
   const session = { user, data };
   const calls = { basic: [], extended: [], writes: [], stages: [], events: [], toasts: [], errors: [], logouts: 0 };
   const controls = new Map([
-    'input-phoneNumber', 'input-birthday', 'btn-delete-account-trigger', 'delete-modal',
+    'input-birthday', 'btn-delete-account-trigger', 'delete-modal',
     'btn-modal-cancel', 'btn-modal-confirm', 'modal-close-x', 'account-deletion-status',
   ].map(id => [id, element()]));
   const location = { href: '/profile/security' };
@@ -45,8 +45,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
     accountDeletionClient: {
       async request(userId) { calls.stages.push(['request', userId]); return await hooks.request?.() || { state: 'completed' }; },
       async status() { return await hooks.status?.() || { state: 'not-found' }; },
-      hasReceipt() { return true; },
-      forget() { calls.forgotten = true; },
+      hasReceipt() { return hooks.hasReceipt?.() ?? true; },
     },
     async loadFirestore() {
       return {
@@ -108,7 +107,7 @@ test('프로필 조회는 인증 정보를 먼저 표시하고 문서가 없는 
   const started = deferred();
   const pending = deferred();
   const app = fixture({
-    data: { phoneNumber: '01012345678' },
+    data: { phoneNumber: '01012345678', isVerified: true },
     hooks: { read: () => { started.resolve(); return pending.promise; } },
   });
   const loading = app.view.loadUserData();
@@ -117,7 +116,7 @@ test('프로필 조회는 인증 정보를 먼저 표시하고 문서가 없는 
   assert.deepEqual(app.calls.extended, []);
   pending.resolve();
   await loading;
-  assert.deepEqual(app.view.userData, { phoneNumber: '01012345678', birthday: '', isVerified: false });
+  assert.deepEqual(app.view.userData, { birthday: '' });
 
   app.session.user = { uid: 'other' };
   app.session.data = undefined;
@@ -126,39 +125,32 @@ test('프로필 조회는 인증 정보를 먼저 표시하고 문서가 없는 
   assert.deepEqual(app.calls.basic, ['owner', 'other']);
 });
 
-test('일반 저장과 인증 완료 저장은 해당 값만 갱신하고 편집 상태를 종료한다', async () => {
+test('생일 저장은 해당 값만 갱신하고 편집 상태를 종료한다', async () => {
   const app = fixture();
-  app.view.userData = { phoneNumber: 'old-phone', birthday: '', isVerified: false };
+  app.view.userData = createEmptyProfile();
   app.view.editingField = 'birthday';
   app.control('input-birthday').value = ' 2000-01-02 ';
   await app.view.handleSave('birthday');
-  assert.deepEqual(app.view.userData, { phoneNumber: 'old-phone', birthday: '2000-01-02', isVerified: false });
+  assert.deepEqual(app.view.userData, { birthday: '2000-01-02' });
   assert.equal(app.view.editingField, null);
 
-  app.view.showCertificationInput = true;
-  app.control('input-phoneNumber').value = ' 01012345678 ';
-  await app.view.handleSave('phoneNumber', true);
-  assert.deepEqual(app.view.userData, { phoneNumber: '01012345678', birthday: '2000-01-02', isVerified: true });
-  assert.equal(app.view.showCertificationInput, false);
-  assert.equal(app.calls.extended.length, 2);
-  assert.deepEqual(app.calls.writes[1], {
+  assert.equal(app.calls.extended.length, 1);
+  assert.deepEqual(app.calls.writes[0], {
     ref: { collection: 'users', userId: 'owner' },
-    changes: { phoneNumber: '01012345678', isVerified: true }, options: { merge: true },
+    changes: { birthday: '2000-01-02' }, options: { merge: true },
   });
 });
 
 test('저장 실패는 기존 값·입력 상태를 유지하고 실패 알림을 표시한다', async () => {
   const failure = new Error('offline');
   const app = fixture({ hooks: { write: () => { throw failure; } } });
-  app.view.editingField = 'phoneNumber';
-  app.view.showCertificationInput = true;
-  app.control('input-phoneNumber').value = '01012345678';
+  app.view.editingField = 'birthday';
+  app.control('input-birthday').value = '2000-01-02';
 
-  await app.view.handleSave('phoneNumber', true);
+  await app.view.handleSave('birthday');
 
   assert.deepEqual(app.view.userData, createEmptyProfile());
-  assert.equal(app.view.editingField, 'phoneNumber');
-  assert.equal(app.view.showCertificationInput, true);
+  assert.equal(app.view.editingField, 'birthday');
   assert.deepEqual(app.calls.extended, []);
   assert.deepEqual(app.calls.toasts, [['저장에 실패했습니다.']]);
   assert.equal(app.calls.errors[0][1], failure);
@@ -195,7 +187,7 @@ test('서버 completed일 때만 삭제 알림·로그아웃·로그인 이동�
   assert.deepEqual(app.calls.stages, [['request', 'owner']]);
   assert.equal(app.calls.events[0].type, 'itinerary-deleted');
   assert.deepEqual(app.calls.events[0].detail, { id: null, userId: 'owner' });
-  assert.equal(app.calls.logouts, 1); assert.equal(app.location.href, '/login'); assertDeleteControlsRestored(app);
+  assert.equal(app.calls.logouts, 1); assert.equal(app.location.href, '/account-deletion-status'); assertDeleteControlsRestored(app);
 });
 test('pending은 완료나 로그아웃 없이 중복 탈퇴 버튼을 잠근다', async () => {
   const app = fixture({ hooks: { request: () => ({ state: 'pending' }), status: () => ({ state: 'pending' }) } });
@@ -254,6 +246,27 @@ test('화면을 다시 열면 기존 pending 작업을 조회하며 삭제를 �
   const app = fixture({ hooks: { status: () => ({ state: 'pending' }) } });
   await app.view.loadUserData();
   assert.deepEqual(app.calls.stages, []); assert.equal(app.view.deletionState, 'pending');
+});
+test('기존 탈퇴 요청을 조회하는 동안 새 접수를 막고 상태를 안내한다', async () => {
+  const pending = deferred();
+  const app = fixture({ hooks: { status: () => pending.promise } });
+  app.view.watchDeletion(app.session.user);
+  assert.equal(app.control('account-deletion-status').textContent, 'accountDeletionChecking');
+  assert.equal(app.control('btn-delete-account-trigger').disabled, true);
+  pending.resolve({ state: 'pending' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.control('account-deletion-status').dataset.state, 'pending');
+  assert.equal(app.control('btn-delete-account-trigger').disabled, true);
+  assert.deepEqual(app.calls.stages, []);
+});
+test('접수 상태를 확인할 수 없으면 중복 접수를 막고, 접수 기록 없이 조회만 실패하면 버튼을 복구한다', async () => {
+  for (const hasReceipt of [true, false]) {
+    const app = fixture({ hooks: { hasReceipt: () => hasReceipt, status: () => { throw new Error('offline'); } } });
+    app.view.watchDeletion(app.session.user);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(app.control('account-deletion-status').textContent, hasReceipt ? 'accountDeletionUnknown' : '');
+    assert.equal(app.control('btn-delete-account-trigger').disabled, hasReceipt);
+  }
 });
 test('오래된 상태 응답은 바뀐 계정을 로그아웃시키지 않는다', async () => {
   const pending = deferred();

@@ -32,7 +32,7 @@ const pending = (path) =>
   decideRoute({ path, user: null, authSettled: false, hasPreference: true });
 
 test('로그인 여부와 무관한 곳을 안다', () => {
-  for (const p of ['/', '/home', '/index.html', '/sub/index.html', '/login', '/join', '/verify', '/verify/abc', '/share/abc123']) {
+  for (const p of ['/', '/home', '/index.html', '/sub/index.html', '/login', '/join', '/account-deletion-status', '/verify', '/verify/abc', '/share/abc123']) {
     assert.equal(isPublicPath(p), true, `${p} 는 로그인 없이 볼 수 있어야 한다`);
   }
   for (const p of ['/plan', '/view', '/view/abc', '/profile', '/preference/1']) {
@@ -62,6 +62,7 @@ test('인증을 몰라도 랜딩과 로그인 문은 연다', () => {
   assert.deepEqual(pending('/'), { action: 'render' });
   assert.deepEqual(pending('/login'), { action: 'render' });
   assert.deepEqual(pending('/join'), { action: 'render' });
+  assert.deepEqual(pending('/account-deletion-status'), { action: 'render' });
 });
 
 test('공유 전용 링크는 인증을 기다리지 않고 열린다', () => {

@@ -288,34 +288,6 @@ export const profileStyles = `
                     min-width: 0;
                 }
 
-                /* 인증 완료는 상태다. 상태색은 액센트와 분리해 유지한다. */
-                .verified-badge {
-                    background: var(--cp-ok-bg);
-                    color: var(--cp-ok);
-                    font-size: 0.72rem;
-                    font-weight: 700;
-                    padding: 0.2rem 0.6rem;
-                    border-radius: var(--cp-pill);
-                    border: var(--cp-hair) solid var(--cp-ok);
-                    white-space: nowrap;
-                }
-
-                .certification-success {
-                    flex-direction: column;
-                    align-items: flex-start;
-                    width: 100%;
-                }
-
-                .cert-msg {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.4rem;
-                    font-size: 0.9rem;
-                    color: var(--cp-ok);
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
-                }
-
                 /* ====== 내 여행 일정 ====== */
                 .itineraries-container {
                     display: flex;
@@ -470,10 +442,30 @@ export const profileStyles = `
                     transition: background 0.12s linear, color 0.12s linear;
                 }
 
-                .btn-danger-trigger:hover,
-                .btn-danger-trigger:focus-visible {
+                .btn-danger-trigger:not(:disabled):hover,
+                .btn-danger-trigger:not(:disabled):focus-visible {
                     background: var(--cp-danger);
                     color: var(--cp-surface);
+                }
+
+                .btn-danger-trigger:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                #account-deletion-status:not(:empty) {
+                    margin: 0 1.5rem 1.5rem;
+                    padding: 0.75rem 1rem;
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    border-radius: var(--cp-radius);
+                    color: var(--cp-ink-2);
+                }
+
+                #account-deletion-status[data-state="unknown"],
+                #account-deletion-status[data-state="blocked"] {
+                    border-color: var(--cp-warn);
+                    background: var(--cp-warn-bg);
+                    color: var(--cp-warn);
                 }
 
                 /* ====== 모달 ====== */
