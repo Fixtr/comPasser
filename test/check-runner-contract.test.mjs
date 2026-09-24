@@ -55,7 +55,7 @@ test('every emulator test checks isolation before loading SDKs', () => {
   for (const key of ['auth', 'firestore', 'hub', 'logging']) assert.equal(config.emulators[key].host, '127.0.0.1');
 });
 
-test('CI stays read-only and deploys main only after every check passes', () => {
+test('CI stays read-only and directly deploys main only after every check passes', () => {
   const workflow = read('.github/workflows/checks.yml');
   assert.match(workflow, /contents: read/);
   assert.doesNotMatch(workflow, /pull_request_target|git push/);
@@ -63,8 +63,10 @@ test('CI stays read-only and deploys main only after every check passes', () => 
   for (const script of ['npm test', 'npm run build', 'npm run test:browser', 'npm run test:emulator']) assert.ok(workflow.includes(script));
   assert.match(workflow, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /needs: \[unit-build, browser, emulator\]/);
-  assert.match(workflow, /secrets\.CLOUDFLARE_PAGES_DEPLOY_HOOK/);
-  assert.match(workflow, /curl .*--request POST/);
+  assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /vars\.CLOUDFLARE_ACCOUNT_ID/);
+  assert.match(workflow, /wrangler@4\.136\.3 pages deploy dist --project-name hackerton --branch main/);
+  assert.doesNotMatch(workflow, /CLOUDFLARE_PAGES_DEPLOY_HOOK|curl .*--request POST/);
   for (const [, ref] of workflow.matchAll(/uses: ([^\s]+)/g)) assert.match(ref, /^actions\/[^@]+@[a-f0-9]{40}$/);
 });
 

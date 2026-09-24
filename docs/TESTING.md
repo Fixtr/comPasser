@@ -48,7 +48,7 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 
 검사 작업은 저장소 읽기 권한만 사용하며 배포 자격 증명을 받지 않는다. 브라우저 보고서와 실패한 에뮬레이터 로그는 7일간 보관한다. 원격 푸시 전에는 GitHub에서 실행되지 않는다.
 
-`main` 푸시에서는 세 검사 작업이 모두 성공한 뒤에만 `deploy` 작업이 비밀 `CLOUDFLARE_PAGES_DEPLOY_HOOK`을 호출한다. PR에서는 배포 작업을 건너뛴다. Cloudflare의 Git 자동 프로덕션 배포는 꺼 둬야 이 workflow가 유일한 운영 배포 경로가 된다.
+`main` 푸시에서는 세 검사 작업이 모두 성공한 뒤에만 `deploy` 작업이 검증된 커밋을 다시 빌드해 Cloudflare Pages에 직접 업로드한다. PR에서는 배포 작업을 건너뛴다. Cloudflare의 Git 연결은 제거해 이 workflow를 유일한 운영 배포 경로로 유지한다. 배포용 `CLOUDFLARE_API_TOKEN`, 프런트엔드 빌드용 `VITE_*` 값은 GitHub Actions Secrets에, `CLOUDFLARE_ACCOUNT_ID`는 Actions 변수에 둔다.
 
 ## 검증 범위 밖
 
