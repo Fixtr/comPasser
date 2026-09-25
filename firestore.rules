@@ -19,11 +19,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // users/{uid}: 프로필 문서. phoneNumber, birthday 등 PII 포함 (src/domains/profile/ui/profile-view.js)
-    // 본인만 읽고 쓸 수 있다.
+    // users/{uid}: 프로필 문서. 현재 클라이언트가 쓰는 필드는 birthday뿐이다.
+    // 과거 phoneNumber/isVerified를 구버전 클라이언트가 다시 기록하지 못하게 한다.
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId && canWriteAccountData();
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['birthday'])
+        && request.resource.data.birthday is string;
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && canWriteAccountData()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['birthday'])
+        && request.resource.data.birthday is string;
+      allow delete: if false;
     }
 
     // itineraries/{id}: 로그인 사용자가 저장한 개인 일정. userId 필드로 소유자를 식별한다.

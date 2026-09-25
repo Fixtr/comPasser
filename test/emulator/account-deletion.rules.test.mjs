@@ -17,6 +17,23 @@ async function request(path, { method = 'GET', user, authTime, data, admin = fal
 }
 async function seed(path, data) { const response = await request(path, { method: 'PATCH', admin: true, data }); assert.equal(response.status, 200, await response.text()); }
 
+test('profile writes allow only birthday and cannot restore retired identity fields', async () => {
+    assert.equal((await request('users/new-profile', { method: 'PATCH', user: 'new-profile', data: { birthday: '2000-01-01' } })).status, 200);
+    for (const data of [
+        { phoneNumber: '01000000000' },
+        { isVerified: 'true' },
+        { birthday: '2000-01-01', phoneNumber: '01000000000' },
+    ]) assert.equal((await request('users/rejected-profile', { method: 'PATCH', user: 'rejected-profile', data })).status, 403);
+
+    await seed('users/legacy-profile', { birthday: '1990-01-01', phoneNumber: 'legacy', isVerified: 'true' });
+    const birthdayUpdate = await request('users/legacy-profile?updateMask.fieldPaths=birthday', {
+        method: 'PATCH', user: 'legacy-profile', data: { birthday: '1991-01-01' },
+    });
+    assert.equal(birthdayUpdate.status, 200, await birthdayUpdate.text());
+    assert.equal((await request('users/legacy-profile', { method: 'PATCH', user: 'legacy-profile', data: { phoneNumber: 'restored' } })).status, 403);
+    assert.equal((await request('users/legacy-profile', { method: 'DELETE', user: 'legacy-profile' })).status, 403);
+});
+
 test('normal owner writes are allowed; active job blocks profile, private and shared creation', async () => {
     for (const state of ['pending', 'blocked']) {
         const uid = `owner-${state}`;

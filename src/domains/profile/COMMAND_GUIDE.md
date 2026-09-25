@@ -18,7 +18,7 @@
 - Keep modal cleanup in `finally`. A stale login prompts sign-out and `/login?next=%2Fprofile%2Fsecurity`, then the existing login flow returns to account settings. **Never automatically resume deletion after login**; the user must confirm again. Never redirect or log out a newly signed-in different account.
 - A pending preflight can be cancelled; ignore its late completion. Once submitted, cancellation is unavailable. Disable new deletion attempts while checking for an existing job, and while its status is pending, unknown, blocked, or completed. A missing receipt response can mean an in-flight request, not rejection. Poll using the persisted receipt, without resubmitting on reload. Clear timers on disconnection and ignore responses after identity changes.
 - Catch sign-out failure after completion, retaining the receipt for later confirmation. Never clear an existing accepted receipt just because a duplicate request fails authentication.
-- The former PortOne certification UI has been retired. Do not treat legacy `isVerified` as proof of identity. Historical profile fields remain stored until a separately approved data-retention cleanup.
+- The former PortOne certification UI has been retired. Do not treat legacy `isVerified` as proof of identity. Firestore rules permit only `birthday` profile writes; historical `phoneNumber` and `isVerified` fields are removed only by the separately approved cleanup procedure.
 
 ## Verification
 
