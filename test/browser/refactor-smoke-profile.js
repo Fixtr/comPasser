@@ -7,12 +7,14 @@ async (page) => {
   });
   const birthdayEdit = page.locator('profile-view #field-birthday .btn-edit-inline');
   await birthdayEdit.waitFor({state:'visible'});
+  await page.locator('profile-view #generation-credit-balance').filter({hasText:'1장'}).waitFor();
   await birthdayEdit.click();
   await page.locator('profile-view #input-birthday').fill('1995-05-20');
   await page.locator('profile-view #field-birthday .btn-save').click();
   await page.locator('profile-view #input-birthday').waitFor({state:'detached'});
   await page.reload();
   await page.locator('profile-view #field-birthday .value-text').filter({hasText:'1995-05-20'}).waitFor({state:'visible'});
+  await page.locator('profile-view #generation-credit-balance').filter({hasText:'1장'}).waitFor();
   page.smokeResults.push('PASS real profile edit/save/reload display');
 
   await birthdayEdit.click();

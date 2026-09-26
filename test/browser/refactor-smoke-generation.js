@@ -4,6 +4,7 @@ async (page) => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   await page.evaluate(() => window.navigate('/plan'));
   await page.locator('#travel-form-view').waitFor({state:'visible'});
+  await page.locator('travel-form #generation-credit-balance').filter({hasText:'3장'}).waitFor();
   page.smokePlan = {
     days: [{ day:1, date:'2026-10-20', scheduleItems:[
       {type:'departure',title:'서울역',location:'서울역',time:'09:00',endTime:'09:00'},
@@ -33,6 +34,7 @@ async (page) => {
   await page.locator('#travel-form-view').waitFor({state:'visible'});
   await page.evaluate(plan => window.__smoke.pending.shift().resolve(plan), page.smokePlan);
   check(await page.locator('#travel-form-view').isVisible(), 'Old result must not restore result view');
+  await page.locator('travel-form #generation-credit-balance').filter({hasText:'2장'}).waitFor();
   check(await page.evaluate(() => !document.querySelector('itinerary-view').currentItinerary), 'Old result must not be applied');
   page.smokeResults.push('PASS route exit/back/late AI result ignored');
 
@@ -42,12 +44,15 @@ async (page) => {
   check((await page.locator('#loading-subtext').textContent()).includes('429'), 'Error must be displayed');
   await page.locator('#show-results-btn').click();
   await page.locator('#travel-form-view').waitFor({state:'visible'});
+  check((await page.locator('travel-form #generation-credit-balance').textContent())==='2장', 'Failed generation must keep the credit');
   check(!await page.locator('travel-form .primary-btn').isDisabled(), 'Retry form must unlock');
   page.smokeResults.push('PASS generation failure/error display/back/retry enabled');
 
   await submit();
   await page.evaluate(plan => window.__smoke.pending.shift().resolve(plan), page.smokePlan);
   await page.locator('#show-results-btn').waitFor({state:'visible'});
+  await page.waitForFunction(() => document.querySelector('travel-form')?.shadowRoot
+    ?.getElementById('generation-credit-balance')?.textContent === '1장');
   check(page.url().endsWith('/plan'), 'Success must wait for user');
   await page.evaluate(() => window.__smoke.setUser(window.__smoke.user));
   check(await page.locator('#show-results-btn').isVisible(), 'Auth reevaluation must preserve success');

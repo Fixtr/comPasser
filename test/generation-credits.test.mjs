@@ -1,0 +1,63 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+const { createGenerationCredits, LEASE_MS } = createRequire(import.meta.url)('../functions/generation-credits.js');
+
+function fixture() {
+    const docs = new Map();
+    let time = 1_800_000_000_000;
+    let queue = Promise.resolve();
+    const db = {
+        collection: name => ({ doc: id => ({ path: `${name}/${id}` }) }),
+        runTransaction(fn) {
+            const work = queue.then(async () => {
+                const writes = [];
+                const result = await fn({
+                    async get(ref) {
+                        assert.equal(writes.length, 0, 'Firestore reads must precede writes');
+                        return { exists: docs.has(ref.path), data: () => structuredClone(docs.get(ref.path)) };
+                    },
+                    set(ref, value) { writes.push([ref.path, structuredClone(value)]); },
+                });
+                for (const [path, value] of writes) docs.set(path, value);
+                return result;
+            });
+            queue = work.catch(() => {});
+            return work;
+        },
+    };
+    return { credits: createGenerationCredits({ db, now: () => time }), docs, advance: ms => { time += ms; } };
+}
+
+test('first account gets one credit; success spends it and cannot spend twice', async () => {
+    const { credits } = fixture();
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+    assert.equal(await credits.reserve('owner', 'first', 'a'), 0);
+    await assert.rejects(credits.reserve('owner', 'first', 'b'), { code: 'failed-precondition' });
+    assert.equal(await credits.settle('owner', 'first', 'a', true), true);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 0, generating: false });
+    await assert.rejects(credits.reserve('owner', 'first', 'b'), { code: 'resource-exhausted', details: { reason: 'credits-empty' } });
+});
+
+test('failed AI, stale lease, and replaced Auth identity do not lose or inherit credits', async () => {
+    const app = fixture();
+    const { credits } = app;
+    await credits.reserve('owner', 'first', 'a');
+    assert.equal(await credits.settle('owner', 'first', 'a', false), true);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+    await credits.reserve('owner', 'first', 'b');
+    app.advance(LEASE_MS + 1);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+    assert.equal(await credits.settle('owner', 'first', 'b', true), false);
+    await credits.reserve('owner', 'first', 'c');
+    await credits.settle('owner', 'first', 'c', true);
+    assert.deepEqual(await credits.balance('owner', 'second'), { balance: 1, generating: false });
+});
+
+test('one AdMob transaction grants one credit even if its signed callback is retried', async () => {
+    const { credits } = fixture();
+    assert.equal(await credits.grantAdReward('owner', 'first', 'a'.repeat(32)), true);
+    assert.equal(await credits.grantAdReward('owner', 'first', 'a'.repeat(32)), false);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 2, generating: false });
+});

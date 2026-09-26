@@ -26,6 +26,7 @@ class ProfileView extends HTMLElement {
         this.itineraries = [];
         this.isLoadingItineraries = false;
         this.userData = createEmptyProfile();
+        this.generationCredits = undefined;
         this.profileService = createProfileService({
             getCurrentUser, loadFirestore,
             requireRecentLogin: requireRecentLoginForDeletion,
@@ -49,7 +50,7 @@ class ProfileView extends HTMLElement {
 
         // 언어를 바꾸면 이 화면도 따라와야 한다. 마크업의 data-i18n 은
         // 첫 그림만 t() 로 채워지고, 이후 전환은 이 자리가 맡는다.
-        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); };
+        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); this.renderGenerationCredits(); };
         window.addEventListener('i18n-changed', this._i18nHandler);
 
         const observer = new MutationObserver((mutations) => {
@@ -135,6 +136,18 @@ class ProfileView extends HTMLElement {
         }
         const button = this.shadowRoot.getElementById('btn-delete-account-trigger');
         if (button) button.disabled = ['checking', 'pending', 'unknown', 'blocked', 'completed'].includes(this.deletionState);
+    }
+
+    setGenerationCredits(balance) {
+        this.generationCredits = balance;
+        this.renderGenerationCredits();
+    }
+
+    renderGenerationCredits() {
+        const value = this.shadowRoot?.getElementById('generation-credit-balance');
+        if (value) value.textContent = Number.isSafeInteger(this.generationCredits)
+            ? t('generationCreditsCount').replace('{0}', this.generationCredits)
+            : t(this.generationCredits === undefined ? 'generationCreditsLoading' : 'generationCreditsUnavailable');
     }
 
     async applyDeletionStatus(status, userId, identityCreatedAt = getCurrentUser()?.metadata?.creationTime) {
@@ -603,6 +616,12 @@ class ProfileView extends HTMLElement {
                                 <div class="list-label" data-i18n="labelBirthday">${t('labelBirthday')}</div>
                                 <div id="field-birthday" class="list-value">
                                     <span class="not-set" data-i18n="loadingShort">${t('loadingShort')}</span>
+                                </div>
+                            </div>
+                            <div class="list-item">
+                                <div class="list-label" data-i18n="generationCreditsLabel">${t('generationCreditsLabel')}</div>
+                                <div class="list-value">
+                                    <span id="generation-credit-balance" class="value-text">${t('generationCreditsLoading')}</span>
                                 </div>
                             </div>
                         </div>

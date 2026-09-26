@@ -1,8 +1,11 @@
 const functions = require("firebase-functions");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { error: logError } = require('firebase-functions/logger');
 const { createAccountDeletion } = require('./account-deletion');
+const { createGenerationCredits } = require('./generation-credits');
+const { createAdMobRewardVerifier } = require('./admob-reward');
+const { randomUUID } = require('node:crypto');
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -19,6 +22,17 @@ const {
 admin.initializeApp();
 
 const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth(), log: logError });
+const generationCredits = createGenerationCredits({ db: admin.firestore() });
+function assertCurrentIdentity(request, user) {
+    if (!Number.isFinite(Number(request.auth.token?.auth_time))
+        || Number(request.auth.token.auth_time) < Math.floor(Date.parse(user.metadata.creationTime) / 1000)) {
+        throw new HttpsError('unauthenticated', '다시 로그인해 주세요.');
+    }
+}
+const adMobVerifier = createAdMobRewardVerifier({
+    axios,
+    allowedAdUnits: new Set((process.env.ADMOB_REWARDED_AD_UNITS || '').split(',').map(value => value.trim()).filter(Boolean))
+});
 const deletionHandler = handler => async request => {
     try { return await handler(request); }
     catch (error) {
@@ -32,6 +46,29 @@ const deletionHandler = handler => async request => {
 exports.requestAccountDeletion = onCall({ timeoutSeconds: 60, maxInstances: 5 }, deletionHandler(accountDeletion.requestDeletion));
 exports.getAccountDeletionStatus = onCall({ timeoutSeconds: 30, maxInstances: 5 }, deletionHandler(accountDeletion.status));
 exports.retryAccountDeletions = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds: 60, maxInstances: 1 }, accountDeletion.retryDue);
+
+exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '로그인 후 이용할 수 있습니다.');
+    await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
+    const user = await admin.auth().getUser(request.auth.uid);
+    assertCurrentIdentity(request, user);
+    return generationCredits.balance(request.auth.uid, user.metadata.creationTime);
+});
+
+exports.adMobRewardCallback = onRequest({ timeoutSeconds: 30, maxInstances: 5 }, async (req, res) => {
+    if (req.method !== 'GET') return res.sendStatus(405);
+    try {
+        const reward = await adMobVerifier.verifyCallback(req.originalUrl);
+        if (!reward) return res.sendStatus(403);
+        await accountDeletion.assertNotDeleting(reward.uid);
+        const user = await admin.auth().getUser(reward.uid);
+        await generationCredits.grantAdReward(reward.uid, user.metadata.creationTime, reward.transactionId);
+        return res.sendStatus(200); // Duplicate signed callbacks are acknowledged but never granted twice.
+    } catch (error) {
+        console.error('AdMob reward callback failed', { code: error.code || 'unknown' });
+        return res.sendStatus(503);
+    }
+});
 
 exports.verifySocialToken = functions.https.onRequest((req, res) => {
     // CORS 및 Preflight(OPTIONS) 요청 허용을 위해 전체 로직을 cors로 래핑
@@ -213,44 +250,63 @@ exports.generateItinerary = onCall(
         const lang = request.data?.lang === "en" ? "en" : "ko";
         const prompt = buildPrompt(constraints, lang);
 
-        let lastError = null;
-
-        for (const model of GEMINI_MODELS) {
-            try {
-                const rawText = await callGemini(model, apiKey, prompt);
-                const parsed = JSON.parse(rawText);
-
-                const days = Array.isArray(parsed.days)
-                    ? parsed.days.filter(day => Array.isArray(day.scheduleItems) && day.scheduleItems.length > 0)
-                    : [];
-
-                if (days.length === 0) {
-                    throw new Error("Invalid output: 'days' contains no valid scheduleItems.");
-                }
-
-                functions.logger.info("[generateItinerary] success", {
-                    uid: request.auth.uid,
-                    model,
-                    dayCount: days.length
-                });
-
-                return { days, model };
-            } catch (error) {
-                lastError = error;
-                // 프롬프트/키는 절대 로깅하지 않는다.
-                functions.logger.warn("[generateItinerary] model failed", {
-                    uid: request.auth.uid,
-                    model,
-                    status: error.response?.status || null,
-                    message: error.message
-                });
+        const uid = request.auth.uid;
+        const user = await admin.auth().getUser(uid);
+        assertCurrentIdentity(request, user);
+        const identityCreatedAt = user.metadata.creationTime;
+        const requestId = randomUUID();
+        try {
+            await generationCredits.reserve(uid, identityCreatedAt, requestId);
+        } catch (error) {
+            if (['resource-exhausted', 'failed-precondition'].includes(error.code)) {
+                throw new HttpsError(error.code, error.message, error.details);
             }
+            throw error;
         }
 
-        const status = lastError?.response?.status;
-        if (status === 429) {
-            throw new HttpsError("resource-exhausted", "AI 사용량(429)이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+        let lastError = null;
+        let succeeded = false;
+        try {
+            for (const model of GEMINI_MODELS) {
+                try {
+                    const rawText = await callGemini(model, apiKey, prompt);
+                    const parsed = JSON.parse(rawText);
+
+                    const days = Array.isArray(parsed.days)
+                        ? parsed.days.filter(day => Array.isArray(day.scheduleItems) && day.scheduleItems.length > 0)
+                        : [];
+
+                    if (days.length === 0) {
+                        throw new Error("Invalid output: 'days' contains no valid scheduleItems.");
+                    }
+
+                    functions.logger.info("[generateItinerary] success", {
+                        uid: request.auth.uid,
+                        model,
+                        dayCount: days.length
+                    });
+
+                    succeeded = true;
+                    return { days, model };
+                } catch (error) {
+                    lastError = error;
+                    // 프롬프트/키는 절대 로깅하지 않는다.
+                    functions.logger.warn("[generateItinerary] model failed", {
+                        uid: request.auth.uid,
+                        model,
+                        status: error.response?.status || null,
+                        message: error.message
+                    });
+                }
+            }
+
+            const status = lastError?.response?.status;
+            if (status === 429) {
+                throw new HttpsError("resource-exhausted", "AI 사용량(429)이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+            }
+            throw new HttpsError("internal", "일정 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        } finally {
+            await generationCredits.settle(uid, identityCreatedAt, requestId, succeeded);
         }
-        throw new HttpsError("internal", "일정 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     }
 );

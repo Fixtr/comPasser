@@ -26,6 +26,13 @@ function fns() {
 // 서버에서 최대 2개 모델을 순차 시도(각 90초) + 콜드 스타트 여유.
 const CALL_TIMEOUT_MS = 200000;
 
+export async function getGenerationCredits() {
+  const response = await httpsCallable(fns(), 'getGenerationCredits')();
+  const balance = response?.data?.balance;
+  if (!Number.isSafeInteger(balance) || balance < 0) throw new Error('Invalid generation credit balance.');
+  return balance;
+}
+
 /**
  * `generateItinerary` Cloud Function 에 일정 생성을 요청한다.
  *
@@ -73,6 +80,16 @@ export async function generateOptimizedItinerary(plannerRequest) {
           ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
           : "Your session has expired. Please sign in again."
       );
+    }
+    if (error?.details?.reason === 'credits-empty') {
+      throw new Error(currentLang === 'ko'
+        ? '생성권이 없습니다. 광고 시청 기능은 준비 중입니다.'
+        : 'No generation credits remain. Rewarded ads are not available yet.');
+    }
+    if (error?.details?.reason === 'generation-in-progress') {
+      throw new Error(currentLang === 'ko'
+        ? '이미 일정을 생성 중입니다. 잠시 후 다시 시도해 주세요.'
+        : 'An itinerary is already being generated. Please try again shortly.');
     }
 
     console.error("[generateItinerary] Cloud Function call failed. Falling back to Mock Data.", error);

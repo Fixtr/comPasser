@@ -129,7 +129,10 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 });
             }
             if (job?.stage === 'profile') {
-                job = await change({ stage: 'auth' }, async tx => { tx.delete(db.collection('users').doc(uid)); });
+                job = await change({ stage: 'auth' }, async tx => {
+                    tx.delete(db.collection('users').doc(uid));
+                    tx.delete(db.collection('generation_credits').doc(uid));
+                });
             }
             if (job?.stage === 'auth') {
                 // Recheck fencing and identity immediately before the non-transactional Auth call.

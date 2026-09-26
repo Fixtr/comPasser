@@ -41,6 +41,7 @@ export default class TravelForm extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.anchorCount = 0;
     this.isSubmitting = false;
+    this.generationCredits = undefined;
     this.draft = plannerDraftStore.read();
     this.loader = getMapsLoader();
   }
@@ -199,6 +200,19 @@ export default class TravelForm extends HTMLElement {
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    this.renderGenerationCredits();
+  }
+
+  setGenerationCredits(balance) {
+    this.generationCredits = balance;
+    this.renderGenerationCredits();
+  }
+
+  renderGenerationCredits() {
+    const value = this.shadowRoot?.getElementById('generation-credit-balance');
+    if (value) value.textContent = Number.isSafeInteger(this.generationCredits)
+      ? t('generationCreditsCount').replace('{0}', this.generationCredits)
+      : t(this.generationCredits === undefined ? 'generationCreditsLoading' : 'generationCreditsUnavailable');
   }
 
   render() {
@@ -265,6 +279,10 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         
+        <p class="credit-balance" role="status">
+          <span data-i18n="generationCreditsLabel">${t('generationCreditsLabel')}</span>:
+          <strong id="generation-credit-balance">${t('generationCreditsLoading')}</strong>
+        </p>
         <div class="submit-row">
           <button type="button" id="reset-btn" class="reset-btn">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">

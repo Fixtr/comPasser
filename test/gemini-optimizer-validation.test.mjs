@@ -11,16 +11,17 @@ import { prepareGeneratedPlaces } from '../src/domains/map/services/recommendati
 const source = readFileSync(new URL('../src/domains/planner/services/gemini-optimizer.js', import.meta.url), 'utf8')
   .replace(/^import\s[\s\S]*?from\s+['"][^'"]+['"];\s*/gm, '').replace(/^export /gm, '');
 assert.doesNotMatch(source, /^import /m);
-function fixture(error) {
+function fixture(error, creditBalance = 2) {
   const calls = [];
   const context = { normalizePlannerRequest, enforcePlannerConstraints, findPlannerInputIssue, plannerValidationMessage,
     buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, app: {}, getLang: () => 'en',
     getFunctions: () => { calls.push('functions'); return {}; },
-    httpsCallable: () => async () => { calls.push('call'); if (error) throw error;
-      return { data: { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };
+    httpsCallable: (_functions, name) => async () => { calls.push(name === 'getGenerationCredits' ? 'credits' : 'call'); if (error) throw error;
+      return { data: name === 'getGenerationCredits' ? { balance: creditBalance } : { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };
   vm.createContext(context);
   const run = vm.runInContext(`${source}\ngenerateOptimizedItinerary`, context);
-  return { run, calls };
+  const getCredits = vm.runInContext('getGenerationCredits', context);
+  return { run, getCredits, calls };
 }
 const valid = () => ({ date: '2026-10-01', startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '호텔', anchorSchedules: [] });
 
@@ -52,4 +53,14 @@ test('auth errors still fail; network/quota errors still yield marked fallback r
     assert.equal(result.isFallback, true);
     assert.equal(result.fallbackReason, code.endsWith('resource-exhausted') ? 'quota' : 'error');
   }
+});
+
+test('empty generation credits fail instead of returning a mock itinerary', async () => {
+  await assert.rejects(fixture({ code: 'functions/resource-exhausted', details: { reason: 'credits-empty' } }).run(valid()), /No generation credits remain/);
+});
+
+test('credit balance accepts only a valid nonnegative server integer', async () => {
+  assert.equal(await fixture(null, 0).getCredits(), 0);
+  await assert.rejects(fixture(null, -1).getCredits(), /Invalid generation credit balance/);
+  await assert.rejects(fixture(null, '1').getCredits(), /Invalid generation credit balance/);
 });

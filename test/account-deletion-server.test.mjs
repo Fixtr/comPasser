@@ -5,7 +5,7 @@ const { createAccountDeletion, LEASE_MS } = createRequire(import.meta.url)('../f
 
 function fixture({ trips = 3, batchSize = 2, maxBatches = 10 } = {}) {
     const state = { time: 1_800_000_000_000, user: { uid: 'owner', metadata: { creationTime: '2026-01-01' } }, fail: null, deletes: [], logs: [], beforeAuth: null };
-    const docs = new Map([['users/owner', { phoneNumber: 'private' }], ['users/other', { keep: true }], ['itineraries/other', { userId: 'other' }], ['shared_itineraries/public', { keep: true }]]);
+    const docs = new Map([['users/owner', { phoneNumber: 'private' }], ['users/other', { keep: true }], ['generation_credits/owner', { balance: 1 }], ['generation_credits/other', { balance: 4 }], ['itineraries/other', { userId: 'other' }], ['shared_itineraries/public', { keep: true }]]);
     for (let i = 0; i < trips; i++) docs.set(`itineraries/trip${i}`, { userId: 'owner' });
     const snapshot = ref => ({ ref, id: ref.id, exists: docs.has(ref.path), data: () => structuredClone(docs.get(ref.path)) });
     function collection(name, filters = [], limit = Infinity, order) {
@@ -68,8 +68,8 @@ test('durable job deletes ONLY owned private itineraries, profile, then Auth; re
     const app = fixture();
     const result = await app.service.requestDeletion(app.request);
     assert.equal(result.state, 'completed');
-    assert.deepEqual(app.state.deletes, ['itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'users/owner', 'auth/owner']);
-    for (const path of ['users/other', 'itineraries/other', 'shared_itineraries/public']) assert.equal(app.docs.has(path), true);
+    assert.deepEqual(app.state.deletes, ['itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'users/owner', 'generation_credits/owner', 'auth/owner']);
+    for (const path of ['users/other', 'generation_credits/other', 'itineraries/other', 'shared_itineraries/public']) assert.equal(app.docs.has(path), true);
     assert.deepEqual(Object.keys(result).sort(), ['attempts', 'nextAttemptAt', 'receipt', 'stage', 'state']);
     assert.equal(app.job().stage, 'done');
     assert.equal((await app.service.status({ data: { receipt: app.request.data.receipt } })).state, 'completed');

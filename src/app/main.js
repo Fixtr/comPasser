@@ -12,7 +12,7 @@ import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
 import '../domains/profile/ui/profile-view.js';
 import '../domains/profile/ui/account-deletion-status-view.js';
-import { generateOptimizedItinerary } from '../domains/planner/services/gemini-optimizer.js';
+import { generateOptimizedItinerary, getGenerationCredits } from '../domains/planner/services/gemini-optimizer.js';
 import { subscribeToAuthChanges, logout, getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { getUserItineraries, deleteItinerary, getSharedItinerary } from '../domains/itinerary/services/firestore-service.js';
 import { t, getLang, setLang, applyTranslations } from '../utils/i18n.js';
@@ -178,9 +178,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 일정 생성 화면과 요청 수명은 전용 모듈이 맡고, 여기서는 앱에 연결한다.
     const travelFormView = document.getElementById('travel-form-view');
+    let creditIdentity = null;
+    let creditRequest = 0;
+    const showGenerationCredits = balance => {
+        document.querySelector('travel-form')?.setGenerationCredits(balance);
+        document.querySelector('profile-view')?.setGenerationCredits(balance);
+    };
+    async function refreshGenerationCredits() {
+        const user = getCurrentUser();
+        if (!user || !(/^\/plan$|^\/profile(?:\/|$)/).test(window.location.pathname)) return;
+        const identity = `${user.uid}:${user.metadata?.creationTime || ''}`;
+        const request = ++creditRequest;
+        if (identity !== creditIdentity) {
+            creditIdentity = identity;
+            showGenerationCredits(undefined);
+        }
+        try {
+            const balance = await getGenerationCredits();
+            if (request === creditRequest && getCurrentUser()?.uid === user.uid
+                && getCurrentUser()?.metadata?.creationTime === user.metadata?.creationTime) showGenerationCredits(balance);
+        } catch {
+            if (request === creditRequest && getCurrentUser()?.uid === user.uid
+                && getCurrentUser()?.metadata?.creationTime === user.metadata?.creationTime) showGenerationCredits(null);
+        }
+    }
     const generationProgress = createGenerationProgressView({ document, translate: t, ads: affiliateAds });
     const generationController = createGenerationController({
-        generate: generateOptimizedItinerary,
+        generate: async request => {
+            try { return await generateOptimizedItinerary(request); }
+            finally { void refreshGenerationCredits(); }
+        },
         getContext: () => ({ path: window.location.pathname, userId: getCurrentUser()?.uid || null }),
         view: generationProgress,
         clearResults: () => {
@@ -388,6 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.history.replaceState({}, '', '/profile/personal');
             }
         }
+        if (user && (path === '/plan' || path.startsWith('/profile'))) void refreshGenerationCredits();
     }
 
     // Attach Router listener
@@ -431,6 +459,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 이제부터는 로그인 여부를 안다. 이 줄이 없으면 라우터가 영영
         // 기다리기만 한다.
         authSettled = true;
+        const identity = user ? `${user.uid}:${user.metadata?.creationTime || ''}` : null;
+        if (identity !== creditIdentity) {
+            creditIdentity = identity;
+            creditRequest++;
+            showGenerationCredits(undefined);
+        }
         if (user) {
             const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
             const needsVerification = isEmailPasswordUser && !user.emailVerified;

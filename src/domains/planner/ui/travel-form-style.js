@@ -260,6 +260,12 @@ export const travelFormStyles = `
           margin-top: 1rem;
         }
 
+        .credit-balance {
+          margin: 0 0 0.5rem;
+          color: var(--cp-ink-2);
+          font-size: 0.9rem;
+        }
+
         .submit-row .primary-btn {
           margin-top: 0;
           flex: 1;

@@ -8,6 +8,7 @@ async (page) => {
   await page.evaluate(() => {
     for (const key of ['__smoke_user','__smoke_db','userPreference','currentFormData']) sessionStorage.removeItem(key);
     sessionStorage.removeItem('__smoke_deletion');
+    sessionStorage.removeItem('__smoke_credits');
     for (const key of Object.keys(localStorage)) if (key.startsWith('accountDeletionReceipt:smoke')) localStorage.removeItem(key);
   });
   page.smokeErrors = [];
@@ -144,9 +145,19 @@ async (page) => {
       }
     `,
     '/src/domains/planner/services/gemini-optimizer.js': `
+      export async function getGenerationCredits() {
+        if (window.__smoke.creditReadError) throw new Error('TEST: credits unavailable');
+        return window.__smoke.creditBalance;
+      }
       export function generateOptimizedItinerary(request) {
         window.__smoke.requests.push(structuredClone(request));
-        return new Promise((resolve,reject) => window.__smoke.pending.push({resolve,reject}));
+        return new Promise((resolve,reject) => window.__smoke.pending.push({
+          resolve(plan) {
+            window.__smoke.creditBalance--;
+            sessionStorage.setItem('__smoke_credits',String(window.__smoke.creditBalance));
+            resolve(plan);
+          }, reject,
+        }));
       }
       export const GeminiOptimizer = { generateOptimizedItinerary };
     `,
@@ -191,6 +202,7 @@ async (page) => {
     const stored = sessionStorage.getItem('__smoke_user');
     window.__smoke = {
       user:stored ? JSON.parse(stored):{uid:'smokeOwner',displayName:'검증 계정',email:'smoke@example.invalid',emailVerified:true,providerData:[]},
+      creditBalance:Number(sessionStorage.getItem('__smoke_credits') ?? 3),
       calls:[], requests:[], pending:[], kakao:[],
     };
     localStorage.setItem('hasSeenTutorial','true');
