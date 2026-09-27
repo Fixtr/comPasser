@@ -23,6 +23,7 @@ admin.initializeApp();
 
 const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth(), log: logError });
 const generationCredits = createGenerationCredits({ db: admin.firestore() });
+const isGenerationAdmin = user => user.email === 'sunkyu821@gmail.com' && user.emailVerified === true;
 function assertCurrentIdentity(request, user) {
     if (!Number.isFinite(Number(request.auth.token?.auth_time))
         || Number(request.auth.token.auth_time) < Math.floor(Date.parse(user.metadata.creationTime) / 1000)) {
@@ -52,7 +53,7 @@ exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, a
     await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
     const user = await admin.auth().getUser(request.auth.uid);
     assertCurrentIdentity(request, user);
-    return generationCredits.balance(request.auth.uid, user.metadata.creationTime);
+    return generationCredits.balance(request.auth.uid, user.metadata.creationTime, isGenerationAdmin(user));
 });
 
 exports.adMobRewardCallback = onRequest({ timeoutSeconds: 30, maxInstances: 5 }, async (req, res) => {
@@ -254,9 +255,10 @@ exports.generateItinerary = onCall(
         const user = await admin.auth().getUser(uid);
         assertCurrentIdentity(request, user);
         const identityCreatedAt = user.metadata.creationTime;
+        const unlimited = isGenerationAdmin(user);
         const requestId = randomUUID();
         try {
-            await generationCredits.reserve(uid, identityCreatedAt, requestId);
+            await generationCredits.reserve(uid, identityCreatedAt, requestId, unlimited);
         } catch (error) {
             if (['resource-exhausted', 'failed-precondition'].includes(error.code)) {
                 throw new HttpsError(error.code, error.message, error.details);
@@ -309,7 +311,7 @@ exports.generateItinerary = onCall(
             }
             throw new HttpsError("internal", "일정 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         } finally {
-            await generationCredits.settle(uid, identityCreatedAt, requestId, succeeded);
+            await generationCredits.settle(uid, identityCreatedAt, requestId, succeeded, unlimited);
         }
     }
 );

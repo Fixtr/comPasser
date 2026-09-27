@@ -210,7 +210,7 @@ export default class TravelForm extends HTMLElement {
 
   renderGenerationCredits() {
     const value = this.shadowRoot?.getElementById('generation-credit-balance');
-    if (value) value.textContent = Number.isSafeInteger(this.generationCredits)
+    if (value) value.textContent = this.generationCredits === 'unlimited' ? t('generationCreditsUnlimited') : Number.isSafeInteger(this.generationCredits)
       ? t('generationCreditsCount').replace('{0}', this.generationCredits)
       : t(this.generationCredits === undefined ? 'generationCreditsLoading' : 'generationCreditsUnavailable');
   }

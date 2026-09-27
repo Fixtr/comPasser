@@ -17,12 +17,12 @@ function createGenerationCredits({ db, now = Date.now }) {
         const balance = Number.isSafeInteger(saved.balance) && saved.balance >= 0 ? saved.balance : 0;
         if (saved.pending && saved.pending.startedAt + LEASE_MS <= now()) {
             // ponytail: a timed-out request can get one free result if it succeeded just before a crash.
-            return { identityCreatedAt, balance: balance + 1, pending: null };
+            return { identityCreatedAt, balance: balance + (saved.pending.unlimited ? 0 : 1), pending: null };
         }
         return { identityCreatedAt, balance, pending: saved.pending || null };
     }
 
-    async function balance(uid, identityCreatedAt) {
+    async function balance(uid, identityCreatedAt, unlimited = false) {
         return db.runTransaction(async tx => {
             const ref = creditRef(uid);
             const snapshot = await tx.get(ref);
@@ -30,29 +30,29 @@ function createGenerationCredits({ db, now = Date.now }) {
             if (!snapshot.exists || snapshot.data().identityCreatedAt !== identityCreatedAt || snapshot.data().pending !== next.pending) {
                 tx.set(ref, next);
             }
-            return { balance: next.balance, generating: !!next.pending };
+            return { balance: next.balance, generating: !!next.pending, ...(unlimited ? { unlimited: true } : {}) };
         });
     }
 
-    async function reserve(uid, identityCreatedAt, requestId) {
+    async function reserve(uid, identityCreatedAt, requestId, unlimited = false) {
         return db.runTransaction(async tx => {
             const ref = creditRef(uid);
             const next = state(await tx.get(ref), identityCreatedAt);
             if (next.pending) throw failure('failed-precondition', 'generation-in-progress');
-            if (next.balance === 0) throw failure('resource-exhausted', 'credits-empty');
-            tx.set(ref, { ...next, balance: next.balance - 1, pending: { id: requestId, startedAt: now() } });
-            return next.balance - 1;
+            if (next.balance === 0 && !unlimited) throw failure('resource-exhausted', 'credits-empty');
+            tx.set(ref, { ...next, balance: next.balance - (unlimited ? 0 : 1), pending: { id: requestId, startedAt: now(), ...(unlimited ? { unlimited: true } : {}) } });
+            return next.balance - (unlimited ? 0 : 1);
         });
     }
 
-    async function settle(uid, identityCreatedAt, requestId, succeeded) {
+    async function settle(uid, identityCreatedAt, requestId, succeeded, unlimited = false) {
         return db.runTransaction(async tx => {
             const ref = creditRef(uid);
             const snapshot = await tx.get(ref);
             if (!snapshot.exists || snapshot.data().identityCreatedAt !== identityCreatedAt
                 || snapshot.data().pending?.id !== requestId) return false;
             const current = snapshot.data();
-            tx.set(ref, { identityCreatedAt, balance: current.balance + (succeeded ? 0 : 1), pending: null });
+            tx.set(ref, { identityCreatedAt, balance: current.balance + (succeeded || unlimited ? 0 : 1), pending: null });
             return true;
         });
     }

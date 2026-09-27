@@ -28,6 +28,7 @@ const CALL_TIMEOUT_MS = 200000;
 
 export async function getGenerationCredits() {
   const response = await httpsCallable(fns(), 'getGenerationCredits')();
+  if (response?.data?.unlimited === true) return 'unlimited';
   const balance = response?.data?.balance;
   if (!Number.isSafeInteger(balance) || balance < 0) throw new Error('Invalid generation credit balance.');
   return balance;

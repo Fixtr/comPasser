@@ -17,7 +17,7 @@ function fixture(error, creditBalance = 2) {
     buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, app: {}, getLang: () => 'en',
     getFunctions: () => { calls.push('functions'); return {}; },
     httpsCallable: (_functions, name) => async () => { calls.push(name === 'getGenerationCredits' ? 'credits' : 'call'); if (error) throw error;
-      return { data: name === 'getGenerationCredits' ? { balance: creditBalance } : { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };
+      return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : { balance: creditBalance } : { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };
   vm.createContext(context);
   const run = vm.runInContext(`${source}\ngenerateOptimizedItinerary`, context);
   const getCredits = vm.runInContext('getGenerationCredits', context);
@@ -61,6 +61,7 @@ test('empty generation credits fail instead of returning a mock itinerary', asyn
 
 test('credit balance accepts only a valid nonnegative server integer', async () => {
   assert.equal(await fixture(null, 0).getCredits(), 0);
+  assert.equal(await fixture(null, 'unlimited').getCredits(), 'unlimited');
   await assert.rejects(fixture(null, -1).getCredits(), /Invalid generation credit balance/);
   await assert.rejects(fixture(null, '1').getCredits(), /Invalid generation credit balance/);
 });

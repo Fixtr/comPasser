@@ -15,7 +15,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 
 // Run the actual exported callback with fake SDK/HTTP boundaries. No credentials,
 // account reads, network, paid AI or production initialization are involved.
-function fixture({ fail, empty = false, responses } = {}) {
+function fixture({ fail, empty = false, responses, user = {} } = {}) {
   const calls = [];
   let responseIndex = 0;
   class HttpsError extends Error {
@@ -26,11 +26,11 @@ function fixture({ fail, empty = false, responses } = {}) {
     'firebase-functions/v2/https': { onCall: (_, fn) => fn, onRequest: (_, fn) => fn, HttpsError },
     'firebase-functions/v2/scheduler': { onSchedule: (_, fn) => fn },
     'firebase-functions/params': { defineSecret: () => ({ value: () => { calls.push('secret'); return 'test-only-key'; } }) },
-    'firebase-admin': { initializeApp() {}, firestore() {}, auth: () => ({ getUser: async () => { calls.push('user'); return { metadata: { creationTime: '2026-01-01' } }; } }) },
+    'firebase-admin': { initializeApp() {}, firestore() {}, auth: () => ({ getUser: async () => { calls.push('user'); return { metadata: { creationTime: '2026-01-01' }, ...user }; } }) },
     './account-deletion': { createAccountDeletion: () => ({ assertNotDeleting: async () => calls.push('account-check') }) },
     './generation-credits': { createGenerationCredits: () => ({
-      balance: async () => ({ balance: 1, generating: false }),
-      reserve: async () => { calls.push('reserve'); if (empty) throw Object.assign(new Error('credits-empty'), { code: 'resource-exhausted', details: { reason: 'credits-empty' } }); },
+      balance: async (_uid, _createdAt, unlimited) => ({ balance: 1, generating: false, ...(unlimited ? { unlimited: true } : {}) }),
+      reserve: async (_uid, _createdAt, _id, unlimited) => { calls.push('reserve'); if (empty && !unlimited) throw Object.assign(new Error('credits-empty'), { code: 'resource-exhausted', details: { reason: 'credits-empty' } }); },
       settle: async (_uid, _createdAt, _id, succeeded) => { calls.push(succeeded ? 'debit' : 'refund'); },
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
@@ -44,7 +44,7 @@ function fixture({ fail, empty = false, responses } = {}) {
   };
   const exports = {};
   vm.runInNewContext(source, { exports, console, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
-  return { calls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }) };
+  return { calls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }) };
 }
 
 test('actual server callback rejects malformed input before any account/secret/prompt/AI work', async () => {
@@ -110,4 +110,17 @@ test('empty credits stop generation before paid AI call', async () => {
   const app = fixture({ empty: true });
   await assert.rejects(app.run(valid()), error => error.code === 'resource-exhausted' && error.details.reason === 'credits-empty');
   assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve']);
+});
+
+test('only the verified administrator email bypasses empty credits', async () => {
+  const admin = fixture({ empty: true, user: { email: 'sunkyu821@gmail.com', emailVerified: true } });
+  assert.equal((await admin.getCredits()).unlimited, true);
+  assert.equal((await admin.run(valid())).days.length, 1);
+  assert.ok(admin.calls.includes('ai'));
+  for (const user of [{ email: 'sunkyu821@gmail.com', emailVerified: false }, { email: 'someone@example.com', emailVerified: true }]) {
+    const app = fixture({ empty: true, user });
+    assert.equal((await app.getCredits()).unlimited, undefined);
+    await assert.rejects(app.run(valid()), { code: 'resource-exhausted' });
+    assert.ok(!app.calls.includes('ai'));
+  }
 });

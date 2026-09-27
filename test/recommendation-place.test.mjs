@@ -42,6 +42,14 @@ test('choose nearest valid candidate, not first search hit; do not repeat fixed 
   assert.equal(selectRecommendation(places,intent,center,new Set(['station','near'])).placeId,'far');
 });
 
+test('failed candidates report why they were rejected without relaxing type or distance rules', () => {
+  const rejected = {};
+  const places = [candidate('wrong-type', { types: ['museum'] }),
+    candidate('too-far', { location: { lat: 35, lng: 129 } })];
+  assert.equal(selectRecommendation(places, intent, center, new Set(), rejected), null);
+  assert.deepEqual(rejected, { type: 1, distance: 1 });
+});
+
 test('actual candidate becomes canonical JSON identity and Place ID link, never invented business details', async () => {
   const {geocoder,requests}=service([candidate()]);
   const source={...recommendation, practicalInfo:{operatingHours:'24h',top3Recommendations:[{rating:'5.0'}]}, officialWebsiteUrl:'https://invented.example'};
@@ -55,6 +63,7 @@ test('actual candidate becomes canonical JSON identity and Place ID link, never 
   assert.equal(source.title,'점심 식사');
   assert.equal(requests[0].includedType,'restaurant');
   assert.equal(requests[0].useStrictTypeFiltering,true);
+  assert.equal(requests[0].textQuery,'restaurant');
   assert.ok(requests[0].fields.includes('id'));
   assert.deepEqual(requests[0].locationBias,{lat:center.lat,lng:center.lng});
   assert.deepEqual(JSON.parse(JSON.stringify(item.verifiedPlace)),item.verifiedPlace);

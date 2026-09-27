@@ -110,7 +110,10 @@ export class GeocodingService {
 
     async resolveRecommendation(item, center, excluded, timeoutMs = 6000) {
         const intent = normalizePlaceIntent(item.placeIntent);
-        if (!intent || !center) return null;
+        if (!intent || !center) {
+            console.warn('[Recommendation] unresolved', { reason: intent ? 'missing-center' : 'invalid-intent' });
+            return null;
+        }
         const saved = reusableRecommendation(item, center);
         if (saved && !excluded.has(saved.placeId)) return { ...item, ...recommendationFields(item, saved) };
         let timer;
@@ -119,9 +122,9 @@ export class GeocodingService {
                 (async () => {
                     await this.init();
                     return this.Place.searchByText({
-                        // Only a trusted user location defines the search area;
-                        // model-provided nearLocation is a hint, never an address.
-                        textQuery: `${center.displayName} ${center.formattedAddress} ${intent.category.replaceAll('_', ' ')}`,
+                        // An address in textQuery can override locationBias.
+                        // The trusted center and the 5 km post-filter define the search area.
+                        textQuery: intent.category.replaceAll('_', ' '),
                         language: this.resolveLanguage(), region: 'kr',
                         includedType: intent.category, useStrictTypeFiltering: true,
                         locationBias: { lat: center.lat, lng: center.lng },
@@ -131,9 +134,19 @@ export class GeocodingService {
                 })(),
                 new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Place search timeout')), timeoutMs); }),
             ]);
-            const place = selectRecommendation(result.places, intent, center, excluded);
+            const rejected = {};
+            const places = Array.isArray(result.places) ? result.places : [];
+            const place = selectRecommendation(places, intent, center, excluded, rejected);
+            if (!place) console.warn('[Recommendation] unresolved', {
+                reason: places.length ? 'filtered' : 'no-results', category: intent.category,
+                candidates: places.length, rejected
+            });
             return place ? { ...item, ...recommendationFields(item, place) } : null;
-        } catch {
+        } catch (error) {
+            console.warn('[Recommendation] unresolved', {
+                reason: error?.message === 'Place search timeout' ? 'timeout' : 'search-failed',
+                category: intent.category
+            });
             return null; // No address-only fallback on denial, timeout or no candidate.
         } finally { clearTimeout(timer); }
     }
@@ -202,7 +215,10 @@ export class GeocodingService {
                     return exact(a) - exact(b) || Math.abs(a.index - index) - Math.abs(b.index - index);
                 })[0]?.place;
                 if (Object.hasOwn(item, 'placeIntent')) {
-                    if (Date.now() >= deadline) continue;
+                    if (Date.now() >= deadline) {
+                        console.warn('[Recommendation] unresolved', { reason: 'search-budget-exhausted' });
+                        continue;
+                    }
                     results[index] = await this.resolveRecommendation(item, nearest, excluded, Math.min(6000, deadline - Date.now()));
                     if (results[index]) excluded.add(results[index].verifiedPlace.placeId);
                 } else {

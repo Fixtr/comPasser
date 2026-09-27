@@ -20,14 +20,20 @@ export function distanceMeters(a, b) {
 
 // Bias alone does not restrict Google results. Apply a hard distance AND type
 // check after search, and accept only JSON-safe, identifiable physical places.
-export function selectRecommendation(places, intent, center, excluded = new Set()) {
+export function selectRecommendation(places, intent, center, excluded = new Set(), rejected = null) {
   if (!center || !normalizePlaceIntent(intent)) return null;
+  const reject = reason => {
+    if (rejected) rejected[reason] = (rejected[reason] || 0) + 1;
+    return [];
+  };
   return (Array.isArray(places) ? places : []).flatMap(place => {
     const snapshot = normalizeSelectedPlace(place);
-    if (!snapshot || excluded.has(snapshot.placeId) || !place.types?.includes(intent.category) ||
-        ['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(place.businessStatus) ||
-        !place.addressComponents?.some(c => c.types?.includes('country') && c.shortText === 'KR') ||
-        distanceMeters(center, snapshot) > RECOMMENDATION_RADIUS_METERS) return [];
+    if (!snapshot) return reject('identity');
+    if (excluded.has(snapshot.placeId)) return reject('duplicate');
+    if (!place.types?.includes(intent.category)) return reject('type');
+    if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(place.businessStatus)) return reject('closed');
+    if (!place.addressComponents?.some(c => c.types?.includes('country') && c.shortText === 'KR')) return reject('country');
+    if (distanceMeters(center, snapshot) > RECOMMENDATION_RADIUS_METERS) return reject('distance');
     return [{ ...snapshot, source: 'google_places', category: intent.category,
       intentKey: intentKey(intent), centerPlaceId: center.placeId }];
   }).sort((a, b) => distanceMeters(center, a) - distanceMeters(center, b) || a.placeId.localeCompare(b.placeId))[0] || null;

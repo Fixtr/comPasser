@@ -61,3 +61,22 @@ test('one AdMob transaction grants one credit even if its signed callback is ret
     assert.equal(await credits.grantAdReward('owner', 'first', 'a'.repeat(32)), false);
     assert.deepEqual(await credits.balance('owner', 'first'), { balance: 2, generating: false });
 });
+
+test('unlimited account can generate repeatedly at zero credits without changing its balance', async () => {
+    const app = fixture();
+    const { credits } = app;
+    await credits.reserve('admin', 'first', 'starter');
+    await credits.settle('admin', 'first', 'starter', true);
+    await credits.reserve('admin', 'first', 'a', true);
+    await assert.rejects(credits.reserve('admin', 'first', 'overlap', true), { code: 'failed-precondition' });
+    await credits.settle('admin', 'first', 'a', true, true);
+    await credits.reserve('admin', 'first', 'b', true);
+    await credits.settle('admin', 'first', 'b', false, true);
+    assert.deepEqual(await credits.balance('admin', 'first', true), { balance: 0, generating: false, unlimited: true });
+    await credits.reserve('admin', 'first', 'c', true);
+    await credits.settle('admin', 'first', 'c', true, true);
+    await credits.reserve('admin', 'first', 'timed-out', true);
+    app.advance(LEASE_MS + 1);
+    assert.deepEqual(await credits.balance('admin', 'first', true), { balance: 0, generating: false, unlimited: true });
+    assert.deepEqual(await credits.balance('admin', 'first'), { balance: 0, generating: false });
+});
