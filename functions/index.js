@@ -273,11 +273,14 @@ exports.generateItinerary = onCall(
                     const parsed = JSON.parse(rawText);
 
                     const days = Array.isArray(parsed.days)
-                        ? parsed.days.filter(day => Array.isArray(day.scheduleItems) && day.scheduleItems.length > 0)
+                        ? [...parsed.days].sort((a, b) => a?.day - b?.day)
                         : [];
-
-                    if (days.length === 0) {
-                        throw new Error("Invalid output: 'days' contains no valid scheduleItems.");
+                    if (days.length !== constraints.dailyData.length || days.some((day, index) =>
+                        day?.day !== constraints.dailyData[index].day
+                        || day.date !== constraints.dailyData[index].date
+                        || !Array.isArray(day.scheduleItems)
+                        || day.scheduleItems.length === 0)) {
+                        throw new Error("Invalid output: days do not match the requested trip.");
                     }
 
                     functions.logger.info("[generateItinerary] success", {

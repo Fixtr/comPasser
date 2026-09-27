@@ -10,11 +10,14 @@ const prompt = require('./itinerary-prompt.js');
 const source = readFileSync(new URL('../functions/index.js', import.meta.url), 'utf8');
 const valid = () => normalizePlannerRequest({ date: '2026-10-01', startTime: '09:00', endTime: '18:00',
   startLocation: '서울역', endLocation: '호텔', anchorSchedules: [] });
+const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02'], startTime: '09:00', endTime: '18:00',
+  startLocation: '서울역', endLocation: '호텔', anchorSchedules: [] });
 
 // Run the actual exported callback with fake SDK/HTTP boundaries. No credentials,
 // account reads, network, paid AI or production initialization are involved.
-function fixture({ fail, empty = false } = {}) {
+function fixture({ fail, empty = false, responses } = {}) {
   const calls = [];
+  let responseIndex = 0;
   class HttpsError extends Error {
     constructor(code, message, details) { super(message); Object.assign(this, { code, details }); }
   }
@@ -31,7 +34,12 @@ function fixture({ fail, empty = false } = {}) {
       settle: async (_uid, _createdAt, _id, succeeded) => { calls.push(succeeded ? 'debit' : 'refund'); },
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
-    axios: { post: async () => { calls.push('ai'); if (fail) throw fail; return { data: { candidates: [{ content: { parts: [{ text: JSON.stringify({ days: [{ day: 1, scheduleItems: [{ title: '일정' }] }] }) }] } }] } }; } },
+    axios: { post: async () => {
+      calls.push('ai');
+      if (fail) throw fail;
+      const days = responses ? responses[responseIndex++] : [{ day: 1, date: '2026-10-01', scheduleItems: [{ title: '일정' }] }];
+      return { data: { candidates: [{ content: { parts: [{ text: JSON.stringify({ days }) }] } }] } };
+    } },
     cors: () => () => {},
   };
   const exports = {};
@@ -71,6 +79,25 @@ test('valid input still passes account guard, prompt and AI exactly once', async
   const app = fixture(), response = await app.run(valid());
   assert.equal(response.days.length, 1);
   assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'debit']);
+});
+
+test('an incomplete first model retries; only a complete trip spends a credit', async () => {
+  const first = { day: 1, date: '2026-10-01', scheduleItems: [{ title: '첫날' }] };
+  const second = { day: 2, date: '2026-10-02', scheduleItems: [{ title: '둘째 날' }] };
+  const app = fixture({ responses: [[first], [second, first]] });
+  const response = await app.run(twoDays());
+  assert.deepEqual(Array.from(response.days, day => day.day), [1, 2]);
+  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'debit']);
+});
+
+test('missing, duplicate, or wrong-date days from both models refund the credit', async () => {
+  const first = { day: 1, date: '2026-10-01', scheduleItems: [{ title: '첫날' }] };
+  const second = { day: 2, date: '2026-10-02', scheduleItems: [{ title: '둘째 날' }] };
+  for (const days of [[first], [first, first], [first, { ...second, date: '2026-10-03' }]]) {
+    const app = fixture({ responses: [days, days] });
+    await assert.rejects(app.run(twoDays()), { code: 'internal' });
+    assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'refund']);
+  }
 });
 
 test('model fallback and quota error mapping remain unchanged', async () => {
