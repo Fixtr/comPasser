@@ -108,6 +108,16 @@ test('탈퇴 재로그인은 계정 관리 화면으로만 복귀하며 여전�
   }
 });
 
+test('홈 추천에서 로그인해도 날짜 선택을 건너뛰지 않는다', () => {
+  assert.equal(getSafeReturnPath('/preference/1'), '/preference/1');
+  assert.equal(isPublicPath('/preference/1'), false);
+  assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true,
+    hasPreference: true, returnTo: '/preference/1' }), { action: 'redirect', to: '/preference/1' });
+  for (const value of ['/preference/2', '/preference/1?next=https://evil.example', '/preference/1/']) {
+    assert.equal(getSafeReturnPath(value), null);
+  }
+});
+
 test('외부 주소·인코딩 우회·일정 외 주소는 복귀 주소로 사용하지 않는다', () => {
   for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', '/\\evil.example',
     '/share/abc?next=https://evil.example', '/view/abc#other', '/share/%2f%2fevil', '/share/../login',

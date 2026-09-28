@@ -238,51 +238,6 @@ html[data-route="away"] #page-home {
   word-break: keep-all;
 }
 
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;                   /* 카드 사이를 선 하나로. 겹친 테두리가 두꺼워지지 않는다. */
-  width: 100%;
-  background: var(--cp-rule);
-  border: var(--cp-hair) solid var(--cp-rule);
-  margin-bottom: 2.5rem;
-}
-
-.feature-card {
-  background: var(--cp-surface);
-  border-radius: var(--cp-radius);
-  padding: 1.8rem 1.4rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.feature-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  color: var(--cp-ink);
-  border: var(--cp-hair) solid var(--cp-rule);
-  border-radius: var(--cp-radius);
-  margin-bottom: 0.35rem;
-}
-
-.feature-card b {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--cp-ink);
-}
-
-.feature-card span:not(.feature-icon) {
-  font-size: 0.92rem;
-  color: var(--cp-ink-2);
-  line-height: 1.55;
-  word-break: keep-all;
-}
-
 /* 주 버튼. 그라디언트·그림자 대신 색 반전으로만 상태를 알린다. */
 .primary-btn {
   background: var(--cp-ink);
@@ -330,14 +285,6 @@ html[data-route="away"] #page-home {
 }
 
 @media (max-width: 768px) {
-  /* !important 를 쓰던 자리다. 인라인 style 을 이기려던 건데
-     그 인라인이 사라졌으므로 더 필요 없다. */
-  .features-grid {
-    grid-template-columns: 1fr;
-    max-width: 420px;
-    margin: 0 auto 2.5rem;
-  }
-
   .app-container {
     margin: 0;
     min-height: 100vh;

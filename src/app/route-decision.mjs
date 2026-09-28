@@ -27,9 +27,9 @@ export function isHomePath(path) {
   return p === '/' || p === '/home' || p.endsWith('/index.html');
 }
 
-/** 일정 상세와 재로그인 후 계정 관리만 허용한다. 복귀 자체가 삭제를 실행하지 않는다. */
+/** 명시한 내부 화면만 복귀를 허용한다. 복귀 자체가 생성·삭제를 실행하지 않는다. */
 export function getSafeReturnPath(value) {
-  if (value === '/profile/security') return value;
+  if (value === '/profile/security' || value === '/preference/1') return value;
   return typeof value === 'string' && value.match(/^\/(?:share|view)\/[a-zA-Z0-9]+$/)?.[0] === value
     ? value
     : null;
