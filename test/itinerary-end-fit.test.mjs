@@ -24,6 +24,21 @@ test('이동 경로가 없어도 고정 일정과 이미 겹치는 방문은 경
 });
 const routes = [35,27,10,41].map((durationMinutes, fromIndex) => ({fromIndex,toIndex:fromIndex+1,durationMinutes}));
 
+test('automatic and manual fitting keep meals at 60 minutes while cafes may shrink to 20', () => {
+  for (const category of ['restaurant', 'cafe']) {
+    const plan = [{type:'departure',time:'09:00'},
+      {type:'dining',title:'방문',time:'09:00',endTime:'10:30',placeIntent:{category}},
+      {type:'arrival',time:'10:30'}];
+    const measured = [15,15].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+    const result = fitMeasuredSchedule(plan,measured,'10:00');
+    assert.equal(result.adjusted,category === 'cafe');
+    const manual = trimScheduleToEndTime(plan,'09:40');
+    const kept = manual.items.find(i=>i.type === 'dining');
+    if(category === 'restaurant') assert.equal(kept,undefined);
+    else assert.equal(kept.endTime,'09:40');
+  }
+});
+
 test('fitting cannot borrow time before the requested departure', () => {
   const plan = [{type:'departure',time:'07:51',endTime:'09:00'},
     {type:'attraction',time:'08:10',endTime:'09:10'},

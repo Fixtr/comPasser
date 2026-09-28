@@ -72,6 +72,22 @@ Each `scheduleItems` entry contains `time`, `endTime`, `type`, `title`, `descrip
 - last item location/time = selected destination/end time;
 - every Anchor exists with its original day, time range, title, and location.
 
+As of 2026-09-29, the model generates **optional visits only**: `type` is an enum
+of `attraction`, `dining`, `leisure`. Every requested day/date is required, but its
+`scheduleItems` may be empty when no visit fits. The app inserts departure,
+arrival and fixed anchors from the original request. Existing stored plans with
+those types remain valid and are not migrated. `placeIntent.purpose` is nonempty
+for all newly generated visits; `nearLocation` and `location` copy one of the
+day's allowed fixed place names. Addresses remain input context, not search-center names.
+
+Meal times are preferences conditional on the available day and appointments.
+Optional restaurant meals require 60 minutes; cafes and other visits require
+20 minutes. Automatic fitting never reduces a meal below 60 minutes; if it cannot
+fit, it preserves the conflict warning. Explicit manual trimming may remove a
+visit under its existing behavior, but does not leave a meal shorter than 60 minutes.
+Existing user-entered short visits are not silently lengthened. All budgets use
+the app's public-transit routing; budget preferences apply to venue spending.
+
 ## Recommendation place resolution (2026-09-15)
 
 For source-linked sharing/deletion behavior introduced on 2026-09-18, see [shared deletion](SHARED_DELETION_2026-09-18.md).

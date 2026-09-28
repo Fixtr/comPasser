@@ -10,6 +10,7 @@
 ## Architectural Principles
 - **AI Prompts**: Prompt/schema construction lives in `functions/itinerary-prompt.js` after the server migration; never ship it or the AI key to the browser. `gemini-optimizer.js` sends constraints and removes model-asserted place identities before constraint enforcement.
 - **Hard Constraints**: Departure, destination, day boundary times, and anchors MUST NOT rely solely on prompt compliance. Keep deterministic normalization/enforcement in `planner-constraints.mjs`.
+- **Generation contract**: The model emits optional visits only (`attraction`, `dining`, `leisure`), including an empty item array when no visit fits. Keep every requested day/date. The app inserts fixed stops; existing saved payloads are unchanged. Per-day allowed search-center names come from the sanitized user locations, and budget never changes the app's public-transit routing.
 - **Form UI**: The `travel-form.js` component ONLY collects data, handles debounce/loading states, and dispatches the customized data via an Event Bus or custom events.
 - **Error Handling**: 429 Too Many Requests or other AI API errors are caught and thrown in `gemini-optimizer.js` and properly surfaced to the user in the main app lifecycle.
 - **Tests**: Any planner contract change MUST update `test/planner-constraints.test.mjs` and pass `npm test` plus `npm run build`.

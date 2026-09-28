@@ -280,8 +280,7 @@ exports.generateItinerary = onCall(
                     if (days.length !== constraints.dailyData.length || days.some((day, index) =>
                         day?.day !== constraints.dailyData[index].day
                         || day.date !== constraints.dailyData[index].date
-                        || !Array.isArray(day.scheduleItems)
-                        || day.scheduleItems.length === 0)) {
+                        || !Array.isArray(day.scheduleItems))) {
                         throw new Error("Invalid output: days do not match the requested trip.");
                     }
 

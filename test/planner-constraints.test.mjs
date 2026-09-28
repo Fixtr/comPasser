@@ -22,6 +22,24 @@ const flatRequest = {
   }]
 };
 
+test('recommendation-only empty days get authoritative boundaries and anchors exactly once', () => {
+  const result = enforcePlannerConstraints([{ day: 1, date: flatRequest.date[0], scheduleItems: [] }], flatRequest);
+  assert.deepEqual(result[0].scheduleItems.map(i => i.type), ['departure', 'AnchorSchedule', 'arrival']);
+  assert.equal(result[0].scheduleItems[1].time, '11:02');
+  assert.equal(result[0].scheduleItems[1].location, '국립중앙박물관');
+  assert.deepEqual(enforcePlannerConstraints(result, flatRequest), result);
+});
+
+test('inserted anchors are sorted into the day, while genuine model overflow past midnight is removed', () => {
+  const visits = [
+    {type:'leisure',time:'10:00',endTime:'11:00',title:'산책',location:'서울역',placeIntent:{purpose:'산책'}},
+    {type:'leisure',time:'15:00',endTime:'16:00',title:'카페',location:'서울역',placeIntent:{purpose:'카페'}},
+    {type:'leisure',time:'01:00',endTime:'02:00',title:'다음날 방문',location:'서울역',placeIntent:{purpose:'야식'}}
+  ];
+  const [day] = enforcePlannerConstraints([{day:1,scheduleItems:visits}],flatRequest);
+  assert.deepEqual(day.scheduleItems.map(i=>i.time),['09:06','10:00','11:02','15:00','21:06']);
+});
+
 test('daytime night-only suggestions are removed while an ordinary visit remains', () => {
   const request={date:['2026-09-29'],startTime:'09:00',endTime:'21:00',
     startLocation:'서울역',endLocation:'서울역',anchorSchedules:[]};

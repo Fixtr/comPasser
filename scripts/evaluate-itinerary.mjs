@@ -22,11 +22,11 @@ export function evaluate(request, days, evidence = {}) {
   const expected = request.dailyData;
   days = Array.isArray(days) ? days : [];
   const structure = Array.isArray(days) && days.length === expected.length && expected.every(c =>
-    days.filter(d => d?.day === c.day && d.date === c.date && Array.isArray(d.scheduleItems) && d.scheduleItems.length).length === 1)
+    days.filter(d => d?.day === c.day && d.date === c.date && Array.isArray(d.scheduleItems)).length === 1)
     ? 'pass' : 'fail';
   return { structure, days: expected.map(c => {
     const items = days?.find(d => d?.day === c.day)?.scheduleItems;
-    if (!Array.isArray(items) || !items.length || items.some(item => !item || typeof item !== 'object')) {
+    if (!Array.isArray(items) || items.some(item => !item || typeof item !== 'object')) {
       return { day: c.day, missing: true, anchorContract: 'fail', anchorArrival: 'unknown', endArrival: 'unknown' };
     }
     const invalidTimes = items.flatMap((item, index) => {
@@ -42,7 +42,7 @@ export function evaluate(request, days, evidence = {}) {
       if (matches.length === 1 && Number.isFinite(matches[0].durationMinutes) && matches[0].durationMinutes >= 0) validRoutes.push(matches[0]);
     }
     const measured = validRoutes.length === items.length - 1 && invalidTimes.length === 0 &&
-      items[0].type === 'departure' && items.at(-1).type === 'arrival';
+      items[0]?.type === 'departure' && items.at(-1)?.type === 'arrival';
     const projected = applyTransitDelays(items, validRoutes, c.startTime);
     const anchorConflict = hasFixedArrivalConflict(projected, validRoutes);
     const endOverflowMinutes = invalidTimes.length ? null : Math.max(
@@ -59,7 +59,7 @@ export function evaluate(request, days, evidence = {}) {
       anchorContract: missingAnchors.length ? 'fail' : 'pass', missingAnchors: missingAnchors.map(a => a.name),
       anchorArrival: missingAnchors.length || anchorConflict ? 'fail' : c.anchors.length === 0 ? 'not-applicable' : measured ? 'pass' : 'unknown',
       endArrival: endOverflowMinutes > 0 ? 'fail' : measured ? 'pass' : 'unknown', endOverflowMinutes,
-      routes: { measured: validRoutes.length, expected: items.length - 1 },
+      routes: { measured: validRoutes.length, expected: Math.max(0, items.length - 1) },
       places: { verified: ordinary.filter(i => i.placeStatus === 'verified' && i.verifiedPlace?.source === 'google_places').length,
         unresolved: ordinary.filter(i => i.placeStatus === 'unresolved').length,
         pending: ordinary.filter(i => !['verified', 'unresolved'].includes(i.placeStatus)).length },

@@ -230,6 +230,12 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     if (!constraints) return day;
 
     let scheduleItems = Array.isArray(day.scheduleItems) ? [...day.scheduleItems] : [];
+    // Detect model overflow before inserting/moving fixed appointments. An
+    // app-inserted 13:00 anchor after a 17:00 visit is not the following day.
+    const endTimeMinutes = minutes(constraints.endTime);
+    const originalChronology = toChronologicalMinutes(scheduleItems);
+    scheduleItems = scheduleItems.filter((item, index) => item.type === 'AnchorSchedule'
+      || endTimeMinutes === Number.MAX_SAFE_INTEGER || originalChronology[index] < endTimeMinutes);
     const anchors = constraints.anchors || [];
 
     for (const anchor of anchors) {
@@ -276,34 +282,9 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       return belongsToUser ? item : { ...item, type: 'attraction' };
     });
 
-    // 정렬은 AI가 낸(자정 넘김을 그냥 "01:33"처럼 표기한) 원래 순서를
-    // 기준으로 자정 넘김을 판단해야 한다 — 이미 뒤섞인 뒤에는 판단 기준이
-    // 없다. decorate-sort-undecorate로 원래 인덱스에 계산된 정렬키를
-    // 붙여서 정렬한다.
-    const chronoKeys = toChronologicalMinutes(scheduleItems);
     scheduleItems = scheduleItems
-      .map((item, idx) => ({ item, key: chronoKeys[idx] }))
-      .sort((a, b) => a.key - b.key)
-      .map(({ item }) => item);
-
-    // Gemini sometimes appends an extra item past the requested end time
-    // (e.g. a bogus "moving to the airport" stop that runs past midnight —
-    // e.g. "01:33" the next morning) instead of ending the day exactly at
-    // endLocation/endTime. If left in place, the end-location fix below
-    // can't find a matching last item and pushes the real arrival after
-    // it — producing a non-chronological order where the pushed
-    // (earlier-time) arrival sits after a later-time item. Drop anything
-    // the AI scheduled at/after the day's end time first, so the array's
-    // last item is always a legitimate one. Now-sorted order lets
-    // toChronologicalMinutes correctly treat any post-midnight time as
-    // "next day" rather than mistaking it for early morning.
-    const endTimeMinutes = minutes(constraints.endTime);
-    if (endTimeMinutes !== Number.MAX_SAFE_INTEGER) {
-      const sortedChronoKeys = toChronologicalMinutes(scheduleItems);
-      scheduleItems = scheduleItems.filter((item, idx) => (
-        item.type === 'AnchorSchedule' || sortedChronoKeys[idx] < endTimeMinutes
-      ));
-    }
+      .filter(item => item.type === 'AnchorSchedule' || minutes(item.time) < endTimeMinutes)
+      .sort((a, b) => minutes(a.time) - minutes(b.time));
 
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,

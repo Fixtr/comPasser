@@ -1,4 +1,4 @@
-import { applyTransitDelays, getEndTimeOverflowMinutes } from './itinerary-schedule-adjust.mjs';
+import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes } from './itinerary-schedule-adjust.mjs';
 
 const minutes = value => {
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')) return null;
@@ -74,7 +74,7 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
     };
     let excess = Math.max(0, projectedEnd() - deadline);
     for (let i = right - 1; i > left && excess > 0; i--) {
-      const reduction = Math.min(excess, Math.max(0, stays[i] - 20));
+      const reduction = Math.min(excess, Math.max(0, stays[i] - minimumStayMinutes(items[i])));
       stays[i] -= reduction;
       excess = Math.max(0, projectedEnd() - deadline);
     }

@@ -92,6 +92,13 @@ test('an incomplete first model retries; only a complete trip spends a credit', 
   assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'debit']);
 });
 
+test('an empty recommendation array is valid: fixed stops are inserted by the app', async () => {
+  const app = fixture({ responses: [[{ day: 1, date: '2026-10-01', scheduleItems: [] }]] });
+  const response = await app.run(valid());
+  assert.equal(response.days[0].scheduleItems.length, 0);
+  assert.equal(app.modelUrls.length, 1);
+});
+
 test('missing, duplicate, or wrong-date days from both models refund the credit', async () => {
   const first = { day: 1, date: '2026-10-01', scheduleItems: [{ title: '첫날' }] };
   const second = { day: 2, date: '2026-10-02', scheduleItems: [{ title: '둘째 날' }] };

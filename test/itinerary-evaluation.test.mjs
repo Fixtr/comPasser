@@ -63,7 +63,7 @@ test('meal and cafe minimums differ; changed anchor locations fail the contract'
   assert.equal(report.anchorContract, 'fail');
 });
 
-test('current automatic fitting can meet the deadline while breaking the meal minimum; evaluation must expose both', () => {
+test('automatic fitting preserves a full meal and exposes an impossible deadline', () => {
   const input = [{ type: 'departure', time: '09:00' },
     { type: 'dining', time: '09:00', endTime: '10:00', placeIntent: { purpose: '식사', category: 'restaurant', nearLocation: '서울역' } },
     { type: 'arrival', time: '10:00' }];
@@ -71,9 +71,9 @@ test('current automatic fitting can meet the deadline while breaking the meal mi
   const fitted = fitMeasuredSchedule(input, routes, '10:00', '09:00');
   const constraint = { dailyData: [{ ...request.dailyData[0], endTime: '10:00', anchors: [] }] };
   const day = evaluate(constraint, plan(fitted.items), { source: 'google_maps', days: [{ day: 1, transitRoutes: routes }] }).days[0];
-  assert.equal(day.endArrival, 'pass');
-  assert.equal(day.shortStays[0].minutes, 30);
-  assert.equal(day.shortStays[0].minimum, 60);
+  assert.equal(day.endArrival, 'fail');
+  assert.equal(day.shortStays.length, 0);
+  assert.equal(fitted.adjusted, false);
 });
 
 test('zero-minute real routes count; synthetic evidence and negative/duplicate routes do not establish a pass', () => {

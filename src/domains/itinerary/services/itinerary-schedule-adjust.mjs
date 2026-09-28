@@ -153,7 +153,7 @@ export function getEndTimeOverflowMinutes(scheduleItems, dayEndTime) {
  *
  * 규칙
  *  - 마지막 방문지부터 거슬러 올라가며 줄인다(늦게 잡힌 일정이 먼저 희생).
- *  - 한 항목의 체류 시간은 최소 MIN_STAY_MINUTES 까지만 줄인다. 그보다 더
+ *  - 체류 시간은 식사 60분, 카페·기타 방문 20분까지만 줄인다. 그보다 더
  *    줄여야 하면 그 항목을 통째로 뺀다 — 5분짜리 방문은 의미가 없다.
  *  - 사용자가 지정한 필수 일정(AnchorSchedule)과 출발/도착은 건드리지 않는다.
  *  - 그래도 못 맞추면 할 수 있는 만큼만 줄이고 남은 초과를 알린다.
@@ -162,7 +162,8 @@ export function getEndTimeOverflowMinutes(scheduleItems, dayEndTime) {
  * @param {string} dayEndTime 사용자가 지정한 종료 시각("HH:MM")
  * @returns {{items: Array, removedTitles: string[], shortenedCount: number, resolved: boolean}}
  */
-const MIN_STAY_MINUTES = 20;
+export const minimumStayMinutes = item => item?.placeIntent?.category === 'restaurant' ||
+  (item?.type === 'dining' && item?.placeIntent?.category !== 'cafe') ? 60 : 20;
 
 export function trimScheduleToEndTime(scheduleItems, dayEndTime) {
   const unchanged = { items: scheduleItems, removedTitles: [], shortenedCount: 0, resolved: true };
@@ -200,7 +201,7 @@ export function trimScheduleToEndTime(scheduleItems, dayEndTime) {
     if (start === null || end === null || end <= start) continue;
 
     const stay = end - start;
-    const canShorten = Math.max(0, stay - MIN_STAY_MINUTES);
+    const canShorten = Math.max(0, stay - minimumStayMinutes(item));
 
     if (canShorten >= overflow) {
       item.endTime = formatMinutes(end - overflow);

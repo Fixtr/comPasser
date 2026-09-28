@@ -108,7 +108,7 @@ try {
     const days = enforcePlannerConstraints(prepareGeneratedPlaces(record.response.days), record.request, 'ko');
     const hash = data => createHash('sha256').update(data).digest('hex');
     const sourceHashes = {};
-    for (const path of ['map/services/geocoding-service.js', 'map/services/routing-service.js',
+    for (const path of ['planner/services/planner-constraints.mjs', 'map/services/geocoding-service.js', 'map/services/routing-service.js',
       'map/services/recommendation-place.mjs', 'itinerary/services/itinerary-state.mjs',
       'itinerary/services/itinerary-end-fit.mjs', 'itinerary/services/itinerary-schedule-adjust.mjs']) {
       sourceHashes[path] = hash(await readFile(join(root, 'src/domains', path)));
