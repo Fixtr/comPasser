@@ -36,7 +36,7 @@ export function selectRecommendation(places, intent, center, excluded = new Set(
     if (distanceMeters(center, snapshot) > RECOMMENDATION_RADIUS_METERS) return reject('distance');
     return [{ ...snapshot, source: 'google_places', category: intent.category,
       intentKey: intentKey(intent), centerPlaceId: center.placeId }];
-  }).sort((a, b) => distanceMeters(center, a) - distanceMeters(center, b) || a.placeId.localeCompare(b.placeId))[0] || null;
+  })[0] || null; // Text Search already ranks by relevance; distance is a hard limit, not a reranker.
 }
 
 export function reusableRecommendation(item, center) {

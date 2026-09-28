@@ -122,9 +122,9 @@ export class GeocodingService {
                 (async () => {
                     await this.init();
                     return this.Place.searchByText({
-                        // An address in textQuery can override locationBias.
-                        // The trusted center and the 5 km post-filter define the search area.
-                        textQuery: intent.category.replaceAll('_', ' '),
+                        // Search the activity, not the center's address: an address can override locationBias.
+                        // The trusted center and the 5 km post-filter still define the search area.
+                        textQuery: intent.purpose,
                         language: this.resolveLanguage(), region: 'kr',
                         includedType: intent.category, useStrictTypeFiltering: true,
                         locationBias: { lat: center.lat, lng: center.lng },

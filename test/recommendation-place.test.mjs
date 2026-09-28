@@ -36,10 +36,21 @@ test('candidate requires real identity, matching type, Korea, valid coordinates,
   assert.equal(selectRecommendation([candidate()],intent,null),null);
 });
 
-test('choose nearest valid candidate, not first search hit; do not repeat fixed or chosen IDs', () => {
-  const places=[candidate('station'),candidate('far',{location:{lat:37.57,lng:126.97}}),candidate('near')];
-  assert.equal(selectRecommendation(places,intent,center,new Set(['station'])).placeId,'near');
-  assert.equal(selectRecommendation(places,intent,center,new Set(['station','near'])).placeId,'far');
+test('keep search relevance order among valid nearby candidates; do not repeat fixed or chosen IDs', () => {
+  const places=[candidate('station'),candidate('relevant',{location:{lat:37.57,lng:126.97}}),candidate('near')];
+  assert.equal(selectRecommendation(places,intent,center,new Set(['station'])).placeId,'relevant');
+  assert.equal(selectRecommendation(places,intent,center,new Set(['station','relevant'])).placeId,'near');
+});
+
+test('hanok activity searches its purpose and keeps a relevant result ahead of a closer generic tour', async () => {
+  const activity = {...recommendation, placeIntent:{purpose:'전통 한옥 마을 탐방',category:'tourist_attraction',nearLocation:'서울역'}};
+  const {geocoder,requests}=service([
+    candidate('hanok',{displayName:'북촌 한옥마을',types:['tourist_attraction'],location:{lat:37.5826,lng:126.983}}),
+    candidate('tour',{displayName:'서울투어',types:['tourist_attraction']})
+  ]);
+  const [,result]=await geocoder.geocodeSchedule([fixed,activity]);
+  assert.equal(requests[0].textQuery,'전통 한옥 마을 탐방');
+  assert.equal(result.verifiedPlace.placeId,'hanok');
 });
 
 test('failed candidates report why they were rejected without relaxing type or distance rules', () => {
@@ -63,7 +74,7 @@ test('actual candidate becomes canonical JSON identity and Place ID link, never 
   assert.equal(source.title,'점심 식사');
   assert.equal(requests[0].includedType,'restaurant');
   assert.equal(requests[0].useStrictTypeFiltering,true);
-  assert.equal(requests[0].textQuery,'restaurant');
+  assert.equal(requests[0].textQuery,'점심 식사');
   assert.ok(requests[0].fields.includes('id'));
   assert.deepEqual(requests[0].locationBias,{lat:center.lat,lng:center.lng});
   assert.deepEqual(JSON.parse(JSON.stringify(item.verifiedPlace)),item.verifiedPlace);
