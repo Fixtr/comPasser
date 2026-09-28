@@ -183,7 +183,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite"];
+const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-3.5-flash"];
 const GEMINI_TIMEOUT_MS = 90000;
 
 /** 단일 모델 호출. 실패 시 throw 하여 상위에서 다음 모델로 폴백한다. */

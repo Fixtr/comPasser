@@ -17,6 +17,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 // account reads, network, paid AI or production initialization are involved.
 function fixture({ fail, empty = false, responses, user = {} } = {}) {
   const calls = [];
+  const modelUrls = [];
   let responseIndex = 0;
   class HttpsError extends Error {
     constructor(code, message, details) { super(message); Object.assign(this, { code, details }); }
@@ -34,8 +35,9 @@ function fixture({ fail, empty = false, responses, user = {} } = {}) {
       settle: async (_uid, _createdAt, _id, succeeded) => { calls.push(succeeded ? 'debit' : 'refund'); },
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
-    axios: { post: async () => {
+    axios: { post: async url => {
       calls.push('ai');
+      modelUrls.push(url);
       if (fail) throw fail;
       const days = responses ? responses[responseIndex++] : [{ day: 1, date: '2026-10-01', scheduleItems: [{ title: '일정' }] }];
       return { data: { candidates: [{ content: { parts: [{ text: JSON.stringify({ days }) }] } }] } };
@@ -44,7 +46,7 @@ function fixture({ fail, empty = false, responses, user = {} } = {}) {
   };
   const exports = {};
   vm.runInNewContext(source, { exports, console, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
-  return { calls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }) };
+  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }) };
 }
 
 test('actual server callback rejects malformed input before any account/secret/prompt/AI work', async () => {
@@ -104,6 +106,8 @@ test('model fallback and quota error mapping remain unchanged', async () => {
   const app = fixture({ fail: Object.assign(new Error('quota'), { response: { status: 429 } }) });
   await assert.rejects(app.run(valid()), { code: 'resource-exhausted' });
   assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'refund']);
+  assert.deepEqual(app.modelUrls.map(url => url.match(/\/models\/(.*):generateContent$/)?.[1]),
+    ['gemini-2.5-flash-lite', 'gemini-3.5-flash']);
 });
 
 test('empty credits stop generation before paid AI call', async () => {
