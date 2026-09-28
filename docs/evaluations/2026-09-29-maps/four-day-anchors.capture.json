@@ -1,0 +1,4179 @@
+{
+  "case": "four-day-anchors",
+  "description": "3박 4일: 매일 필수 일정, 첫날·마지막 날 시간 축소",
+  "caseVersion": 1,
+  "request": {
+    "date": [
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09"
+    ],
+    "startTime": "09:00",
+    "endTime": "18:00",
+    "startLocation": "서울역",
+    "endLocation": "서울역",
+    "theme": "activity",
+    "budget": "standard",
+    "anchorSchedules": [
+      {
+        "name": "경복궁 관람",
+        "time": "15:00",
+        "endTime": "16:00",
+        "location": "경복궁",
+        "day": 1
+      },
+      {
+        "name": "국립중앙박물관 관람",
+        "time": "13:00",
+        "endTime": "14:00",
+        "location": "국립중앙박물관",
+        "day": 2
+      },
+      {
+        "name": "서울숲 산책",
+        "time": "14:00",
+        "endTime": "15:00",
+        "location": "서울숲",
+        "day": 3
+      },
+      {
+        "name": "남산서울타워 관람",
+        "time": "11:00",
+        "endTime": "12:00",
+        "location": "남산서울타워",
+        "day": 4
+      }
+    ],
+    "dailyTimes": [
+      {
+        "day": 1,
+        "startTime": "14:00",
+        "endTime": "19:00"
+      },
+      {
+        "day": 2,
+        "startTime": "09:00",
+        "endTime": "18:00"
+      },
+      {
+        "day": 3,
+        "startTime": "09:00",
+        "endTime": "18:00"
+      },
+      {
+        "day": 4,
+        "startTime": "09:00",
+        "endTime": "14:00"
+      }
+    ],
+    "dailyData": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "startTime": "14:00",
+        "endTime": "19:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "경복궁 관람",
+            "time": "15:00",
+            "endTime": "16:00",
+            "location": "경복궁",
+            "day": 1
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2026-10-07",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "국립중앙박물관 관람",
+            "time": "13:00",
+            "endTime": "14:00",
+            "location": "국립중앙박물관",
+            "day": 2
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2026-10-08",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "서울숲 산책",
+            "time": "14:00",
+            "endTime": "15:00",
+            "location": "서울숲",
+            "day": 3
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2026-10-09",
+        "startTime": "09:00",
+        "endTime": "14:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "남산서울타워 관람",
+            "time": "11:00",
+            "endTime": "12:00",
+            "location": "남산서울타워",
+            "day": 4
+          }
+        ]
+      }
+    ]
+  },
+  "model": "gemini-2.5-flash-lite",
+  "capturedAt": "2026-09-28T08:08:39.578Z",
+  "revision": "fe2c24c4f05106a4c40ca8a00adf057d3c9b8fa0",
+  "prompt": "\nYou are an expert AI Travel Planner.\nYou MUST plan a 4-day itinerary for the dates: 2026-10-06, 2026-10-07, 2026-10-08, 2026-10-09.\n\nPARAMETERS (Daily Constraints):\n- [Day 1] Time: 14:00 to 19:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 2] Time: 09:00 to 18:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 3] Time: 09:00 to 18:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 4] Time: 09:00 to 14:00 | Start Location: \"서울역\", End Location: \"서울역\"\n\nANCHOR SCHEDULES (Must Attend):\n1. [Day 1] \"경복궁 관람\" at 15:00 to 16:00 (Location: \"경복궁\")\n2. [Day 2] \"국립중앙박물관 관람\" at 13:00 to 14:00 (Location: \"국립중앙박물관\")\n3. [Day 3] \"서울숲 산책\" at 14:00 to 15:00 (Location: \"서울숲\")\n4. [Day 4] \"남산서울타워 관람\" at 11:00 to 12:00 (Location: \"남산서울타워\")\n\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):\n\n[THEME: 액티비티 (Activities & Adventures)]\nThe travel theme is \"Activities & Adventures\". You MUST prioritize:\n  - Experience-based activities: surfing, hiking, cultural workshops, theme parks, water sports, cycling.\n  - Include physically engaging stops and hands-on experiences.\n  - Balance active stops with short rest/refreshment breaks.\n  - Recommend activities suitable for the season and weather.\n\n[BUDGET: 스탠다드 / 표준형 (Standard & Balanced)]\nThe budget style is \"Standard / Balanced\". You MUST:\n  - Mix public transport (subway, bus) with occasional taxi for convenience.\n  - Recommend mid-range restaurants (₩10,000-₩25,000 per meal) with good value.\n  - Balance paid attractions with free/low-cost options.\n  - Suggest a mix of popular spots and local favorites.\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.\n\nThe primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.\nFill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.\nFor every single place, you MUST provide a 'practicalInfo' object containing:\n  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.\n  - operatingHours and localTip: empty strings; the actual venue is not yet known.\nThe first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.\nThe last ScheduleItem of each day MUST end at the End Location near that day's End Time.\n\nCRITICAL RULES:\n1. You MUST include ScheduleItems with type=\"AnchorSchedule\" that exactly match the time and location of the provided AnchorSchedules.\n2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.\n3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.\n4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.\n5. ALL output text (titles, descriptions, themes) MUST be written in Korean language.\n6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.\n7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.\n8. Do not generate movement inside a venue as a separate stop.\n9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.\n10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.\n11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, \"Free\", or \"Cost unknown\"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.\n12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.\n13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).\n14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.\n15. [CRITICAL] Event Timing Realism Rule: If an attraction is explicitly a night-only or evening-only experience (its title/description mentions \"야간\" / \"night\" / \"일루미네이션\" / \"illumination\" / night market / night cruise / fireworks / night view, etc.), its 'time' MUST fall within a realistic evening window (18:00 or later). NEVER schedule a night-exclusive variant of a venue during daytime hours — if the plan needs that venue earlier in the day, use its regular daytime visit instead, not the night-only edition.\n15a. Do not recommend ticketed special events or limited-date programs unless the user supplied them as an AnchorSchedule. You cannot verify their date, ticket availability, or reservation from a generic place search; recommend an ordinary venue visit instead.\n16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism (\"food\"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate \"lunch\" stop) after a brunch already covered that time slot.\n17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra \"moving to end location\" stop after it.\n18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.\n19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. \"Moving to X Station\", \"Heading to the airport\", \"Transfer preparation\"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.\n  ",
+  "promptHash": "4f60c5b14e3aed1904df16e21e5ee7503d148c424fbaac0c9b558a3a37b7df38",
+  "schemaHash": "41413827e5f6f3001dafd21c90a318a15bfcccb558cfb0364277b9f8bcd3a5b3",
+  "usage": {
+    "promptTokenCount": 2233,
+    "candidatesTokenCount": 6186,
+    "totalTokenCount": 8419,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2233
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "finishReason": "STOP",
+  "rawText": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"2026-10-06\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"14:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 여행을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"endTime\": \"15:00\",\n          \"type\": \"leisure\",\n          \"title\": \"경복궁으로 이동\",\n          \"description\": \"서울역에서 경복궁으로 이동합니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"궁궐 관람 이동\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"16:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"경복궁 관람\",\n          \"description\": \"아름다운 경복궁을 탐방합니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"궁궐 관람\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"2,500원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:00\",\n          \"endTime\": \"16:30\",\n          \"type\": \"leisure\",\n          \"title\": \"북촌 한옥마을 이동\",\n          \"description\": \"경복궁에서 북촌 한옥마을로 이동하여 전통 가옥을 감상합니다.\",\n          \"location\": \"북촌 한옥마을\",\n          \"placeIntent\": {\n            \"purpose\": \"한옥마을 산책\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"북촌 한옥마을\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"leisure\",\n          \"title\": \"북촌 한옥마을 산책\",\n          \"description\": \"아름다운 북촌 한옥마을 골목길을 거닐며 고즈넉한 분위기를 즐깁니다.\",\n          \"location\": \"북촌 한옥마을\",\n          \"placeIntent\": {\n            \"purpose\": \"한옥마을 산책 및 사진 촬영\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"북촌 한옥마을\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"18:00\",\n          \"endTime\": \"19:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 2,\n      \"date\": \"2026-10-07\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 하루 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"국립중앙박물관으로 이동\",\n          \"description\": \"서울역에서 국립중앙박물관으로 이동합니다.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"박물관 관람 이동\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"leisure\",\n          \"title\": \"용산 가족공원 산책\",\n          \"description\": \"국립중앙박물관 근처 용산 가족공원에서 상쾌한 아침 산책을 즐깁니다.\",\n          \"location\": \"용산 가족공원\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책 및 휴식\",\n            \"category\": \"park\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"국립중앙박물관 근처에서 든든한 점심 식사를 합니다.\",\n          \"location\": \"국립중앙박물관 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"국립중앙박물관 관람\",\n          \"description\": \"국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"박물관 관람\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"15:00\",\n          \"type\": \"leisure\",\n          \"title\": \"용산역 근처 카페 휴식\",\n          \"description\": \"박물관 관람 후 용산역 근처 카페에서 잠시 휴식을 취합니다.\",\n          \"location\": \"용산역 근처 카페\",\n          \"placeIntent\": {\n            \"purpose\": \"카페 휴식\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"용산역\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"5,000원 - 10,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"17:30\",\n          \"type\": \"leisure\",\n          \"title\": \"이촌 한강공원 자전거 타기\",\n          \"description\": \"용산역에서 이촌 한강공원으로 이동하여 자전거를 타며 활동적인 시간을 보냅니다.\",\n          \"location\": \"이촌 한강공원\",\n          \"placeIntent\": {\n            \"purpose\": \"자전거 타기\",\n            \"category\": \"leisure\",\n            \"nearLocation\": \"이촌 한강공원\"\n          },\n          \"duration\": \"2시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"대여료 별도 (약 5,000원)\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 3,\n      \"date\": \"2026-10-08\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 하루 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲으로 이동\",\n          \"description\": \"서울역에서 서울숲으로 이동합니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책 이동\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲 탐험 및 활동\",\n          \"description\": \"서울숲의 다채로운 생태 공간을 탐험하고, 원하는 액티비티를 즐깁니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"숲 산책 및 활동\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"서울숲 근처에서 맛있는 점심 식사를 즐깁니다.\",\n          \"location\": \"서울숲 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"leisure\",\n          \"title\": \"성수동 카페 거리 탐방\",\n          \"description\": \"점심 식사 후 성수동의 독특한 카페 거리에서 여유로운 시간을 보냅니다.\",\n          \"location\": \"성수동 카페 거리\",\n          \"placeIntent\": {\n            \"purpose\": \"카페 방문 및 휴식\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"5,000원 - 10,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"15:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울숲 산책\",\n          \"description\": \"다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"17:30\",\n          \"type\": \"leisure\",\n          \"title\": \"뚝섬한강공원 자전거 또는 액티비티\",\n          \"description\": \"서울숲에서 가까운 뚝섬한강공원으로 이동하여 자전거를 타거나 다양한 야외 활동을 즐깁니다.\",\n          \"location\": \"뚝섬한강공원\",\n          \"placeIntent\": {\n            \"purpose\": \"자전거 타기 또는 야외 활동\",\n            \"category\": \"leisure\",\n            \"nearLocation\": \"뚝섬한강공원\"\n          },\n          \"duration\": \"2시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"대여료 별도 (약 5,000원)\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 4,\n      \"date\": \"2026-10-09\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 마지막 날 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"남산서울타워로 이동\",\n          \"description\": \"서울역에서 남산서울타워로 이동합니다.\",\n          \"location\": \"남산서울타워\",\n          \"placeIntent\": {\n            \"purpose\": \"타워 관람 이동\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"11:00\",\n          \"type\": \"leisure\",\n          \"title\": \"남산공원 산책\",\n          \"description\": \"남산서울타워로 가는 길에 남산공원을 가볍게 산책하며 경치를 감상합니다.\",\n          \"location\": \"남산공원\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책\",\n            \"category\": \"park\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"11:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"남산서울타워 관람\",\n          \"description\": \"남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.\",\n          \"location\": \"남산서울타워\",\n          \"placeIntent\": {\n            \"purpose\": \"타워 전망대 관람\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"16,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"남산 또는 명동 근처에서 마지막 점심 식사를 합니다.\",\n          \"location\": \"남산 또는 명동 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"leisure\",\n          \"title\": \"명동 쇼핑 또는 길거리 음식 체험\",\n          \"description\": \"마지막으로 명동을 방문하여 쇼핑을 즐기거나 다양한 길거리 음식을 맛봅니다.\",\n          \"location\": \"명동\",\n          \"placeIntent\": {\n            \"purpose\": \"쇼핑 및 길거리 음식 체험\",\n            \"category\": \"shopping_mall\",\n            \"nearLocation\": \"명동\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"다양함\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"14:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"명동에서 서울역으로 복귀하여 여행을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+  "response": {
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "14:00",
+            "endTime": "14:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 여행을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:30",
+            "endTime": "15:00",
+            "type": "leisure",
+            "title": "경복궁으로 이동",
+            "description": "서울역에서 경복궁으로 이동합니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "궁궐 관람 이동",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "16:00",
+            "type": "AnchorSchedule",
+            "title": "경복궁 관람",
+            "description": "아름다운 경복궁을 탐방합니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "궁궐 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "2,500원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:00",
+            "endTime": "16:30",
+            "type": "leisure",
+            "title": "북촌 한옥마을 이동",
+            "description": "경복궁에서 북촌 한옥마을로 이동하여 전통 가옥을 감상합니다.",
+            "location": "북촌 한옥마을",
+            "placeIntent": {
+              "purpose": "한옥마을 산책",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:30",
+            "endTime": "18:00",
+            "type": "leisure",
+            "title": "북촌 한옥마을 산책",
+            "description": "아름다운 북촌 한옥마을 골목길을 거닐며 고즈넉한 분위기를 즐깁니다.",
+            "location": "북촌 한옥마을",
+            "placeIntent": {
+              "purpose": "한옥마을 산책 및 사진 촬영",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "18:00",
+            "endTime": "19:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2026-10-07",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "국립중앙박물관으로 이동",
+            "description": "서울역에서 국립중앙박물관으로 이동합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람 이동",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "12:00",
+            "type": "leisure",
+            "title": "용산 가족공원 산책",
+            "description": "국립중앙박물관 근처 용산 가족공원에서 상쾌한 아침 산책을 즐깁니다.",
+            "location": "용산 가족공원",
+            "placeIntent": {
+              "purpose": "공원 산책 및 휴식",
+              "category": "park",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "국립중앙박물관 근처에서 든든한 점심 식사를 합니다.",
+            "location": "국립중앙박물관 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "AnchorSchedule",
+            "title": "국립중앙박물관 관람",
+            "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "leisure",
+            "title": "용산역 근처 카페 휴식",
+            "description": "박물관 관람 후 용산역 근처 카페에서 잠시 휴식을 취합니다.",
+            "location": "용산역 근처 카페",
+            "placeIntent": {
+              "purpose": "카페 휴식",
+              "category": "cafe",
+              "nearLocation": "용산역"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "5,000원 - 10,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "17:30",
+            "type": "leisure",
+            "title": "이촌 한강공원 자전거 타기",
+            "description": "용산역에서 이촌 한강공원으로 이동하여 자전거를 타며 활동적인 시간을 보냅니다.",
+            "location": "이촌 한강공원",
+            "placeIntent": {
+              "purpose": "자전거 타기",
+              "category": "leisure",
+              "nearLocation": "이촌 한강공원"
+            },
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "대여료 별도 (약 5,000원)",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:30",
+            "endTime": "18:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2026-10-08",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "서울숲으로 이동",
+            "description": "서울역에서 서울숲으로 이동합니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책 이동",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "12:00",
+            "type": "leisure",
+            "title": "서울숲 탐험 및 활동",
+            "description": "서울숲의 다채로운 생태 공간을 탐험하고, 원하는 액티비티를 즐깁니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "숲 산책 및 활동",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "서울숲 근처에서 맛있는 점심 식사를 즐깁니다.",
+            "location": "서울숲 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "leisure",
+            "title": "성수동 카페 거리 탐방",
+            "description": "점심 식사 후 성수동의 독특한 카페 거리에서 여유로운 시간을 보냅니다.",
+            "location": "성수동 카페 거리",
+            "placeIntent": {
+              "purpose": "카페 방문 및 휴식",
+              "category": "cafe",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "5,000원 - 10,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "AnchorSchedule",
+            "title": "서울숲 산책",
+            "description": "다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "17:30",
+            "type": "leisure",
+            "title": "뚝섬한강공원 자전거 또는 액티비티",
+            "description": "서울숲에서 가까운 뚝섬한강공원으로 이동하여 자전거를 타거나 다양한 야외 활동을 즐깁니다.",
+            "location": "뚝섬한강공원",
+            "placeIntent": {
+              "purpose": "자전거 타기 또는 야외 활동",
+              "category": "leisure",
+              "nearLocation": "뚝섬한강공원"
+            },
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "대여료 별도 (약 5,000원)",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:30",
+            "endTime": "18:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2026-10-09",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 마지막 날 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "남산서울타워로 이동",
+            "description": "서울역에서 남산서울타워로 이동합니다.",
+            "location": "남산서울타워",
+            "placeIntent": {
+              "purpose": "타워 관람 이동",
+              "category": "tourist_attraction",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "11:00",
+            "type": "leisure",
+            "title": "남산공원 산책",
+            "description": "남산서울타워로 가는 길에 남산공원을 가볍게 산책하며 경치를 감상합니다.",
+            "location": "남산공원",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "11:00",
+            "endTime": "12:00",
+            "type": "AnchorSchedule",
+            "title": "남산서울타워 관람",
+            "description": "남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.",
+            "location": "남산서울타워",
+            "placeIntent": {
+              "purpose": "타워 전망대 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "16,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "남산 또는 명동 근처에서 마지막 점심 식사를 합니다.",
+            "location": "남산 또는 명동 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "leisure",
+            "title": "명동 쇼핑 또는 길거리 음식 체험",
+            "description": "마지막으로 명동을 방문하여 쇼핑을 즐기거나 다양한 길거리 음식을 맛봅니다.",
+            "location": "명동",
+            "placeIntent": {
+              "purpose": "쇼핑 및 길거리 음식 체험",
+              "category": "shopping_mall",
+              "nearLocation": "명동"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "다양함",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "14:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "명동에서 서울역으로 복귀하여 여행을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 13408,
+  "mapsSnapshot": {
+    "source": "google_maps",
+    "capturedAt": "2026-09-28T15:06:38.686Z",
+    "timezone": "Asia/Seoul",
+    "collectorHash": "b9375a8565c0d63c952ba23015dbd5cd3f065bc860ca68960d3bb33bff2432f9",
+    "sourceHashes": {
+      "map/services/geocoding-service.js": "eff238f1dfce0b2ffe8d8b3f946b873e7ce2cdc89504cb2a5b6c52ed99e49554",
+      "map/services/routing-service.js": "9f73d6d784c9b5564774ea2133ab293bb03f67d0c641befff6424339b072feaf",
+      "map/services/recommendation-place.mjs": "7cb7d537376255e06e89ac576362736a900244c2719a66ca2e7e69d744e1f750",
+      "itinerary/services/itinerary-state.mjs": "e80056b2271c5af3159b6be135443a41d74b732307eb579de6a3a806a5e75d4e",
+      "itinerary/services/itinerary-end-fit.mjs": "91900037156f8b44f9043090a5f2c7efc50eb95cb29f953b84a36e381a88970b",
+      "itinerary/services/itinerary-schedule-adjust.mjs": "ec82e073b7b4fd30267e2cbd96532d3711298d0624630000f67cbb0489921a56"
+    },
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "14:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "서울역에서 여행을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "15:00",
+            "endTime": "16:00",
+            "type": "AnchorSchedule",
+            "title": "경복궁 관람",
+            "description": "아름다운 경복궁을 탐방합니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "궁궐 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B2%BD%EB%B3%B5%EA%B6%81",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "2,500원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "경복궁",
+            "resolvedAddress": "서울특별시 종로구 사직로 161"
+          },
+          {
+            "time": "16:19",
+            "endTime": "16:49",
+            "type": "leisure",
+            "title": "서촌 한옥마을",
+            "description": "한옥마을 산책",
+            "location": "서울특별시 종로구 통의동 28-1",
+            "placeIntent": {
+              "purpose": "한옥마을 산책",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%B4%8C%20%ED%95%9C%EC%98%A5%EB%A7%88%EC%9D%84&query_place_id=ChIJW38d4qqjfDURgKFJWUkq3Mk",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJW38d4qqjfDURgKFJWUkq3Mk",
+              "displayName": "서촌 한옥마을",
+              "formattedAddress": "서울특별시 종로구 통의동 28-1",
+              "lat": 37.5786683,
+              "lng": 126.97310700000001,
+              "source": "google_places",
+              "category": "tourist_attraction",
+              "intentKey": "{\"purpose\":\"한옥마을 산책\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+              "centerPlaceId": "ChIJod7tSseifDUR9hXHLFNGMIs"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5786683,
+              "lng": 126.97310700000001
+            },
+            "resolvedName": "서촌 한옥마을",
+            "resolvedAddress": "서울특별시 종로구 통의동 28-1",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "17:10",
+            "endTime": "18:36",
+            "type": "leisure",
+            "title": "사직단",
+            "description": "한옥마을 산책 및 사진 촬영",
+            "location": "서울특별시 종로구 사직동 1-28",
+            "placeIntent": {
+              "purpose": "한옥마을 산책 및 사진 촬영",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%82%AC%EC%A7%81%EB%8B%A8&query_place_id=ChIJBy_83paifDUR-wdhbtHpBZE",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJBy_83paifDUR-wdhbtHpBZE",
+              "displayName": "사직단",
+              "formattedAddress": "서울특별시 종로구 사직동 1-28",
+              "lat": 37.5755826,
+              "lng": 126.96769099999999,
+              "source": "google_places",
+              "category": "tourist_attraction",
+              "intentKey": "{\"purpose\":\"한옥마을 산책 및 사진 촬영\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5755826,
+              "lng": 126.96769099999999
+            },
+            "resolvedName": "사직단",
+            "resolvedAddress": "서울특별시 종로구 사직동 1-28",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "19:00",
+            "endTime": "",
+            "type": "arrival",
+            "title": "서울역 도착",
+            "description": "서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 0,
+            "toIndex": 1,
+            "departureTime": "2026-10-06T05:00:00.000Z",
+            "origin": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "destination": {
+              "lat": 37.579617,
+              "lng": 126.977041
+            },
+            "durationMinutes": 24,
+            "durationSeconds": 1421,
+            "distanceMeters": 3504,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 1,
+            "toIndex": 2,
+            "departureTime": "2026-10-06T07:00:00.000Z",
+            "origin": {
+              "lat": 37.579617,
+              "lng": 126.977041
+            },
+            "destination": {
+              "lat": 37.5786683,
+              "lng": 126.97310700000001
+            },
+            "durationMinutes": 19,
+            "durationSeconds": 1152,
+            "distanceMeters": 1069,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 2,
+            "toIndex": 3,
+            "departureTime": "2026-10-06T07:49:00.000Z",
+            "origin": {
+              "lat": 37.5786683,
+              "lng": 126.97310700000001
+            },
+            "destination": {
+              "lat": 37.5755826,
+              "lng": 126.96769099999999
+            },
+            "durationMinutes": 14,
+            "durationSeconds": 812,
+            "distanceMeters": 702,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 3,
+            "toIndex": 4,
+            "departureTime": "2026-10-06T09:36:00.000Z",
+            "origin": {
+              "lat": 37.5755826,
+              "lng": 126.96769099999999
+            },
+            "destination": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "durationMinutes": 24,
+            "durationSeconds": 1411,
+            "distanceMeters": 3414,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "14:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 여행을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "15:00",
+                "endTime": "16:00",
+                "type": "AnchorSchedule",
+                "title": "경복궁 관람",
+                "description": "아름다운 경복궁을 탐방합니다.",
+                "location": "경복궁",
+                "placeIntent": {
+                  "purpose": "궁궐 관람",
+                  "category": "tourist_attraction",
+                  "nearLocation": "경복궁"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B2%BD%EB%B3%B5%EA%B6%81",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "2,500원",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "경복궁",
+                "resolvedAddress": "서울특별시 종로구 사직로 161"
+              },
+              {
+                "time": "16:00",
+                "endTime": "16:30",
+                "type": "leisure",
+                "title": "서촌 한옥마을",
+                "description": "한옥마을 산책",
+                "location": "서울특별시 종로구 통의동 28-1",
+                "placeIntent": {
+                  "purpose": "한옥마을 산책",
+                  "category": "tourist_attraction",
+                  "nearLocation": "북촌 한옥마을"
+                },
+                "duration": "30분",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%B4%8C%20%ED%95%9C%EC%98%A5%EB%A7%88%EC%9D%84&query_place_id=ChIJW38d4qqjfDURgKFJWUkq3Mk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJW38d4qqjfDURgKFJWUkq3Mk",
+                  "displayName": "서촌 한옥마을",
+                  "formattedAddress": "서울특별시 종로구 통의동 28-1",
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001,
+                  "source": "google_places",
+                  "category": "tourist_attraction",
+                  "intentKey": "{\"purpose\":\"한옥마을 산책\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+                  "centerPlaceId": "ChIJod7tSseifDUR9hXHLFNGMIs"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "resolvedName": "서촌 한옥마을",
+                "resolvedAddress": "서울특별시 종로구 통의동 28-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "16:30",
+                "endTime": "18:00",
+                "type": "leisure",
+                "title": "백인제 가옥",
+                "description": "한옥마을 산책 및 사진 촬영",
+                "location": "서울특별시 종로구 북촌로7길 16",
+                "placeIntent": {
+                  "purpose": "한옥마을 산책 및 사진 촬영",
+                  "category": "tourist_attraction",
+                  "nearLocation": "북촌 한옥마을"
+                },
+                "duration": "1시간 30분",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%B0%B1%EC%9D%B8%EC%A0%9C%20%EA%B0%80%EC%98%A5&query_place_id=ChIJMfzyA8WifDURw_aHDyLw0z8",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJMfzyA8WifDURw_aHDyLw0z8",
+                  "displayName": "백인제 가옥",
+                  "formattedAddress": "서울특별시 종로구 북촌로7길 16",
+                  "lat": 37.580642,
+                  "lng": 126.9840665,
+                  "source": "google_places",
+                  "category": "tourist_attraction",
+                  "intentKey": "{\"purpose\":\"한옥마을 산책 및 사진 촬영\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.580642,
+                  "lng": 126.9840665
+                },
+                "resolvedName": "백인제 가옥",
+                "resolvedAddress": "서울특별시 종로구 북촌로7길 16",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "19:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "도착",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-06T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.579617,
+                  "lng": 126.977041
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1421,
+                "distanceMeters": 3504,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-06T07:00:00.000Z",
+                "origin": {
+                  "lat": 37.579617,
+                  "lng": 126.977041
+                },
+                "destination": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "durationMinutes": 19,
+                "durationSeconds": 1152,
+                "distanceMeters": 1069,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-06T07:30:00.000Z",
+                "origin": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "destination": {
+                  "lat": 37.580642,
+                  "lng": 126.9840665
+                },
+                "durationMinutes": 21,
+                "durationSeconds": 1287,
+                "distanceMeters": 1963,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-06T09:00:00.000Z",
+                "origin": {
+                  "lat": 37.580642,
+                  "lng": 126.9840665
+                },
+                "destination": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1469,
+                "distanceMeters": 3510,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": true,
+            "diagnostics": []
+          },
+          {
+            "round": 1,
+            "scheduleItems": [
+              {
+                "time": "14:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 여행을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "15:00",
+                "endTime": "16:00",
+                "type": "AnchorSchedule",
+                "title": "경복궁 관람",
+                "description": "아름다운 경복궁을 탐방합니다.",
+                "location": "경복궁",
+                "placeIntent": {
+                  "purpose": "궁궐 관람",
+                  "category": "tourist_attraction",
+                  "nearLocation": "경복궁"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B2%BD%EB%B3%B5%EA%B6%81",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "2,500원",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "경복궁",
+                "resolvedAddress": "서울특별시 종로구 사직로 161"
+              },
+              {
+                "time": "16:19",
+                "endTime": "16:49",
+                "type": "leisure",
+                "title": "서촌 한옥마을",
+                "description": "한옥마을 산책",
+                "location": "서울특별시 종로구 통의동 28-1",
+                "placeIntent": {
+                  "purpose": "한옥마을 산책",
+                  "category": "tourist_attraction",
+                  "nearLocation": "북촌 한옥마을"
+                },
+                "duration": "30분",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%B4%8C%20%ED%95%9C%EC%98%A5%EB%A7%88%EC%9D%84&query_place_id=ChIJW38d4qqjfDURgKFJWUkq3Mk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJW38d4qqjfDURgKFJWUkq3Mk",
+                  "displayName": "서촌 한옥마을",
+                  "formattedAddress": "서울특별시 종로구 통의동 28-1",
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001,
+                  "source": "google_places",
+                  "category": "tourist_attraction",
+                  "intentKey": "{\"purpose\":\"한옥마을 산책\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+                  "centerPlaceId": "ChIJod7tSseifDUR9hXHLFNGMIs"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "resolvedName": "서촌 한옥마을",
+                "resolvedAddress": "서울특별시 종로구 통의동 28-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "17:10",
+                "endTime": "18:36",
+                "type": "leisure",
+                "title": "사직단",
+                "description": "한옥마을 산책 및 사진 촬영",
+                "location": "서울특별시 종로구 사직동 1-28",
+                "placeIntent": {
+                  "purpose": "한옥마을 산책 및 사진 촬영",
+                  "category": "tourist_attraction",
+                  "nearLocation": "북촌 한옥마을"
+                },
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%82%AC%EC%A7%81%EB%8B%A8&query_place_id=ChIJBy_83paifDUR-wdhbtHpBZE",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJBy_83paifDUR-wdhbtHpBZE",
+                  "displayName": "사직단",
+                  "formattedAddress": "서울특별시 종로구 사직동 1-28",
+                  "lat": 37.5755826,
+                  "lng": 126.96769099999999,
+                  "source": "google_places",
+                  "category": "tourist_attraction",
+                  "intentKey": "{\"purpose\":\"한옥마을 산책 및 사진 촬영\",\"category\":\"tourist_attraction\",\"nearLocation\":\"북촌 한옥마을\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5755826,
+                  "lng": 126.96769099999999
+                },
+                "resolvedName": "사직단",
+                "resolvedAddress": "서울특별시 종로구 사직동 1-28",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "19:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-06T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.579617,
+                  "lng": 126.977041
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1421,
+                "distanceMeters": 3504,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-06T07:00:00.000Z",
+                "origin": {
+                  "lat": 37.579617,
+                  "lng": 126.977041
+                },
+                "destination": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "durationMinutes": 19,
+                "durationSeconds": 1152,
+                "distanceMeters": 1069,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-06T07:49:00.000Z",
+                "origin": {
+                  "lat": 37.5786683,
+                  "lng": 126.97310700000001
+                },
+                "destination": {
+                  "lat": 37.5755826,
+                  "lng": 126.96769099999999
+                },
+                "durationMinutes": 14,
+                "durationSeconds": 812,
+                "distanceMeters": 702,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-06T09:36:00.000Z",
+                "origin": {
+                  "lat": 37.5755826,
+                  "lng": 126.96769099999999
+                },
+                "destination": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1411,
+                "distanceMeters": 3414,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": []
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2026-10-07",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "09:24",
+            "endTime": "11:24",
+            "type": "leisure",
+            "title": "용산가족공원",
+            "description": "공원 산책 및 휴식",
+            "location": "서울특별시 용산구 서빙고로 185",
+            "placeIntent": {
+              "purpose": "공원 산책 및 휴식",
+              "category": "park",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9A%A9%EC%82%B0%EA%B0%80%EC%A1%B1%EA%B3%B5%EC%9B%90&query_place_id=ChIJQyoEXiaifDURTA2CNaCIUA4",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJQyoEXiaifDURTA2CNaCIUA4",
+              "displayName": "용산가족공원",
+              "formattedAddress": "서울특별시 용산구 서빙고로 185",
+              "lat": 37.5211389,
+              "lng": 126.98393779999999,
+              "source": "google_places",
+              "category": "park",
+              "intentKey": "{\"purpose\":\"공원 산책 및 휴식\",\"category\":\"park\",\"nearLocation\":\"국립중앙박물관\"}",
+              "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5211389,
+              "lng": 126.98393779999999
+            },
+            "resolvedName": "용산가족공원",
+            "resolvedAddress": "서울특별시 용산구 서빙고로 185",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "11:55",
+            "endTime": "12:26",
+            "type": "dining",
+            "title": "수유리우동집 이태원역점",
+            "description": "점심 식사",
+            "location": "서울특별시 용산구 이태원로 140-1",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "국립중앙박물관"
+            },
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%88%98%EC%9C%A0%EB%A6%AC%EC%9A%B0%EB%8F%99%EC%A7%91%20%EC%9D%B4%ED%83%9C%EC%9B%90%EC%97%AD%EC%A0%90&query_place_id=ChIJrYNSXgCjfDURk0HcXX5mKZg",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJrYNSXgCjfDURk0HcXX5mKZg",
+              "displayName": "수유리우동집 이태원역점",
+              "formattedAddress": "서울특별시 용산구 이태원로 140-1",
+              "lat": 37.5339799,
+              "lng": 126.98943409999998,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"국립중앙박물관\"}",
+              "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5339799,
+              "lng": 126.98943409999998
+            },
+            "resolvedName": "수유리우동집 이태원역점",
+            "resolvedAddress": "서울특별시 용산구 이태원로 140-1",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "AnchorSchedule",
+            "title": "국립중앙박물관 관람",
+            "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B5%AD%EB%A6%BD%EC%A4%91%EC%95%99%EB%B0%95%EB%AC%BC%EA%B4%80",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "국립중앙박물관",
+            "resolvedAddress": "서울특별시 용산구 서빙고로 137"
+          },
+          {
+            "time": "14:46",
+            "endTime": "15:46",
+            "type": "leisure",
+            "title": "휴식카페 청계다동점",
+            "description": "카페 휴식",
+            "location": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+            "placeIntent": {
+              "purpose": "카페 휴식",
+              "category": "cafe",
+              "nearLocation": "용산역"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%ED%9C%B4%EC%8B%9D%EC%B9%B4%ED%8E%98%20%EC%B2%AD%EA%B3%84%EB%8B%A4%EB%8F%99%EC%A0%90&query_place_id=ChIJC0x7mu6ifDURxs1s8sSG5dk",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJC0x7mu6ifDURxs1s8sSG5dk",
+              "displayName": "휴식카페 청계다동점",
+              "formattedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+              "lat": 37.5681784,
+              "lng": 126.9816006,
+              "source": "google_places",
+              "category": "cafe",
+              "intentKey": "{\"purpose\":\"카페 휴식\",\"category\":\"cafe\",\"nearLocation\":\"용산역\"}",
+              "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5681784,
+              "lng": 126.9816006
+            },
+            "resolvedName": "휴식카페 청계다동점",
+            "resolvedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "15:46",
+            "endTime": "18:16",
+            "type": "leisure",
+            "title": "이촌 한강공원 자전거 타기",
+            "description": "",
+            "location": "",
+            "placeIntent": null,
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "18:16",
+            "endTime": "",
+            "type": "arrival",
+            "title": "서울역 도착",
+            "description": "이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 0,
+            "toIndex": 1,
+            "departureTime": "2026-10-07T00:00:00.000Z",
+            "origin": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "destination": {
+              "lat": 37.5211389,
+              "lng": 126.98393779999999
+            },
+            "durationMinutes": 24,
+            "durationSeconds": 1439,
+            "distanceMeters": 7192,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 1,
+            "toIndex": 2,
+            "departureTime": "2026-10-07T02:24:00.000Z",
+            "origin": {
+              "lat": 37.5211389,
+              "lng": 126.98393779999999
+            },
+            "destination": {
+              "lat": 37.5339799,
+              "lng": 126.98943409999998
+            },
+            "durationMinutes": 31,
+            "durationSeconds": 1835,
+            "distanceMeters": 2538,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 2,
+            "toIndex": 3,
+            "departureTime": "2026-10-07T03:26:00.000Z",
+            "origin": {
+              "lat": 37.5339799,
+              "lng": 126.98943409999998
+            },
+            "destination": {
+              "lat": 37.523850599999996,
+              "lng": 126.98047020000001
+            },
+            "durationMinutes": 34,
+            "durationSeconds": 2044,
+            "distanceMeters": 4159,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 3,
+            "toIndex": 4,
+            "departureTime": "2026-10-07T05:00:00.000Z",
+            "origin": {
+              "lat": 37.523850599999996,
+              "lng": 126.98047020000001
+            },
+            "destination": {
+              "lat": 37.5681784,
+              "lng": 126.9816006
+            },
+            "durationMinutes": 46,
+            "durationSeconds": 2761,
+            "distanceMeters": 9444,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 하루 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "10:00",
+                "endTime": "12:00",
+                "type": "leisure",
+                "title": "용산가족공원",
+                "description": "공원 산책 및 휴식",
+                "location": "서울특별시 용산구 서빙고로 185",
+                "placeIntent": {
+                  "purpose": "공원 산책 및 휴식",
+                  "category": "park",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9A%A9%EC%82%B0%EA%B0%80%EC%A1%B1%EA%B3%B5%EC%9B%90&query_place_id=ChIJQyoEXiaifDURTA2CNaCIUA4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJQyoEXiaifDURTA2CNaCIUA4",
+                  "displayName": "용산가족공원",
+                  "formattedAddress": "서울특별시 용산구 서빙고로 185",
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"공원 산책 및 휴식\",\"category\":\"park\",\"nearLocation\":\"국립중앙박물관\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "resolvedName": "용산가족공원",
+                "resolvedAddress": "서울특별시 용산구 서빙고로 185",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "12:00",
+                "endTime": "13:00",
+                "type": "dining",
+                "title": "수유리우동집 이태원역점",
+                "description": "점심 식사",
+                "location": "서울특별시 용산구 이태원로 140-1",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%88%98%EC%9C%A0%EB%A6%AC%EC%9A%B0%EB%8F%99%EC%A7%91%20%EC%9D%B4%ED%83%9C%EC%9B%90%EC%97%AD%EC%A0%90&query_place_id=ChIJrYNSXgCjfDURk0HcXX5mKZg",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJrYNSXgCjfDURk0HcXX5mKZg",
+                  "displayName": "수유리우동집 이태원역점",
+                  "formattedAddress": "서울특별시 용산구 이태원로 140-1",
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"국립중앙박물관\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "resolvedName": "수유리우동집 이태원역점",
+                "resolvedAddress": "서울특별시 용산구 이태원로 140-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:00",
+                "endTime": "14:00",
+                "type": "AnchorSchedule",
+                "title": "국립중앙박물관 관람",
+                "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.",
+                "location": "국립중앙박물관",
+                "placeIntent": {
+                  "purpose": "박물관 관람",
+                  "category": "museum",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B5%AD%EB%A6%BD%EC%A4%91%EC%95%99%EB%B0%95%EB%AC%BC%EA%B4%80",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "무료",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "국립중앙박물관",
+                "resolvedAddress": "서울특별시 용산구 서빙고로 137"
+              },
+              {
+                "time": "14:00",
+                "endTime": "15:00",
+                "type": "leisure",
+                "title": "휴식카페 청계다동점",
+                "description": "카페 휴식",
+                "location": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                "placeIntent": {
+                  "purpose": "카페 휴식",
+                  "category": "cafe",
+                  "nearLocation": "용산역"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%ED%9C%B4%EC%8B%9D%EC%B9%B4%ED%8E%98%20%EC%B2%AD%EA%B3%84%EB%8B%A4%EB%8F%99%EC%A0%90&query_place_id=ChIJC0x7mu6ifDURxs1s8sSG5dk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJC0x7mu6ifDURxs1s8sSG5dk",
+                  "displayName": "휴식카페 청계다동점",
+                  "formattedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                  "lat": 37.5681784,
+                  "lng": 126.9816006,
+                  "source": "google_places",
+                  "category": "cafe",
+                  "intentKey": "{\"purpose\":\"카페 휴식\",\"category\":\"cafe\",\"nearLocation\":\"용산역\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5681784,
+                  "lng": 126.9816006
+                },
+                "resolvedName": "휴식카페 청계다동점",
+                "resolvedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "15:00",
+                "endTime": "17:30",
+                "type": "leisure",
+                "title": "이촌 한강공원 자전거 타기",
+                "description": "",
+                "location": "",
+                "placeIntent": null,
+                "duration": "2시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "18:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "도착",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-07T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1439,
+                "distanceMeters": 7192,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-07T03:00:00.000Z",
+                "origin": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "destination": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "durationMinutes": 31,
+                "durationSeconds": 1835,
+                "distanceMeters": 2538,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-07T04:00:00.000Z",
+                "origin": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "destination": {
+                  "lat": 37.523850599999996,
+                  "lng": 126.98047020000001
+                },
+                "durationMinutes": 34,
+                "durationSeconds": 2044,
+                "distanceMeters": 4159,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-07T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.523850599999996,
+                  "lng": 126.98047020000001
+                },
+                "destination": {
+                  "lat": 37.5681784,
+                  "lng": 126.9816006
+                },
+                "durationMinutes": 46,
+                "durationSeconds": 2761,
+                "distanceMeters": 9444,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": true,
+            "diagnostics": [
+              {
+                "reason": "invalid-intent"
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 하루 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "09:24",
+                "endTime": "11:24",
+                "type": "leisure",
+                "title": "용산가족공원",
+                "description": "공원 산책 및 휴식",
+                "location": "서울특별시 용산구 서빙고로 185",
+                "placeIntent": {
+                  "purpose": "공원 산책 및 휴식",
+                  "category": "park",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9A%A9%EC%82%B0%EA%B0%80%EC%A1%B1%EA%B3%B5%EC%9B%90&query_place_id=ChIJQyoEXiaifDURTA2CNaCIUA4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJQyoEXiaifDURTA2CNaCIUA4",
+                  "displayName": "용산가족공원",
+                  "formattedAddress": "서울특별시 용산구 서빙고로 185",
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"공원 산책 및 휴식\",\"category\":\"park\",\"nearLocation\":\"국립중앙박물관\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "resolvedName": "용산가족공원",
+                "resolvedAddress": "서울특별시 용산구 서빙고로 185",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "11:55",
+                "endTime": "12:26",
+                "type": "dining",
+                "title": "수유리우동집 이태원역점",
+                "description": "점심 식사",
+                "location": "서울특별시 용산구 이태원로 140-1",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%88%98%EC%9C%A0%EB%A6%AC%EC%9A%B0%EB%8F%99%EC%A7%91%20%EC%9D%B4%ED%83%9C%EC%9B%90%EC%97%AD%EC%A0%90&query_place_id=ChIJrYNSXgCjfDURk0HcXX5mKZg",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJrYNSXgCjfDURk0HcXX5mKZg",
+                  "displayName": "수유리우동집 이태원역점",
+                  "formattedAddress": "서울특별시 용산구 이태원로 140-1",
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"국립중앙박물관\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "resolvedName": "수유리우동집 이태원역점",
+                "resolvedAddress": "서울특별시 용산구 이태원로 140-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:00",
+                "endTime": "14:00",
+                "type": "AnchorSchedule",
+                "title": "국립중앙박물관 관람",
+                "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.",
+                "location": "국립중앙박물관",
+                "placeIntent": {
+                  "purpose": "박물관 관람",
+                  "category": "museum",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B5%AD%EB%A6%BD%EC%A4%91%EC%95%99%EB%B0%95%EB%AC%BC%EA%B4%80",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "무료",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "국립중앙박물관",
+                "resolvedAddress": "서울특별시 용산구 서빙고로 137"
+              },
+              {
+                "time": "14:46",
+                "endTime": "15:46",
+                "type": "leisure",
+                "title": "휴식카페 청계다동점",
+                "description": "카페 휴식",
+                "location": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                "placeIntent": {
+                  "purpose": "카페 휴식",
+                  "category": "cafe",
+                  "nearLocation": "용산역"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%ED%9C%B4%EC%8B%9D%EC%B9%B4%ED%8E%98%20%EC%B2%AD%EA%B3%84%EB%8B%A4%EB%8F%99%EC%A0%90&query_place_id=ChIJC0x7mu6ifDURxs1s8sSG5dk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJC0x7mu6ifDURxs1s8sSG5dk",
+                  "displayName": "휴식카페 청계다동점",
+                  "formattedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                  "lat": 37.5681784,
+                  "lng": 126.9816006,
+                  "source": "google_places",
+                  "category": "cafe",
+                  "intentKey": "{\"purpose\":\"카페 휴식\",\"category\":\"cafe\",\"nearLocation\":\"용산역\"}",
+                  "centerPlaceId": "ChIJN2x0fu2ifDUR51BupseGYmE"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5681784,
+                  "lng": 126.9816006
+                },
+                "resolvedName": "휴식카페 청계다동점",
+                "resolvedAddress": "서울특별시 중구 다동 70번지 한외빌딩 1층 127호",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "15:46",
+                "endTime": "18:16",
+                "type": "leisure",
+                "title": "이촌 한강공원 자전거 타기",
+                "description": "",
+                "location": "",
+                "placeIntent": null,
+                "duration": "2시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "18:16",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-07T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1439,
+                "distanceMeters": 7192,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-07T02:24:00.000Z",
+                "origin": {
+                  "lat": 37.5211389,
+                  "lng": 126.98393779999999
+                },
+                "destination": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "durationMinutes": 31,
+                "durationSeconds": 1835,
+                "distanceMeters": 2538,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-07T03:26:00.000Z",
+                "origin": {
+                  "lat": 37.5339799,
+                  "lng": 126.98943409999998
+                },
+                "destination": {
+                  "lat": 37.523850599999996,
+                  "lng": 126.98047020000001
+                },
+                "durationMinutes": 34,
+                "durationSeconds": 2044,
+                "distanceMeters": 4159,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-07T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.523850599999996,
+                  "lng": 126.98047020000001
+                },
+                "destination": {
+                  "lat": 37.5681784,
+                  "lng": 126.9816006
+                },
+                "durationMinutes": 46,
+                "durationSeconds": 2761,
+                "distanceMeters": 9444,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": [
+              {
+                "reason": "invalid-intent"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2026-10-08",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "09:19",
+            "endTime": "11:19",
+            "type": "leisure",
+            "title": "남산 소나무 힐링숲",
+            "description": "숲 산책 및 활동",
+            "location": "서울특별시 중구 장충동2가",
+            "placeIntent": {
+              "purpose": "숲 산책 및 활동",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%20%EC%86%8C%EB%82%98%EB%AC%B4%20%ED%9E%90%EB%A7%81%EC%88%B2&query_place_id=ChIJi79_e9KjfDURlWrLRr5wsE4",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJi79_e9KjfDURlWrLRr5wsE4",
+              "displayName": "남산 소나무 힐링숲",
+              "formattedAddress": "서울특별시 중구 장충동2가",
+              "lat": 37.5539589,
+              "lng": 126.9983645,
+              "source": "google_places",
+              "category": "park",
+              "intentKey": "{\"purpose\":\"숲 산책 및 활동\",\"category\":\"park\",\"nearLocation\":\"서울숲\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5539589,
+              "lng": 126.9983645
+            },
+            "resolvedName": "남산 소나무 힐링숲",
+            "resolvedAddress": "서울특별시 중구 장충동2가",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "11:38",
+            "endTime": "12:38",
+            "type": "dining",
+            "title": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+            "description": "점심 식사",
+            "location": "서울특별시 중구 다산로 129-1",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Ssada%20Gimbap%20%E2%80%93%20Yaksu%20Station%20(Line%203%20%26%206)(%EC%8B%B8%EB%8B%A4%EA%B9%80%EB%B0%A5%20%EC%95%BD%EC%88%98%EC%97%AD%EC%A0%90)&query_place_id=ChIJVQskcXqjfDURXTfbzCK9ogw",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJVQskcXqjfDURXTfbzCK9ogw",
+              "displayName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+              "formattedAddress": "서울특별시 중구 다산로 129-1",
+              "lat": 37.555491499999995,
+              "lng": 127.0108298,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서울숲\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.555491499999995,
+              "lng": 127.0108298
+            },
+            "resolvedName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+            "resolvedAddress": "서울특별시 중구 다산로 129-1",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "13:15",
+            "endTime": "13:43",
+            "type": "leisure",
+            "title": "어반누크 성수",
+            "description": "카페 방문 및 휴식",
+            "location": "서울특별시 성동구 서울숲4길 26-20",
+            "placeIntent": {
+              "purpose": "카페 방문 및 휴식",
+              "category": "cafe",
+              "nearLocation": "서울숲"
+            },
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%96%B4%EB%B0%98%EB%88%84%ED%81%AC%20%EC%84%B1%EC%88%98&query_place_id=ChIJB9A5Kq-lfDURaHijkaC9yDk",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJB9A5Kq-lfDURaHijkaC9yDk",
+              "displayName": "어반누크 성수",
+              "formattedAddress": "서울특별시 성동구 서울숲4길 26-20",
+              "lat": 37.546686099999995,
+              "lng": 127.04332020000001,
+              "source": "google_places",
+              "category": "cafe",
+              "intentKey": "{\"purpose\":\"카페 방문 및 휴식\",\"category\":\"cafe\",\"nearLocation\":\"서울숲\"}",
+              "centerPlaceId": "ChIJK_b0UX2jfDURmkYPvmWYm90"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.546686099999995,
+              "lng": 127.04332020000001
+            },
+            "resolvedName": "어반누크 성수",
+            "resolvedAddress": "서울특별시 성동구 서울숲4길 26-20",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "AnchorSchedule",
+            "title": "서울숲 산책",
+            "description": "다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울숲공원",
+            "resolvedAddress": "서울특별시 성동구 뚝섬로 273"
+          },
+          {
+            "time": "15:00",
+            "endTime": "17:30",
+            "type": "leisure",
+            "title": "뚝섬한강공원 자전거 또는 액티비티",
+            "description": "",
+            "location": "",
+            "placeIntent": null,
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "18:00",
+            "endTime": "",
+            "type": "arrival",
+            "title": "서울역 도착",
+            "description": "뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 0,
+            "toIndex": 1,
+            "departureTime": "2026-10-08T00:00:00.000Z",
+            "origin": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "destination": {
+              "lat": 37.5539589,
+              "lng": 126.9983645
+            },
+            "durationMinutes": 19,
+            "durationSeconds": 1126,
+            "distanceMeters": 3101,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 1,
+            "toIndex": 2,
+            "departureTime": "2026-10-08T02:19:00.000Z",
+            "origin": {
+              "lat": 37.5539589,
+              "lng": 126.9983645
+            },
+            "destination": {
+              "lat": 37.555491499999995,
+              "lng": 127.0108298
+            },
+            "durationMinutes": 18,
+            "durationSeconds": 1072,
+            "distanceMeters": 1737,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 2,
+            "toIndex": 3,
+            "departureTime": "2026-10-08T03:38:00.000Z",
+            "origin": {
+              "lat": 37.555491499999995,
+              "lng": 127.0108298
+            },
+            "destination": {
+              "lat": 37.546686099999995,
+              "lng": 127.04332020000001
+            },
+            "durationMinutes": 37,
+            "durationSeconds": 2239,
+            "distanceMeters": 5114,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 3,
+            "toIndex": 4,
+            "departureTime": "2026-10-08T04:43:00.000Z",
+            "origin": {
+              "lat": 37.546686099999995,
+              "lng": 127.04332020000001
+            },
+            "destination": {
+              "lat": 37.544387799999996,
+              "lng": 127.03744239999999
+            },
+            "durationMinutes": 17,
+            "durationSeconds": 1042,
+            "distanceMeters": 2455,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 하루 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "10:00",
+                "endTime": "12:00",
+                "type": "leisure",
+                "title": "남산 소나무 힐링숲",
+                "description": "숲 산책 및 활동",
+                "location": "서울특별시 중구 장충동2가",
+                "placeIntent": {
+                  "purpose": "숲 산책 및 활동",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%20%EC%86%8C%EB%82%98%EB%AC%B4%20%ED%9E%90%EB%A7%81%EC%88%B2&query_place_id=ChIJi79_e9KjfDURlWrLRr5wsE4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJi79_e9KjfDURlWrLRr5wsE4",
+                  "displayName": "남산 소나무 힐링숲",
+                  "formattedAddress": "서울특별시 중구 장충동2가",
+                  "lat": 37.5539589,
+                  "lng": 126.9983645,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"숲 산책 및 활동\",\"category\":\"park\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "resolvedName": "남산 소나무 힐링숲",
+                "resolvedAddress": "서울특별시 중구 장충동2가",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "12:00",
+                "endTime": "13:00",
+                "type": "dining",
+                "title": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                "description": "점심 식사",
+                "location": "서울특별시 중구 다산로 129-1",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Ssada%20Gimbap%20%E2%80%93%20Yaksu%20Station%20(Line%203%20%26%206)(%EC%8B%B8%EB%8B%A4%EA%B9%80%EB%B0%A5%20%EC%95%BD%EC%88%98%EC%97%AD%EC%A0%90)&query_place_id=ChIJVQskcXqjfDURXTfbzCK9ogw",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJVQskcXqjfDURXTfbzCK9ogw",
+                  "displayName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                  "formattedAddress": "서울특별시 중구 다산로 129-1",
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "resolvedName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                "resolvedAddress": "서울특별시 중구 다산로 129-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:00",
+                "endTime": "14:00",
+                "type": "leisure",
+                "title": "어반누크 성수",
+                "description": "카페 방문 및 휴식",
+                "location": "서울특별시 성동구 서울숲4길 26-20",
+                "placeIntent": {
+                  "purpose": "카페 방문 및 휴식",
+                  "category": "cafe",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%96%B4%EB%B0%98%EB%88%84%ED%81%AC%20%EC%84%B1%EC%88%98&query_place_id=ChIJB9A5Kq-lfDURaHijkaC9yDk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJB9A5Kq-lfDURaHijkaC9yDk",
+                  "displayName": "어반누크 성수",
+                  "formattedAddress": "서울특별시 성동구 서울숲4길 26-20",
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001,
+                  "source": "google_places",
+                  "category": "cafe",
+                  "intentKey": "{\"purpose\":\"카페 방문 및 휴식\",\"category\":\"cafe\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJK_b0UX2jfDURmkYPvmWYm90"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "resolvedName": "어반누크 성수",
+                "resolvedAddress": "서울특별시 성동구 서울숲4길 26-20",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "15:00",
+                "type": "AnchorSchedule",
+                "title": "서울숲 산책",
+                "description": "다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.",
+                "location": "서울숲",
+                "placeIntent": {
+                  "purpose": "공원 산책",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "무료",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울숲공원",
+                "resolvedAddress": "서울특별시 성동구 뚝섬로 273"
+              },
+              {
+                "time": "15:00",
+                "endTime": "17:30",
+                "type": "leisure",
+                "title": "뚝섬한강공원 자전거 또는 액티비티",
+                "description": "",
+                "location": "",
+                "placeIntent": null,
+                "duration": "2시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "18:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "도착",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-08T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "durationMinutes": 19,
+                "durationSeconds": 1126,
+                "distanceMeters": 3101,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-08T03:00:00.000Z",
+                "origin": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "destination": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "durationMinutes": 19,
+                "durationSeconds": 1132,
+                "distanceMeters": 1737,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-08T04:00:00.000Z",
+                "origin": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "destination": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "durationMinutes": 37,
+                "durationSeconds": 2239,
+                "distanceMeters": 5114,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-08T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "destination": {
+                  "lat": 37.544387799999996,
+                  "lng": 127.03744239999999
+                },
+                "durationMinutes": 17,
+                "durationSeconds": 1042,
+                "distanceMeters": 2455,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": true,
+            "diagnostics": [
+              {
+                "reason": "invalid-intent"
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 하루 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "09:19",
+                "endTime": "11:19",
+                "type": "leisure",
+                "title": "남산 소나무 힐링숲",
+                "description": "숲 산책 및 활동",
+                "location": "서울특별시 중구 장충동2가",
+                "placeIntent": {
+                  "purpose": "숲 산책 및 활동",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%20%EC%86%8C%EB%82%98%EB%AC%B4%20%ED%9E%90%EB%A7%81%EC%88%B2&query_place_id=ChIJi79_e9KjfDURlWrLRr5wsE4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJi79_e9KjfDURlWrLRr5wsE4",
+                  "displayName": "남산 소나무 힐링숲",
+                  "formattedAddress": "서울특별시 중구 장충동2가",
+                  "lat": 37.5539589,
+                  "lng": 126.9983645,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"숲 산책 및 활동\",\"category\":\"park\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "resolvedName": "남산 소나무 힐링숲",
+                "resolvedAddress": "서울특별시 중구 장충동2가",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "11:38",
+                "endTime": "12:38",
+                "type": "dining",
+                "title": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                "description": "점심 식사",
+                "location": "서울특별시 중구 다산로 129-1",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Ssada%20Gimbap%20%E2%80%93%20Yaksu%20Station%20(Line%203%20%26%206)(%EC%8B%B8%EB%8B%A4%EA%B9%80%EB%B0%A5%20%EC%95%BD%EC%88%98%EC%97%AD%EC%A0%90)&query_place_id=ChIJVQskcXqjfDURXTfbzCK9ogw",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJVQskcXqjfDURXTfbzCK9ogw",
+                  "displayName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                  "formattedAddress": "서울특별시 중구 다산로 129-1",
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "resolvedName": "Ssada Gimbap – Yaksu Station (Line 3 & 6)(싸다김밥 약수역점)",
+                "resolvedAddress": "서울특별시 중구 다산로 129-1",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:15",
+                "endTime": "13:43",
+                "type": "leisure",
+                "title": "어반누크 성수",
+                "description": "카페 방문 및 휴식",
+                "location": "서울특별시 성동구 서울숲4길 26-20",
+                "placeIntent": {
+                  "purpose": "카페 방문 및 휴식",
+                  "category": "cafe",
+                  "nearLocation": "서울숲"
+                },
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%96%B4%EB%B0%98%EB%88%84%ED%81%AC%20%EC%84%B1%EC%88%98&query_place_id=ChIJB9A5Kq-lfDURaHijkaC9yDk",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJB9A5Kq-lfDURaHijkaC9yDk",
+                  "displayName": "어반누크 성수",
+                  "formattedAddress": "서울특별시 성동구 서울숲4길 26-20",
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001,
+                  "source": "google_places",
+                  "category": "cafe",
+                  "intentKey": "{\"purpose\":\"카페 방문 및 휴식\",\"category\":\"cafe\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJK_b0UX2jfDURmkYPvmWYm90"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "resolvedName": "어반누크 성수",
+                "resolvedAddress": "서울특별시 성동구 서울숲4길 26-20",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "15:00",
+                "type": "AnchorSchedule",
+                "title": "서울숲 산책",
+                "description": "다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.",
+                "location": "서울숲",
+                "placeIntent": {
+                  "purpose": "공원 산책",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "무료",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울숲공원",
+                "resolvedAddress": "서울특별시 성동구 뚝섬로 273"
+              },
+              {
+                "time": "15:00",
+                "endTime": "17:30",
+                "type": "leisure",
+                "title": "뚝섬한강공원 자전거 또는 액티비티",
+                "description": "",
+                "location": "",
+                "placeIntent": null,
+                "duration": "2시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "18:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "서울역 도착",
+                "description": "뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-08T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "durationMinutes": 19,
+                "durationSeconds": 1126,
+                "distanceMeters": 3101,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-08T02:19:00.000Z",
+                "origin": {
+                  "lat": 37.5539589,
+                  "lng": 126.9983645
+                },
+                "destination": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "durationMinutes": 18,
+                "durationSeconds": 1072,
+                "distanceMeters": 1737,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-08T03:38:00.000Z",
+                "origin": {
+                  "lat": 37.555491499999995,
+                  "lng": 127.0108298
+                },
+                "destination": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "durationMinutes": 37,
+                "durationSeconds": 2239,
+                "distanceMeters": 5114,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-08T04:43:00.000Z",
+                "origin": {
+                  "lat": 37.546686099999995,
+                  "lng": 127.04332020000001
+                },
+                "destination": {
+                  "lat": 37.544387799999996,
+                  "lng": 127.03744239999999
+                },
+                "durationMinutes": 17,
+                "durationSeconds": 1042,
+                "distanceMeters": 2455,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": [
+              {
+                "reason": "invalid-intent"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2026-10-09",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "서울역에서 마지막 날 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "09:21",
+            "endTime": "10:21",
+            "type": "leisure",
+            "title": "월암근린공원",
+            "description": "공원 산책",
+            "location": "서울특별시 종로구 송월동 1-44",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9B%94%EC%95%94%EA%B7%BC%EB%A6%B0%EA%B3%B5%EC%9B%90&query_place_id=ChIJ4_zKApCifDURoq7IYjJNYu4",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJ4_zKApCifDURoq7IYjJNYu4",
+              "displayName": "월암근린공원",
+              "formattedAddress": "서울특별시 종로구 송월동 1-44",
+              "lat": 37.5710608,
+              "lng": 126.96551670000001,
+              "source": "google_places",
+              "category": "park",
+              "intentKey": "{\"purpose\":\"공원 산책\",\"category\":\"park\",\"nearLocation\":\"남산서울타워\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5710608,
+              "lng": 126.96551670000001
+            },
+            "resolvedName": "월암근린공원",
+            "resolvedAddress": "서울특별시 종로구 송월동 1-44",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "11:00",
+            "endTime": "12:00",
+            "type": "AnchorSchedule",
+            "title": "남산서울타워 관람",
+            "description": "남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.",
+            "location": "남산서울타워",
+            "placeIntent": {
+              "purpose": "타워 전망대 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%EC%84%9C%EC%9A%B8%ED%83%80%EC%9B%8C",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "16,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "N서울타워",
+            "resolvedAddress": "서울특별시 용산구 남산공원길 105"
+          },
+          {
+            "time": "12:23",
+            "endTime": "13:05",
+            "type": "dining",
+            "title": "잠수교집 직영 해방촌점",
+            "description": "점심 식사",
+            "location": "서울특별시 용산구 신흥로 37",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "남산서울타워"
+            },
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9E%A0%EC%88%98%EA%B5%90%EC%A7%91%20%EC%A7%81%EC%98%81%20%ED%95%B4%EB%B0%A9%EC%B4%8C%EC%A0%90&query_place_id=ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+              "displayName": "잠수교집 직영 해방촌점",
+              "formattedAddress": "서울특별시 용산구 신흥로 37",
+              "lat": 37.5417589,
+              "lng": 126.98712909999999,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"남산서울타워\"}",
+              "centerPlaceId": "ChIJqWqOqFeifDURpYJ5LnxX-Fw"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5417589,
+              "lng": 126.98712909999999
+            },
+            "resolvedName": "잠수교집 직영 해방촌점",
+            "resolvedAddress": "서울특별시 용산구 신흥로 37",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "13:27",
+            "endTime": "13:47",
+            "type": "leisure",
+            "title": "삼익패션타운",
+            "description": "쇼핑 및 길거리 음식 체험",
+            "location": "서울특별시 중구 남대문시장8길 7",
+            "placeIntent": {
+              "purpose": "쇼핑 및 길거리 음식 체험",
+              "category": "shopping_mall",
+              "nearLocation": "명동"
+            },
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%82%BC%EC%9D%B5%ED%8C%A8%EC%85%98%ED%83%80%EC%9A%B4&query_place_id=ChIJqbNLQ_SifDURHydBvNWGS88",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJqbNLQ_SifDURHydBvNWGS88",
+              "displayName": "삼익패션타운",
+              "formattedAddress": "서울특별시 중구 남대문시장8길 7",
+              "lat": 37.560092399999995,
+              "lng": 126.97892979999999,
+              "source": "google_places",
+              "category": "shopping_mall",
+              "intentKey": "{\"purpose\":\"쇼핑 및 길거리 음식 체험\",\"category\":\"shopping_mall\",\"nearLocation\":\"명동\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.560092399999995,
+              "lng": 126.97892979999999
+            },
+            "resolvedName": "삼익패션타운",
+            "resolvedAddress": "서울특별시 중구 남대문시장8길 7",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "14:00",
+            "endTime": "",
+            "type": "arrival",
+            "title": "도착 · 서울역",
+            "description": "지정한 도착지에서 일정을 마칩니다.",
+            "location": "서울역",
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2",
+            "duration": "",
+            "officialWebsiteUrl": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": ""
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 0,
+            "toIndex": 1,
+            "departureTime": "2026-10-09T00:00:00.000Z",
+            "origin": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "destination": {
+              "lat": 37.5710608,
+              "lng": 126.96551670000001
+            },
+            "durationMinutes": 21,
+            "durationSeconds": 1243,
+            "distanceMeters": 2425,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 1,
+            "toIndex": 2,
+            "departureTime": "2026-10-09T01:21:00.000Z",
+            "origin": {
+              "lat": 37.5710608,
+              "lng": 126.96551670000001
+            },
+            "destination": {
+              "lat": 37.5511694,
+              "lng": 126.98822659999999
+            },
+            "durationMinutes": 38,
+            "durationSeconds": 2273,
+            "distanceMeters": 5254,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 2,
+            "toIndex": 3,
+            "departureTime": "2026-10-09T03:00:00.000Z",
+            "origin": {
+              "lat": 37.5511694,
+              "lng": 126.98822659999999
+            },
+            "destination": {
+              "lat": 37.5417589,
+              "lng": 126.98712909999999
+            },
+            "durationMinutes": 23,
+            "durationSeconds": 1386,
+            "distanceMeters": 1179,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 3,
+            "toIndex": 4,
+            "departureTime": "2026-10-09T04:05:00.000Z",
+            "origin": {
+              "lat": 37.5417589,
+              "lng": 126.98712909999999
+            },
+            "destination": {
+              "lat": 37.560092399999995,
+              "lng": 126.97892979999999
+            },
+            "durationMinutes": 22,
+            "durationSeconds": 1341,
+            "distanceMeters": 2849,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 4,
+            "toIndex": 5,
+            "departureTime": "2026-10-09T04:47:00.000Z",
+            "origin": {
+              "lat": 37.560092399999995,
+              "lng": 126.97892979999999
+            },
+            "destination": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "durationMinutes": 13,
+            "durationSeconds": 788,
+            "distanceMeters": 1174,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 마지막 날 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "10:00",
+                "endTime": "11:00",
+                "type": "leisure",
+                "title": "월암근린공원",
+                "description": "공원 산책",
+                "location": "서울특별시 종로구 송월동 1-44",
+                "placeIntent": {
+                  "purpose": "공원 산책",
+                  "category": "park",
+                  "nearLocation": "남산서울타워"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9B%94%EC%95%94%EA%B7%BC%EB%A6%B0%EA%B3%B5%EC%9B%90&query_place_id=ChIJ4_zKApCifDURoq7IYjJNYu4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJ4_zKApCifDURoq7IYjJNYu4",
+                  "displayName": "월암근린공원",
+                  "formattedAddress": "서울특별시 종로구 송월동 1-44",
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"공원 산책\",\"category\":\"park\",\"nearLocation\":\"남산서울타워\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "resolvedName": "월암근린공원",
+                "resolvedAddress": "서울특별시 종로구 송월동 1-44",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "11:00",
+                "endTime": "12:00",
+                "type": "AnchorSchedule",
+                "title": "남산서울타워 관람",
+                "description": "남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.",
+                "location": "남산서울타워",
+                "placeIntent": {
+                  "purpose": "타워 전망대 관람",
+                  "category": "tourist_attraction",
+                  "nearLocation": "남산서울타워"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%EC%84%9C%EC%9A%B8%ED%83%80%EC%9B%8C",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "16,000원",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "N서울타워",
+                "resolvedAddress": "서울특별시 용산구 남산공원길 105"
+              },
+              {
+                "time": "12:00",
+                "endTime": "13:00",
+                "type": "dining",
+                "title": "잠수교집 직영 해방촌점",
+                "description": "점심 식사",
+                "location": "서울특별시 용산구 신흥로 37",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "남산서울타워"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9E%A0%EC%88%98%EA%B5%90%EC%A7%91%20%EC%A7%81%EC%98%81%20%ED%95%B4%EB%B0%A9%EC%B4%8C%EC%A0%90&query_place_id=ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+                  "displayName": "잠수교집 직영 해방촌점",
+                  "formattedAddress": "서울특별시 용산구 신흥로 37",
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"남산서울타워\"}",
+                  "centerPlaceId": "ChIJqWqOqFeifDURpYJ5LnxX-Fw"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "resolvedName": "잠수교집 직영 해방촌점",
+                "resolvedAddress": "서울특별시 용산구 신흥로 37",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:00",
+                "endTime": "14:00",
+                "type": "leisure",
+                "title": "삼익패션타운",
+                "description": "쇼핑 및 길거리 음식 체험",
+                "location": "서울특별시 중구 남대문시장8길 7",
+                "placeIntent": {
+                  "purpose": "쇼핑 및 길거리 음식 체험",
+                  "category": "shopping_mall",
+                  "nearLocation": "명동"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%82%BC%EC%9D%B5%ED%8C%A8%EC%85%98%ED%83%80%EC%9A%B4&query_place_id=ChIJqbNLQ_SifDURHydBvNWGS88",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJqbNLQ_SifDURHydBvNWGS88",
+                  "displayName": "삼익패션타운",
+                  "formattedAddress": "서울특별시 중구 남대문시장8길 7",
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999,
+                  "source": "google_places",
+                  "category": "shopping_mall",
+                  "intentKey": "{\"purpose\":\"쇼핑 및 길거리 음식 체험\",\"category\":\"shopping_mall\",\"nearLocation\":\"명동\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "resolvedName": "삼익패션타운",
+                "resolvedAddress": "서울특별시 중구 남대문시장8길 7",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "도착 · 서울역",
+                "description": "지정한 도착지에서 일정을 마칩니다.",
+                "location": "서울역",
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2",
+                "duration": "도착",
+                "officialWebsiteUrl": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": ""
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-09T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "durationMinutes": 21,
+                "durationSeconds": 1243,
+                "distanceMeters": 2425,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-09T02:00:00.000Z",
+                "origin": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "destination": {
+                  "lat": 37.5511694,
+                  "lng": 126.98822659999999
+                },
+                "durationMinutes": 38,
+                "durationSeconds": 2273,
+                "distanceMeters": 5254,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-09T03:00:00.000Z",
+                "origin": {
+                  "lat": 37.5511694,
+                  "lng": 126.98822659999999
+                },
+                "destination": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "durationMinutes": 23,
+                "durationSeconds": 1386,
+                "distanceMeters": 1179,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-09T04:00:00.000Z",
+                "origin": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "destination": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "durationMinutes": 22,
+                "durationSeconds": 1341,
+                "distanceMeters": 2849,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 4,
+                "toIndex": 5,
+                "departureTime": "2026-10-09T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "destination": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "durationMinutes": 13,
+                "durationSeconds": 788,
+                "distanceMeters": 1174,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": true,
+            "diagnostics": []
+          },
+          {
+            "round": 1,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 마지막 날 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "09:21",
+                "endTime": "10:21",
+                "type": "leisure",
+                "title": "월암근린공원",
+                "description": "공원 산책",
+                "location": "서울특별시 종로구 송월동 1-44",
+                "placeIntent": {
+                  "purpose": "공원 산책",
+                  "category": "park",
+                  "nearLocation": "남산서울타워"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9B%94%EC%95%94%EA%B7%BC%EB%A6%B0%EA%B3%B5%EC%9B%90&query_place_id=ChIJ4_zKApCifDURoq7IYjJNYu4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJ4_zKApCifDURoq7IYjJNYu4",
+                  "displayName": "월암근린공원",
+                  "formattedAddress": "서울특별시 종로구 송월동 1-44",
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"공원 산책\",\"category\":\"park\",\"nearLocation\":\"남산서울타워\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "resolvedName": "월암근린공원",
+                "resolvedAddress": "서울특별시 종로구 송월동 1-44",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "11:00",
+                "endTime": "12:00",
+                "type": "AnchorSchedule",
+                "title": "남산서울타워 관람",
+                "description": "남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.",
+                "location": "남산서울타워",
+                "placeIntent": {
+                  "purpose": "타워 전망대 관람",
+                  "category": "tourist_attraction",
+                  "nearLocation": "남산서울타워"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%82%A8%EC%82%B0%EC%84%9C%EC%9A%B8%ED%83%80%EC%9B%8C",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "16,000원",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "N서울타워",
+                "resolvedAddress": "서울특별시 용산구 남산공원길 105"
+              },
+              {
+                "time": "12:23",
+                "endTime": "13:05",
+                "type": "dining",
+                "title": "잠수교집 직영 해방촌점",
+                "description": "점심 식사",
+                "location": "서울특별시 용산구 신흥로 37",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "남산서울타워"
+                },
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9E%A0%EC%88%98%EA%B5%90%EC%A7%91%20%EC%A7%81%EC%98%81%20%ED%95%B4%EB%B0%A9%EC%B4%8C%EC%A0%90&query_place_id=ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJ_Xwjc9mjfDUR16NBfLsDxUU",
+                  "displayName": "잠수교집 직영 해방촌점",
+                  "formattedAddress": "서울특별시 용산구 신흥로 37",
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"남산서울타워\"}",
+                  "centerPlaceId": "ChIJqWqOqFeifDURpYJ5LnxX-Fw"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "resolvedName": "잠수교집 직영 해방촌점",
+                "resolvedAddress": "서울특별시 용산구 신흥로 37",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "13:27",
+                "endTime": "13:47",
+                "type": "leisure",
+                "title": "삼익패션타운",
+                "description": "쇼핑 및 길거리 음식 체험",
+                "location": "서울특별시 중구 남대문시장8길 7",
+                "placeIntent": {
+                  "purpose": "쇼핑 및 길거리 음식 체험",
+                  "category": "shopping_mall",
+                  "nearLocation": "명동"
+                },
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%82%BC%EC%9D%B5%ED%8C%A8%EC%85%98%ED%83%80%EC%9A%B4&query_place_id=ChIJqbNLQ_SifDURHydBvNWGS88",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJqbNLQ_SifDURHydBvNWGS88",
+                  "displayName": "삼익패션타운",
+                  "formattedAddress": "서울특별시 중구 남대문시장8길 7",
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999,
+                  "source": "google_places",
+                  "category": "shopping_mall",
+                  "intentKey": "{\"purpose\":\"쇼핑 및 길거리 음식 체험\",\"category\":\"shopping_mall\",\"nearLocation\":\"명동\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "resolvedName": "삼익패션타운",
+                "resolvedAddress": "서울특별시 중구 남대문시장8길 7",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "도착 · 서울역",
+                "description": "지정한 도착지에서 일정을 마칩니다.",
+                "location": "서울역",
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2",
+                "duration": "",
+                "officialWebsiteUrl": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": ""
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-09T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "durationMinutes": 21,
+                "durationSeconds": 1243,
+                "distanceMeters": 2425,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 1,
+                "toIndex": 2,
+                "departureTime": "2026-10-09T01:21:00.000Z",
+                "origin": {
+                  "lat": 37.5710608,
+                  "lng": 126.96551670000001
+                },
+                "destination": {
+                  "lat": 37.5511694,
+                  "lng": 126.98822659999999
+                },
+                "durationMinutes": 38,
+                "durationSeconds": 2273,
+                "distanceMeters": 5254,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-09T03:00:00.000Z",
+                "origin": {
+                  "lat": 37.5511694,
+                  "lng": 126.98822659999999
+                },
+                "destination": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "durationMinutes": 23,
+                "durationSeconds": 1386,
+                "distanceMeters": 1179,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-09T04:05:00.000Z",
+                "origin": {
+                  "lat": 37.5417589,
+                  "lng": 126.98712909999999
+                },
+                "destination": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "durationMinutes": 22,
+                "durationSeconds": 1341,
+                "distanceMeters": 2849,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 4,
+                "toIndex": 5,
+                "departureTime": "2026-10-09T04:47:00.000Z",
+                "origin": {
+                  "lat": 37.560092399999995,
+                  "lng": 126.97892979999999
+                },
+                "destination": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "durationMinutes": 13,
+                "durationSeconds": 788,
+                "distanceMeters": 1174,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": []
+          }
+        ]
+      }
+    ]
+  }
+}

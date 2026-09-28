@@ -1,0 +1,851 @@
+{
+  "case": "day-airport",
+  "description": "당일치기: 도심에서 인천공항까지, 종료 시각과 도착 여유",
+  "caseVersion": 1,
+  "request": {
+    "date": [
+      "2026-10-06"
+    ],
+    "startTime": "09:00",
+    "endTime": "21:00",
+    "startLocation": "서울역",
+    "endLocation": "인천국제공항 제1여객터미널",
+    "theme": "photo",
+    "budget": "flex",
+    "anchorSchedules": [
+      {
+        "name": "경복궁 관람",
+        "time": "15:00",
+        "endTime": "16:00",
+        "location": "경복궁",
+        "day": 1
+      }
+    ],
+    "dailyData": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "startTime": "09:00",
+        "endTime": "21:00",
+        "startLocation": "서울역",
+        "endLocation": "인천국제공항 제1여객터미널",
+        "anchors": [
+          {
+            "name": "경복궁 관람",
+            "time": "15:00",
+            "endTime": "16:00",
+            "location": "경복궁",
+            "day": 1
+          }
+        ]
+      }
+    ]
+  },
+  "model": "gemini-2.5-flash-lite",
+  "capturedAt": "2026-09-28T08:08:08.046Z",
+  "revision": "fe2c24c4f05106a4c40ca8a00adf057d3c9b8fa0",
+  "prompt": "\nYou are an expert AI Travel Planner.\nPlan a 1-day itinerary for the date 2026-10-06.\n\nPARAMETERS (Daily Constraints):\n- [Day 1] Time: 09:00 to 21:00 | Start Location: \"서울역\", End Location: \"인천국제공항 제1여객터미널\"\n\nANCHOR SCHEDULES (Must Attend):\n1. [Day 1] \"경복궁 관람\" at 15:00 to 16:00 (Location: \"경복궁\")\n\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):\n\n[THEME: 인생샷 (Photo-worthy Spots)]\nThe travel theme is \"Instagram-worthy Photo Spots\". You MUST prioritize:\n  - Popular photo spots, scenic viewpoints, aesthetic cafes, murals, rooftop bars, iconic landmarks.\n  - Consider lighting conditions (golden hour spots in morning/evening).\n  - Include unique and visually stunning locations.\n  - Recommend specific spots within venues for best photo opportunities.\n\n[BUDGET: 플렉스 / 고급형 (Premium & Luxury)]\nThe budget style is \"Premium / Luxury (Flex)\". You MUST:\n  - Assume the traveler uses rental car or taxi for ALL transportation (no public transit).\n  - Recommend fine dining restaurants, premium buffets, high-end cafes, and Michelin-starred venues.\n  - Suggest luxury experiences: private tours, premium tickets, VIP access.\n  - Estimated costs should reflect premium pricing (₩50,000+ per meal, ₩30,000+ per attraction).\n  - Prioritize comfort and exclusivity over cost savings.\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.\n\nThe primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.\nFill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.\nFor every single place, you MUST provide a 'practicalInfo' object containing:\n  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.\n  - operatingHours and localTip: empty strings; the actual venue is not yet known.\nThe first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.\nThe last ScheduleItem of each day MUST end at the End Location near that day's End Time.\n\nCRITICAL RULES:\n1. You MUST include ScheduleItems with type=\"AnchorSchedule\" that exactly match the time and location of the provided AnchorSchedules.\n2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.\n3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.\n4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.\n5. ALL output text (titles, descriptions, themes) MUST be written in Korean language.\n6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.\n7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.\n8. Do not generate movement inside a venue as a separate stop.\n9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.\n10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.\n11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, \"Free\", or \"Cost unknown\"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.\n12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.\n13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).\n14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.\n15. [CRITICAL] Event Timing Realism Rule: If an attraction is explicitly a night-only or evening-only experience (its title/description mentions \"야간\" / \"night\" / \"일루미네이션\" / \"illumination\" / night market / night cruise / fireworks / night view, etc.), its 'time' MUST fall within a realistic evening window (18:00 or later). NEVER schedule a night-exclusive variant of a venue during daytime hours — if the plan needs that venue earlier in the day, use its regular daytime visit instead, not the night-only edition.\n15a. Do not recommend ticketed special events or limited-date programs unless the user supplied them as an AnchorSchedule. You cannot verify their date, ticket availability, or reservation from a generic place search; recommend an ordinary venue visit instead.\n16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism (\"food\"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate \"lunch\" stop) after a brunch already covered that time slot.\n17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra \"moving to end location\" stop after it.\n18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.\n19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. \"Moving to X Station\", \"Heading to the airport\", \"Transfer preparation\"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.\n  ",
+  "promptHash": "eccc1865ae28415fc2b770a0f0b70f95ad2640301ad6b6d90a9beed824ff4d3f",
+  "schemaHash": "41413827e5f6f3001dafd21c90a318a15bfcccb558cfb0364277b9f8bcd3a5b3",
+  "usage": {
+    "promptTokenCount": 1999,
+    "candidatesTokenCount": 2289,
+    "totalTokenCount": 4290,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1999
+      }
+    ],
+    "thoughtsTokenCount": 2,
+    "serviceTier": "standard"
+  },
+  "finishReason": "STOP",
+  "rawText": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"2026-10-06\",\n      \"theme\": \"인생샷 (Photo-worthy Spots)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"10:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 하루를 시작하며 여행을 준비합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:30\",\n          \"endTime\": \"12:30\",\n          \"type\": \"attraction\",\n          \"title\": \"국립중앙박물관 방문 및 사진 촬영\",\n          \"description\": \"국립중앙박물관의 아름다운 건축물과 전시물을 배경으로 인생샷을 남겨보세요. 특히 야외 공간은 고즈넉한 분위기를 연출합니다.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"고품격 문화 예술 경험과 함께 기념 사진 남기기\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩20,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"박물관 주변의 정원을 활용하면 더욱 멋진 사진을 얻을 수 있습니다.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:30\",\n          \"endTime\": \"14:00\",\n          \"type\": \"dining\",\n          \"title\": \"고급 한정식으로 점심 식사\",\n          \"description\": \"국립중앙박물관 근처의 고급 한정식 레스토랑에서 정갈하고 맛있는 점심 식사를 즐기며 다음 일정을 위한 에너지를 충전합니다.\",\n          \"location\": \"국립중앙박물관 근처\",\n          \"placeIntent\": {\n            \"purpose\": \"고품격 점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩70,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"15:00\",\n          \"type\": \"attraction\",\n          \"title\": \"경복궁 이동 및 주변 탐방\",\n          \"description\": \"경복궁 도착 전, 주변의 아름다운 한옥 거리나 전통적인 분위기를 느끼며 사진 찍기 좋은 장소를 찾아봅니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"경복궁 방문 전 주변 탐색 및 사진 촬영\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"Cost unknown\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"16:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"경복궁 관람\",\n          \"description\": \"조선 왕조의 법궁인 경복궁을 거닐며 역사적인 건축물과 고궁의 아름다움을 만끽하고 기념사진을 남깁니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩3,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"광화문 앞에서 촬영하는 사진이 특히 인상적입니다.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:00\",\n          \"endTime\": \"17:30\",\n          \"type\": \"attraction\",\n          \"title\": \"서촌/북촌 한옥마을 산책 및 인생샷 촬영\",\n          \"description\": \"경복궁 근처의 서촌 또는 북촌 한옥마을을 방문하여 고즈넉한 골목길과 전통 가옥을 배경으로 인생샷을 남깁니다. 특히 해 질 녘의 분위기가 좋습니다.\",\n          \"location\": \"서촌/북촌 한옥마을\",\n          \"placeIntent\": {\n            \"purpose\": \"전통적인 한옥 풍경 속에서 인생샷 남기기\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"Free\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"언덕 위에서 내려다보는 마을 풍경이 그림 같습니다.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:30\",\n          \"endTime\": \"19:00\",\n          \"type\": \"dining\",\n          \"title\": \"루프탑 바 또는 고급 다이닝 레스토랑에서 저녁 식사\",\n          \"description\": \"해 질 녘 서울의 멋진 스카이라인을 감상할 수 있는 루프탑 바나 고급 다이닝 레스토랑에서 로맨틱한 저녁 식사를 즐깁니다.\",\n          \"location\": \"종로/광화문 인근\",\n          \"placeIntent\": {\n            \"purpose\": \"멋진 전망과 함께하는 고급 저녁 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"서촌/북촌 한옥마을\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩100,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"사전 예약 시 창가 좌석을 요청하면 좋습니다.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"19:00\",\n          \"endTime\": \"20:30\",\n          \"type\": \"attraction\",\n          \"title\": \"마포/홍대 지역의 감각적인 스튜디오 또는 카페 방문\",\n          \"description\": \"인스타그래머블한 인테리어의 스튜디오나 카페를 방문하여 다채로운 컨셉의 사진을 촬영합니다. 조명이 아름다운 저녁 시간대가 사진 촬영에 유리합니다.\",\n          \"location\": \"마포/홍대 지역\",\n          \"placeIntent\": {\n            \"purpose\": \"독특하고 감각적인 공간에서 인생샷 촬영\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"종로/광화문 인근\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩40,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"테마가 있는 스튜디오나 특별한 디저트를 제공하는 카페를 찾아보세요.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"20:30\",\n          \"endTime\": \"21:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"인천국제공항 제1여객터미널 이동 및 도착\",\n          \"description\": \"인천국제공항 제1여객터미널로 이동하여 여행을 마무리합니다.\",\n          \"location\": \"인천국제공항 제1여객터미널\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"인천국제공항 제1여객터미널\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+  "response": {
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "인생샷 (Photo-worthy Spots)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "10:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루를 시작하며 여행을 준비합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:30",
+            "endTime": "12:30",
+            "type": "attraction",
+            "title": "국립중앙박물관 방문 및 사진 촬영",
+            "description": "국립중앙박물관의 아름다운 건축물과 전시물을 배경으로 인생샷을 남겨보세요. 특히 야외 공간은 고즈넉한 분위기를 연출합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+              "category": "museum",
+              "nearLocation": "서울역"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩20,000",
+              "operatingHours": "",
+              "localTip": "박물관 주변의 정원을 활용하면 더욱 멋진 사진을 얻을 수 있습니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:30",
+            "endTime": "14:00",
+            "type": "dining",
+            "title": "고급 한정식으로 점심 식사",
+            "description": "국립중앙박물관 근처의 고급 한정식 레스토랑에서 정갈하고 맛있는 점심 식사를 즐기며 다음 일정을 위한 에너지를 충전합니다.",
+            "location": "국립중앙박물관 근처",
+            "placeIntent": {
+              "purpose": "고품격 점심 식사",
+              "category": "restaurant",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩70,000",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "attraction",
+            "title": "경복궁 이동 및 주변 탐방",
+            "description": "경복궁 도착 전, 주변의 아름다운 한옥 거리나 전통적인 분위기를 느끼며 사진 찍기 좋은 장소를 찾아봅니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "Cost unknown",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "16:00",
+            "type": "AnchorSchedule",
+            "title": "경복궁 관람",
+            "description": "조선 왕조의 법궁인 경복궁을 거닐며 역사적인 건축물과 고궁의 아름다움을 만끽하고 기념사진을 남깁니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩3,000",
+              "operatingHours": "",
+              "localTip": "광화문 앞에서 촬영하는 사진이 특히 인상적입니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:00",
+            "endTime": "17:30",
+            "type": "attraction",
+            "title": "서촌/북촌 한옥마을 산책 및 인생샷 촬영",
+            "description": "경복궁 근처의 서촌 또는 북촌 한옥마을을 방문하여 고즈넉한 골목길과 전통 가옥을 배경으로 인생샷을 남깁니다. 특히 해 질 녘의 분위기가 좋습니다.",
+            "location": "서촌/북촌 한옥마을",
+            "placeIntent": {
+              "purpose": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "Free",
+              "operatingHours": "",
+              "localTip": "언덕 위에서 내려다보는 마을 풍경이 그림 같습니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:30",
+            "endTime": "19:00",
+            "type": "dining",
+            "title": "루프탑 바 또는 고급 다이닝 레스토랑에서 저녁 식사",
+            "description": "해 질 녘 서울의 멋진 스카이라인을 감상할 수 있는 루프탑 바나 고급 다이닝 레스토랑에서 로맨틱한 저녁 식사를 즐깁니다.",
+            "location": "종로/광화문 인근",
+            "placeIntent": {
+              "purpose": "멋진 전망과 함께하는 고급 저녁 식사",
+              "category": "restaurant",
+              "nearLocation": "서촌/북촌 한옥마을"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩100,000",
+              "operatingHours": "",
+              "localTip": "사전 예약 시 창가 좌석을 요청하면 좋습니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "19:00",
+            "endTime": "20:30",
+            "type": "attraction",
+            "title": "마포/홍대 지역의 감각적인 스튜디오 또는 카페 방문",
+            "description": "인스타그래머블한 인테리어의 스튜디오나 카페를 방문하여 다채로운 컨셉의 사진을 촬영합니다. 조명이 아름다운 저녁 시간대가 사진 촬영에 유리합니다.",
+            "location": "마포/홍대 지역",
+            "placeIntent": {
+              "purpose": "독특하고 감각적인 공간에서 인생샷 촬영",
+              "category": "cafe",
+              "nearLocation": "종로/광화문 인근"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩40,000",
+              "operatingHours": "",
+              "localTip": "테마가 있는 스튜디오나 특별한 디저트를 제공하는 카페를 찾아보세요.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "20:30",
+            "endTime": "21:00",
+            "type": "AnchorSchedule",
+            "title": "인천국제공항 제1여객터미널 이동 및 도착",
+            "description": "인천국제공항 제1여객터미널로 이동하여 여행을 마무리합니다.",
+            "location": "인천국제공항 제1여객터미널",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "인천국제공항 제1여객터미널"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 7210,
+  "mapsSnapshot": {
+    "source": "google_maps",
+    "capturedAt": "2026-09-28T15:06:30.615Z",
+    "timezone": "Asia/Seoul",
+    "collectorHash": "b9375a8565c0d63c952ba23015dbd5cd3f065bc860ca68960d3bb33bff2432f9",
+    "sourceHashes": {
+      "map/services/geocoding-service.js": "eff238f1dfce0b2ffe8d8b3f946b873e7ce2cdc89504cb2a5b6c52ed99e49554",
+      "map/services/routing-service.js": "9f73d6d784c9b5564774ea2133ab293bb03f67d0c641befff6424339b072feaf",
+      "map/services/recommendation-place.mjs": "7cb7d537376255e06e89ac576362736a900244c2719a66ca2e7e69d744e1f750",
+      "itinerary/services/itinerary-state.mjs": "e80056b2271c5af3159b6be135443a41d74b732307eb579de6a3a806a5e75d4e",
+      "itinerary/services/itinerary-end-fit.mjs": "91900037156f8b44f9043090a5f2c7efc50eb95cb29f953b84a36e381a88970b",
+      "itinerary/services/itinerary-schedule-adjust.mjs": "ec82e073b7b4fd30267e2cbd96532d3711298d0624630000f67cbb0489921a56"
+    },
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "인생샷 (Photo-worthy Spots)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루를 시작하며 여행을 준비합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "10:30",
+            "endTime": "12:30",
+            "type": "attraction",
+            "title": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+            "description": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+              "category": "museum",
+              "nearLocation": "서울역"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "12:30",
+            "endTime": "14:00",
+            "type": "dining",
+            "title": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+            "description": "고품격 점심 식사",
+            "location": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+            "placeIntent": {
+              "purpose": "고품격 점심 식사",
+              "category": "restaurant",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%8B%9C%EC%B2%AD%20%EB%A7%9B%EC%A7%91%20%EB%8C%80%EB%B3%B4%EC%A0%95%20%EC%8B%9C%EC%B2%AD%EC%97%AD%EC%A0%90%20%7C%20City%20Hall%20Korean%20Beef%20Daebojeong%20%7C%20%E5%B8%82%E5%8E%85%E7%BE%8E%E9%A3%9F%20%E9%9F%A9%E7%89%9B%20%7C%20%E5%B8%82%E5%BA%81%E3%82%B0%E3%83%AB%E3%83%A1%20%E9%9F%93%E7%89%9B%20%E3%83%86%E3%83%9C%E3%82%B8%E3%83%A7%E3%83%B3&query_place_id=ChIJAXx1WQCjfDUR_aKsoPfHvxo",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJAXx1WQCjfDUR_aKsoPfHvxo",
+              "displayName": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+              "formattedAddress": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+              "lat": 37.5613397,
+              "lng": 126.9730201,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"고품격 점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"국립중앙박물관\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5613397,
+              "lng": 126.9730201
+            },
+            "resolvedName": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+            "resolvedAddress": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "attraction",
+            "title": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+            "description": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "15:00",
+            "endTime": "16:00",
+            "type": "AnchorSchedule",
+            "title": "경복궁 관람",
+            "description": "조선 왕조의 법궁인 경복궁을 거닐며 역사적인 건축물과 고궁의 아름다움을 만끽하고 기념사진을 남깁니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B2%BD%EB%B3%B5%EA%B6%81",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩3,000",
+              "operatingHours": "",
+              "localTip": "광화문 앞에서 촬영하는 사진이 특히 인상적입니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "경복궁",
+            "resolvedAddress": "서울특별시 종로구 사직로 161"
+          },
+          {
+            "time": "16:00",
+            "endTime": "17:30",
+            "type": "attraction",
+            "title": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+            "description": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "17:30",
+            "endTime": "19:00",
+            "type": "dining",
+            "title": "쌤쌤쌤 광화문점",
+            "description": "멋진 전망과 함께하는 고급 저녁 식사",
+            "location": "서울특별시 종로구 종로3길 17 1층",
+            "placeIntent": {
+              "purpose": "멋진 전망과 함께하는 고급 저녁 식사",
+              "category": "restaurant",
+              "nearLocation": "서촌/북촌 한옥마을"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%8C%A4%EC%8C%A4%EC%8C%A4%20%EA%B4%91%ED%99%94%EB%AC%B8%EC%A0%90&query_place_id=ChIJdVblDL6jfDURnlfe6uezXGU",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJdVblDL6jfDURnlfe6uezXGU",
+              "displayName": "쌤쌤쌤 광화문점",
+              "formattedAddress": "서울특별시 종로구 종로3길 17 1층",
+              "lat": 37.570695199999996,
+              "lng": 126.9786568,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"멋진 전망과 함께하는 고급 저녁 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서촌/북촌 한옥마을\"}",
+              "centerPlaceId": "ChIJod7tSseifDUR9hXHLFNGMIs"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.570695199999996,
+              "lng": 126.9786568
+            },
+            "resolvedName": "쌤쌤쌤 광화문점",
+            "resolvedAddress": "서울특별시 종로구 종로3길 17 1층",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "19:00",
+            "endTime": "20:30",
+            "type": "attraction",
+            "title": "독특하고 감각적인 공간에서 인생샷 촬영",
+            "description": "독특하고 감각적인 공간에서 인생샷 촬영",
+            "location": "종로/광화문 인근",
+            "placeIntent": {
+              "purpose": "독특하고 감각적인 공간에서 인생샷 촬영",
+              "category": "cafe",
+              "nearLocation": "종로/광화문 인근"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "21:00",
+            "endTime": "",
+            "type": "arrival",
+            "title": "인천국제공항 제1여객터미널 이동 및 도착",
+            "description": "인천국제공항 제1여객터미널로 이동하여 여행을 마무리합니다.",
+            "location": "인천국제공항 제1여객터미널",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "인천국제공항 제1여객터미널"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9D%B8%EC%B2%9C%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD%20%EC%A0%9C1%EC%97%AC%EA%B0%9D%ED%84%B0%EB%AF%B8%EB%84%90",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "인천제1국제여객터미널",
+            "resolvedAddress": "인천광역시 중구 항동7가"
+          }
+        ],
+        "transitRoutes": [],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "서울역에서 하루를 시작하며 여행을 준비합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "10:30",
+                "endTime": "12:30",
+                "type": "attraction",
+                "title": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+                "description": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "고품격 문화 예술 경험과 함께 기념 사진 남기기",
+                  "category": "museum",
+                  "nearLocation": "서울역"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "12:30",
+                "endTime": "14:00",
+                "type": "dining",
+                "title": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+                "description": "고품격 점심 식사",
+                "location": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+                "placeIntent": {
+                  "purpose": "고품격 점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "1시간 30분",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%8B%9C%EC%B2%AD%20%EB%A7%9B%EC%A7%91%20%EB%8C%80%EB%B3%B4%EC%A0%95%20%EC%8B%9C%EC%B2%AD%EC%97%AD%EC%A0%90%20%7C%20City%20Hall%20Korean%20Beef%20Daebojeong%20%7C%20%E5%B8%82%E5%8E%85%E7%BE%8E%E9%A3%9F%20%E9%9F%A9%E7%89%9B%20%7C%20%E5%B8%82%E5%BA%81%E3%82%B0%E3%83%AB%E3%83%A1%20%E9%9F%93%E7%89%9B%20%E3%83%86%E3%83%9C%E3%82%B8%E3%83%A7%E3%83%B3&query_place_id=ChIJAXx1WQCjfDUR_aKsoPfHvxo",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJAXx1WQCjfDUR_aKsoPfHvxo",
+                  "displayName": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+                  "formattedAddress": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+                  "lat": 37.5613397,
+                  "lng": 126.9730201,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"고품격 점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"국립중앙박물관\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5613397,
+                  "lng": 126.9730201
+                },
+                "resolvedName": "시청 맛집 대보정 시청역점 | City Hall Korean Beef Daebojeong | 市厅美食 韩牛 | 市庁グルメ 韓牛 テボジョン",
+                "resolvedAddress": "서울특별시 퍼시픽타워 지하 1층 4호 KR 서울특별시 중구 세종대로9길41",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "15:00",
+                "type": "attraction",
+                "title": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+                "description": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+                "location": "경복궁",
+                "placeIntent": {
+                  "purpose": "경복궁 방문 전 주변 탐색 및 사진 촬영",
+                  "category": "tourist_attraction",
+                  "nearLocation": "경복궁"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "15:00",
+                "endTime": "16:00",
+                "type": "AnchorSchedule",
+                "title": "경복궁 관람",
+                "description": "조선 왕조의 법궁인 경복궁을 거닐며 역사적인 건축물과 고궁의 아름다움을 만끽하고 기념사진을 남깁니다.",
+                "location": "경복궁",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "경복궁"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B2%BD%EB%B3%B5%EA%B6%81",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "₩3,000",
+                  "operatingHours": "",
+                  "localTip": "광화문 앞에서 촬영하는 사진이 특히 인상적입니다.",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "경복궁",
+                "resolvedAddress": "서울특별시 종로구 사직로 161"
+              },
+              {
+                "time": "16:00",
+                "endTime": "17:30",
+                "type": "attraction",
+                "title": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+                "description": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+                "location": "경복궁",
+                "placeIntent": {
+                  "purpose": "전통적인 한옥 풍경 속에서 인생샷 남기기",
+                  "category": "tourist_attraction",
+                  "nearLocation": "경복궁"
+                },
+                "duration": "1시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "17:30",
+                "endTime": "19:00",
+                "type": "dining",
+                "title": "쌤쌤쌤 광화문점",
+                "description": "멋진 전망과 함께하는 고급 저녁 식사",
+                "location": "서울특별시 종로구 종로3길 17 1층",
+                "placeIntent": {
+                  "purpose": "멋진 전망과 함께하는 고급 저녁 식사",
+                  "category": "restaurant",
+                  "nearLocation": "서촌/북촌 한옥마을"
+                },
+                "duration": "1시간 30분",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%8C%A4%EC%8C%A4%EC%8C%A4%20%EA%B4%91%ED%99%94%EB%AC%B8%EC%A0%90&query_place_id=ChIJdVblDL6jfDURnlfe6uezXGU",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJdVblDL6jfDURnlfe6uezXGU",
+                  "displayName": "쌤쌤쌤 광화문점",
+                  "formattedAddress": "서울특별시 종로구 종로3길 17 1층",
+                  "lat": 37.570695199999996,
+                  "lng": 126.9786568,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"멋진 전망과 함께하는 고급 저녁 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서촌/북촌 한옥마을\"}",
+                  "centerPlaceId": "ChIJod7tSseifDUR9hXHLFNGMIs"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.570695199999996,
+                  "lng": 126.9786568
+                },
+                "resolvedName": "쌤쌤쌤 광화문점",
+                "resolvedAddress": "서울특별시 종로구 종로3길 17 1층",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "19:00",
+                "endTime": "20:30",
+                "type": "attraction",
+                "title": "독특하고 감각적인 공간에서 인생샷 촬영",
+                "description": "독특하고 감각적인 공간에서 인생샷 촬영",
+                "location": "종로/광화문 인근",
+                "placeIntent": {
+                  "purpose": "독특하고 감각적인 공간에서 인생샷 촬영",
+                  "category": "cafe",
+                  "nearLocation": "종로/광화문 인근"
+                },
+                "duration": "1시간 30분",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "21:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "인천국제공항 제1여객터미널 이동 및 도착",
+                "description": "인천국제공항 제1여객터미널로 이동하여 여행을 마무리합니다.",
+                "location": "인천국제공항 제1여객터미널",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "인천국제공항 제1여객터미널"
+                },
+                "duration": "도착",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%9D%B8%EC%B2%9C%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD%20%EC%A0%9C1%EC%97%AC%EA%B0%9D%ED%84%B0%EB%AF%B8%EB%84%90",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "인천제1국제여객터미널",
+                "resolvedAddress": "인천광역시 중구 항동7가"
+              }
+            ],
+            "transitRoutes": [],
+            "adjusted": false,
+            "diagnostics": [
+              {
+                "reason": "no-results",
+                "category": "museum",
+                "candidates": 0,
+                "rejected": {}
+              },
+              {
+                "reason": "no-results",
+                "category": "tourist_attraction",
+                "candidates": 0,
+                "rejected": {}
+              },
+              {
+                "reason": "no-results",
+                "category": "tourist_attraction",
+                "candidates": 0,
+                "rejected": {}
+              },
+              {
+                "reason": "no-results",
+                "category": "cafe",
+                "candidates": 0,
+                "rejected": {}
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

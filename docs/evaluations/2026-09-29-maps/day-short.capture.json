@@ -1,0 +1,371 @@
+{
+  "case": "day-short",
+  "description": "당일치기: 3시간 안에 휴식과 식사가 과밀하게 들어가는지",
+  "caseVersion": 1,
+  "request": {
+    "date": [
+      "2026-10-06"
+    ],
+    "startTime": "11:00",
+    "endTime": "14:00",
+    "startLocation": "서울숲",
+    "endLocation": "서울숲",
+    "theme": "healing",
+    "budget": "budget",
+    "anchorSchedules": [],
+    "dailyData": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "startTime": "11:00",
+        "endTime": "14:00",
+        "startLocation": "서울숲",
+        "endLocation": "서울숲",
+        "anchors": []
+      }
+    ]
+  },
+  "model": "gemini-2.5-flash-lite",
+  "capturedAt": "2026-09-28T08:08:15.258Z",
+  "revision": "fe2c24c4f05106a4c40ca8a00adf057d3c9b8fa0",
+  "prompt": "\nYou are an expert AI Travel Planner.\nPlan a 1-day itinerary for the date 2026-10-06.\n\nPARAMETERS (Daily Constraints):\n- [Day 1] Time: 11:00 to 14:00 | Start Location: \"서울숲\", End Location: \"서울숲\"\n\nANCHOR SCHEDULES (Must Attend):\nNo fixed AnchorSchedules provided. Free to plan the entire day.\n\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):\n\n[THEME: 휴식/힐링 (Relaxation & Healing)]\nThe travel theme is \"Relaxation & Healing\". You MUST prioritize:\n  - Serene natural landscapes, hot springs, quiet parks, botanical gardens, temple stays, peaceful cafes.\n  - Minimize travel distance between stops to reduce fatigue.\n  - Include longer stay durations at each spot (1.5-2 hours).\n  - Avoid crowded tourist traps; prefer hidden, tranquil spots.\n\n[BUDGET: 짠내투어 / 절약형 (Budget-friendly)]\nThe budget style is \"Budget-friendly (짠내투어)\". You MUST:\n  - Use ONLY public transportation (subway, bus, walking). NO taxis or rental cars.\n  - Recommend street food, local markets, budget-friendly eateries (under ₩10,000 per meal).\n  - Prioritize FREE attractions: parks, temples, street art, public viewpoints, free museums.\n  - Suggest money-saving tips in localTip fields (e.g., discount passes, free entry days).\n  - Minimize overall estimated spending per person.\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.\n\nThe primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.\nFill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.\nFor every single place, you MUST provide a 'practicalInfo' object containing:\n  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.\n  - operatingHours and localTip: empty strings; the actual venue is not yet known.\nThe first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.\nThe last ScheduleItem of each day MUST end at the End Location near that day's End Time.\n\nCRITICAL RULES:\n1. You may omit ScheduleItems of type=\"AnchorSchedule\" since none were provided.\n2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.\n3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.\n4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.\n5. ALL output text (titles, descriptions, themes) MUST be written in Korean language.\n6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.\n7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.\n8. Do not generate movement inside a venue as a separate stop.\n9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.\n10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.\n11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, \"Free\", or \"Cost unknown\"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.\n12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.\n13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).\n14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.\n15. [CRITICAL] Event Timing Realism Rule: If an attraction is explicitly a night-only or evening-only experience (its title/description mentions \"야간\" / \"night\" / \"일루미네이션\" / \"illumination\" / night market / night cruise / fireworks / night view, etc.), its 'time' MUST fall within a realistic evening window (18:00 or later). NEVER schedule a night-exclusive variant of a venue during daytime hours — if the plan needs that venue earlier in the day, use its regular daytime visit instead, not the night-only edition.\n15a. Do not recommend ticketed special events or limited-date programs unless the user supplied them as an AnchorSchedule. You cannot verify their date, ticket availability, or reservation from a generic place search; recommend an ordinary venue visit instead.\n16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism (\"food\"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate \"lunch\" stop) after a brunch already covered that time slot.\n17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra \"moving to end location\" stop after it.\n18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.\n19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. \"Moving to X Station\", \"Heading to the airport\", \"Transfer preparation\"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.\n  ",
+  "promptHash": "091fb0139b2071c4bf6cea6622707d26af57a35eeb97e1df38cdf9da3435bbca",
+  "schemaHash": "41413827e5f6f3001dafd21c90a318a15bfcccb558cfb0364277b9f8bcd3a5b3",
+  "usage": {
+    "promptTokenCount": 1973,
+    "candidatesTokenCount": 525,
+    "totalTokenCount": 2498,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1973
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "finishReason": "STOP",
+  "rawText": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"2026-10-06\",\n      \"theme\": \"휴식/힐링\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"11:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲 산책\",\n          \"description\": \"서울숲을 거닐며 도심 속 자연을 만끽하고 스트레스를 해소하는 시간을 갖습니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"자연 속에서 휴식 취하기\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"주말에는 방문객이 많을 수 있으니 평일 오전에 방문하면 더욱 여유롭게 즐길 수 있습니다.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"dining\",\n          \"title\": \"서울숲 근처 저렴한 맛집\",\n          \"description\": \"서울숲 근처에서 가성비 좋은 로컬 맛집을 찾아 점심 식사를 합니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"10,000원 미만\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"대학가 주변이나 골목 안쪽에 숨겨진 맛집을 찾아보세요.\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+  "response": {
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "휴식/힐링",
+        "scheduleItems": [
+          {
+            "time": "11:00",
+            "endTime": "13:00",
+            "type": "leisure",
+            "title": "서울숲 산책",
+            "description": "서울숲을 거닐며 도심 속 자연을 만끽하고 스트레스를 해소하는 시간을 갖습니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "자연 속에서 휴식 취하기",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "주말에는 방문객이 많을 수 있으니 평일 오전에 방문하면 더욱 여유롭게 즐길 수 있습니다.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "dining",
+            "title": "서울숲 근처 저렴한 맛집",
+            "description": "서울숲 근처에서 가성비 좋은 로컬 맛집을 찾아 점심 식사를 합니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "10,000원 미만",
+              "operatingHours": "",
+              "localTip": "대학가 주변이나 골목 안쪽에 숨겨진 맛집을 찾아보세요.",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 2351,
+  "mapsSnapshot": {
+    "source": "google_maps",
+    "capturedAt": "2026-09-28T15:06:35.441Z",
+    "timezone": "Asia/Seoul",
+    "collectorHash": "b9375a8565c0d63c952ba23015dbd5cd3f065bc860ca68960d3bb33bff2432f9",
+    "sourceHashes": {
+      "map/services/geocoding-service.js": "eff238f1dfce0b2ffe8d8b3f946b873e7ce2cdc89504cb2a5b6c52ed99e49554",
+      "map/services/routing-service.js": "9f73d6d784c9b5564774ea2133ab293bb03f67d0c641befff6424339b072feaf",
+      "map/services/recommendation-place.mjs": "7cb7d537376255e06e89ac576362736a900244c2719a66ca2e7e69d744e1f750",
+      "itinerary/services/itinerary-state.mjs": "e80056b2271c5af3159b6be135443a41d74b732307eb579de6a3a806a5e75d4e",
+      "itinerary/services/itinerary-end-fit.mjs": "91900037156f8b44f9043090a5f2c7efc50eb95cb29f953b84a36e381a88970b",
+      "itinerary/services/itinerary-schedule-adjust.mjs": "ec82e073b7b4fd30267e2cbd96532d3711298d0624630000f67cbb0489921a56"
+    },
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "휴식/힐링",
+        "scheduleItems": [
+          {
+            "time": "11:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "출발 · 서울숲",
+            "description": "지정한 출발지에서 일정을 시작합니다.",
+            "location": "서울숲",
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울숲공원",
+            "resolvedAddress": "서울특별시 성동구 뚝섬로 273",
+            "duration": "",
+            "officialWebsiteUrl": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+            "transitInfo": ""
+          },
+          {
+            "time": "11:00",
+            "endTime": "13:00",
+            "type": "leisure",
+            "title": "자연 속에서 휴식 취하기",
+            "description": "자연 속에서 휴식 취하기",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "자연 속에서 휴식 취하기",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "dining",
+            "title": "파파쿡 김밥",
+            "description": "점심 식사",
+            "location": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%ED%8C%8C%ED%8C%8C%EC%BF%A1%20%EA%B9%80%EB%B0%A5&query_place_id=ChIJNWV0xGWjfDURVCT7XY9vkZc",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJNWV0xGWjfDURVCT7XY9vkZc",
+              "displayName": "파파쿡 김밥",
+              "formattedAddress": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+              "lat": 37.550164699999996,
+              "lng": 127.0307409,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서울숲\"}",
+              "centerPlaceId": "ChIJK_b0UX2jfDURmkYPvmWYm90"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.550164699999996,
+              "lng": 127.0307409
+            },
+            "resolvedName": "파파쿡 김밥",
+            "resolvedAddress": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "14:22",
+            "endTime": "",
+            "type": "arrival",
+            "title": "도착 · 서울숲",
+            "description": "지정한 도착지에서 일정을 마칩니다.",
+            "location": "서울숲",
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울숲공원",
+            "resolvedAddress": "서울특별시 성동구 뚝섬로 273",
+            "duration": "",
+            "officialWebsiteUrl": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+            "transitInfo": ""
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 2,
+            "toIndex": 3,
+            "departureTime": "2026-10-06T05:00:00.000Z",
+            "origin": {
+              "lat": 37.550164699999996,
+              "lng": 127.0307409
+            },
+            "destination": {
+              "lat": 37.544387799999996,
+              "lng": 127.03744239999999
+            },
+            "durationMinutes": 22,
+            "durationSeconds": 1290,
+            "distanceMeters": 1130,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "11:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "출발 · 서울숲",
+                "description": "지정한 출발지에서 일정을 시작합니다.",
+                "location": "서울숲",
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울숲공원",
+                "resolvedAddress": "서울특별시 성동구 뚝섬로 273",
+                "duration": "출발",
+                "officialWebsiteUrl": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+                "transitInfo": ""
+              },
+              {
+                "time": "11:00",
+                "endTime": "13:00",
+                "type": "leisure",
+                "title": "자연 속에서 휴식 취하기",
+                "description": "자연 속에서 휴식 취하기",
+                "location": "서울숲",
+                "placeIntent": {
+                  "purpose": "자연 속에서 휴식 취하기",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "2시간",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "13:00",
+                "endTime": "14:00",
+                "type": "dining",
+                "title": "파파쿡 김밥",
+                "description": "점심 식사",
+                "location": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "1시간",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%ED%8C%8C%ED%8C%8C%EC%BF%A1%20%EA%B9%80%EB%B0%A5&query_place_id=ChIJNWV0xGWjfDURVCT7XY9vkZc",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJNWV0xGWjfDURVCT7XY9vkZc",
+                  "displayName": "파파쿡 김밥",
+                  "formattedAddress": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+                  "lat": 37.550164699999996,
+                  "lng": 127.0307409,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJK_b0UX2jfDURmkYPvmWYm90"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.550164699999996,
+                  "lng": 127.0307409
+                },
+                "resolvedName": "파파쿡 김밥",
+                "resolvedAddress": "서울특별시 성동구 응봉동 독서당로 381 현대종합상가 1층",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "도착 · 서울숲",
+                "description": "지정한 도착지에서 일정을 마칩니다.",
+                "location": "서울숲",
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울숲공원",
+                "resolvedAddress": "서울특별시 성동구 뚝섬로 273",
+                "duration": "도착",
+                "officialWebsiteUrl": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%88%B2",
+                "transitInfo": ""
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 2,
+                "toIndex": 3,
+                "departureTime": "2026-10-06T05:00:00.000Z",
+                "origin": {
+                  "lat": 37.550164699999996,
+                  "lng": 127.0307409
+                },
+                "destination": {
+                  "lat": 37.544387799999996,
+                  "lng": 127.03744239999999
+                },
+                "durationMinutes": 22,
+                "durationSeconds": 1290,
+                "distanceMeters": 1130,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": [
+              {
+                "reason": "filtered",
+                "category": "park",
+                "candidates": 3,
+                "rejected": {
+                  "distance": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

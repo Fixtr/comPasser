@@ -1,0 +1,1073 @@
+{
+  "case": "day-tight-anchors",
+  "description": "당일치기: 서로 먼 필수 일정 사이 10분, 불가능한 이동 탐지",
+  "caseVersion": 1,
+  "request": {
+    "date": [
+      "2026-10-06"
+    ],
+    "startTime": "09:00",
+    "endTime": "18:00",
+    "startLocation": "서울역",
+    "endLocation": "서울역",
+    "theme": "photo",
+    "budget": "standard",
+    "anchorSchedules": [
+      {
+        "name": "국립중앙박물관 관람",
+        "time": "10:00",
+        "endTime": "11:30",
+        "location": "국립중앙박물관",
+        "day": 1
+      },
+      {
+        "name": "롯데월드타워 약속",
+        "time": "11:40",
+        "endTime": "12:40",
+        "location": "롯데월드타워",
+        "day": 1
+      }
+    ],
+    "dailyData": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "국립중앙박물관 관람",
+            "time": "10:00",
+            "endTime": "11:30",
+            "location": "국립중앙박물관",
+            "day": 1
+          },
+          {
+            "name": "롯데월드타워 약속",
+            "time": "11:40",
+            "endTime": "12:40",
+            "location": "롯데월드타워",
+            "day": 1
+          }
+        ]
+      }
+    ]
+  },
+  "model": "gemini-2.5-flash-lite",
+  "capturedAt": "2026-09-28T08:08:17.610Z",
+  "revision": "fe2c24c4f05106a4c40ca8a00adf057d3c9b8fa0",
+  "prompt": "\nYou are an expert AI Travel Planner.\nPlan a 1-day itinerary for the date 2026-10-06.\n\nPARAMETERS (Daily Constraints):\n- [Day 1] Time: 09:00 to 18:00 | Start Location: \"서울역\", End Location: \"서울역\"\n\nANCHOR SCHEDULES (Must Attend):\n1. [Day 1] \"국립중앙박물관 관람\" at 10:00 to 11:30 (Location: \"국립중앙박물관\")\n2. [Day 1] \"롯데월드타워 약속\" at 11:40 to 12:40 (Location: \"롯데월드타워\")\n\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):\n\n[THEME: 인생샷 (Photo-worthy Spots)]\nThe travel theme is \"Instagram-worthy Photo Spots\". You MUST prioritize:\n  - Popular photo spots, scenic viewpoints, aesthetic cafes, murals, rooftop bars, iconic landmarks.\n  - Consider lighting conditions (golden hour spots in morning/evening).\n  - Include unique and visually stunning locations.\n  - Recommend specific spots within venues for best photo opportunities.\n\n[BUDGET: 스탠다드 / 표준형 (Standard & Balanced)]\nThe budget style is \"Standard / Balanced\". You MUST:\n  - Mix public transport (subway, bus) with occasional taxi for convenience.\n  - Recommend mid-range restaurants (₩10,000-₩25,000 per meal) with good value.\n  - Balance paid attractions with free/low-cost options.\n  - Suggest a mix of popular spots and local favorites.\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.\n\nThe primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.\nFill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.\nFor every single place, you MUST provide a 'practicalInfo' object containing:\n  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.\n  - operatingHours and localTip: empty strings; the actual venue is not yet known.\nThe first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.\nThe last ScheduleItem of each day MUST end at the End Location near that day's End Time.\n\nCRITICAL RULES:\n1. You MUST include ScheduleItems with type=\"AnchorSchedule\" that exactly match the time and location of the provided AnchorSchedules.\n2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.\n3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.\n4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.\n5. ALL output text (titles, descriptions, themes) MUST be written in Korean language.\n6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.\n7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.\n8. Do not generate movement inside a venue as a separate stop.\n9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.\n10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.\n11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, \"Free\", or \"Cost unknown\"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.\n12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.\n13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).\n14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.\n15. [CRITICAL] Event Timing Realism Rule: If an attraction is explicitly a night-only or evening-only experience (its title/description mentions \"야간\" / \"night\" / \"일루미네이션\" / \"illumination\" / night market / night cruise / fireworks / night view, etc.), its 'time' MUST fall within a realistic evening window (18:00 or later). NEVER schedule a night-exclusive variant of a venue during daytime hours — if the plan needs that venue earlier in the day, use its regular daytime visit instead, not the night-only edition.\n15a. Do not recommend ticketed special events or limited-date programs unless the user supplied them as an AnchorSchedule. You cannot verify their date, ticket availability, or reservation from a generic place search; recommend an ordinary venue visit instead.\n16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism (\"food\"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate \"lunch\" stop) after a brunch already covered that time slot.\n17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra \"moving to end location\" stop after it.\n18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.\n19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. \"Moving to X Station\", \"Heading to the airport\", \"Transfer preparation\"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.\n  ",
+  "promptHash": "1d6b56b353ff9001e953ed3d5f3702b4596aa2b3ecfc2bb2aa5547c2c49c0512",
+  "schemaHash": "41413827e5f6f3001dafd21c90a318a15bfcccb558cfb0364277b9f8bcd3a5b3",
+  "usage": {
+    "promptTokenCount": 2009,
+    "candidatesTokenCount": 2483,
+    "totalTokenCount": 4492,
+    "cachedContentTokenCount": 513,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2009
+      }
+    ],
+    "cacheTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 513
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "finishReason": "STOP",
+  "rawText": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"2026-10-06\",\n      \"theme\": \"인생샷\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"10:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"여행의 시작점인 서울역에서 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"1:00\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"11:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"국립중앙박물관 관람\",\n          \"description\": \"국립중앙박물관에서 한국의 역사와 문화를 탐험하며 멋진 사진을 남겨보세요.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"박물관 관람 및 사진 촬영\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"11:30\",\n          \"endTime\": \"11:40\",\n          \"type\": \"leisure\",\n          \"title\": \"박물관에서 롯데월드타워로 이동\",\n          \"description\": \"국립중앙박물관에서 롯데월드타워로 이동합니다. 주변 경치를 감상하며 사진 찍기 좋은 장소를 찾아보세요.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"이동 및 주변 탐색\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"0:10\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"11:40\",\n          \"endTime\": \"12:40\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"롯데월드타워 약속\",\n          \"description\": \"롯데월드타워에서 약속 장소로 이동합니다. 타워 주변의 현대적인 건축물을 배경으로 인생샷을 남겨보세요.\",\n          \"location\": \"롯데월드타워\",\n          \"placeIntent\": {\n            \"purpose\": \"약속 장소\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"롯데월드타워\"\n          },\n          \"duration\": \"1:00\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:40\",\n          \"endTime\": \"14:10\",\n          \"type\": \"dining\",\n          \"title\": \"롯데월드타워 근처 식사\",\n          \"description\": \"롯데월드타워 근처에서 맛있는 점심 식사를 즐기며 에너지를 충전하세요. 현대적인 뷰를 자랑하는 식당을 찾아보세요.\",\n          \"location\": \"롯데월드타워\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"롯데월드타워\"\n          },\n          \"duration\": \"1:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩20,000 - ₩25,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:10\",\n          \"endTime\": \"14:40\",\n          \"type\": \"leisure\",\n          \"title\": \"롯데월드타워에서 서울숲으로 이동\",\n          \"description\": \"롯데월드타워에서 서울숲으로 이동합니다. 산책하며 사진 찍기 좋은 장소를 찾아보세요.\",\n          \"location\": \"롯데월드타워\",\n          \"placeIntent\": {\n            \"purpose\": \"이동 및 주변 탐색\",\n            \"category\": \"park\",\n            \"nearLocation\": \"롯데월드타워\"\n          },\n          \"duration\": \"0:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:40\",\n          \"endTime\": \"16:40\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲 산책 및 사진 촬영\",\n          \"description\": \"서울숲의 아름다운 자연 속에서 여유로운 시간을 보내고 인생샷을 남겨보세요. 계절별 특색 있는 포토존을 찾아보세요.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책 및 사진 촬영\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"2:00\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:40\",\n          \"endTime\": \"17:10\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲에서 성수동 카페거리로 이동\",\n          \"description\": \"서울숲에서 성수동 카페거리로 이동합니다. 트렌디한 카페와 독특한 거리 풍경을 즐기세요.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"이동 및 주변 탐색\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"0:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:10\",\n          \"endTime\": \"18:00\",\n          \"type\": \"dining\",\n          \"title\": \"성수동 카페거리에서 커피와 디저트\",\n          \"description\": \"성수동의 감각적인 카페에서 커피와 디저트를 즐기며 인생샷을 남겨보세요. 독특한 인테리어의 카페를 찾아보세요.\",\n          \"location\": \"성수동 카페거리\",\n          \"placeIntent\": {\n            \"purpose\": \"커피와 디저트\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"성수동 카페거리\"\n          },\n          \"duration\": \"0:50\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"₩10,000 - ₩15,000\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"18:00\",\n          \"endTime\": \"18:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"성수동 카페거리에서 서울역으로 이동\",\n          \"description\": \"성수동 카페거리에서 서울역으로 이동합니다. 저녁 노을과 함께 도시의 야경을 담을 수 있는 장소를 찾아보세요.\",\n          \"location\": \"성수동 카페거리\",\n          \"placeIntent\": {\n            \"purpose\": \"이동\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"성수동 카페거리\"\n          },\n          \"duration\": \"0:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"18:30\",\n          \"endTime\": \"19:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"서울역에 도착하여 하루 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"0:30\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+  "response": {
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "인생샷",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "10:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "여행의 시작점인 서울역에서 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "1:00",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "11:30",
+            "type": "AnchorSchedule",
+            "title": "국립중앙박물관 관람",
+            "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험하며 멋진 사진을 남겨보세요.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람 및 사진 촬영",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "11:30",
+            "endTime": "11:40",
+            "type": "leisure",
+            "title": "박물관에서 롯데월드타워로 이동",
+            "description": "국립중앙박물관에서 롯데월드타워로 이동합니다. 주변 경치를 감상하며 사진 찍기 좋은 장소를 찾아보세요.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "tourist_attraction",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "0:10",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "11:40",
+            "endTime": "12:40",
+            "type": "AnchorSchedule",
+            "title": "롯데월드타워 약속",
+            "description": "롯데월드타워에서 약속 장소로 이동합니다. 타워 주변의 현대적인 건축물을 배경으로 인생샷을 남겨보세요.",
+            "location": "롯데월드타워",
+            "placeIntent": {
+              "purpose": "약속 장소",
+              "category": "tourist_attraction",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "1:00",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:40",
+            "endTime": "14:10",
+            "type": "dining",
+            "title": "롯데월드타워 근처 식사",
+            "description": "롯데월드타워 근처에서 맛있는 점심 식사를 즐기며 에너지를 충전하세요. 현대적인 뷰를 자랑하는 식당을 찾아보세요.",
+            "location": "롯데월드타워",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "1:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩20,000 - ₩25,000",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:10",
+            "endTime": "14:40",
+            "type": "leisure",
+            "title": "롯데월드타워에서 서울숲으로 이동",
+            "description": "롯데월드타워에서 서울숲으로 이동합니다. 산책하며 사진 찍기 좋은 장소를 찾아보세요.",
+            "location": "롯데월드타워",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "park",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:40",
+            "endTime": "16:40",
+            "type": "leisure",
+            "title": "서울숲 산책 및 사진 촬영",
+            "description": "서울숲의 아름다운 자연 속에서 여유로운 시간을 보내고 인생샷을 남겨보세요. 계절별 특색 있는 포토존을 찾아보세요.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책 및 사진 촬영",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2:00",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:40",
+            "endTime": "17:10",
+            "type": "leisure",
+            "title": "서울숲에서 성수동 카페거리로 이동",
+            "description": "서울숲에서 성수동 카페거리로 이동합니다. 트렌디한 카페와 독특한 거리 풍경을 즐기세요.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "cafe",
+              "nearLocation": "서울숲"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:10",
+            "endTime": "18:00",
+            "type": "dining",
+            "title": "성수동 카페거리에서 커피와 디저트",
+            "description": "성수동의 감각적인 카페에서 커피와 디저트를 즐기며 인생샷을 남겨보세요. 독특한 인테리어의 카페를 찾아보세요.",
+            "location": "성수동 카페거리",
+            "placeIntent": {
+              "purpose": "커피와 디저트",
+              "category": "cafe",
+              "nearLocation": "성수동 카페거리"
+            },
+            "duration": "0:50",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "₩10,000 - ₩15,000",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "18:00",
+            "endTime": "18:30",
+            "type": "AnchorSchedule",
+            "title": "성수동 카페거리에서 서울역으로 이동",
+            "description": "성수동 카페거리에서 서울역으로 이동합니다. 저녁 노을과 함께 도시의 야경을 담을 수 있는 장소를 찾아보세요.",
+            "location": "성수동 카페거리",
+            "placeIntent": {
+              "purpose": "이동",
+              "category": "tourist_attraction",
+              "nearLocation": "성수동 카페거리"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "18:30",
+            "endTime": "19:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "서울역에 도착하여 하루 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 6663,
+  "mapsSnapshot": {
+    "source": "google_maps",
+    "capturedAt": "2026-09-28T15:06:36.487Z",
+    "timezone": "Asia/Seoul",
+    "collectorHash": "b9375a8565c0d63c952ba23015dbd5cd3f065bc860ca68960d3bb33bff2432f9",
+    "sourceHashes": {
+      "map/services/geocoding-service.js": "eff238f1dfce0b2ffe8d8b3f946b873e7ce2cdc89504cb2a5b6c52ed99e49554",
+      "map/services/routing-service.js": "9f73d6d784c9b5564774ea2133ab293bb03f67d0c641befff6424339b072feaf",
+      "map/services/recommendation-place.mjs": "7cb7d537376255e06e89ac576362736a900244c2719a66ca2e7e69d744e1f750",
+      "itinerary/services/itinerary-state.mjs": "e80056b2271c5af3159b6be135443a41d74b732307eb579de6a3a806a5e75d4e",
+      "itinerary/services/itinerary-end-fit.mjs": "91900037156f8b44f9043090a5f2c7efc50eb95cb29f953b84a36e381a88970b",
+      "itinerary/services/itinerary-schedule-adjust.mjs": "ec82e073b7b4fd30267e2cbd96532d3711298d0624630000f67cbb0489921a56"
+    },
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "인생샷",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "",
+            "type": "departure",
+            "title": "서울역 출발",
+            "description": "여행의 시작점인 서울역에서 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+          },
+          {
+            "time": "10:00",
+            "endTime": "11:30",
+            "type": "AnchorSchedule",
+            "title": "국립중앙박물관 관람",
+            "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험하며 멋진 사진을 남겨보세요.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람 및 사진 촬영",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1:30",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B5%AD%EB%A6%BD%EC%A4%91%EC%95%99%EB%B0%95%EB%AC%BC%EA%B4%80",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "국립중앙박물관",
+            "resolvedAddress": "서울특별시 용산구 서빙고로 137"
+          },
+          {
+            "time": "11:30",
+            "endTime": "11:40",
+            "type": "leisure",
+            "title": "이동 및 주변 탐색",
+            "description": "이동 및 주변 탐색",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "tourist_attraction",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "0:10",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "11:40",
+            "endTime": "12:40",
+            "type": "AnchorSchedule",
+            "title": "롯데월드타워 약속",
+            "description": "롯데월드타워에서 약속 장소로 이동합니다. 타워 주변의 현대적인 건축물을 배경으로 인생샷을 남겨보세요.",
+            "location": "롯데월드타워",
+            "placeIntent": {
+              "purpose": "약속 장소",
+              "category": "tourist_attraction",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "1:00",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%A1%AF%EB%8D%B0%EC%9B%94%EB%93%9C%ED%83%80%EC%9B%8C",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "롯데월드타워",
+            "resolvedAddress": "서울특별시 송파구 올림픽로 300"
+          },
+          {
+            "time": "13:04",
+            "endTime": "14:34",
+            "type": "dining",
+            "title": "양양집 송파점",
+            "description": "점심 식사",
+            "location": "서울특별시 송파구 삼전동 131-13",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "1:30",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%96%91%EC%96%91%EC%A7%91%20%EC%86%A1%ED%8C%8C%EC%A0%90&query_place_id=ChIJkYvCtWKlfDURlqM9S89Baxo",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJkYvCtWKlfDURlqM9S89Baxo",
+              "displayName": "양양집 송파점",
+              "formattedAddress": "서울특별시 송파구 삼전동 131-13",
+              "lat": 37.5046105,
+              "lng": 127.09689419999998,
+              "source": "google_places",
+              "category": "restaurant",
+              "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"롯데월드타워\"}",
+              "centerPlaceId": "ChIJW2ZfkQqlfDUR4vz9Xs0Q66s"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5046105,
+              "lng": 127.09689419999998
+            },
+            "resolvedName": "양양집 송파점",
+            "resolvedAddress": "서울특별시 송파구 삼전동 131-13",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "14:34",
+            "endTime": "15:04",
+            "type": "leisure",
+            "title": "이동 및 주변 탐색",
+            "description": "이동 및 주변 탐색",
+            "location": "롯데월드타워",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "park",
+              "nearLocation": "롯데월드타워"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "15:04",
+            "endTime": "17:04",
+            "type": "leisure",
+            "title": "석촌호수공원",
+            "description": "공원 산책 및 사진 촬영",
+            "location": "서울특별시 송파구 송파나루길 206",
+            "placeIntent": {
+              "purpose": "공원 산책 및 사진 촬영",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2:00",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9D%EC%B4%8C%ED%98%B8%EC%88%98%EA%B3%B5%EC%9B%90&query_place_id=ChIJEzjZYKGlfDURzLkDglpa074",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJEzjZYKGlfDURzLkDglpa074",
+              "displayName": "석촌호수공원",
+              "formattedAddress": "서울특별시 송파구 송파나루길 206",
+              "lat": 37.5113096,
+              "lng": 127.10515249999999,
+              "source": "google_places",
+              "category": "park",
+              "intentKey": "{\"purpose\":\"공원 산책 및 사진 촬영\",\"category\":\"park\",\"nearLocation\":\"서울숲\"}",
+              "centerPlaceId": "ChIJW2ZfkQqlfDUR4vz9Xs0Q66s"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5113096,
+              "lng": 127.10515249999999
+            },
+            "resolvedName": "석촌호수공원",
+            "resolvedAddress": "서울특별시 송파구 송파나루길 206",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "17:04",
+            "endTime": "17:34",
+            "type": "leisure",
+            "title": "이동 및 주변 탐색",
+            "description": "이동 및 주변 탐색",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "이동 및 주변 탐색",
+              "category": "cafe",
+              "nearLocation": "서울숲"
+            },
+            "duration": "0:30",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": null,
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "",
+            "resolvedAddress": "",
+            "placeStatus": "unresolved"
+          },
+          {
+            "time": "17:34",
+            "endTime": "18:24",
+            "type": "dining",
+            "title": "브릭샌드 서울역점 Bricksand Seoul station",
+            "description": "커피와 디저트",
+            "location": "서울특별시 용산구 한강대로 405 서울역 1층",
+            "placeIntent": {
+              "purpose": "커피와 디저트",
+              "category": "cafe",
+              "nearLocation": "성수동 카페거리"
+            },
+            "duration": "0:50",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%B8%8C%EB%A6%AD%EC%83%8C%EB%93%9C%20%EC%84%9C%EC%9A%B8%EC%97%AD%EC%A0%90%20Bricksand%20Seoul%20station&query_place_id=ChIJabyR2hejfDURFGCs_uyVHe4",
+            "transitInfo": "",
+            "practicalInfo": {},
+            "officialWebsiteUrl": "",
+            "verifiedPlace": {
+              "placeId": "ChIJabyR2hejfDURFGCs_uyVHe4",
+              "displayName": "브릭샌드 서울역점 Bricksand Seoul station",
+              "formattedAddress": "서울특별시 용산구 한강대로 405 서울역 1층",
+              "lat": 37.5549028,
+              "lng": 126.97159289999998,
+              "source": "google_places",
+              "category": "cafe",
+              "intentKey": "{\"purpose\":\"커피와 디저트\",\"category\":\"cafe\",\"nearLocation\":\"성수동 카페거리\"}",
+              "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+            },
+            "selectedPlace": null,
+            "latLng": {
+              "lat": 37.5549028,
+              "lng": 126.97159289999998
+            },
+            "resolvedName": "브릭샌드 서울역점 Bricksand Seoul station",
+            "resolvedAddress": "서울특별시 용산구 한강대로 405 서울역 1층",
+            "placeStatus": "verified"
+          },
+          {
+            "time": "18:34",
+            "endTime": "",
+            "type": "arrival",
+            "title": "도착 · 서울역",
+            "description": "지정한 도착지에서 일정을 마칩니다.",
+            "location": "서울역",
+            "selectedPlace": null,
+            "latLng": null,
+            "resolvedName": "서울역",
+            "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2",
+            "duration": "",
+            "officialWebsiteUrl": "",
+            "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+            "transitInfo": ""
+          }
+        ],
+        "transitRoutes": [
+          {
+            "fromIndex": 0,
+            "toIndex": 1,
+            "departureTime": "2026-10-06T00:00:00.000Z",
+            "origin": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "destination": {
+              "lat": 37.523850599999996,
+              "lng": 126.98047020000001
+            },
+            "durationMinutes": 32,
+            "durationSeconds": 1936,
+            "distanceMeters": 5521,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 3,
+            "toIndex": 4,
+            "departureTime": "2026-10-06T03:40:00.000Z",
+            "origin": {
+              "lat": 37.512464099999995,
+              "lng": 127.10254300000001
+            },
+            "destination": {
+              "lat": 37.5046105,
+              "lng": 127.09689419999998
+            },
+            "durationMinutes": 24,
+            "durationSeconds": 1418,
+            "distanceMeters": 1207,
+            "mode": "TRANSIT"
+          },
+          {
+            "fromIndex": 8,
+            "toIndex": 9,
+            "departureTime": "2026-10-06T09:00:00.000Z",
+            "origin": {
+              "lat": 37.5549028,
+              "lng": 126.97159289999998
+            },
+            "destination": {
+              "lat": 37.555946,
+              "lng": 126.97231699999999
+            },
+            "durationMinutes": 10,
+            "durationSeconds": 576,
+            "distanceMeters": 1042,
+            "mode": "TRANSIT"
+          }
+        ],
+        "rounds": [
+          {
+            "round": 0,
+            "scheduleItems": [
+              {
+                "time": "09:00",
+                "endTime": "",
+                "type": "departure",
+                "title": "서울역 출발",
+                "description": "여행의 시작점인 서울역에서 일정을 시작합니다.",
+                "location": "서울역",
+                "placeIntent": {
+                  "purpose": "",
+                  "category": "tourist_attraction",
+                  "nearLocation": "서울역"
+                },
+                "duration": "출발",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2"
+              },
+              {
+                "time": "10:00",
+                "endTime": "11:30",
+                "type": "AnchorSchedule",
+                "title": "국립중앙박물관 관람",
+                "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험하며 멋진 사진을 남겨보세요.",
+                "location": "국립중앙박물관",
+                "placeIntent": {
+                  "purpose": "박물관 관람 및 사진 촬영",
+                  "category": "museum",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "1:30",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EA%B5%AD%EB%A6%BD%EC%A4%91%EC%95%99%EB%B0%95%EB%AC%BC%EA%B4%80",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "무료",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "국립중앙박물관",
+                "resolvedAddress": "서울특별시 용산구 서빙고로 137"
+              },
+              {
+                "time": "11:30",
+                "endTime": "11:40",
+                "type": "leisure",
+                "title": "이동 및 주변 탐색",
+                "description": "이동 및 주변 탐색",
+                "location": "국립중앙박물관",
+                "placeIntent": {
+                  "purpose": "이동 및 주변 탐색",
+                  "category": "tourist_attraction",
+                  "nearLocation": "국립중앙박물관"
+                },
+                "duration": "0:10",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "11:40",
+                "endTime": "12:40",
+                "type": "AnchorSchedule",
+                "title": "롯데월드타워 약속",
+                "description": "롯데월드타워에서 약속 장소로 이동합니다. 타워 주변의 현대적인 건축물을 배경으로 인생샷을 남겨보세요.",
+                "location": "롯데월드타워",
+                "placeIntent": {
+                  "purpose": "약속 장소",
+                  "category": "tourist_attraction",
+                  "nearLocation": "롯데월드타워"
+                },
+                "duration": "1:00",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%A1%AF%EB%8D%B0%EC%9B%94%EB%93%9C%ED%83%80%EC%9B%8C",
+                "transitInfo": "",
+                "practicalInfo": {
+                  "estimatedCost": "",
+                  "operatingHours": "",
+                  "localTip": "",
+                  "top3Recommendations": []
+                },
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "롯데월드타워",
+                "resolvedAddress": "서울특별시 송파구 올림픽로 300"
+              },
+              {
+                "time": "12:40",
+                "endTime": "14:10",
+                "type": "dining",
+                "title": "양양집 송파점",
+                "description": "점심 식사",
+                "location": "서울특별시 송파구 삼전동 131-13",
+                "placeIntent": {
+                  "purpose": "점심 식사",
+                  "category": "restaurant",
+                  "nearLocation": "롯데월드타워"
+                },
+                "duration": "1:30",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%96%91%EC%96%91%EC%A7%91%20%EC%86%A1%ED%8C%8C%EC%A0%90&query_place_id=ChIJkYvCtWKlfDURlqM9S89Baxo",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJkYvCtWKlfDURlqM9S89Baxo",
+                  "displayName": "양양집 송파점",
+                  "formattedAddress": "서울특별시 송파구 삼전동 131-13",
+                  "lat": 37.5046105,
+                  "lng": 127.09689419999998,
+                  "source": "google_places",
+                  "category": "restaurant",
+                  "intentKey": "{\"purpose\":\"점심 식사\",\"category\":\"restaurant\",\"nearLocation\":\"롯데월드타워\"}",
+                  "centerPlaceId": "ChIJW2ZfkQqlfDUR4vz9Xs0Q66s"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5046105,
+                  "lng": 127.09689419999998
+                },
+                "resolvedName": "양양집 송파점",
+                "resolvedAddress": "서울특별시 송파구 삼전동 131-13",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "14:10",
+                "endTime": "14:40",
+                "type": "leisure",
+                "title": "이동 및 주변 탐색",
+                "description": "이동 및 주변 탐색",
+                "location": "롯데월드타워",
+                "placeIntent": {
+                  "purpose": "이동 및 주변 탐색",
+                  "category": "park",
+                  "nearLocation": "롯데월드타워"
+                },
+                "duration": "0:30",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "14:40",
+                "endTime": "16:40",
+                "type": "leisure",
+                "title": "석촌호수공원",
+                "description": "공원 산책 및 사진 촬영",
+                "location": "서울특별시 송파구 송파나루길 206",
+                "placeIntent": {
+                  "purpose": "공원 산책 및 사진 촬영",
+                  "category": "park",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "2:00",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9D%EC%B4%8C%ED%98%B8%EC%88%98%EA%B3%B5%EC%9B%90&query_place_id=ChIJEzjZYKGlfDURzLkDglpa074",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJEzjZYKGlfDURzLkDglpa074",
+                  "displayName": "석촌호수공원",
+                  "formattedAddress": "서울특별시 송파구 송파나루길 206",
+                  "lat": 37.5113096,
+                  "lng": 127.10515249999999,
+                  "source": "google_places",
+                  "category": "park",
+                  "intentKey": "{\"purpose\":\"공원 산책 및 사진 촬영\",\"category\":\"park\",\"nearLocation\":\"서울숲\"}",
+                  "centerPlaceId": "ChIJW2ZfkQqlfDUR4vz9Xs0Q66s"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5113096,
+                  "lng": 127.10515249999999
+                },
+                "resolvedName": "석촌호수공원",
+                "resolvedAddress": "서울특별시 송파구 송파나루길 206",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "16:40",
+                "endTime": "17:10",
+                "type": "leisure",
+                "title": "이동 및 주변 탐색",
+                "description": "이동 및 주변 탐색",
+                "location": "서울숲",
+                "placeIntent": {
+                  "purpose": "이동 및 주변 탐색",
+                  "category": "cafe",
+                  "nearLocation": "서울숲"
+                },
+                "duration": "0:30",
+                "googleMapsUrl": "",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": null,
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "",
+                "resolvedAddress": "",
+                "placeStatus": "unresolved"
+              },
+              {
+                "time": "17:10",
+                "endTime": "18:00",
+                "type": "dining",
+                "title": "브릭샌드 서울역점 Bricksand Seoul station",
+                "description": "커피와 디저트",
+                "location": "서울특별시 용산구 한강대로 405 서울역 1층",
+                "placeIntent": {
+                  "purpose": "커피와 디저트",
+                  "category": "cafe",
+                  "nearLocation": "성수동 카페거리"
+                },
+                "duration": "0:50",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EB%B8%8C%EB%A6%AD%EC%83%8C%EB%93%9C%20%EC%84%9C%EC%9A%B8%EC%97%AD%EC%A0%90%20Bricksand%20Seoul%20station&query_place_id=ChIJabyR2hejfDURFGCs_uyVHe4",
+                "transitInfo": "",
+                "practicalInfo": {},
+                "officialWebsiteUrl": "",
+                "verifiedPlace": {
+                  "placeId": "ChIJabyR2hejfDURFGCs_uyVHe4",
+                  "displayName": "브릭샌드 서울역점 Bricksand Seoul station",
+                  "formattedAddress": "서울특별시 용산구 한강대로 405 서울역 1층",
+                  "lat": 37.5549028,
+                  "lng": 126.97159289999998,
+                  "source": "google_places",
+                  "category": "cafe",
+                  "intentKey": "{\"purpose\":\"커피와 디저트\",\"category\":\"cafe\",\"nearLocation\":\"성수동 카페거리\"}",
+                  "centerPlaceId": "ChIJA3CU42aifDURaq-3csGXvuc"
+                },
+                "selectedPlace": null,
+                "latLng": {
+                  "lat": 37.5549028,
+                  "lng": 126.97159289999998
+                },
+                "resolvedName": "브릭샌드 서울역점 Bricksand Seoul station",
+                "resolvedAddress": "서울특별시 용산구 한강대로 405 서울역 1층",
+                "placeStatus": "verified"
+              },
+              {
+                "time": "18:00",
+                "endTime": "",
+                "type": "arrival",
+                "title": "도착 · 서울역",
+                "description": "지정한 도착지에서 일정을 마칩니다.",
+                "location": "서울역",
+                "selectedPlace": null,
+                "latLng": null,
+                "resolvedName": "서울역",
+                "resolvedAddress": "서울특별시 중구 소공동 세종대로18길 2",
+                "duration": "도착",
+                "officialWebsiteUrl": "",
+                "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%97%AD",
+                "transitInfo": ""
+              }
+            ],
+            "transitRoutes": [
+              {
+                "fromIndex": 0,
+                "toIndex": 1,
+                "departureTime": "2026-10-06T00:00:00.000Z",
+                "origin": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "destination": {
+                  "lat": 37.523850599999996,
+                  "lng": 126.98047020000001
+                },
+                "durationMinutes": 32,
+                "durationSeconds": 1936,
+                "distanceMeters": 5521,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 3,
+                "toIndex": 4,
+                "departureTime": "2026-10-06T03:40:00.000Z",
+                "origin": {
+                  "lat": 37.512464099999995,
+                  "lng": 127.10254300000001
+                },
+                "destination": {
+                  "lat": 37.5046105,
+                  "lng": 127.09689419999998
+                },
+                "durationMinutes": 24,
+                "durationSeconds": 1418,
+                "distanceMeters": 1207,
+                "mode": "TRANSIT"
+              },
+              {
+                "fromIndex": 8,
+                "toIndex": 9,
+                "departureTime": "2026-10-06T09:00:00.000Z",
+                "origin": {
+                  "lat": 37.5549028,
+                  "lng": 126.97159289999998
+                },
+                "destination": {
+                  "lat": 37.555946,
+                  "lng": 126.97231699999999
+                },
+                "durationMinutes": 10,
+                "durationSeconds": 576,
+                "distanceMeters": 1042,
+                "mode": "TRANSIT"
+              }
+            ],
+            "adjusted": false,
+            "diagnostics": [
+              {
+                "reason": "no-results",
+                "category": "tourist_attraction",
+                "candidates": 0,
+                "rejected": {}
+              },
+              {
+                "reason": "no-results",
+                "category": "park",
+                "candidates": 0,
+                "rejected": {}
+              },
+              {
+                "reason": "no-results",
+                "category": "cafe",
+                "candidates": 0,
+                "rejected": {}
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

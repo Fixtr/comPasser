@@ -1,0 +1,861 @@
+{
+  "case": "four-day-anchors",
+  "description": "3박 4일: 매일 필수 일정, 첫날·마지막 날 시간 축소",
+  "caseVersion": 1,
+  "request": {
+    "date": [
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09"
+    ],
+    "startTime": "09:00",
+    "endTime": "18:00",
+    "startLocation": "서울역",
+    "endLocation": "서울역",
+    "theme": "activity",
+    "budget": "standard",
+    "anchorSchedules": [
+      {
+        "name": "경복궁 관람",
+        "time": "15:00",
+        "endTime": "16:00",
+        "location": "경복궁",
+        "day": 1
+      },
+      {
+        "name": "국립중앙박물관 관람",
+        "time": "13:00",
+        "endTime": "14:00",
+        "location": "국립중앙박물관",
+        "day": 2
+      },
+      {
+        "name": "서울숲 산책",
+        "time": "14:00",
+        "endTime": "15:00",
+        "location": "서울숲",
+        "day": 3
+      },
+      {
+        "name": "남산서울타워 관람",
+        "time": "11:00",
+        "endTime": "12:00",
+        "location": "남산서울타워",
+        "day": 4
+      }
+    ],
+    "dailyTimes": [
+      {
+        "day": 1,
+        "startTime": "14:00",
+        "endTime": "19:00"
+      },
+      {
+        "day": 2,
+        "startTime": "09:00",
+        "endTime": "18:00"
+      },
+      {
+        "day": 3,
+        "startTime": "09:00",
+        "endTime": "18:00"
+      },
+      {
+        "day": 4,
+        "startTime": "09:00",
+        "endTime": "14:00"
+      }
+    ],
+    "dailyData": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "startTime": "14:00",
+        "endTime": "19:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "경복궁 관람",
+            "time": "15:00",
+            "endTime": "16:00",
+            "location": "경복궁",
+            "day": 1
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2026-10-07",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "국립중앙박물관 관람",
+            "time": "13:00",
+            "endTime": "14:00",
+            "location": "국립중앙박물관",
+            "day": 2
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2026-10-08",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "서울숲 산책",
+            "time": "14:00",
+            "endTime": "15:00",
+            "location": "서울숲",
+            "day": 3
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2026-10-09",
+        "startTime": "09:00",
+        "endTime": "14:00",
+        "startLocation": "서울역",
+        "endLocation": "서울역",
+        "anchors": [
+          {
+            "name": "남산서울타워 관람",
+            "time": "11:00",
+            "endTime": "12:00",
+            "location": "남산서울타워",
+            "day": 4
+          }
+        ]
+      }
+    ]
+  },
+  "model": "gemini-2.5-flash-lite",
+  "capturedAt": "2026-09-28T08:08:39.578Z",
+  "revision": "fe2c24c4f05106a4c40ca8a00adf057d3c9b8fa0",
+  "prompt": "\nYou are an expert AI Travel Planner.\nYou MUST plan a 4-day itinerary for the dates: 2026-10-06, 2026-10-07, 2026-10-08, 2026-10-09.\n\nPARAMETERS (Daily Constraints):\n- [Day 1] Time: 14:00 to 19:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 2] Time: 09:00 to 18:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 3] Time: 09:00 to 18:00 | Start Location: \"서울역\", End Location: \"서울역\"\n- [Day 4] Time: 09:00 to 14:00 | Start Location: \"서울역\", End Location: \"서울역\"\n\nANCHOR SCHEDULES (Must Attend):\n1. [Day 1] \"경복궁 관람\" at 15:00 to 16:00 (Location: \"경복궁\")\n2. [Day 2] \"국립중앙박물관 관람\" at 13:00 to 14:00 (Location: \"국립중앙박물관\")\n3. [Day 3] \"서울숲 산책\" at 14:00 to 15:00 (Location: \"서울숲\")\n4. [Day 4] \"남산서울타워 관람\" at 11:00 to 12:00 (Location: \"남산서울타워\")\n\n\nTRAVEL STYLE PARAMETERS (STRICTLY FOLLOW THESE):\n\n[THEME: 액티비티 (Activities & Adventures)]\nThe travel theme is \"Activities & Adventures\". You MUST prioritize:\n  - Experience-based activities: surfing, hiking, cultural workshops, theme parks, water sports, cycling.\n  - Include physically engaging stops and hands-on experiences.\n  - Balance active stops with short rest/refreshment breaks.\n  - Recommend activities suitable for the season and weather.\n\n[BUDGET: 스탠다드 / 표준형 (Standard & Balanced)]\nThe budget style is \"Standard / Balanced\". You MUST:\n  - Mix public transport (subway, bus) with occasional taxi for convenience.\n  - Recommend mid-range restaurants (₩10,000-₩25,000 per meal) with good value.\n  - Balance paid attractions with free/low-cost options.\n  - Suggest a mix of popular spots and local favorites.\n\nYou MUST strictly adhere to BOTH the theme and budget constraints above when selecting places, restaurants, activities, and transportation methods.\n\nThe primary goal is to ensure the user arrives at any AnchorSchedules seamlessly and exactly on time.\nFill the rest of the day with visit purposes near the user's fixed locations. Google Places, not you, selects the actual businesses. Copy a supplied fixed location into placeIntent.nearLocation and location; never invent a street address.\nFor every single place, you MUST provide a 'practicalInfo' object containing:\n  - estimatedCost: Venue/activity spending per person only, in KRW, 'Free', or 'Cost unknown'. Use an empty string for departure/arrival. Never include transport fares.\n  - operatingHours and localTip: empty strings; the actual venue is not yet known.\nThe first ScheduleItem of each day MUST start at the Start Location near that day's Start Time.\nThe last ScheduleItem of each day MUST end at the End Location near that day's End Time.\n\nCRITICAL RULES:\n1. You MUST include ScheduleItems with type=\"AnchorSchedule\" that exactly match the time and location of the provided AnchorSchedules.\n2. Every ordinary recommendation MUST include placeIntent: purpose (activity goal), category (supported Google place type), nearLocation (exact name of a supplied fixed user location). Title and description describe the purpose, not a business. Google Places selects the actual venue. Never invent a venue name, address, Place ID, reviews or operating hours.\n3. Obey the JSON schema exactly. googleMapsUrl, officialWebsiteUrl and transitInfo MUST be empty strings. The app populates verified links and routes later. Fixed boundary/anchor items retain the user's supplied identity and use an empty placeIntent.purpose.\n4. Output ONLY valid JSON, do NOT include markdown backticks or any conversation.\n5. ALL output text (titles, descriptions, themes) MUST be written in Korean language.\n6. Do not name or estimate any transport mode, line, transfer, travel time or fare. Keep transitInfo empty; Google route results are the sole source of transport facts.\n7. Do not invent transfer stations or routes. Reserve conservative travel buffers; the app checks actual durations later.\n8. Do not generate movement inside a venue as a separate stop.\n9. top3Recommendations MUST always be []. operatingHours and localTip MUST be empty strings. No model-generated venue facts or star ratings.\n10. The duration field describes time spent at the place, not travel time. Leave travel-time calculation to the app.\n11. Strict Cost Rule: estimatedCost covers only the visit itself (admission, meal or activity). Use a concrete venue cost/range, \"Free\", or \"Cost unknown\"; use an empty string for departure/arrival. Never put public-transit, train, taxi or other transport fares in this field.\n12. [CRITICAL] Token Limit Prevention: 각 장소의 설명(description)은 1~2문장으로 압축하여 JSON 전체 용량을 최적화하라. DO NOT write long paragraphs for descriptions.\n13. [CRITICAL] Meal Time Rule: Unless an AnchorSchedule forces otherwise, LUNCH ('dining') MUST start at 12:00 (12:00-12:30 acceptable) and DINNER ('dining') MUST start at 18:00 (18:00-18:30 acceptable). Every dining item MUST reserve at least 60 minutes of pure eating time EXCLUDING travel: the slot must be [travel time] + [60+ min eating]. NEVER schedule a meal slot that is mostly consumed by transit (e.g., a 65-minute lunch slot with 70 minutes of travel is FORBIDDEN).\n14. [CRITICAL] Dining On-Route Rule: Restaurants and cafes MUST be located along the route between the previous and the next stop (within walking distance or a short ride). NEVER pick a restaurant that requires a long detour (more than 20 minutes of extra one-way travel) from the day's path.\n15. [CRITICAL] Event Timing Realism Rule: If an attraction is explicitly a night-only or evening-only experience (its title/description mentions \"야간\" / \"night\" / \"일루미네이션\" / \"illumination\" / night market / night cruise / fireworks / night view, etc.), its 'time' MUST fall within a realistic evening window (18:00 or later). NEVER schedule a night-exclusive variant of a venue during daytime hours — if the plan needs that venue earlier in the day, use its regular daytime visit instead, not the night-only edition.\n15a. Do not recommend ticketed special events or limited-date programs unless the user supplied them as an AnchorSchedule. You cannot verify their date, ticket availability, or reservation from a generic place search; recommend an ordinary venue visit instead.\n16. [CRITICAL] No Duplicate Meals Rule: Each day MUST contain AT MOST ONE late-morning/midday meal (breakfast, brunch, OR lunch — pick only one, they serve the same purpose) and AT MOST ONE dinner, for a maximum of 2 full-meal 'dining' items per day, plus at most 1-2 short cafe/snack stops. Exception: if the theme is food tourism (\"food\"), up to 4 dining stops are allowed, but consecutive dining items MUST still be spaced at least 3 hours apart. NEVER schedule a second lunch-like meal (e.g. a separate \"lunch\" stop) after a brunch already covered that time slot.\n17. [CRITICAL] End-Time Hard Limit: NEVER schedule any ScheduleItem (including 'time' or transit legs) to start at or after that day's End Time. The day's actual last ScheduleItem MUST be the one ending at End Location at End Time — do not invent an extra \"moving to end location\" stop after it.\n18. [CRITICAL] Departure Buffer Rule: You MUST reserve enough time to actually REACH the End Location before End Time. Work backwards: estimate the real travel time from the last activity to the End Location, then make the last activity end at least that long before End Time, PLUS a safety buffer. Use these buffers on top of travel time: at least 60 minutes if the End Location is an airport (check-in/security), at least 30 minutes for a train/bus terminal, at least 15 minutes otherwise. Example: End Time 21:00 at an airport reachable in 90 minutes -> the last activity MUST end by 21:00 - 90min - 60min = 19:30 at the latest. It is perfectly fine — and expected — for the day's activities to finish well before End Time; it is NEVER acceptable for the traveler to arrive late. Long-distance transfers (city center to airport) routinely take 60-120 minutes in Korea: budget generously, never optimistically.\n19. [CRITICAL] No Fake Transit Stops Rule: The app itself renders the full real-world route (with every bus/subway transfer and walking leg) between any two consecutive ScheduleItems automatically — you MUST NOT invent your own intermediate ScheduleItem whose sole purpose is to narrate travel or a transfer point (e.g. \"Moving to X Station\", \"Heading to the airport\", \"Transfer preparation\"). This applies everywhere, but especially to the final leg of the day: the ScheduleItem immediately after the last real visit MUST be the End Location itself. Keep its transitInfo empty even when the journey requires multiple transfers.\n  ",
+  "promptHash": "4f60c5b14e3aed1904df16e21e5ee7503d148c424fbaac0c9b558a3a37b7df38",
+  "schemaHash": "41413827e5f6f3001dafd21c90a318a15bfcccb558cfb0364277b9f8bcd3a5b3",
+  "usage": {
+    "promptTokenCount": 2233,
+    "candidatesTokenCount": 6186,
+    "totalTokenCount": 8419,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2233
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "finishReason": "STOP",
+  "rawText": "{\n  \"days\": [\n    {\n      \"day\": 1,\n      \"date\": \"2026-10-06\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"14:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 여행을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"endTime\": \"15:00\",\n          \"type\": \"leisure\",\n          \"title\": \"경복궁으로 이동\",\n          \"description\": \"서울역에서 경복궁으로 이동합니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"궁궐 관람 이동\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"16:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"경복궁 관람\",\n          \"description\": \"아름다운 경복궁을 탐방합니다.\",\n          \"location\": \"경복궁\",\n          \"placeIntent\": {\n            \"purpose\": \"궁궐 관람\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"경복궁\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"2,500원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:00\",\n          \"endTime\": \"16:30\",\n          \"type\": \"leisure\",\n          \"title\": \"북촌 한옥마을 이동\",\n          \"description\": \"경복궁에서 북촌 한옥마을로 이동하여 전통 가옥을 감상합니다.\",\n          \"location\": \"북촌 한옥마을\",\n          \"placeIntent\": {\n            \"purpose\": \"한옥마을 산책\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"북촌 한옥마을\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"16:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"leisure\",\n          \"title\": \"북촌 한옥마을 산책\",\n          \"description\": \"아름다운 북촌 한옥마을 골목길을 거닐며 고즈넉한 분위기를 즐깁니다.\",\n          \"location\": \"북촌 한옥마을\",\n          \"placeIntent\": {\n            \"purpose\": \"한옥마을 산책 및 사진 촬영\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"북촌 한옥마을\"\n          },\n          \"duration\": \"1시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"18:00\",\n          \"endTime\": \"19:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 2,\n      \"date\": \"2026-10-07\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 하루 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"국립중앙박물관으로 이동\",\n          \"description\": \"서울역에서 국립중앙박물관으로 이동합니다.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"박물관 관람 이동\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"leisure\",\n          \"title\": \"용산 가족공원 산책\",\n          \"description\": \"국립중앙박물관 근처 용산 가족공원에서 상쾌한 아침 산책을 즐깁니다.\",\n          \"location\": \"용산 가족공원\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책 및 휴식\",\n            \"category\": \"park\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"국립중앙박물관 근처에서 든든한 점심 식사를 합니다.\",\n          \"location\": \"국립중앙박물관 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"국립중앙박물관 관람\",\n          \"description\": \"국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.\",\n          \"location\": \"국립중앙박물관\",\n          \"placeIntent\": {\n            \"purpose\": \"박물관 관람\",\n            \"category\": \"museum\",\n            \"nearLocation\": \"국립중앙박물관\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"15:00\",\n          \"type\": \"leisure\",\n          \"title\": \"용산역 근처 카페 휴식\",\n          \"description\": \"박물관 관람 후 용산역 근처 카페에서 잠시 휴식을 취합니다.\",\n          \"location\": \"용산역 근처 카페\",\n          \"placeIntent\": {\n            \"purpose\": \"카페 휴식\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"용산역\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"5,000원 - 10,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"17:30\",\n          \"type\": \"leisure\",\n          \"title\": \"이촌 한강공원 자전거 타기\",\n          \"description\": \"용산역에서 이촌 한강공원으로 이동하여 자전거를 타며 활동적인 시간을 보냅니다.\",\n          \"location\": \"이촌 한강공원\",\n          \"placeIntent\": {\n            \"purpose\": \"자전거 타기\",\n            \"category\": \"leisure\",\n            \"nearLocation\": \"이촌 한강공원\"\n          },\n          \"duration\": \"2시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"대여료 별도 (약 5,000원)\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 3,\n      \"date\": \"2026-10-08\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 하루 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲으로 이동\",\n          \"description\": \"서울역에서 서울숲으로 이동합니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책 이동\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"leisure\",\n          \"title\": \"서울숲 탐험 및 활동\",\n          \"description\": \"서울숲의 다채로운 생태 공간을 탐험하고, 원하는 액티비티를 즐깁니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"숲 산책 및 활동\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"2시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"서울숲 근처에서 맛있는 점심 식사를 즐깁니다.\",\n          \"location\": \"서울숲 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"leisure\",\n          \"title\": \"성수동 카페 거리 탐방\",\n          \"description\": \"점심 식사 후 성수동의 독특한 카페 거리에서 여유로운 시간을 보냅니다.\",\n          \"location\": \"성수동 카페 거리\",\n          \"placeIntent\": {\n            \"purpose\": \"카페 방문 및 휴식\",\n            \"category\": \"cafe\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"5,000원 - 10,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"15:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울숲 산책\",\n          \"description\": \"다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.\",\n          \"location\": \"서울숲\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책\",\n            \"category\": \"park\",\n            \"nearLocation\": \"서울숲\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"15:00\",\n          \"endTime\": \"17:30\",\n          \"type\": \"leisure\",\n          \"title\": \"뚝섬한강공원 자전거 또는 액티비티\",\n          \"description\": \"서울숲에서 가까운 뚝섬한강공원으로 이동하여 자전거를 타거나 다양한 야외 활동을 즐깁니다.\",\n          \"location\": \"뚝섬한강공원\",\n          \"placeIntent\": {\n            \"purpose\": \"자전거 타기 또는 야외 활동\",\n            \"category\": \"leisure\",\n            \"nearLocation\": \"뚝섬한강공원\"\n          },\n          \"duration\": \"2시간 30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"대여료 별도 (약 5,000원)\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"17:30\",\n          \"endTime\": \"18:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    },\n    {\n      \"day\": 4,\n      \"date\": \"2026-10-09\",\n      \"theme\": \"액티비티 (Activities & Adventures)\",\n      \"scheduleItems\": [\n        {\n          \"time\": \"09:00\",\n          \"endTime\": \"09:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 출발\",\n          \"description\": \"서울역에서 마지막 날 일정을 시작합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"09:30\",\n          \"endTime\": \"10:00\",\n          \"type\": \"leisure\",\n          \"title\": \"남산서울타워로 이동\",\n          \"description\": \"서울역에서 남산서울타워로 이동합니다.\",\n          \"location\": \"남산서울타워\",\n          \"placeIntent\": {\n            \"purpose\": \"타워 관람 이동\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"10:00\",\n          \"endTime\": \"11:00\",\n          \"type\": \"leisure\",\n          \"title\": \"남산공원 산책\",\n          \"description\": \"남산서울타워로 가는 길에 남산공원을 가볍게 산책하며 경치를 감상합니다.\",\n          \"location\": \"남산공원\",\n          \"placeIntent\": {\n            \"purpose\": \"공원 산책\",\n            \"category\": \"park\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"무료\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"11:00\",\n          \"endTime\": \"12:00\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"남산서울타워 관람\",\n          \"description\": \"남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.\",\n          \"location\": \"남산서울타워\",\n          \"placeIntent\": {\n            \"purpose\": \"타워 전망대 관람\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"16,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"12:00\",\n          \"endTime\": \"13:00\",\n          \"type\": \"dining\",\n          \"title\": \"점심 식사\",\n          \"description\": \"남산 또는 명동 근처에서 마지막 점심 식사를 합니다.\",\n          \"location\": \"남산 또는 명동 인근 식당\",\n          \"placeIntent\": {\n            \"purpose\": \"점심 식사\",\n            \"category\": \"restaurant\",\n            \"nearLocation\": \"남산서울타워\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"15,000원 - 25,000원\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"13:00\",\n          \"endTime\": \"14:00\",\n          \"type\": \"leisure\",\n          \"title\": \"명동 쇼핑 또는 길거리 음식 체험\",\n          \"description\": \"마지막으로 명동을 방문하여 쇼핑을 즐기거나 다양한 길거리 음식을 맛봅니다.\",\n          \"location\": \"명동\",\n          \"placeIntent\": {\n            \"purpose\": \"쇼핑 및 길거리 음식 체험\",\n            \"category\": \"shopping_mall\",\n            \"nearLocation\": \"명동\"\n          },\n          \"duration\": \"1시간\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"다양함\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        },\n        {\n          \"time\": \"14:00\",\n          \"endTime\": \"14:30\",\n          \"type\": \"AnchorSchedule\",\n          \"title\": \"서울역 도착\",\n          \"description\": \"명동에서 서울역으로 복귀하여 여행을 마무리합니다.\",\n          \"location\": \"서울역\",\n          \"placeIntent\": {\n            \"purpose\": \"\",\n            \"category\": \"tourist_attraction\",\n            \"nearLocation\": \"서울역\"\n          },\n          \"duration\": \"30분\",\n          \"googleMapsUrl\": \"\",\n          \"transitInfo\": \"\",\n          \"practicalInfo\": {\n            \"estimatedCost\": \"\",\n            \"operatingHours\": \"\",\n            \"localTip\": \"\",\n            \"top3Recommendations\": []\n          },\n          \"officialWebsiteUrl\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+  "response": {
+    "days": [
+      {
+        "day": 1,
+        "date": "2026-10-06",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "14:00",
+            "endTime": "14:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 여행을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:30",
+            "endTime": "15:00",
+            "type": "leisure",
+            "title": "경복궁으로 이동",
+            "description": "서울역에서 경복궁으로 이동합니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "궁궐 관람 이동",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "16:00",
+            "type": "AnchorSchedule",
+            "title": "경복궁 관람",
+            "description": "아름다운 경복궁을 탐방합니다.",
+            "location": "경복궁",
+            "placeIntent": {
+              "purpose": "궁궐 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "경복궁"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "2,500원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:00",
+            "endTime": "16:30",
+            "type": "leisure",
+            "title": "북촌 한옥마을 이동",
+            "description": "경복궁에서 북촌 한옥마을로 이동하여 전통 가옥을 감상합니다.",
+            "location": "북촌 한옥마을",
+            "placeIntent": {
+              "purpose": "한옥마을 산책",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "16:30",
+            "endTime": "18:00",
+            "type": "leisure",
+            "title": "북촌 한옥마을 산책",
+            "description": "아름다운 북촌 한옥마을 골목길을 거닐며 고즈넉한 분위기를 즐깁니다.",
+            "location": "북촌 한옥마을",
+            "placeIntent": {
+              "purpose": "한옥마을 산책 및 사진 촬영",
+              "category": "tourist_attraction",
+              "nearLocation": "북촌 한옥마을"
+            },
+            "duration": "1시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "18:00",
+            "endTime": "19:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2026-10-07",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "국립중앙박물관으로 이동",
+            "description": "서울역에서 국립중앙박물관으로 이동합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람 이동",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "12:00",
+            "type": "leisure",
+            "title": "용산 가족공원 산책",
+            "description": "국립중앙박물관 근처 용산 가족공원에서 상쾌한 아침 산책을 즐깁니다.",
+            "location": "용산 가족공원",
+            "placeIntent": {
+              "purpose": "공원 산책 및 휴식",
+              "category": "park",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "국립중앙박물관 근처에서 든든한 점심 식사를 합니다.",
+            "location": "국립중앙박물관 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "AnchorSchedule",
+            "title": "국립중앙박물관 관람",
+            "description": "국립중앙박물관에서 한국의 역사와 문화를 탐험합니다.",
+            "location": "국립중앙박물관",
+            "placeIntent": {
+              "purpose": "박물관 관람",
+              "category": "museum",
+              "nearLocation": "국립중앙박물관"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "leisure",
+            "title": "용산역 근처 카페 휴식",
+            "description": "박물관 관람 후 용산역 근처 카페에서 잠시 휴식을 취합니다.",
+            "location": "용산역 근처 카페",
+            "placeIntent": {
+              "purpose": "카페 휴식",
+              "category": "cafe",
+              "nearLocation": "용산역"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "5,000원 - 10,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "17:30",
+            "type": "leisure",
+            "title": "이촌 한강공원 자전거 타기",
+            "description": "용산역에서 이촌 한강공원으로 이동하여 자전거를 타며 활동적인 시간을 보냅니다.",
+            "location": "이촌 한강공원",
+            "placeIntent": {
+              "purpose": "자전거 타기",
+              "category": "leisure",
+              "nearLocation": "이촌 한강공원"
+            },
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "대여료 별도 (약 5,000원)",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:30",
+            "endTime": "18:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "이촌 한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2026-10-08",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 하루 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "서울숲으로 이동",
+            "description": "서울역에서 서울숲으로 이동합니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책 이동",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "12:00",
+            "type": "leisure",
+            "title": "서울숲 탐험 및 활동",
+            "description": "서울숲의 다채로운 생태 공간을 탐험하고, 원하는 액티비티를 즐깁니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "숲 산책 및 활동",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "2시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "서울숲 근처에서 맛있는 점심 식사를 즐깁니다.",
+            "location": "서울숲 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "leisure",
+            "title": "성수동 카페 거리 탐방",
+            "description": "점심 식사 후 성수동의 독특한 카페 거리에서 여유로운 시간을 보냅니다.",
+            "location": "성수동 카페 거리",
+            "placeIntent": {
+              "purpose": "카페 방문 및 휴식",
+              "category": "cafe",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "5,000원 - 10,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "15:00",
+            "type": "AnchorSchedule",
+            "title": "서울숲 산책",
+            "description": "다시 서울숲으로 돌아와 여유로운 산책을 즐깁니다.",
+            "location": "서울숲",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "서울숲"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "15:00",
+            "endTime": "17:30",
+            "type": "leisure",
+            "title": "뚝섬한강공원 자전거 또는 액티비티",
+            "description": "서울숲에서 가까운 뚝섬한강공원으로 이동하여 자전거를 타거나 다양한 야외 활동을 즐깁니다.",
+            "location": "뚝섬한강공원",
+            "placeIntent": {
+              "purpose": "자전거 타기 또는 야외 활동",
+              "category": "leisure",
+              "nearLocation": "뚝섬한강공원"
+            },
+            "duration": "2시간 30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "대여료 별도 (약 5,000원)",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "17:30",
+            "endTime": "18:00",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "뚝섬한강공원에서 서울역으로 복귀하여 일정을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2026-10-09",
+        "theme": "액티비티 (Activities & Adventures)",
+        "scheduleItems": [
+          {
+            "time": "09:00",
+            "endTime": "09:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 출발",
+            "description": "서울역에서 마지막 날 일정을 시작합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "09:30",
+            "endTime": "10:00",
+            "type": "leisure",
+            "title": "남산서울타워로 이동",
+            "description": "서울역에서 남산서울타워로 이동합니다.",
+            "location": "남산서울타워",
+            "placeIntent": {
+              "purpose": "타워 관람 이동",
+              "category": "tourist_attraction",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "10:00",
+            "endTime": "11:00",
+            "type": "leisure",
+            "title": "남산공원 산책",
+            "description": "남산서울타워로 가는 길에 남산공원을 가볍게 산책하며 경치를 감상합니다.",
+            "location": "남산공원",
+            "placeIntent": {
+              "purpose": "공원 산책",
+              "category": "park",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "무료",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "11:00",
+            "endTime": "12:00",
+            "type": "AnchorSchedule",
+            "title": "남산서울타워 관람",
+            "description": "남산서울타워에서 서울의 멋진 파노라마 전망을 감상합니다.",
+            "location": "남산서울타워",
+            "placeIntent": {
+              "purpose": "타워 전망대 관람",
+              "category": "tourist_attraction",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "16,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "12:00",
+            "endTime": "13:00",
+            "type": "dining",
+            "title": "점심 식사",
+            "description": "남산 또는 명동 근처에서 마지막 점심 식사를 합니다.",
+            "location": "남산 또는 명동 인근 식당",
+            "placeIntent": {
+              "purpose": "점심 식사",
+              "category": "restaurant",
+              "nearLocation": "남산서울타워"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "15,000원 - 25,000원",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "13:00",
+            "endTime": "14:00",
+            "type": "leisure",
+            "title": "명동 쇼핑 또는 길거리 음식 체험",
+            "description": "마지막으로 명동을 방문하여 쇼핑을 즐기거나 다양한 길거리 음식을 맛봅니다.",
+            "location": "명동",
+            "placeIntent": {
+              "purpose": "쇼핑 및 길거리 음식 체험",
+              "category": "shopping_mall",
+              "nearLocation": "명동"
+            },
+            "duration": "1시간",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "다양함",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          },
+          {
+            "time": "14:00",
+            "endTime": "14:30",
+            "type": "AnchorSchedule",
+            "title": "서울역 도착",
+            "description": "명동에서 서울역으로 복귀하여 여행을 마무리합니다.",
+            "location": "서울역",
+            "placeIntent": {
+              "purpose": "",
+              "category": "tourist_attraction",
+              "nearLocation": "서울역"
+            },
+            "duration": "30분",
+            "googleMapsUrl": "",
+            "transitInfo": "",
+            "practicalInfo": {
+              "estimatedCost": "",
+              "operatingHours": "",
+              "localTip": "",
+              "top3Recommendations": []
+            },
+            "officialWebsiteUrl": ""
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 13408
+}
