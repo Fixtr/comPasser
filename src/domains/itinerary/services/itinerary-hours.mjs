@@ -77,3 +77,8 @@ export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now
     return promise;
   };
 }
+
+// Search and timeline share this short-lived lookup so validating a candidate
+// does not fetch the same paid place details again when its card is rendered.
+export const lookupPlaceHours = createHoursLookup(async () =>
+  (await import('../../map/services/google-maps-loader.js')).getMapsLoader().importLibrary('places'));

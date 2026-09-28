@@ -22,6 +22,20 @@ const flatRequest = {
   }]
 };
 
+test('daytime night-only suggestions are removed while an ordinary visit remains', () => {
+  const request={date:['2026-09-29'],startTime:'09:00',endTime:'21:00',
+    startLocation:'서울역',endLocation:'서울역',anchorSchedules:[]};
+  const [day]=enforcePlannerConstraints([{scheduleItems:[
+    {type:'attraction',title:'경복궁 야간 특별 관람',time:'16:17',endTime:'17:47',location:'경복궁',
+      placeIntent:{purpose:'경복궁 야간 특별 관람',category:'tourist_attraction'}},
+    {type:'attraction',title:'경복궁 야간 특별 관람',time:'19:00',endTime:'20:00',location:'경복궁',
+      placeIntent:{purpose:'경복궁 야간 특별 관람',category:'tourist_attraction'}},
+    {type:'attraction',title:'북촌 산책',time:'18:30',endTime:'19:30',location:'북촌'}
+  ]}],request);
+  assert.equal(day.scheduleItems.some(item=>item.title==='경복궁 야간 특별 관람'),false);
+  assert.equal(day.scheduleItems.some(item=>item.title==='북촌 산책'),true);
+});
+
 test('near-location intents remain visits, not departure/arrival or anchor identities', () => {
   const request={date:['2026-10-20'],startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'서울역',
     anchorSchedules:[{day:1,name:'박물관 예약',location:'박물관',time:'13:00',endTime:'14:00'}]};

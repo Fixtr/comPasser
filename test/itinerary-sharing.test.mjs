@@ -187,6 +187,17 @@ test('비로그인 공유 일정은 읽기 전용으로 표시하고 지도에�
   assert.deepEqual(app.calls.errors, []);
 });
 
+test('다일 초안의 장소 검색은 다른 날에 이미 확인한 장소를 제외한다', () => {
+  const app=itineraryView({user:{uid:'owner'}});
+  const plan=samplePlan();
+  plan.days.push(structuredClone(plan.days[0]));
+  plan.days[1].day=2;
+  plan.days[0].scheduleItems[2].verifiedPlace={placeId:'lunch-a'};
+  app.view.state.open(plan);
+  app.view.selectDay(1);
+  assert.deepEqual(latestMapRequest(app).plan.excludedPlaceIds,['lunch-a']);
+});
+
 function latestMapRequest(app) {
   return app.calls.events.filter(event => event.type === 'render-map-route').at(-1).detail;
 }

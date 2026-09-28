@@ -231,6 +231,10 @@ export default class ItineraryView extends HTMLElement {
     const plan = this.normalizeData(this.currentItinerary);
     const day = plan?.days?.[this.activeDayIndex];
     if (!day) return;
+    const excludedPlaceIds = this.state.current?.source.kind === 'draft'
+      ? plan.days.flatMap((other, index) => index === this.activeDayIndex ? []
+        : other.scheduleItems.map(item => item.verifiedPlace?.placeId).filter(Boolean))
+      : [];
     const context = {
       itineraryVersion: this._itineraryVersion,
       dayIndex: this.activeDayIndex,
@@ -245,7 +249,7 @@ export default class ItineraryView extends HTMLElement {
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
-      detail: { plan: { days: [structuredClone(day)] }, context },
+      detail: { plan: { days: [structuredClone(day)], ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
     }));
   }
 

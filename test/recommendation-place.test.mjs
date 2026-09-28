@@ -12,13 +12,13 @@ const fixed = {type:'departure', selectedPlace:center, location:'서울역', dis
 const candidate = (id='restaurant', extra={}) => ({ id, displayName:'실제 식당', formattedAddress:'서울특별시 중구 식당 주소',
   location:{lat:37.551,lng:126.971}, types:['restaurant','food'], businessStatus:'OPERATIONAL',
   addressComponents:[{types:['country'],shortText:'KR'}], ...extra });
-function service(places) {
+function service(places, options = {}) {
   const requests=[];
   return {requests, geocoder:new GeocodingService({importLibrary:async()=>({Place:{searchByText:async request=>{
     requests.push(request);
     if (places instanceof Error) throw places;
     return {places};
-  }}})})};
+  }}})}, options)};
 }
 
 test('intent accepts only supported categories and bounded purpose/hint', () => {
@@ -104,6 +104,48 @@ test('new intents resolve against a fixed anchor before it, not just the first d
   assert.deepEqual(requests[0].locationBias,{lat:museum.lat,lng:museum.lng});
 });
 
+test('known-closed recommendation is skipped for an open alternative on the visit date', async () => {
+  const openMonday = {utcOffsetMinutes:540, regularOpeningHours:{periods:[
+    {open:{day:1,hour:10,minute:0},close:{day:1,hour:18,minute:0}}]}};
+  const closedMonday = {utcOffsetMinutes:540, regularOpeningHours:{periods:[
+    {open:{day:2,hour:10,minute:0},close:{day:2,hour:18,minute:0}}]}};
+  const checked=[];
+  const {geocoder}=service([candidate('closed'),candidate('open')], {
+    getHours:async id => { checked.push(id); return id === 'open' ? openMonday : closedMonday; }
+  });
+  const [,result]=await geocoder.geocodeSchedule([fixed,recommendation],'2026-09-28');
+  assert.equal(result.verifiedPlace.placeId,'open');
+  assert.deepEqual(checked,['closed','open']);
+});
+
+test('a previously verified place is rechecked and replaced when closed on the visit date', async () => {
+  const saved=selectRecommendation([candidate('closed')],intent,center);
+  const item={...recommendation,...recommendationFields(recommendation,saved)};
+  const {geocoder}=service([candidate('closed'),candidate('replacement')], {
+    getHours:async id => ({utcOffsetMinutes:540,regularOpeningHours:{periods:[{
+      open:{day:id === 'replacement' ? 1 : 2,hour:10,minute:0},
+      close:{day:id === 'replacement' ? 1 : 2,hour:18,minute:0}
+    }]}})
+  });
+  const [,result]=await geocoder.geocodeSchedule([fixed,item],'2026-09-28');
+  assert.equal(result.verifiedPlace.placeId,'replacement');
+});
+
+test('recommendations exclude place IDs already used on another draft day', async () => {
+  const {geocoder}=service([candidate('repeated'),candidate('fresh')]);
+  const [,result]=await geocoder.geocodeSchedule([fixed,recommendation],'',['repeated']);
+  assert.equal(result.verifiedPlace.placeId,'fresh');
+});
+
+test('the next recommendation search is biased toward the previous resolved stop', async () => {
+  const museum = { ...recommendation, type:'attraction', placeIntent:{
+    purpose:'박물관 관람', category:'museum', nearLocation:'서울역' } };
+  const museumPlace = candidate('museum', {types:['museum'],location:{lat:37.57,lng:126.98}});
+  const {geocoder,requests}=service([museumPlace,candidate()]);
+  await geocoder.geocodeSchedule([fixed,museum,recommendation]);
+  assert.deepEqual(requests[1].locationBias,{lat:37.57,lng:126.98});
+});
+
 test('untrusted location hint cannot move the search away from the user locations', async () => {
   const {geocoder,requests}=service([candidate()]);
   await geocoder.geocodeSchedule([fixed,{...recommendation,placeIntent:{...intent,nearLocation:'부산 가짜 주소'}}]);
@@ -164,6 +206,7 @@ test('server schema and prompt require intent, not model-generated business iden
   assert.match(prompt,/Google Places selects the actual venue/);
   assert.match(prompt,/Google route results are the sole source of transport facts/);
   assert.match(prompt,/Never put public-transit, train, taxi or other transport fares/);
+  assert.match(prompt,/Do not recommend ticketed special events or limited-date programs/);
   assert.doesNotMatch(prompt,/describe that whole multi-leg journey in the transitInfo/);
   assert.doesNotMatch(prompt,/EXACTLY 3 objects|Provide REAL street addresses|MUST specify exact departure/);
 });

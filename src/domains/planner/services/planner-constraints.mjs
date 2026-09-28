@@ -305,6 +305,16 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       ));
     }
 
+    // A model can ignore the prompt and schedule a night-only activity in the
+    // afternoon. Without a user-fixed appointment or event availability data,
+    // that is not a visit we can honestly present as possible.
+    scheduleItems = scheduleItems.filter(item => {
+      if (item.type === 'AnchorSchedule') return true;
+      const name = `${item.title || ''} ${item.placeIntent?.purpose || ''}`;
+      return !/(?:특별\s*(?:관람|개방|행사)|special\s*(?:event|opening|tour|viewing))/i.test(name)
+        && !(/야간|야경|밤\s*(?:관람|투어)|night|illumination/i.test(name) && minutes(item.time) < 18 * 60);
+    });
+
     // Gemini 는 종종 이동 자체를 하나의 일정처럼 만들어낸다("서울역으로 이동",
     // "인천국제공항 이동", "공항으로 이동 준비"). 실제로는 하나의 다구간 여정일
     // 뿐이고 앱이 두 일정 사이의 실제 경로를 이미 카드로 그려준다.

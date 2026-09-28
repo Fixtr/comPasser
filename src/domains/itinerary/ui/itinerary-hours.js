@@ -1,8 +1,6 @@
-import { getMapsLoader } from '../../map/services/google-maps-loader.js';
-import { assessVisitHours, createHoursLookup, hoursPlaceId } from '../services/itinerary-hours.mjs';
+import { assessVisitHours, hoursPlaceId, lookupPlaceHours } from '../services/itinerary-hours.mjs';
 import { t } from '../../../utils/i18n.js';
 
-const lookup = createHoursLookup(() => getMapsLoader().importLibrary('places'));
 export function refreshHours(view) {
   const version = view._hoursVersion = (view._hoursVersion || 0) + 1;
   const source = view.currentItinerary, dayIndex = view.activeDayIndex;
@@ -16,7 +14,7 @@ export function refreshHours(view) {
     node.textContent = t(id ? 'hoursLoading' : 'hoursUnknown');
     node.dataset.status = 'unknown';
     if (!id) return;
-    lookup(id).then(data => {
+    lookupPlaceHours(id).then(data => {
       if (!node.isConnected || view._hoursVersion !== version || view.currentItinerary !== source
         || view.activeDayIndex !== dayIndex) return;
       const status = assessVisitHours(item, day.date, data);
