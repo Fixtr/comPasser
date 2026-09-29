@@ -44,11 +44,10 @@ async (page) => {
   check(await cards.locator('button[data-place=forest]').getAttribute('aria-pressed') === 'true', 'First place must be selected');
   await cards.locator('button[data-place=island]').click();
   check(await cards.locator('button[data-place=island]').getAttribute('aria-pressed') === 'true', 'Second place must be selected');
-  check((await cards.locator('button[data-place=forest]').textContent()).includes('출발지로 선택됨'), 'Departure role must be visible');
-  check((await cards.locator('button[data-place=island]').textContent()).includes('도착지로 선택됨'), 'Destination role must be visible');
+  check((await cards.locator('button[data-place=forest]').textContent()).includes('필수 방문지로 선택됨'), 'First place must be a required visit');
+  check((await cards.locator('button[data-place=island]').textContent()).includes('필수 방문지로 선택됨'), 'Second place must be a required visit');
   await cards.locator('button[data-place=palace]').click();
-  check((await cards.locator('button[data-place=island]').textContent()).includes('방문지로 선택됨'), 'Middle place must become a stop');
-  check((await cards.locator('button[data-place=palace]').textContent()).includes('도착지로 선택됨'), 'Third place must become destination');
+  check((await cards.locator('button[data-place=palace]').textContent()).includes('필수 방문지로 선택됨'), 'Third place must also be a required visit');
   await cards.locator('#discover-plan').click();
   await page.waitForURL('**/login?next=%2Fpreference%2F1');
   await page.reload();
@@ -60,15 +59,15 @@ async (page) => {
   await page.waitForURL('**/preference/2');
   await page.locator('preference-view #skip-btn').click();
   await page.waitForURL('**/plan');
-  await page.waitForFunction(() => document.querySelector('travel-form')?.getFormData().startLocation.includes('서울숲'));
+  await page.waitForFunction(() => document.querySelector('travel-form')?.getFormData().anchorSchedules.length === 4);
   const form = await page.locator('travel-form').evaluate(el => el.getFormData());
-  check(form.startLocation === '서울숲, 서울 성동구 뚝섬로 273', 'Selected departure must reach the real form');
-  check(form.endLocation === '경복궁, 서울 종로구 사직로 161' && form.anchorSchedules[0]?.name === '공연', 'Selected destination must reach the real form without losing appointments');
-  check(form.selectedWaypoints[0]?.name === '선유도공원', 'Selected stop must reach the real form');
-  check(await page.locator('travel-form #selected-waypoint').isVisible(), 'Selected stop must be visible and removable');
-  await page.locator('travel-form #remove-waypoint').click();
-  check((await page.locator('travel-form').evaluate(el => el.getFormData())).selectedWaypoints.length === 0,
-    'Removing the stop must update the submitted request');
+  check(form.startLocation === '이전 출발지' && form.endLocation === '서울역', 'Home picks must not change departure or destination');
+  check(form.anchorSchedules.map(anchor => anchor.name).join() === '공연,서울숲,선유도공원,경복궁', 'All three picks must appear as required schedule rows');
+  check(form.anchorSchedules.slice(1).every(anchor => anchor.day === 1 && !anchor.time && !anchor.endTime), 'Visitors must set the fixed visit times themselves');
+  check(form.selectedWaypoints.length === 0, 'Home picks must not be stored as optional waypoints');
+  await page.locator('travel-form .primary-btn').click();
+  check(await page.locator('travel-form .anchor-item').nth(1).locator('.anchor-time').getAttribute('aria-invalid') === 'true',
+    'Generation must request a time for a required visit');
   await page.evaluate(() => window.navigate('/'));
   for (const id of ['forest', 'island', 'palace']) {
     const button = cards.locator(`button[data-place=${id}]`);
@@ -77,16 +76,16 @@ async (page) => {
   await cards.locator('button[data-place=island]').click();
   await cards.locator('#discover-plan').click();
   await page.waitForURL('**/preference/1');
-  check((await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')))).startLocation.includes('선유도공원'),
-    'Logged-in users can choose a different starting place');
-  check((await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')))).selectedWaypoints.length === 0,
-    'Choosing one place must clear the prior stop');
+  const one = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(one.startLocation === '이전 출발지' && one.endLocation === '서울역', 'Another pick must still leave endpoints unchanged');
+  check(one.anchorSchedules.filter(anchor => anchor.name === '선유도공원').length === 1, 'Repeating a pick must not duplicate a required visit');
   await page.evaluate(() => window.navigate('/'));
   await cards.locator('button[data-city=busan]').click();
   for (const id of ['haeundae', 'dongbaek', 'gwangalli']) await cards.locator(`button[data-place=${id}]`).click();
   await cards.locator('#discover-plan').click();
   const busan = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
-  check(busan.startLocation.includes('해운대') && busan.endLocation.includes('광안리') && busan.selectedWaypoints[0]?.name === '동백섬',
-    'A three-stop Busan route must reach the same planner draft');
+  check(busan.startLocation === '이전 출발지' && busan.endLocation === '서울역', 'Busan picks must not replace endpoints');
+  check(busan.anchorSchedules.slice(-3).map(anchor => anchor.name).join() === '해운대해수욕장,동백섬,광안리해수욕장',
+    'Three Busan picks must reach the required schedule rows');
   return { errors: page.smokeErrors, findings: [] };
 }

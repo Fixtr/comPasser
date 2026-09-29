@@ -100,10 +100,15 @@ class HomeRecommendations extends HTMLElement {
       if (event.target.closest('#discover-plan') && this.selectedIds.length && typeof window.navigate === 'function') {
         const selected = this.selectedIds.map(id => places.find(place => place.id === id));
         const draft = plannerDraftStore.read();
-        plannerDraftStore.save({ ...draft, startLocation: t(`${selected[0].key}Location`),
-          ...(selected[1] ? { endLocation: t(`${selected.at(-1).key}Location`) } : {}),
-          selectedWaypoints: selected.length === 3
-            ? [{ name: t(`${selected[1].key}Name`), location: t(`${selected[1].key}Location`) }] : [] });
+        const anchorSchedules = [...draft.anchorSchedules];
+        selected.forEach(place => {
+          const name = t(`${place.key}Name`);
+          const location = t(`${place.key}Location`);
+          if (!anchorSchedules.some(anchor => anchor.name === name && anchor.location === location)) {
+            anchorSchedules.push({ day: 1, name, location, time: '', endTime: '' });
+          }
+        });
+        plannerDraftStore.save({ ...draft, anchorSchedules, selectedWaypoints: [] });
         trackEvent('home_recommendation_select', { place_ids: this.selectedIds.join(',') });
         window.navigate('/login?next=%2Fpreference%2F1');
       }
@@ -152,10 +157,7 @@ class HomeRecommendations extends HTMLElement {
       const selected = this.selectedIds.includes(button.dataset.place);
       button.setAttribute('aria-pressed', String(selected));
       button.disabled = !selected && this.selectedIds.length === 3;
-      button.querySelector('span').textContent = t(!selected ? 'discoverSelect'
-        : this.selectedIds[0] === button.dataset.place ? 'discoverDepartureSelected'
-          : this.selectedIds.length === 3 && this.selectedIds[1] === button.dataset.place
-            ? 'discoverWaypointSelected' : 'discoverDestinationSelected');
+      button.querySelector('span').textContent = t(selected ? 'discoverRequiredSelected' : 'discoverSelect');
     });
     this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
       ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))
