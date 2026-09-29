@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
+import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { trimScheduleToEndTime } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 
 const items = () => [
@@ -23,6 +23,17 @@ test('이동 경로가 없어도 고정 일정과 이미 겹치는 방문은 경
   assert.equal(hasFixedArrivalConflict(plan, []), false);
 });
 const routes = [35,27,10,41].map((durationMinutes, fromIndex) => ({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+
+test('direct travel between fixed conditions needs a different warning from a removable visit', () => {
+  const fixed = [{type:'departure',time:'09:00'},
+    {type:'AnchorSchedule',time:'10:00',endTime:'11:30'},
+    {type:'AnchorSchedule',time:'11:40',endTime:'12:40'}];
+  assert.equal(hasUnavoidableFixedArrivalConflict(fixed,[{fromIndex:1,toIndex:2,durationMinutes:50}]),true);
+  assert.equal(hasUnavoidableFixedArrivalConflict(fixed,[{fromIndex:1,toIndex:2,durationMinutes:10}]),false);
+  assert.equal(hasUnavoidableFixedArrivalConflict(fixed,[]),false);
+  fixed.splice(2,0,{type:'dining',time:'11:35',endTime:'12:35'});
+  assert.equal(hasUnavoidableFixedArrivalConflict(fixed,[{fromIndex:2,toIndex:3,durationMinutes:20}]),false);
+});
 
 test('automatic and manual fitting keep meals at 60 minutes while cafes may shrink to 20', () => {
   for (const category of ['restaurant', 'cafe']) {

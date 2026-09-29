@@ -7,6 +7,22 @@ const minutes = value => {
 };
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
+export function hasUnavoidableFixedArrivalConflict(items, routes) {
+  if (!Array.isArray(items)) return false;
+  return items.some((target, index) => {
+    if (target.type !== 'AnchorSchedule' || index === 0 ||
+        !['departure', 'AnchorSchedule'].includes(items[index - 1].type)) return false;
+    const departure = minutes(items[index - 1].endTime) ?? minutes(items[index - 1].time);
+    const deadline = minutes(target.time);
+    if (departure === null || deadline === null) return false;
+    if (departure > deadline) return true;
+    return (routes || []).some(route => route.fromIndex === index - 1 &&
+      (route.toIndex ?? route.fromIndex + 1) === index &&
+      Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0 &&
+      departure + route.durationMinutes > deadline);
+  });
+}
+
 export function hasFixedArrivalConflict(items, routes) {
   if (!Array.isArray(items)) return false;
   // Known overlapping visits are impossible even when a missing place means
