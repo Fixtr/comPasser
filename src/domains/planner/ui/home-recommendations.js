@@ -98,7 +98,8 @@ class HomeRecommendations extends HTMLElement {
       const selected = this.selectedIds.includes(button.dataset.place);
       button.setAttribute('aria-pressed', String(selected));
       button.disabled = !selected && this.selectedIds.length === 2;
-      button.querySelector('span').textContent = t(selected ? 'discoverRemove' : 'discoverSelect');
+      button.querySelector('span').textContent = t(!selected ? 'discoverSelect'
+        : this.selectedIds[0] === button.dataset.place ? 'discoverDepartureSelected' : 'discoverDestinationSelected');
     });
     this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
       ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))

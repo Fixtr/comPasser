@@ -31,6 +31,8 @@ async (page) => {
   check(await cards.locator('button[data-place=forest]').getAttribute('aria-pressed') === 'true', 'First place must be selected');
   await cards.locator('button[data-place=island]').click();
   check(await cards.locator('button[data-place=island]').getAttribute('aria-pressed') === 'true', 'Second place must be selected');
+  check((await cards.locator('button[data-place=forest]').textContent()).includes('출발지로 선택됨'), 'Departure role must be visible');
+  check((await cards.locator('button[data-place=island]').textContent()).includes('도착지로 선택됨'), 'Destination role must be visible');
   check(await cards.locator('button[data-place=palace]').isDisabled(), 'A third place must not silently replace a selected endpoint');
   await cards.locator('#discover-plan').click();
   await page.waitForURL('**/login?next=%2Fpreference%2F1');
