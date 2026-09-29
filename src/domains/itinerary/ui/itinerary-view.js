@@ -130,6 +130,11 @@ export default class ItineraryView extends HTMLElement {
       if (!this.isCurrentMapResult(e.detail)) return;
       this.lastResolvedPlaces = Array.isArray(e.detail.places) ? e.detail.places : [];
       this.applyResolvedPlaces(this.lastResolvedPlaces);
+      // If no adjacent route exists, transit-info-ready may never fire. Remove
+      // definitively missing optional stops here so the map can try the new neighbors.
+      if (this.lastResolvedPlaces.some(place => ['filtered', 'no-results'].includes(place.unresolvedReason))) {
+        this.applyTransitDelaysToActiveDay([]);
+      }
     };
     window.addEventListener('places-resolved', this._placesResolvedHandler);
     this._deletedHandler = ({ detail }) => {

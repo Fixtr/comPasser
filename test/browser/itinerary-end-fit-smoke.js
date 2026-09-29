@@ -61,5 +61,22 @@ async page => {
     return !view.shadowRoot.getElementById('anchor-time-warning').hidden;
   });
   if (!missingRouteConflict) throw new Error('Known overlap must warn before any route is available');
+  const noRoutePrune = await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    window.__fitMapRequests = [];
+    window.addEventListener('render-map-route', event => window.__fitMapRequests.push(event.detail));
+    view.state.open({request:{date:['2026-10-20'],startTime:'10:00',endTime:'16:00',startLocation:'서울역',endLocation:'서울역'},days:[{date:'2026-10-20',scheduleItems:[
+      {type:'departure',title:'서울역',time:'10:00'},
+      {type:'attraction',title:'찾을 수 없는 장소',time:'11:00',endTime:'12:00',placeIntent:{purpose:'공원',category:'park',nearLocation:'서울역'}},
+      {type:'arrival',title:'서울역',time:'16:00'}
+    ]}]});
+    view.renderCurrentState();
+    const before = window.__fitMapRequests.length;
+    window.dispatchEvent(new CustomEvent('places-resolved',{detail:{context:view._mapRequest,places:[
+      {index:1,name:'',address:'',verifiedPlace:null,unresolvedReason:'no-results'}
+    ]}}));
+    return {count:view.currentItinerary.days[0].scheduleItems.length,rechecks:window.__fitMapRequests.length-before};
+  });
+  if (noRoutePrune.count !== 2 || noRoutePrune.rechecks !== 1) throw new Error('A missing optional place must be removed and rerouted even with no transit segments');
   return {results:['PASS automatic fitting, measured recheck, bounded retries, warning and saved duration'],errors:page.smokeErrors};
 }
