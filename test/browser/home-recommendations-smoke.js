@@ -14,6 +14,19 @@ async (page) => {
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
   check(await cards.locator('article').count() === 3, 'Guests must see three places');
   check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
+  await page.waitForFunction(() => document.querySelector('home-recommendations')?.shadowRoot
+    .querySelector('button[data-city=busan][aria-pressed=true]'), null, { timeout: 15000 });
+  check(await cards.locator('#haeundae-name').textContent() === '해운대해수욕장', 'City cards must rotate to Busan');
+  await page.locator('#lang-toggle').click();
+  check(await cards.locator('#haeundae-name').textContent() === 'Haeundae Beach', 'Busan cards must translate');
+  await page.locator('#lang-toggle').click();
+  await cards.locator('button[data-city=jeju]').click();
+  check(await cards.locator('#yongduam-name').textContent() === '용두암', 'Visitors must be able to choose Jeju');
+  await cards.locator('button[data-place=yongduam]').click();
+  await page.waitForTimeout(10500);
+  check(await cards.locator('button[data-city=jeju]').getAttribute('aria-pressed') === 'true', 'Selection must pause rotation');
+  await cards.locator('button[data-city=seoul]').click();
+  check(await cards.locator('button[data-place=yongduam]').count() === 0, 'Manual city switch must clear the previous selection');
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
@@ -68,5 +81,12 @@ async (page) => {
     'Logged-in users can choose a different starting place');
   check((await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')))).selectedWaypoints.length === 0,
     'Choosing one place must clear the prior stop');
+  await page.evaluate(() => window.navigate('/'));
+  await cards.locator('button[data-city=busan]').click();
+  for (const id of ['haeundae', 'dongbaek', 'gwangalli']) await cards.locator(`button[data-place=${id}]`).click();
+  await cards.locator('#discover-plan').click();
+  const busan = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(busan.startLocation.includes('해운대') && busan.endLocation.includes('광안리') && busan.selectedWaypoints[0]?.name === '동백섬',
+    'A three-stop Busan route must reach the same planner draft');
   return { errors: page.smokeErrors, findings: [] };
 }
