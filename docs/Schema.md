@@ -23,7 +23,7 @@
 ```
 
 `startLocation`, `endLocation`, and anchor `location` accept either a plain string or a structured Google Place object. The form contract remains flat for edit/save compatibility.
-`selectedWaypoints` is an optional home-recommendation stop (currently one on day 1). It has no fixed time; the client inserts it into an AI visit slot after generation and checks the resulting place and route with Maps.
+`selectedWaypoints` is retained for drafts created by the earlier home-card flow. Current home picks are added to `anchorSchedules` on day 1 with blank `time` and `endTime`; the user sets both in the form before generation. Existing departure and destination fields are unchanged.
 
 ## Canonical Daily Constraint
 

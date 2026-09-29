@@ -91,7 +91,7 @@ test('여행 취향을 고르면 기존 입력 화면으로 이어진다', async
   await expect(page.locator('travel-form:visible').first()).toBeVisible();
 });
 
-test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택한 출발지를 유지한다', async ({ page }, testInfo) => {
+test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택한 필수 방문지를 유지한다', async ({ page }, testInfo) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: `
     class PlaceInput extends HTMLElement {
@@ -122,8 +122,9 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await page.locator('login-view #password-input').last().fill('password');
   await page.locator('login-view #email-login-btn').last().click();
   await expect(page).toHaveURL(/\/preference\/1$/);
-  await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation))
+  await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).anchorSchedules[0]?.location))
     .toBe('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation)).toBe('');
   const preference = page.locator('preference-view:visible');
   await preference.locator('[data-date-type=today]').click();
   await preference.locator('[data-duration="1"]').click();
@@ -131,7 +132,8 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await expect(page).toHaveURL(/\/preference\/2$/);
   await page.getByRole('button', { name: 'Skip and plan right away →' }).click();
   await expect(page).toHaveURL(/\/plan$/);
-  await expect(page.locator('travel-form #start-location input').last()).toHaveValue('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
+  await expect(page.locator('travel-form .anchor-item .anchor-name').last()).toHaveValue('Seoul Forest');
+  await expect(page.locator('travel-form .anchor-item .anchor-location input').last()).toHaveValue('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
 });
 
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }) => {
