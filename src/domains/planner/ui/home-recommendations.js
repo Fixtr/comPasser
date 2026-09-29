@@ -7,19 +7,19 @@ import { plannerDraftStore } from '../services/planner-draft.mjs';
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-09-30.
 const cities = [
   { id: 'seoul', key: 'discoverSeoul', places: [
-    { id: 'palace', key: 'discoverPalace', icon: 'camera', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
-    { id: 'forest', key: 'discoverForest', icon: 'healing', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
-    { id: 'island', key: 'discoverIsland', icon: 'map', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
+    { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', icon: 'camera', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
+    { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', icon: 'healing', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
+    { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', icon: 'map', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
   ] },
   { id: 'busan', key: 'discoverBusan', places: [
-    { id: 'haeundae', key: 'discoverHaeundae', icon: 'map', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
-    { id: 'dongbaek', key: 'discoverDongbaek', icon: 'healing', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
-    { id: 'gwangalli', key: 'discoverGwangalli', icon: 'camera', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
+    { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', icon: 'map', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
+    { id: 'dongbaek', key: 'discoverDongbaek', kind: 'discoverFind', stay: '45–90', icon: 'healing', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
+    { id: 'gwangalli', key: 'discoverGwangalli', kind: 'discoverWalk', stay: '30–60', icon: 'camera', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
   ] },
   { id: 'jeju', key: 'discoverJeju', places: [
-    { id: 'yongduam', key: 'discoverYongduam', icon: 'camera', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500469' },
-    { id: 'dongmun', key: 'discoverDongmun', icon: 'map', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
-    { id: 'iho', key: 'discoverIho', icon: 'healing', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
+    { id: 'yongduam', key: 'discoverYongduam', kind: 'discoverLandmark', stay: '20–40', icon: 'camera', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500469' },
+    { id: 'dongmun', key: 'discoverDongmun', kind: 'discoverFind', stay: '45–75', icon: 'map', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
+    { id: 'iho', key: 'discoverIho', kind: 'discoverWalk', stay: '30–60', icon: 'healing', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
   ] },
 ];
 const ROTATION_MS = 12000;
@@ -50,9 +50,11 @@ class HomeRecommendations extends HTMLElement {
         .top svg { width: 32px; height: 32px; }
         .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
+        .kind { display: inline-block; align-self: flex-start; margin: 0 0 10px; padding: 4px 8px; border: 1px solid var(--cp-rule); color: var(--cp-ink-2); font: 600 11px/1.5 var(--cp-mono); }
         h3 { margin: 0 0 6px; font-size: 23px; line-height: 1.25; letter-spacing: -.03em; overflow-wrap: anywhere; }
         .area { margin: 0; font-size: 12px; line-height: 1.5; color: var(--cp-muted); }
         .description { flex: 1; margin: 20px 0; font-size: 14px; line-height: 1.7; color: var(--cp-ink-2); word-break: keep-all; overflow-wrap: anywhere; }
+        .stay { margin: 0 0 14px; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
         button { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--cp-ink); border-radius: 0; background: var(--cp-ink); color: var(--cp-surface); cursor: pointer; font: 600 14px/1.5 var(--cp-font); text-align: left; }
         button:hover { background: var(--cp-surface); color: var(--cp-ink); }
         button[aria-pressed="true"] { background: var(--cp-surface); color: var(--cp-ink); box-shadow: inset 0 0 0 2px var(--cp-ink); }
@@ -120,10 +122,12 @@ class HomeRecommendations extends HTMLElement {
     this.shadowRoot.querySelector('.cards').innerHTML = city.places.map((place, index) => `
       <article aria-labelledby="${place.id}-name">
         <div class="top">${icons[place.icon]}<span class="number" aria-hidden="true">0${index + 1} / ${city.id.toUpperCase()}</span></div>
+        <p class="kind">${t(place.kind)}</p>
         <p class="tag" data-i18n="${place.key}Tag"></p>
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
         <p class="description" data-i18n="${place.key}Description"></p>
+        <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
         </button>

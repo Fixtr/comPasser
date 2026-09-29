@@ -13,6 +13,8 @@ async (page) => {
   const cards = page.locator('home-recommendations');
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
   check(await cards.locator('article').count() === 3, 'Guests must see three places');
+  check((await cards.locator('article').first().locator('.kind').textContent()) === '대표 장소', 'Cards must explain their discovery theme');
+  check((await cards.locator('article').first().locator('.stay').textContent()).includes('60–120분'), 'Cards must show approximate visit time');
   check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
   await page.waitForFunction(() => document.querySelector('home-recommendations')?.shadowRoot
     .querySelector('button[data-city=busan][aria-pressed=true]'), null, { timeout: 15000 });
@@ -30,6 +32,7 @@ async (page) => {
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
+  check((await cards.locator('article').first().locator('.stay').textContent()).includes('min'), 'Visit time must translate');
   await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-en-mobile.png`, fullPage: true });
   await page.locator('#lang-toggle').click();
   const overflow = await cards.evaluate(el => [...el.shadowRoot.querySelectorAll('article, button')].some(node => {
