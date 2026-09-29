@@ -8,6 +8,7 @@
   "endTime": "21:00",
   "startLocation": "호텔 또는 출발 장소",
   "endLocation": "공항 또는 도착 장소",
+  "selectedWaypoints": [{ "name": "방문할 곳 이름", "location": "방문할 곳 주소" }],
   "dailyTimes": [{ "day": 1, "startTime": "09:00", "endTime": "21:00", "isCustom": false }],
   "anchorSchedules": [{
     "day": 1,
@@ -22,6 +23,7 @@
 ```
 
 `startLocation`, `endLocation`, and anchor `location` accept either a plain string or a structured Google Place object. The form contract remains flat for edit/save compatibility.
+`selectedWaypoints` is an optional home-recommendation stop (currently one on day 1). It has no fixed time; the client inserts it into an AI visit slot after generation and checks the resulting place and route with Maps.
 
 ## Canonical Daily Constraint
 

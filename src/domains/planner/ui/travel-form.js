@@ -267,6 +267,9 @@ export default class TravelForm extends HTMLElement {
               <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
           </div>
+          <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
+            <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
+          </p>
         </div>
 
         <div class="form-section">
@@ -467,6 +470,9 @@ export default class TravelForm extends HTMLElement {
       const endAC = this.shadowRoot.getElementById('end-location');
       restorePlaceInput(startAC, requestData?.startLocation || '');
       restorePlaceInput(endAC, requestData?.endLocation || '');
+      const waypoint = requestData.selectedWaypoints?.[0];
+      this.shadowRoot.getElementById('selected-waypoint').hidden = !waypoint;
+      this.shadowRoot.getElementById('selected-waypoint-name').textContent = waypoint?.name || '';
 
       // 4. Inject Anchors dynamically safely
       if (requestData?.anchorSchedules && Array.isArray(requestData.anchorSchedules) && requestData.anchorSchedules.length > 0) {
@@ -586,6 +592,11 @@ export default class TravelForm extends HTMLElement {
   }
 
   setupEventListeners() {
+    this.shadowRoot.getElementById('remove-waypoint').addEventListener('click', () => {
+      this.draft.selectedWaypoints = [];
+      this.shadowRoot.getElementById('selected-waypoint').hidden = true;
+      this.saveDraft();
+    });
     this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
       this.addAnchor();
       this.saveDraft();

@@ -82,6 +82,7 @@ export function getFormData(shadowRoot, draft = {}) {
     dailyTimes: dailyTimes,
     startLocation: getAutocompleteValue(shadowRoot.getElementById('start-location')),
     endLocation: getAutocompleteValue(shadowRoot.getElementById('end-location')),
+    selectedWaypoints: structuredClone(draft.selectedWaypoints || []),
     anchorSchedules: anchors,
     theme,
     budget

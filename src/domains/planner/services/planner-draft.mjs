@@ -16,6 +16,11 @@ export function toPlannerDraft(request = {}) {
     endTime: input.endTime ?? first.endTime ?? '',
     startLocation: preserveLocation(input.startLocation ?? first.startLocation),
     endLocation: preserveLocation(input.endLocation ?? first.endLocation),
+    selectedWaypoints: Array.isArray(input.selectedWaypoints)
+      ? input.selectedWaypoints.slice(0, 1).filter(stop => typeof stop?.name === 'string' && typeof stop?.location === 'string')
+        .map(stop => ({ name: stop.name.trim().slice(0, 100), location: stop.location.trim().slice(0, 200) }))
+        .filter(stop => stop.name && stop.location)
+      : [],
     dailyTimes: Array.isArray(input.dailyTimes)
       ? structuredClone(input.dailyTimes)
       : (daily.length > 1 ? daily.map((day, index) => ({

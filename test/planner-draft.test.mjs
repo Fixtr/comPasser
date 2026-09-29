@@ -71,13 +71,16 @@ test('empty editable date stays empty instead of falling back to an older select
 
 test('reset clears details but keeps the visible dates and preference selection across reload', () => {
   const { store, storage } = fixture();
-  store.save(edited());
+  store.save({ ...edited(), selectedWaypoints: [{ name: '서울숲', location: '서울 성동구 뚝섬로 273' }] });
+  assert.deepEqual(getFormData(form(store.read()), store.read()).selectedWaypoints, [{ name: '서울숲', location: '서울 성동구 뚝섬로 273' }]);
+  assert.equal(createPlannerDraftStore({ getStorage: () => storage }).read().selectedWaypoints[0].name, '서울숲');
   const cleared = store.resetDetails();
   assert.deepEqual(cleared.date, edited().date);
   assert.equal(cleared.theme, 'food');
   assert.equal(cleared.startLocation, '');
   assert.equal(cleared.startTime, '');
   assert.deepEqual(cleared.anchorSchedules, []);
+  assert.deepEqual(cleared.selectedWaypoints, []);
   assert.deepEqual(createPlannerDraftStore({ getStorage: () => storage }).read(), cleared);
 });
 

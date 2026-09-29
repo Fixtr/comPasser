@@ -8,6 +8,7 @@ import {
 import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
 import { findPlannerInputIssue, plannerValidationMessage } from './planner-validation.js';
 import { prepareGeneratedPlaces } from '../../map/services/recommendation-place.mjs';
+import { addSelectedWaypoint } from './selected-waypoint.mjs';
 
 /**
  * Functions 핸들은 **쓸 때 만든다.**
@@ -67,7 +68,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
 
     return {
       request: normalizedRequest,
-      days: enforcePlannerConstraints(prepareGeneratedPlaces(days), normalizedRequest, currentLang)
+      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days), normalizedRequest, currentLang), normalizedRequest)
     };
   } catch (error) {
     // Bad input needs editing, never a generated-looking fallback result.
