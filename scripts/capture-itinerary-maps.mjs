@@ -70,26 +70,37 @@ try {
             ...(!['departure', 'arrival', 'AnchorSchedule'].includes(item.type) && Object.hasOwn(item, 'placeIntent')
               ? { verifiedPlace: found?.verifiedPlace || null, unresolvedReason: item.unresolvedReason || null } : {}) };
         }));
-        const transitRoutes = (await Promise.all(places.slice(0, -1).map(async (place, i) => {
+        if (places.filter(place => ['departure', 'arrival', 'AnchorSchedule'].includes(place.type)).length !==
+            items.filter(item => ['departure', 'arrival', 'AnchorSchedule'].includes(item.type)).length ||
+            diagnostics.slice(diagnosticStart).some(d => ['search-failed', 'timeout', 'search-budget-exhausted', 'missing-center'].includes(d.reason))) {
+          throw new Error(`Places request incomplete for day ${day.day}`);
+        }
+        const transitRoutes = [];
+        for (const [i, place] of places.slice(0, -1).entries()) {
           const next = places[i + 1], fromIndex = place.displayIndex - 1, toIndex = next.displayIndex - 1;
-          if (toIndex !== fromIndex + 1) return null;
+          if (toIndex !== fromIndex + 1) continue;
           const origin = coordinate(place.latLng), destination = coordinate(next.latLng);
           const departureTime = buildTransitDepartureTime(day.date, place.endTime || place.time);
           const route = { fromIndex, toIndex, departureTime: departureTime?.toISOString(), origin, destination };
           if (origin.lat.toFixed(5) === destination.lat.toFixed(5) && origin.lng.toFixed(5) === destination.lng.toFixed(5)) {
-            return { ...route, durationMinutes: 0, mode: 'SAME_PLACE' };
+            transitRoutes.push({ ...route, durationMinutes: 0, mode: 'SAME_PLACE' });
+            continue;
           }
           let timer;
           try {
+            await new Promise(resolve => setTimeout(resolve, 1000));
             const result = await Promise.race([routing.getTransitRoute(origin, destination, departureTime),
               new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 30000); })]);
             const leg = result.routes?.[0]?.legs?.[0];
-            return { ...route, durationMinutes: Number.isFinite(leg?.duration?.value) ? Math.round(leg.duration.value / 60) : null,
+            transitRoutes.push({ ...route, durationMinutes: Number.isFinite(leg?.duration?.value) ? Math.round(leg.duration.value / 60) : null,
               durationSeconds: leg?.duration?.value ?? null,
-              distanceMeters: leg?.distance?.value ?? null, mode: 'TRANSIT' };
-          } catch { return { ...route, durationMinutes: null, error: 'route-unavailable' }; }
+              distanceMeters: leg?.distance?.value ?? null, mode: 'TRANSIT' });
+          } catch (error) {
+            if (['OVER_QUERY_LIMIT', 'RESOURCE_EXHAUSTED'].includes(error?.code)) throw error;
+            transitRoutes.push({ ...route, durationMinutes: null, error: error?.code || 'route-unavailable' });
+          }
           finally { clearTimeout(timer); }
-        }))).filter(Boolean);
+        }
         const resolved = state.current.plan.days[0].scheduleItems;
         const fit = round < 4 ? fitMeasuredSchedule(resolved, transitRoutes, constraint.endTime, constraint.startTime)
           : { items: applyTransitDelays(resolved, transitRoutes, constraint.startTime), adjusted: false };
