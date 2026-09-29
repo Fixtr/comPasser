@@ -12,10 +12,10 @@ async (page) => {
   });
   const cards = page.locator('home-recommendations');
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
-  check(await cards.locator('article').count() === 3, 'Guests must see three starting places');
+  check(await cards.locator('article').count() === 3, 'Guests must see three places');
   check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
   await page.locator('#lang-toggle').click();
-  check(await cards.locator('#discover-title').textContent() === 'Find your starting point', 'Card heading must translate');
+  check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
   await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-en-mobile.png`, fullPage: true });
   await page.locator('#lang-toggle').click();
@@ -28,6 +28,11 @@ async (page) => {
   await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-ko-dark.png`, fullPage: true });
   await cards.locator('button[data-place=forest]').focus();
   await page.keyboard.press('Enter');
+  check(await cards.locator('button[data-place=forest]').getAttribute('aria-pressed') === 'true', 'First place must be selected');
+  await cards.locator('button[data-place=island]').click();
+  check(await cards.locator('button[data-place=island]').getAttribute('aria-pressed') === 'true', 'Second place must be selected');
+  check(await cards.locator('button[data-place=palace]').isDisabled(), 'A third place must not silently replace a selected endpoint');
+  await cards.locator('#discover-plan').click();
   await page.waitForURL('**/login?next=%2Fpreference%2F1');
   await page.reload();
   await page.locator('login-view #email-input').fill('smoke@example.invalid');
@@ -41,9 +46,14 @@ async (page) => {
   await page.waitForFunction(() => document.querySelector('travel-form')?.getFormData().startLocation.includes('서울숲'));
   const form = await page.locator('travel-form').evaluate(el => el.getFormData());
   check(form.startLocation === '서울숲, 서울 성동구 뚝섬로 273', 'Selected departure must reach the real form');
-  check(form.endLocation === '서울역' && form.anchorSchedules[0]?.name === '공연', 'Choosing a departure must preserve other inputs');
+  check(form.endLocation === '선유도공원, 서울 영등포구 선유로 343' && form.anchorSchedules[0]?.name === '공연', 'Selected destination must reach the real form without losing appointments');
   await page.evaluate(() => window.navigate('/'));
+  for (const id of ['forest', 'island']) {
+    const button = cards.locator(`button[data-place=${id}]`);
+    if (await button.getAttribute('aria-pressed') === 'true') await button.click();
+  }
   await cards.locator('button[data-place=island]').click();
+  await cards.locator('#discover-plan').click();
   await page.waitForURL('**/preference/1');
   check((await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')))).startLocation.includes('선유도공원'),
     'Logged-in users can choose a different starting place');

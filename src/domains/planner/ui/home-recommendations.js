@@ -18,7 +18,8 @@ class HomeRecommendations extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.updateTexts = () => applyTranslations(this.shadowRoot);
+    this.selectedIds = [];
+    this.updateTexts = () => { applyTranslations(this.shadowRoot); this.renderSelection(); };
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; width: 100%; text-align: left; color: var(--cp-ink); font-family: var(--cp-font); }
@@ -38,7 +39,12 @@ class HomeRecommendations extends HTMLElement {
         .description { flex: 1; margin: 20px 0; font-size: 14px; line-height: 1.7; color: var(--cp-ink-2); word-break: keep-all; overflow-wrap: anywhere; }
         button { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--cp-ink); border-radius: 0; background: var(--cp-ink); color: var(--cp-surface); cursor: pointer; font: 600 14px/1.5 var(--cp-font); text-align: left; }
         button:hover { background: var(--cp-surface); color: var(--cp-ink); }
+        button[aria-pressed="true"] { background: var(--cp-surface); color: var(--cp-ink); box-shadow: inset 0 0 0 2px var(--cp-ink); }
+        button:disabled { opacity: .5; cursor: not-allowed; }
         button svg { flex: none; }
+        .selection { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+        .selection p { flex: 1; min-width: 180px; margin: 0; color: var(--cp-ink-2); font-size: 14px; }
+        .selection button { width: auto; min-width: 160px; justify-content: center; }
         a { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
         :is(button, a):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
       </style>
@@ -54,25 +60,50 @@ class HomeRecommendations extends HTMLElement {
               <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
               <p class="area" data-i18n="${place.key}Area"></p>
               <p class="description" data-i18n="${place.key}Description"></p>
-              <button type="button" data-place="${place.id}" aria-labelledby="${place.id}-start ${place.id}-name">
-                <span id="${place.id}-start" data-i18n="discoverStart"></span>${icons.route}
+              <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
+                <span id="${place.id}-start"></span>${icons.route}
               </button>
               <a href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
                 <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
               </a>
             </article>`).join('')}
         </div>
+        <div class="selection">
+          <p id="discover-selection" role="status" aria-live="polite"></p>
+          <button type="button" id="discover-plan" disabled><span data-i18n="discoverPlan"></span>${icons.route}</button>
+        </div>
       </section>`;
     this.shadowRoot.addEventListener('click', event => {
       const place = places.find(place => place.id === event.target.closest('button[data-place]')?.dataset.place);
-      if (!place || typeof window.navigate !== 'function') return;
-      // Keep dates, fixed events and the destination the user already entered.
-      plannerDraftStore.save({ ...plannerDraftStore.read(), startLocation: t(`${place.key}Location`) });
-      trackEvent('home_recommendation_select', { place_id: place.id });
-      // An explicit return path avoids skipping dates just because saving the
-      // departure also created the draft's userPreference projection.
-      window.navigate('/login?next=%2Fpreference%2F1');
+      if (place) {
+        this.selectedIds = this.selectedIds.includes(place.id)
+          ? this.selectedIds.filter(id => id !== place.id)
+          : [...this.selectedIds, place.id].slice(0, 2);
+        this.renderSelection();
+        return;
+      }
+      if (event.target.closest('#discover-plan') && this.selectedIds.length && typeof window.navigate === 'function') {
+        const selected = this.selectedIds.map(id => places.find(place => place.id === id));
+        const draft = plannerDraftStore.read();
+        plannerDraftStore.save({ ...draft, startLocation: t(`${selected[0].key}Location`),
+          ...(selected[1] ? { endLocation: t(`${selected[1].key}Location`) } : {}) });
+        trackEvent('home_recommendation_select', { place_ids: this.selectedIds.join(',') });
+        window.navigate('/login?next=%2Fpreference%2F1');
+      }
     });
+  }
+
+  renderSelection() {
+    this.shadowRoot.querySelectorAll('button[data-place]').forEach(button => {
+      const selected = this.selectedIds.includes(button.dataset.place);
+      button.setAttribute('aria-pressed', String(selected));
+      button.disabled = !selected && this.selectedIds.length === 2;
+      button.querySelector('span').textContent = t(selected ? 'discoverRemove' : 'discoverSelect');
+    });
+    this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
+      ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))
+      : t('discoverSelectHint');
+    this.shadowRoot.getElementById('discover-plan').disabled = this.selectedIds.length === 0;
   }
 
   connectedCallback() {
