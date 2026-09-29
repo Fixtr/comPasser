@@ -1058,7 +1058,8 @@ export default class ItineraryView extends HTMLElement {
     }
     // Apply only the requested departure time, not full planner reconciliation.
     const startTime = getDayConstraints(this.currentItinerary, this.activeDayIndex)?.startTime;
-    const fit = this.canEdit() && (this._automaticFitCount || 0) < 2
+    // ponytail: four rechecks cap Maps cost; raise only if measured plans still need more removals.
+    const fit = this.canEdit() && (this._automaticFitCount || 0) < 4
       ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime)
       : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
     const scheduleItems = fit.items;

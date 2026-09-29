@@ -31,7 +31,12 @@ test('automatic and manual fitting keep meals at 60 minutes while cafes may shri
       {type:'arrival',time:'10:30'}];
     const measured = [15,15].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
     const result = fitMeasuredSchedule(plan,measured,'10:00');
-    assert.equal(result.adjusted,category === 'cafe');
+    assert.equal(result.adjusted,true);
+    if(category === 'restaurant') assert.deepEqual(result.items.map(item=>item.type),['departure','arrival']);
+    else {
+      assert.ok(result.items[1].endTime >= '09:35');
+      assert.equal(result.items.at(-1).time,'10:00');
+    }
     const manual = trimScheduleToEndTime(plan,'09:40');
     const kept = manual.items.find(i=>i.type === 'dining');
     if(category === 'restaurant') assert.equal(kept,undefined);
@@ -159,4 +164,70 @@ test('종료 시각 내에 여유가 있으면 원래 방문 시간을 유지한
   const result = fitMeasuredSchedule(items(), routes, '18:00');
   assert.equal(result.adjusted, false);
   assert.equal(result.items[3].duration, '2시간');
+});
+
+test('generated unresolved visits are removed before route fitting, while user-added stops remain', () => {
+  const plan = [
+    {type:'departure',time:'09:00'},
+    {type:'attraction',time:'10:00',endTime:'11:00',placeIntent:{purpose:'park'},placeStatus:'unresolved',unresolvedReason:'filtered'},
+    {type:'attraction',time:'12:00',endTime:'13:00',addedByUser:true,placeIntent:{purpose:'museum'},placeStatus:'unresolved'},
+    {type:'arrival',time:'18:00'}
+  ];
+  const result = fitMeasuredSchedule(plan,[],'18:00');
+  assert.equal(result.adjusted,true);
+  assert.deepEqual(result.items.map(item=>item.type),['departure','attraction','arrival']);
+  assert.equal(result.items[1].addedByUser,true);
+});
+
+test('a Places outage keeps generated visits for retry', () => {
+  const plan = [{type:'departure',time:'09:00'},
+    {type:'attraction',time:'10:00',endTime:'11:00',placeIntent:{purpose:'park'},placeStatus:'unresolved',unresolvedReason:'search-failed'},
+    {type:'arrival',time:'18:00'}];
+  const result = fitMeasuredSchedule(plan,[],'18:00');
+  assert.equal(result.adjusted,false);
+  assert.equal(result.items.length,3);
+});
+
+test('fully measured visit is removed when minimum stay cannot meet fixed appointment', () => {
+  const plan = [
+    {type:'departure',time:'14:00'},
+    {type:'leisure',time:'14:27',endTime:'15:27',title:'workshop',placeIntent:{purpose:'workshop'}},
+    {type:'AnchorSchedule',time:'15:00',endTime:'16:00',title:'palace'},
+    {type:'arrival',time:'19:00'}
+  ];
+  const result = fitMeasuredSchedule(plan,[{fromIndex:0,toIndex:1,durationMinutes:27},{fromIndex:1,toIndex:2,durationMinutes:21}], '19:00');
+  assert.equal(result.adjusted,true);
+  assert.deepEqual(result.items.map(item=>item.title),[undefined,'palace',undefined]);
+  assert.equal(result.items[1].time,'15:00');
+});
+
+test('late measured airport dinner is removed, leaving the next route unverified', () => {
+  const plan = [
+    {type:'departure',time:'09:00'},
+    {type:'AnchorSchedule',time:'15:00',endTime:'16:00'},
+    {type:'dining',time:'19:00',endTime:'20:30',placeIntent:{category:'restaurant'}},
+    {type:'arrival',time:'21:00'}
+  ];
+  const result = fitMeasuredSchedule(plan,[{fromIndex:1,toIndex:2,durationMinutes:30},{fromIndex:2,toIndex:3,durationMinutes:130}],'21:00');
+  assert.equal(result.adjusted,true);
+  assert.deepEqual(result.items.map(item=>item.type),['departure','AnchorSchedule','arrival']);
+  assert.equal(result.items[1].endTime,'16:00');
+});
+
+test('a final two-minute airport overrun is fitted on the next measured pass', () => {
+  const plan = [
+    {type:'departure',time:'09:00'},
+    {type:'attraction',time:'09:26',endTime:'10:56'},
+    {type:'dining',time:'11:17',endTime:'12:47',placeIntent:{category:'restaurant'}},
+    {type:'AnchorSchedule',time:'15:00',endTime:'16:00'},
+    {type:'dining',time:'18:00',endTime:'19:15',placeIntent:{category:'restaurant'}},
+    {type:'arrival',time:'21:02'}
+  ];
+  const routes = [8,9,31,20,107].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+  const fitted = fitMeasuredSchedule(plan,routes,'21:00','09:00');
+  assert.equal(fitted.adjusted,true);
+  assert.equal(fitted.items.at(-1).time,'21:00');
+  assert.ok(fitted.items[4].time >= '18:00');
+  assert.ok((Number(fitted.items[4].endTime.slice(0,2))*60+Number(fitted.items[4].endTime.slice(3))) -
+    (Number(fitted.items[4].time.slice(0,2))*60+Number(fitted.items[4].time.slice(3))) >= 60);
 });

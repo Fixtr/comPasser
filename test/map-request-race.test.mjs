@@ -26,7 +26,7 @@ test('all unresolved recommendations still emit a clearing result with the curre
   await app.map.renderRoute(data,context(0));
   const event=app.events.find(e=>e.type==='places-resolved');
   assert.deepEqual(event.detail.context,context(0));
-  assert.deepEqual(event.detail.places,[{index:0,name:'',address:'',resolvedPlace:null,verifiedPlace:null}]);
+  assert.deepEqual(event.detail.places,[{index:0,name:'',address:'',resolvedPlace:null,verifiedPlace:null,unresolvedReason:null}]);
 });
 
 test('map event includes the actual recommended Place ID and original item index', async () => {

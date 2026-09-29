@@ -30,9 +30,16 @@ export function hasFixedArrivalConflict(items, routes) {
   });
 }
 
-// Fit each fully measured block independently. Never invent transit times,
-// remove stops, move anchors, or claim success when the minimum stays cannot fit.
+// Fit each fully measured block independently. Recheck routes after removing
+// an optional stop; old route indexes no longer describe the new neighbors.
 export function fitMeasuredSchedule(items, routes, endTime, startTime) {
+  if (Array.isArray(items)) {
+    const resolved = items.filter(item => item.type === 'AnchorSchedule' ||
+      item.type === 'departure' || item.type === 'arrival' ||
+      item.addedByUser === true || !item.placeIntent || item.placeStatus !== 'unresolved' ||
+      !['filtered', 'no-results'].includes(item.unresolvedReason));
+    if (resolved.length !== items.length) return { items: resolved, adjusted: true };
+  }
   const delayed = applyTransitDelays(items, routes, startTime);
   const unchanged = { items: delayed, adjusted: false };
   const ceiling = minutes(endTime);
@@ -68,7 +75,10 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
       let cursor=ends[left];
       for(let i=left+1;i<=right;i++) {
         cursor+=travel.get(i);
-        if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor)+stays[i];
+        if(i<right) {
+          const dinnerStart = items[i].type === 'dining' && starts[i] >= 1080 ? 1080 : null;
+          cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor,dinnerStart ?? cursor)+stays[i];
+        }
       }
       return cursor;
     };
@@ -78,13 +88,22 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
       stays[i] -= reduction;
       excess = Math.max(0, projectedEnd() - deadline);
     }
-    if (excess > 0) continue;
+    if (excess > 0) {
+      const removable = Array.from({ length: right - left - 1 }, (_, n) => right - 1 - n)
+        .find(i => items[i].placeIntent && items[i].addedByUser !== true);
+      if (removable !== undefined) return {
+        items: items.filter((_, i) => i !== removable).map((item, i) => i === 0 ? delayed[0] : item),
+        adjusted: true
+      };
+      continue;
+    }
     adjusted = true;
     let cursor = ends[left];
     for (let i = left + 1; i <= right; i++) {
       cursor += travel.get(i);
       if (i === right && i !== items.length - 1) break; // fixed anchor may include waiting
-      if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor);
+      if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor,
+        items[i].type === 'dining' && starts[i] >= 1080 ? 1080 : cursor);
       result[i].time = time(cursor);
       if (i < right) {
         cursor += stays[i];

@@ -120,7 +120,9 @@ The model's invented hours, tips, ratings, website and route text are removed.
 
 Reload reuses a valid verified identity only when intent, fixed-center ID and
 distance still match. No-match, invalid intent, timeout or API error does not
-fall back to the model's address: it leaves an explicit unresolved card and no
-navigation links/coordinate. Unknown intermediate stops are not bridged by a
-direct route. Legacy recommendations without `placeIntent` retain the previous
-strict named-place matching behavior; they are not silently replaced.
+fall back to the model's address. In an editable generated draft, automatic
+route fitting removes optional visits only when Places returned no candidates
+or all candidates were filtered. API errors, timeouts and user-added stops stay
+unresolved for retry. Saved/shared snapshots retain unresolved cards. Unknown
+intermediate stops are not bridged by a direct route. Legacy recommendations
+without `placeIntent` retain strict named-place matching behavior.

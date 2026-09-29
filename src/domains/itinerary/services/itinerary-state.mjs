@@ -163,6 +163,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
         const item = items[itemIndex];
         if (item && !isFixedPlace(item) && Object.hasOwn(item, 'placeIntent') && Object.hasOwn(result, 'verifiedPlace')) {
           const fields = recommendationFields(item, result.verifiedPlace);
+          fields.unresolvedReason = fields.placeStatus === 'unresolved' ? result.unresolvedReason || null : null;
           if (Object.entries(fields).some(([key, value]) => JSON.stringify(item[key]) !== JSON.stringify(value))) {
             Object.assign(item, fields);
             updated = true;

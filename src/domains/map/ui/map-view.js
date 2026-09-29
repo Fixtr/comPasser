@@ -310,7 +310,7 @@ export class MapView extends HTMLElement {
               lng: typeof found.latLng.lng === 'function' ? found.latLng.lng() : found.latLng.lng,
             } } : {}),
             ...(!['departure', 'arrival', 'AnchorSchedule'].includes(item.type) && Object.hasOwn(item, 'placeIntent')
-              ? { verifiedPlace: found?.verifiedPlace || null } : {}) };
+              ? { verifiedPlace: found?.verifiedPlace || null, unresolvedReason: item.unresolvedReason || null } : {}) };
         }) }
       }));
 

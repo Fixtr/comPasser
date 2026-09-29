@@ -210,3 +210,16 @@ test('server schema and prompt require intent, not model-generated business iden
   assert.doesNotMatch(prompt,/describe that whole multi-leg journey in the transitInfo/);
   assert.doesNotMatch(prompt,/EXACTLY 3 objects|Provide REAL street addresses|MUST specify exact departure/);
 });
+
+test('candidate filtering and Places failures carry different retry reasons into the itinerary', async () => {
+  for (const [places, expected] of [[[candidate('far',{location:{lat:35,lng:129}})],'filtered'],[new Error('quota'),'search-failed']]) {
+    const item={type:'dining',time:'12:00',endTime:'13:00',title:'점심 식사',location:'서울역',placeIntent:{...intent},displayIndex:2};
+    const {geocoder}=service(places);
+    await geocoder.geocodeSchedule([fixed,item]);
+    assert.equal(item.unresolvedReason,expected);
+    const state=createItineraryState();
+    state.open({days:[{scheduleItems:[item]}]});
+    state.resolvePlaces(0,[{index:0,name:'',address:'',verifiedPlace:null,unresolvedReason:item.unresolvedReason}]);
+    assert.equal(state.current.plan.days[0].scheduleItems[0].unresolvedReason,expected);
+  }
+});

@@ -63,17 +63,18 @@ test('meal and cafe minimums differ; changed anchor locations fail the contract'
   assert.equal(report.anchorContract, 'fail');
 });
 
-test('automatic fitting preserves a full meal and exposes an impossible deadline', () => {
+test('automatic fitting drops an impossible generated meal and requires fresh route evidence', () => {
   const input = [{ type: 'departure', time: '09:00' },
     { type: 'dining', time: '09:00', endTime: '10:00', placeIntent: { purpose: '식사', category: 'restaurant', nearLocation: '서울역' } },
     { type: 'arrival', time: '10:00' }];
   const routes = [0, 1].map(fromIndex => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes: 15 }));
   const fitted = fitMeasuredSchedule(input, routes, '10:00', '09:00');
   const constraint = { dailyData: [{ ...request.dailyData[0], endTime: '10:00', anchors: [] }] };
-  const day = evaluate(constraint, plan(fitted.items), { source: 'google_maps', days: [{ day: 1, transitRoutes: routes }] }).days[0];
-  assert.equal(day.endArrival, 'fail');
+  const day = evaluate(constraint, plan(fitted.items)).days[0];
+  assert.equal(day.endArrival, 'unknown');
   assert.equal(day.shortStays.length, 0);
-  assert.equal(fitted.adjusted, false);
+  assert.equal(fitted.adjusted, true);
+  assert.deepEqual(fitted.items.map(item => item.type), ['departure', 'arrival']);
 });
 
 test('zero-minute real routes count; synthetic evidence and negative/duplicate routes do not establish a pass', () => {

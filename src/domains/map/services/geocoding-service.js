@@ -113,7 +113,8 @@ export class GeocodingService {
     async resolveRecommendation(item, center, excluded, timeoutMs = 6000, date = '', biasCenter = center) {
         const intent = normalizePlaceIntent(item.placeIntent);
         if (!intent || !center) {
-            console.warn('[Recommendation] unresolved', { reason: intent ? 'missing-center' : 'invalid-intent' });
+            item.unresolvedReason = intent ? 'missing-center' : 'invalid-intent';
+            console.warn('[Recommendation] unresolved', { reason: item.unresolvedReason });
             return null;
         }
         let timer;
@@ -154,14 +155,18 @@ export class GeocodingService {
                 })(),
                 new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Place search timeout')), timeoutMs); }),
             ]);
-            if (!place) console.warn('[Recommendation] unresolved', {
-                reason: count ? 'filtered' : 'no-results', category: intent.category,
+            if (!place) {
+                item.unresolvedReason = count ? 'filtered' : 'no-results';
+                console.warn('[Recommendation] unresolved', {
+                reason: item.unresolvedReason, category: intent.category,
                 candidates: count, rejected
-            });
+                });
+            }
             return place ? { ...item, ...recommendationFields(item, place) } : null;
         } catch (error) {
+            item.unresolvedReason = error?.message === 'Place search timeout' ? 'timeout' : 'search-failed';
             console.warn('[Recommendation] unresolved', {
-                reason: error?.message === 'Place search timeout' ? 'timeout' : 'search-failed',
+                reason: item.unresolvedReason,
                 category: intent.category
             });
             return null; // No address-only fallback on denial, timeout or no candidate.
@@ -234,6 +239,7 @@ export class GeocodingService {
                 const nearest = nearestCenter?.place;
                 if (Object.hasOwn(item, 'placeIntent')) {
                     if (Date.now() >= deadline) {
+                        item.unresolvedReason = 'search-budget-exhausted';
                         console.warn('[Recommendation] unresolved', { reason: 'search-budget-exhausted' });
                         continue;
                     }

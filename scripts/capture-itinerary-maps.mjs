@@ -60,7 +60,7 @@ try {
       const state = createItineraryState();
       state.open({ days: [day] });
       const rounds = [];
-      for (let round = 0; round < 3; round++) {
+      for (let round = 0; round < 5; round++) {
         const diagnosticStart = diagnostics.length;
         const items = state.current.plan.days[0].scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
         const places = await geo.geocodeSchedule(items, day.date);
@@ -68,7 +68,7 @@ try {
           const found = places.find(p => p.displayIndex === index + 1);
           return { index, name: found?.resolvedName || '', address: found?.resolvedAddress || '',
             ...(!['departure', 'arrival', 'AnchorSchedule'].includes(item.type) && Object.hasOwn(item, 'placeIntent')
-              ? { verifiedPlace: found?.verifiedPlace || null } : {}) };
+              ? { verifiedPlace: found?.verifiedPlace || null, unresolvedReason: item.unresolvedReason || null } : {}) };
         }));
         const transitRoutes = (await Promise.all(places.slice(0, -1).map(async (place, i) => {
           const next = places[i + 1], fromIndex = place.displayIndex - 1, toIndex = next.displayIndex - 1;
@@ -91,7 +91,7 @@ try {
           finally { clearTimeout(timer); }
         }))).filter(Boolean);
         const resolved = state.current.plan.days[0].scheduleItems;
-        const fit = round < 2 ? fitMeasuredSchedule(resolved, transitRoutes, constraint.endTime, constraint.startTime)
+        const fit = round < 4 ? fitMeasuredSchedule(resolved, transitRoutes, constraint.endTime, constraint.startTime)
           : { items: applyTransitDelays(resolved, transitRoutes, constraint.startTime), adjusted: false };
         rounds.push({ round, scheduleItems: structuredClone(resolved), transitRoutes, adjusted: fit.adjusted,
           diagnostics: diagnostics.slice(diagnosticStart) });
