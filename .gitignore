@@ -1,6 +1,7 @@
 # --- Dependencies & build output ---
 node_modules/
 dist/
+dist-ionic-shell/
 functions/node_modules/
 test-results/
 playwright-report/

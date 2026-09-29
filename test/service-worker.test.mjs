@@ -139,13 +139,14 @@ test('the service worker itself is not cached, so updates are not blocked', () =
   assert.equal(sw.dispatchFetch(req('https://app.example/sw.js')), undefined);
 });
 
-test('navigation prefers the network and refreshes the cached shell', async () => {
+test('navigation prefers the network without replacing the installed shell', async () => {
   const sw = runServiceWorker();
+  await sw.dispatchLifecycle('install');
   const res = await sw.dispatchFetch(req('https://app.example/view/abc', { mode: 'navigate' }));
 
   assert.match(res.body, /^network:/, '온라인이면 항상 최신 셸을 쓴다');
   const shell = sw.store.get('compasser-shell-v1');
-  assert.ok(shell.has('/index.html'), '받아온 셸을 다음 오프라인을 위해 저장한다');
+  assert.equal(shell.get('/index.html').body, 'precached:/index.html', '오프라인 셸은 설치 버전과 일치해야 한다');
 });
 
 test('navigation falls back to the cached shell when offline', async () => {

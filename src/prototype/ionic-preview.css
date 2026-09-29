@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light;
+  --ion-font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --ion-background-color: #f7f7f3;
+  --ion-text-color: #17201c;
+  --ion-color-primary: #17201c;
+  --ion-color-primary-contrast: #fff;
+}
+
+body { margin: 0; background: #d9dfda; }
+ion-app { width: min(100%, 440px); margin: auto; box-shadow: 0 0 0 1px #c0c8c0, 0 24px 80px #1d292340; }
+.preview-page, .preview-map { background: #e8e9e2; }
+.preview-map { position: absolute; inset: 0; overflow: hidden; }
+.preview-map-art { width: 100%; height: 100%; display: block; }
+.preview-header { position: absolute; top: max(env(safe-area-inset-top), 14px); left: 16px; right: 16px; padding: 16px 18px; background: #fff; border: 2px solid #17201c; box-shadow: 0 8px 0 #17201c16; }
+.preview-eyebrow { display: block; font-size: 12px; line-height: 1.3; font-weight: 800; letter-spacing: .09em; color: #35443c; }
+.preview-header h1 { margin: 7px 0 3px; font-size: 23px; line-height: 1.15; letter-spacing: -.04em; }
+.preview-header p { margin: 0; font-size: 14px; font-weight: 700; color: #35443c; }
+.preview-map-label { position: absolute; z-index: 1; padding: 3px 5px; color: #4d5b50; background: #e8e9e2cc; font-size: 12px; font-weight: 800; pointer-events: none; }
+.preview-map-label-palace { top: 31%; left: 43%; }
+.preview-map-label-square { top: 56%; left: 13%; }
+.preview-map-label-village { top: 28%; left: 68%; }
+.preview-pin { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 44px; height: 44px; border: 3px solid #fff; border-radius: 50%; color: #fff; font-size: 16px; font-weight: 900; box-shadow: 0 2px 0 #17201c80, 0 3px 14px #17201c66; cursor: pointer; }
+.preview-pin-start, .preview-stop-dot-start { background: #12663d; }
+.preview-pin-anchor, .preview-stop-dot-anchor { background: #6333a1; }
+.preview-pin-stop, .preview-stop-dot-stop { background: #145ca3; }
+.preview-pin.is-selected { outline: 3px solid #17201c; outline-offset: 2px; }
+.preview-map-note { position: absolute; top: 150px; right: 16px; padding: 6px 9px; background: #fff; border: 1px solid #17201c; font-size: 11px; font-weight: 700; }
+.preview-map-control { position: absolute; right: 16px; bottom: 34%; --background: #fff; --color: #17201c; --border-radius: 50%; --box-shadow: 0 2px 10px #17201c45; width: 50px; height: 50px; margin: 0; }
+.preview-sheet { --height: 100%; --width: min(100%, 440px); --background: #f7f7f3; --border-radius: 20px 20px 0 0; --backdrop-opacity: .36; }
+.preview-sheet::part(content) { border: 2px solid #17201c; border-bottom: 0; box-shadow: 0 -8px 30px #17201c26; }
+.preview-sheet::part(handle) { width: 42px; height: 5px; background: #17201c; opacity: 1; }
+.preview-sheet-content { --background: #f7f7f3; }
+.preview-sheet-inner { padding: 20px 18px calc(34px + env(safe-area-inset-bottom)); }
+.preview-sheet-heading { display: flex; justify-content: space-between; align-items: center; }
+.preview-sheet-heading h2 { margin: 4px 0; font-size: 25px; line-height: 1.1; letter-spacing: -.04em; }
+.preview-sheet-heading p { margin: 0; font-size: 14px; font-weight: 700; color: #35443c; }
+.preview-expand { --color: #17201c; --border-radius: 50%; width: 44px; height: 44px; margin: 0; }
+.preview-current { display: flex; align-items: center; gap: 8px; margin: 18px 0 12px; padding: 12px 14px; background: #fff; border: 2px solid #17201c; font-size: 13px; }
+.preview-current span:first-child { font-size: 12px; font-weight: 800; color: #35443c; }
+.preview-current strong { flex: 1; font-size: 15px; }
+.preview-current span:last-child { font-weight: 800; }
+.preview-timeline { margin: 0; padding: 0; list-style: none; }
+.preview-timeline li + li { border-top: 1px solid #b8c1b9; }
+.preview-stop { display: grid; grid-template-columns: 52px 18px 1fr; align-items: center; gap: 12px; width: 100%; min-height: 76px; padding: 10px 7px; text-align: left; border: 0; background: transparent; color: #17201c; cursor: pointer; }
+.preview-stop.is-selected { background: #e3ede5; box-shadow: inset 4px 0 #17201c; }
+.preview-stop time { font-size: 14px; font-weight: 800; }
+.preview-stop-dot { width: 15px; height: 15px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #17201c; }
+.preview-stop-copy { display: flex; flex-direction: column; gap: 4px; }
+.preview-stop-copy strong { font-size: 16px; line-height: 1.25; }
+.preview-stop-copy small { font-size: 14px; line-height: 1.3; font-weight: 650; color: #35443c; }
+:is(.preview-pin, .preview-stop, .preview-expand):focus-visible { outline: 3px solid #17201c; outline-offset: 2px; }
+@media (min-width: 600px) { ion-app { margin-block: 18px; height: min(900px, calc(100dvh - 36px)); border-radius: 30px; overflow: hidden; } }

@@ -7,8 +7,8 @@
  * 최소한 앱 껍데기와 저장된 화면은 뜨도록 한다.
  *
  * 전략
- *  - 내비게이션(HTML): 네트워크 우선, 실패하면 캐시된 index.html.
- *    index.html 은 파일명에 해시가 없어 항상 새 버전을 먼저 확인해야 한다.
+ *  - 내비게이션(HTML): 네트워크 우선, 실패하면 설치 시 저장한 index.html.
+ *    새 HTML과 오래된 JS가 섞이지 않도록 탐색 응답으로 캐시를 덮지 않는다.
  *  - 빌드 산출물(/assets/*): 파일명에 콘텐츠 해시가 있어 내용이 바뀌면 이름도
  *    바뀐다. 따라서 캐시 우선이 안전하고 가장 빠르다.
  *  - 그 외 same-origin 정적 파일(아이콘 등): stale-while-revalidate.
@@ -16,20 +16,20 @@
  *    데이터를 캐시하면 오래된 값이나 잘못된 응답을 돌려줄 위험이 있다.
  */
 
-const VERSION = 'v1';
+const VERSION = self.__BUILD_ID__ || 'v1';
 const SHELL_CACHE = `compasser-shell-${VERSION}`;
 const ASSET_CACHE = `compasser-assets-${VERSION}`;
 const SHELL_URL = '/index.html';
 
-// 오프라인에서 최소한 껍데기가 뜨도록 미리 받아둔다.
-const PRECACHE_URLS = [SHELL_URL, '/', '/manifest.json', '/favicon.svg'];
+const PRECACHE_ASSETS = self.__PRECACHE_ASSETS__ || [];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    // 하나라도 실패하면 설치 전체가 실패하므로 개별적으로 처리한다.
-    await Promise.allSettled(PRECACHE_URLS.map(url => cache.add(url)));
-    await self.skipWaiting();
+    // 배포 빌드는 HTML과 모든 JS/CSS가 준비되어야 새 워커로 전환한다.
+    const shell = [SHELL_URL, ...PRECACHE_ASSETS];
+    await (PRECACHE_ASSETS.length ? Promise.all(shell.map(url => cache.add(url))) : Promise.allSettled(shell.map(url => cache.add(url))));
+    await Promise.allSettled(['/', '/manifest.json', '/favicon.svg'].map(url => cache.add(url)));
   })());
 });
 
@@ -86,12 +86,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(request);
-        if (fresh.ok) {
-          // 복제는 **돌려주기 전에** 한다. 넘겨준 뒤에는 몸통이 이미 읽히고
-          // 있을 수 있어 clone() 이 터진다.
-          const copy = fresh.clone();
-          caches.open(SHELL_CACHE).then(cache => cache.put(SHELL_URL, copy)).catch(() => {});
-        }
         return fresh;
       } catch {
         const cached = await caches.match(SHELL_URL);
@@ -105,7 +99,9 @@ self.addEventListener('fetch', (event) => {
   // 2) 해시가 붙은 빌드 산출물: 캐시 우선(이름이 곧 버전이라 갱신이 필요 없다)
   if (isHashedAsset(url)) {
     event.respondWith((async () => {
-      const cached = await caches.match(request);
+      // 모듈 요청은 Origin 헤더가 붙을 수 있다. 미리 저장한 요청과 Vary가 달라도
+      // 같은 출처의 해시 파일이면 내용이 같으므로 캐시를 사용한다.
+      const cached = await caches.match(request, { ignoreVary: true });
       if (cached) return cached;
       try {
         const fresh = await fetch(request);

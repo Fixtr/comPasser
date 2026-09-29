@@ -29,6 +29,7 @@ jobs:
       - run: npm ci --prefix functions
       - run: npm test
       - run: npm run build
+      - run: npm run build:ionic
 
   browser:
     runs-on: ubuntu-latest
@@ -44,6 +45,8 @@ jobs:
       - run: npm ci
       - run: npm run test:browser:install -- --with-deps
       - run: npm run test:browser
+      - run: npm run test:ionic
+      - run: npm run test:ionic:pwa
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
@@ -105,7 +108,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-        run: npm run build
+        run: npm run build:release
       - name: Deploy verified bundle to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
