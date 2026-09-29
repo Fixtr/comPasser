@@ -134,4 +134,8 @@ try {
     }
     await writeFile(join(out, file), JSON.stringify({ ...record, mapsSnapshot: snapshot }, null, 2) + '\n');
   }
+} catch (error) {
+  // Playwright stacks include Maps request URLs and the public browser key.
+  console.error(`Maps capture failed: ${error?.message?.match(/OVER_QUERY_LIMIT|RESOURCE_EXHAUSTED|Places request incomplete|Maps preflight failed/)?.[0] || 'request error'}`);
+  process.exitCode = 1;
 } finally { await browser?.close(); await server.close(); }
