@@ -22,7 +22,10 @@ function form(draft, { readOnly = true, value = '2026-10-01 ~ 2026-10-02' } = {}
   };
   return {
     getElementById: id => elements[id],
-    querySelectorAll: () => draft.anchorSchedules.map(anchor => ({ querySelector: selector => ({ value: {
+    querySelectorAll: selector => selector === '.overnight-location'
+      ? (draft.overnightLocations || []).map(value => typeof value === 'string' ? {value}
+        : {value:value.displayName,selectedPlace:value,selectedPlaceText:value.displayName})
+      : draft.anchorSchedules.map(anchor => ({ querySelector: selector => ({ value: {
       '.anchor-day': anchor.day, '.anchor-name': anchor.name, '.anchor-time': anchor.time,
       '.anchor-end-time': anchor.endTime, '.anchor-location': anchor.location,
     }[selector] }) })),
@@ -40,6 +43,14 @@ test('editing a saved trip replaces all preferences; read-only date submit uses 
   assert.equal(result.anchorSchedules[0].day, 2);
   assert.equal(result.dailyTimes.length, 2);
   assert.deepEqual(JSON.parse(values.get('userPreference')).date, edited().date);
+});
+
+test('overnight places survive draft storage and form reading', () => {
+  const {store} = fixture();
+  const hotel = {placeId:'hotel-id',displayName:'서울 호텔',formattedAddress:'서울 중구',lat:37.5,lng:127};
+  const draft = store.save({...edited(),overnightLocations:[hotel]});
+  assert.deepEqual(store.read().overnightLocations,[hotel]);
+  assert.deepEqual(getFormData(form(draft),draft).overnightLocations,[hotel]);
 });
 
 test('reload and re-entry retain edited fields even when legacy preferences are stale', () => {

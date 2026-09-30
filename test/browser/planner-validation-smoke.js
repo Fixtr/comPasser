@@ -4,6 +4,7 @@ async page => {
   const results = [];
   const request = { date: ['2026-10-20', '2026-10-21'], startTime: '09:00', endTime: '18:00',
     startLocation: '서울역', endLocation: '호텔',
+    overnightLocations: ['호텔'],
     dailyTimes: [{ day: 1, startTime: '09:00', endTime: '18:00', isCustom: true },
       { day: 2, startTime: '11:00', endTime: '20:00', isCustom: true }],
     anchorSchedules: [{ day: 2, name: '공연', time: '10:00', endTime: '12:00', location: '' }] };
@@ -27,6 +28,13 @@ async page => {
   check(await page.locator('travel-form .anchor-time').getAttribute('aria-invalid') === 'true', 'Wrong-day anchor time must be highlighted');
   check((await page.locator('body').innerText()).includes('해당 일차'), 'Korean bounds feedback must be visible');
   results.push('PASS custom-day anchor bounds: no generation, visible feedback, focused field, unlocked button');
+
+  await populate({ ...request, anchorSchedules: [], overnightLocations: [''] });
+  await blocked();
+  check(await page.locator('travel-form .overnight-location').getAttribute('aria-invalid') === 'true',
+    'Missing overnight place must be highlighted');
+  results.push('PASS a multi-day trip requires an overnight boundary');
+  await populate(request);
 
   await page.locator('travel-form .anchor-time').fill('11:00');
   await page.locator('travel-form .primary-btn').click();

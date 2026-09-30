@@ -10,6 +10,7 @@ import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
+import { getLocationName } from '../services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 
 /** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
@@ -200,6 +201,9 @@ export default class TravelForm extends HTMLElement {
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    this.shadowRoot.querySelectorAll('[data-night]').forEach(label => {
+      label.textContent = t('overnightLocation').replace('{0}', label.dataset.night);
+    });
     this.renderGenerationCredits();
   }
 
@@ -267,6 +271,10 @@ export default class TravelForm extends HTMLElement {
               <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
           </div>
+          <div id="overnight-wrapper" hidden>
+            <p class="subtitle" data-i18n="overnightLocationHelp">Choose where each night ends and the next day begins.</p>
+            <div id="overnight-locations"></div>
+          </div>
           <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
             <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
           </p>
@@ -319,6 +327,7 @@ export default class TravelForm extends HTMLElement {
       // Bind to existing anchors if any
       const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
       anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
+      this.shadowRoot.querySelectorAll('.overnight-location').forEach(ac => this.setupAutocompleteListener(ac));
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
@@ -575,6 +584,22 @@ export default class TravelForm extends HTMLElement {
           });
         }
       }
+      const overnightWrapper = this.shadowRoot.getElementById('overnight-wrapper');
+      const overnightContainer = this.shadowRoot.getElementById('overnight-locations');
+      overnightWrapper.hidden = !isMultiDay;
+      overnightContainer.replaceChildren();
+      if (isMultiDay) {
+        for (let index = 0; index < daysCount - 1; index++) {
+          const row = document.createElement('div');
+          row.className = 'form-group';
+          row.innerHTML = `<label data-i18n="overnightLocation" data-night="${index + 1}"></label>
+            <gmp-place-autocomplete class="overnight-location" data-i18n-placeholder="overnightLocationPlaceholder" placeholder="${t('overnightLocationPlaceholder')}"></gmp-place-autocomplete>`;
+          overnightContainer.appendChild(row);
+          const autocomplete = row.querySelector('.overnight-location');
+          restorePlaceInput(autocomplete, this.draft.overnightLocations[index] || '');
+          if (this._placesReady) this.setupAutocompleteListener(autocomplete);
+        }
+      }
       this.renderPreferenceBadges();
       this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
@@ -747,6 +772,16 @@ export default class TravelForm extends HTMLElement {
         const control = this.shadowRoot.getElementById(missingLocation.id);
         this._revealInvalidField(control, t('missingLocationError')
           .replace('{0}', fieldLabelOf(control) || t(missingLocation.labelKey)));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
+      const missingNight = Array.isArray(plannerRequest.date) && plannerRequest.date.length > 1
+        ? plannerRequest.overnightLocations.findIndex(location => !getLocationName(location)) : -1;
+      if (missingNight >= 0) {
+        const control = this.shadowRoot.querySelectorAll('.overnight-location')[missingNight];
+        this._revealInvalidField(control, t('missingLocationError')
+          .replace('{0}', t('overnightLocation').replace('{0}', String(missingNight + 1))));
         this._resetSubmitButton(btn);
         this.isSubmitting = false;
         return;
