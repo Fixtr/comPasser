@@ -56,24 +56,26 @@ try {
     if (!await geo.resolvePlace('서울역')) throw new Error('Maps preflight failed: cannot resolve Seoul Station');
     const coordinate = value => ({ lat: typeof value.lat === 'function' ? value.lat() : value.lat,
       lng: typeof value.lng === 'function' ? value.lng() : value.lng });
-    window.captureDay = async (day, constraint) => {
+    window.captureDay = async (day, constraint, excludedPlaceIds = []) => {
       const state = createItineraryState();
       state.open({ days: [day] });
       const rounds = [];
       for (let round = 0; round < 5; round++) {
         const diagnosticStart = diagnostics.length;
         const items = state.current.plan.days[0].scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
-        const places = await geo.geocodeSchedule(items, day.date);
+        const places = await geo.geocodeSchedule(items, day.date, excludedPlaceIds);
         state.resolvePlaces(0, items.map((item, index) => {
           const found = places.find(p => p.displayIndex === index + 1);
           return { index, name: found?.resolvedName || '', address: found?.resolvedAddress || '',
             ...(!['departure', 'arrival', 'AnchorSchedule'].includes(item.type) && Object.hasOwn(item, 'placeIntent')
               ? { verifiedPlace: found?.verifiedPlace || null, unresolvedReason: item.unresolvedReason || null } : {}) };
         }));
-        if (places.filter(place => ['departure', 'arrival', 'AnchorSchedule'].includes(place.type)).length !==
-            items.filter(item => ['departure', 'arrival', 'AnchorSchedule'].includes(item.type)).length ||
-            diagnostics.slice(diagnosticStart).some(d => ['search-failed', 'timeout', 'search-budget-exhausted', 'missing-center'].includes(d.reason))) {
-          throw new Error(`Places request incomplete for day ${day.day}`);
+        const missingFixed = items.filter(item => ['departure', 'arrival', 'AnchorSchedule'].includes(item.type)).length -
+          places.filter(place => ['departure', 'arrival', 'AnchorSchedule'].includes(place.type)).length;
+        const failures = diagnostics.slice(diagnosticStart).map(d => d.reason)
+          .filter(reason => ['search-failed', 'timeout', 'search-budget-exhausted', 'missing-center'].includes(reason));
+        if (missingFixed || failures.length) {
+          throw new Error(`Places request incomplete day=${day.day} missingFixed=${missingFixed} reasons=${failures.join(',') || 'none'}`);
         }
         const transitRoutes = [];
         for (const [i, place] of places.slice(0, -1).entries()) {
@@ -126,16 +128,19 @@ try {
     }
     const snapshot = { source: 'google_maps', capturedAt: new Date().toISOString(), timezone: 'Asia/Seoul',
       collectorHash: hash(await readFile(new URL(import.meta.url))), sourceHashes, days: [] };
+    const excludedPlaceIds = [];
     for (const day of days) {
-      const measured = await page.evaluate(({ day, constraint }) => window.captureDay(day, constraint),
-        { day, constraint: record.request.dailyData.find(c => c.day === day.day) });
+      const measured = await page.evaluate(({ day, constraint, excludedPlaceIds }) =>
+        window.captureDay(day, constraint, excludedPlaceIds),
+        { day, constraint: record.request.dailyData.find(c => c.day === day.day), excludedPlaceIds });
       snapshot.days.push(measured);
+      excludedPlaceIds.push(...measured.scheduleItems.map(item => item.verifiedPlace?.placeId).filter(Boolean));
       console.log(`${record.case} day ${day.day}: ${measured.transitRoutes.filter(r => r.durationMinutes !== null).length}/${measured.scheduleItems.length - 1} routes`);
     }
     await writeFile(join(out, file), JSON.stringify({ ...record, mapsSnapshot: snapshot }, null, 2) + '\n');
   }
 } catch (error) {
   // Playwright stacks include Maps request URLs and the public browser key.
-  console.error(`Maps capture failed: ${error?.message?.match(/OVER_QUERY_LIMIT|RESOURCE_EXHAUSTED|Places request incomplete|Maps preflight failed/)?.[0] || 'request error'}`);
+  console.error(`Maps capture failed: ${error?.message?.match(/OVER_QUERY_LIMIT|RESOURCE_EXHAUSTED|Places request incomplete day=\d+ missingFixed=\d+ reasons=[a-z,-]+|Maps preflight failed/)?.[0] || 'request error'}`);
   process.exitCode = 1;
 } finally { await browser?.close(); await server.close(); }

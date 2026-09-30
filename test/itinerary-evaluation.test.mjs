@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluate } from '../scripts/evaluate-itinerary.mjs';
-import { cases } from '../scripts/itinerary-evaluation-cases.mjs';
+import { cases, multidayCases } from '../scripts/itinerary-evaluation-cases.mjs';
 import { findPlannerRequestIssue } from '../functions/planner-request-validation.mjs';
 import { fitMeasuredSchedule } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 
@@ -20,6 +20,18 @@ test('representative cases cover valid one/four-day, short, airport and multiple
   assert.equal(cases.length, 6);
   for (const c of cases) assert.equal(findPlannerRequestIssue(c.request), null, c.id);
   assert.ok(cases.some(c => c.request.dailyData.length === 4));
+});
+
+test('new four-day measurements use three explicit overnight boundaries', () => {
+  assert.equal(multidayCases.length,2);
+  for(const {id,request} of multidayCases) {
+    assert.equal(findPlannerRequestIssue(request),null,id);
+    assert.equal(request.dailyData.length,4);
+    for(let i=0;i<3;i++) {
+      assert.equal(request.dailyData[i].endLocation,request.overnightLocations[i]);
+      assert.equal(request.dailyData[i+1].startLocation,request.overnightLocations[i]);
+    }
+  }
 });
 
 test('missing map evidence stays unknown, pending is not failed, short restaurant stay is caught', () => {

@@ -5,7 +5,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { cases, CASE_VERSION } from './itinerary-evaluation-cases.mjs';
+import { cases, CASE_VERSION, multidayCases, MULTIDAY_CASE_VERSION } from './itinerary-evaluation-cases.mjs';
 import { enforcePlannerConstraints, getLocationName } from '../src/domains/planner/services/planner-constraints.mjs';
 import { prepareGeneratedPlaces, normalizePlaceIntent, isFixedPlace } from '../src/domains/map/services/recommendation-place.mjs';
 import { applyTransitDelays, getEndTimeOverflowMinutes } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
@@ -84,12 +84,14 @@ function assess(record) {
 
 async function main() {
   const { values } = parseArgs({ options: { live: { type: 'boolean' }, replay: { type: 'string' },
-    model: { type: 'string', default: 'gemini-2.5-flash-lite' }, out: { type: 'string' } } });
+    model: { type: 'string', default: 'gemini-2.5-flash-lite' }, out: { type: 'string' },
+    caseSet: { type: 'string', default: 'baseline' } } });
   if ((!values.live && !values.replay) || (values.live && values.replay) || !values.out) {
     throw new Error('Usage: node scripts/evaluate-itinerary.mjs (--live [--model ID] | --replay DIR) --out NEW_DIR');
   }
   if (values.live && !process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is required for --live');
   if (!/^gemini-[a-z0-9.-]+$/.test(values.model)) throw new Error('Invalid model ID');
+  if (!['baseline', 'multiday'].includes(values.caseSet)) throw new Error('Invalid case set');
   const out = resolve(values.out);
   await mkdir(out, { recursive: true });
   if ((await readdir(out)).length) throw new Error('Output directory must be empty; keep baseline captures immutable');
@@ -100,9 +102,10 @@ async function main() {
     for (const file of files) results.push(assess(JSON.parse(await readFile(join(values.replay, file), 'utf8'))));
   } else {
     const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    for (const c of cases) {
+    for (const c of values.caseSet === 'multiday' ? multidayCases : cases) {
       const prompt = buildPrompt(sanitizePlannerRequest(c.request), 'ko');
-      const record = { case: c.id, description: c.description, caseVersion: CASE_VERSION, request: c.request,
+      const record = { case: c.id, description: c.description,
+        caseVersion: values.caseSet === 'multiday' ? MULTIDAY_CASE_VERSION : CASE_VERSION, request: c.request,
         model: values.model, capturedAt: new Date().toISOString(), revision, prompt, promptHash: hash(prompt), schemaHash: hash(ITINERARY_SCHEMA) };
       const started = Date.now();
       try {
