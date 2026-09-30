@@ -1,4 +1,5 @@
 import { normalizeSelectedPlace } from './selected-place.mjs';
+import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
 function selectedFields(location) {
   const selectedPlace = normalizeSelectedPlace(location);
@@ -289,6 +290,16 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     scheduleItems = scheduleItems
       .filter(item => item.type === 'AnchorSchedule' || minutes(item.time) < endTimeMinutes)
       .sort((a, b) => minutes(a.time) - minutes(b.time));
+
+    // Keep the same stay minimum used by measured-route fitting. An optional
+    // 50-minute meal is not a valid 60-minute visit even before Maps runs.
+    scheduleItems = scheduleItems.filter(item => {
+      if (item.type === 'AnchorSchedule' || !item.placeIntent?.purpose) return true;
+      const start = minutes(item.time);
+      const end = minutes(item.endTime);
+      return start === Number.MAX_SAFE_INTEGER || end === Number.MAX_SAFE_INTEGER
+        || end - start >= minimumStayMinutes(item);
+    });
 
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,

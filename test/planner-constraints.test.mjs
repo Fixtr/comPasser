@@ -45,6 +45,24 @@ test('recommendation-only empty days get authoritative boundaries and anchors ex
   assert.deepEqual(enforcePlannerConstraints(result, flatRequest), result);
 });
 
+test('short generated visits are omitted without changing fixed appointments', () => {
+  const request = { date: ['2026-10-09'], startTime: '09:00', endTime: '14:00',
+    startLocation: '호텔 포코 성수', endLocation: '서울역',
+    anchorSchedules: [{ day: 1, name: '남산서울타워 관람', time: '11:00', endTime: '12:00', location: '남산서울타워' }] };
+  const visit = (title, type, category, time, endTime) => ({ title, type, time, endTime,
+    location: '남산서울타워', placeIntent: { purpose: title, category, nearLocation: '남산서울타워' } });
+  const generated = [{ day: 1, scheduleItems: [
+    visit('짧은 카페', 'dining', 'cafe', '09:30', '09:49'),
+    visit('점심 식사', 'dining', 'restaurant', '12:10', '13:00'),
+    visit('충분한 식사', 'dining', 'restaurant', '12:30', '13:30')
+  ] }];
+  const result = enforcePlannerConstraints(generated, request);
+  assert.deepEqual(result[0].scheduleItems.map(item => item.title), [
+    '출발 · 호텔 포코 성수', '남산서울타워 관람', '충분한 식사', '도착 · 서울역'
+  ]);
+  assert.deepEqual(enforcePlannerConstraints(result, request), result);
+});
+
 test('inserted anchors are sorted into the day, while genuine model overflow past midnight is removed', () => {
   const visits = [
     {type:'leisure',time:'10:00',endTime:'11:00',title:'산책',location:'서울역',placeIntent:{purpose:'산책'}},
