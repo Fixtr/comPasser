@@ -7,22 +7,39 @@ import { plannerDraftStore } from '../services/planner-draft.mjs';
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-09-30.
 const cities = [
   { id: 'seoul', key: 'discoverSeoul', places: [
-    { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', icon: 'camera', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
-    { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', icon: 'healing', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
-    { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', icon: 'map', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
+    { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
+    { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
+    { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
   ] },
   { id: 'busan', key: 'discoverBusan', places: [
-    { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', icon: 'map', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
-    { id: 'dongbaek', key: 'discoverDongbaek', kind: 'discoverFind', stay: '45–90', icon: 'healing', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
-    { id: 'gwangalli', key: 'discoverGwangalli', kind: 'discoverWalk', stay: '30–60', icon: 'camera', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
+    { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
+    { id: 'dongbaek', key: 'discoverDongbaek', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
+    { id: 'gwangalli', key: 'discoverGwangalli', kind: 'discoverWalk', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
   ] },
   { id: 'jeju', key: 'discoverJeju', places: [
-    { id: 'yongduam', key: 'discoverYongduam', kind: 'discoverLandmark', stay: '20–40', icon: 'camera', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500469' },
-    { id: 'dongmun', key: 'discoverDongmun', kind: 'discoverFind', stay: '45–75', icon: 'map', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
-    { id: 'iho', key: 'discoverIho', kind: 'discoverWalk', stay: '30–60', icon: 'healing', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
+    { id: 'yongduam', key: 'discoverYongduam', kind: 'discoverLandmark', stay: '20–40', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500469' },
+    { id: 'dongmun', key: 'discoverDongmun', kind: 'discoverFind', stay: '45–75', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
+    { id: 'iho', key: 'discoverIho', kind: 'discoverWalk', stay: '30–60', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
   ] },
 ];
 const ROTATION_MS = 12000;
+const photoLicenses = {
+  'CC0 1.0': 'https://creativecommons.org/publicdomain/zero/1.0/',
+  'CC BY 2.0': 'https://creativecommons.org/licenses/by/2.0/',
+  'CC BY-SA 2.0': 'https://creativecommons.org/licenses/by-sa/2.0/',
+  'CC BY-SA 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/',
+};
+const photos = {
+  palace: { file: 'File:Front view of the Imperial Throne Hall Geunjeongjeon at Gyeongbokgung Palace with blue sky in Seoul.jpg', author: 'Basile Morin', license: 'CC BY-SA 4.0' },
+  forest: { file: 'File:Flowers in Seoul Forest Park.jpg', author: 'Rachel.zrq', license: 'CC0 1.0' },
+  island: { file: 'File:Seonyudo Park.jpg', author: 'traveloriented', license: 'CC BY-SA 2.0' },
+  haeundae: { file: 'File:Haeundae Beach in Busan.jpg', author: 'StephNurnberg', license: 'CC BY 2.0' },
+  dongbaek: { file: 'File:Dongbaekseom island, Busan.jpg', author: 'Brit in Seoul', license: 'CC BY-SA 4.0' },
+  gwangalli: { file: 'File:Gwangalli Beach and Gwangan Bridge Busan.jpg', author: 'Masterhatch', license: 'CC BY-SA 4.0' },
+  yongduam: { file: 'File:Yongduam in jeju.jpg', author: 'Jeong seolah', license: 'CC0 1.0' },
+  dongmun: { file: 'File:Jeju Dongmun Traditional Market 01.jpg', author: 'Grapesurgeon', license: 'CC BY-SA 4.0' },
+  iho: { file: 'File:Dragon lighthouse (5223468346).jpg', author: 'garycycles', license: 'CC BY 2.0' },
+};
 
 class HomeRecommendations extends HTMLElement {
   constructor() {
@@ -46,11 +63,14 @@ class HomeRecommendations extends HTMLElement {
         .intro { margin: 12px 0 24px; max-width: 42rem; color: var(--cp-ink-2); font-size: 15px; line-height: 1.65; }
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
         article { display: flex; flex-direction: column; min-width: 0; padding: 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
-        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-        .top svg { width: 32px; height: 32px; }
+        .photo { margin: -24px -24px 20px; }
+        .photo img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: var(--cp-rule); }
+        .photo figcaption { padding: 6px 24px 0; color: var(--cp-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+        .photo a { color: inherit; text-underline-offset: 2px; }
+        .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
         .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
-        .kind { display: inline-block; align-self: flex-start; margin: 0 0 10px; padding: 4px 8px; border: 1px solid var(--cp-rule); color: var(--cp-ink-2); font: 600 11px/1.5 var(--cp-mono); }
+        .kind { margin: 0; padding: 4px 8px; border: 1px solid var(--cp-rule); color: var(--cp-ink-2); font: 600 11px/1.5 var(--cp-mono); }
         h3 { margin: 0 0 6px; font-size: 23px; line-height: 1.25; letter-spacing: -.03em; overflow-wrap: anywhere; }
         .area { margin: 0; font-size: 12px; line-height: 1.5; color: var(--cp-muted); }
         .description { flex: 1; margin: 20px 0; font-size: 14px; line-height: 1.7; color: var(--cp-ink-2); word-break: keep-all; overflow-wrap: anywhere; }
@@ -66,7 +86,7 @@ class HomeRecommendations extends HTMLElement {
         .cities { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
         .cities button { width: auto; min-width: 88px; justify-content: center; }
         .rotation-hint { margin: -10px 0 18px; color: var(--cp-muted); font-size: 12px; }
-        a { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
+        .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
         :is(button, a):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
       </style>
       <section aria-labelledby="discover-title">
@@ -119,10 +139,15 @@ class HomeRecommendations extends HTMLElement {
 
   renderCards() {
     const city = cities[this.cityIndex];
-    this.shadowRoot.querySelector('.cards').innerHTML = city.places.map((place, index) => `
+    this.shadowRoot.querySelector('.cards').innerHTML = city.places.map((place, index) => {
+      const photo = photos[place.id];
+      return `
       <article aria-labelledby="${place.id}-name">
-        <div class="top">${icons[place.icon]}<span class="number" aria-hidden="true">0${index + 1} / ${city.id.toUpperCase()}</span></div>
-        <p class="kind">${t(place.kind)}</p>
+        <figure class="photo">
+          <img src="/discovery/${place.id}.jpg" alt="" loading="lazy" width="960" height="600">
+          <figcaption><a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.file)}" target="_blank" rel="noopener noreferrer">${t('discoverPhotoCredit').replace('{0}', photo.author)}</a> · <a href="${photoLicenses[photo.license]}" target="_blank" rel="noopener noreferrer">${photo.license}</a></figcaption>
+        </figure>
+        <div class="top"><p class="kind">${t(place.kind)}</p><span class="number" aria-hidden="true">0${index + 1} / ${city.id.toUpperCase()}</span></div>
         <p class="tag" data-i18n="${place.key}Tag"></p>
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
@@ -131,10 +156,11 @@ class HomeRecommendations extends HTMLElement {
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
         </button>
-        <a href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
+        <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
           <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
         </a>
-      </article>`).join('');
+      </article>`;
+    }).join('');
   }
 
   showCity(index) {

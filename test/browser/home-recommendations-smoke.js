@@ -13,6 +13,14 @@ async (page) => {
   const cards = page.locator('home-recommendations');
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
   check(await cards.locator('article').count() === 3, 'Guests must see three places');
+  check(await cards.locator('.photo img').count() === 3, 'Every place card must have a photo');
+  await cards.locator('.photo img').first().scrollIntoViewIfNeeded();
+  check(await cards.locator('.photo img').first().evaluate(image => image.decode().then(() => image.naturalWidth > 0)), 'Place photos must load');
+  check(await cards.locator('.photo img').first().evaluate(image => {
+    const { width, height } = image.getBoundingClientRect();
+    return width / height > 1.5 && width / height < 1.7;
+  }), 'Place photos must fit the card without stretching its height');
+  check((await cards.locator('.photo figcaption').first().textContent()).includes('CC BY-SA 4.0'), 'Photo author and license must be visible');
   check((await cards.locator('article').first().locator('.kind').textContent()) === '대표 장소', 'Cards must explain their discovery theme');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('60–120분'), 'Cards must show approximate visit time');
   check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
@@ -32,6 +40,7 @@ async (page) => {
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
+  check((await cards.locator('.photo figcaption').first().textContent()).includes('Photo:'), 'Photo credits must translate');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('min'), 'Visit time must translate');
   await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-en-mobile.png`, fullPage: true });
   await page.locator('#lang-toggle').click();
