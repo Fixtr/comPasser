@@ -94,6 +94,16 @@ export const travelFormStyles = `
           margin-bottom: 2.25rem;
         }
 
+        @container (min-width: 850px) {
+          #travel-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+            column-gap: 2rem;
+          }
+          #travel-form > .credit-balance,
+          #travel-form > .submit-row { grid-column: 1 / -1; }
+        }
+
         .form-group {
           margin-bottom: 0.9rem;
         }

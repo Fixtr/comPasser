@@ -23,7 +23,7 @@ const authModule = `
 test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주소로 돌아온다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.goto('/share/abc123');
-  await expect(page.locator('ion-modal.ionic-result-sheet')).toBeVisible();
+  await expect(page.locator('.ionic-desktop-schedule')).toBeVisible();
   await page.reload();
   await expect(page).toHaveURL(/\/share\/abc123$/);
 
@@ -56,8 +56,8 @@ test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async 
   await page.goto('/login');
   await expect(page.locator('login-view h2').last()).toHaveText('Log in');
   await page.goto('/share/abc123');
-  await expect(page.locator('ion-modal.ionic-result-sheet .ionic-settings')).toBeVisible();
-  await page.locator('ion-modal.ionic-result-sheet').getByRole('button', { name: 'Light Mode' }).click();
+  await expect(page.locator('.ionic-desktop-schedule .ionic-settings')).toBeVisible();
+  await page.locator('.ionic-desktop-schedule').getByRole('button', { name: 'Light Mode' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
@@ -89,6 +89,7 @@ test('여행 취향을 고르면 기존 입력 화면으로 이어진다', async
   await secondStep.locator('#submit-btn').click();
   await expect(page).toHaveURL(/\/plan$/);
   await expect(page.locator('travel-form:visible').first()).toBeVisible();
+  await expect(page.locator('travel-form:visible #travel-form')).toHaveCSS('display', 'grid');
 });
 
 test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택한 필수 방문지를 유지한다', async ({ page }, testInfo) => {
@@ -104,12 +105,14 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   ` }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
+  await expect(page.locator('.ionic-home')).toHaveCSS('display', 'block');
   const cards = page.locator('home-recommendations:visible');
   await expect(cards.locator('article')).toHaveCount(3);
   await page.getByRole('button', { name: 'Switch to English' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('Seoul Forest');
   await page.screenshot({ path: testInfo.outputPath('recommendations-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator('.ionic-home')).toHaveCSS('display', 'grid');
   await page.getByRole('button', { name: '한국어로 변경' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('서울숲');
   await page.screenshot({ path: testInfo.outputPath('recommendations-desktop.png'), fullPage: true });
@@ -136,7 +139,8 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await expect(page.locator('travel-form .anchor-item .anchor-location input').last()).toHaveValue('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
 });
 
-test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }) => {
+test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({
     contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true }"),
   }));
@@ -144,7 +148,7 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
     contentType: 'text/javascript', body: `
       export async function getGenerationCredits() { return 1; }
       export async function generateOptimizedItinerary() {
-        return { isFallback: true, days: [{ day: 1, date: '2026-09-27', scheduleItems: [
+        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: [
           { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
           { type: 'arrival', title: '경복궁', time: '10:00', location: '경복궁' },
         ] }] };
@@ -158,4 +162,13 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await expect(page).toHaveURL(/\/view$/);
   await expect(page.locator('ion-modal.ionic-result-sheet')).toBeVisible();
   await expect(page.locator('itinerary-view')).toBeVisible();
+  await expect(page.locator('itinerary-view #next-stop')).toBeVisible();
+  await expect(page.locator('itinerary-view #next-stop-title')).toHaveText('경복궁');
+  await page.screenshot({ path: testInfo.outputPath('result-mobile.png'), fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator('.ionic-desktop-schedule')).toBeVisible();
+  await expect(page.locator('.ionic-result-desktop map-view')).toBeVisible();
+  await expect(page.locator('.ionic-desktop-schedule itinerary-view #timeline-container')).toContainText('경복궁');
+  await expect(page.locator('.ionic-desktop-schedule itinerary-view #timeline-container')).toHaveCSS('opacity', '1');
+  await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });

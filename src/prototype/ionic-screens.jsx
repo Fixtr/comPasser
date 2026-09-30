@@ -12,11 +12,15 @@ export function HomeScreen({ user }) {
   const navigate = useNavigate();
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-home">
-      <span className="shell-kicker">COMPASSER</span>
-      <h1>{t('shellHomeTitle')}</h1>
-      <p>{t('shellHomeDescription')}</p>
-      <IonButton expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
-      {user && <IonButton expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
+      <div className="ionic-home-intro">
+        <span className="shell-kicker">COMPASSER</span>
+        <h1>{t('shellHomeTitle')}</h1>
+        <p>{t('shellHomeDescription')}</p>
+        <div className="ionic-home-actions">
+          <IonButton className="ionic-home-new" expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
+          {user && <IonButton className="ionic-home-trips" expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
+        </div>
+      </div>
       <home-recommendations />
     </div>
   </IonContent></IonPage>;
@@ -119,11 +123,19 @@ export function PlanScreen({ user }) {
 
 export function ResultScreen({ path, active, user, authSettled, settings }) {
   const itinerary = useRef(null);
+  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 900px)').matches);
   const [ready, setReady] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const navigate = useNavigate();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 900px)');
+    const update = () => setDesktop(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,7 +145,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   }, []);
 
   useEffect(() => {
-    if (!active || !ready || !loaded || (!authSettled && !path.startsWith('/share/'))) return undefined;
+    if (!active || !(desktop || ready) || !loaded || (!authSettled && !path.startsWith('/share/'))) return undefined;
     const view = itinerary.current;
     if (!view) return;
     view.setSessionUser(user?.uid || null);
@@ -153,7 +165,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       setShowEdit(view.canEdit());
     }
     return () => { cancelled = true; view.cancelPendingLoad(); };
-  }, [ready, loaded, active, authSettled, path, user?.uid, navigate]);
+  }, [ready, desktop, loaded, active, authSettled, path, user?.uid, navigate]);
 
   const edit = () => {
     const view = itinerary.current;
@@ -163,17 +175,25 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     navigate('/plan');
   };
 
-  return <IonPage className="ionic-result-page">
-    <IonContent fullscreen scrollY={false} className="ionic-map-content">
+  const map = <IonContent fullscreen scrollY={false} className="ionic-map-content">
       <map-view />
       <IonButton className="ionic-result-back" size="small" onClick={() => navigate(window.history.state?.idx > 0 ? -1 : '/')}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
-    </IonContent>
-    <IonModal className="ionic-result-sheet" isOpen={active} canDismiss={false} animated={!reducedMotion}
+    </IonContent>;
+  const schedule = <><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} mobile-summary={desktop ? undefined : ''} /></>;
+
+  return <IonPage className="ionic-result-page">
+    {desktop ? <div className="ionic-result-desktop">
+      <aside className="ionic-desktop-schedule" aria-label={t('shellResult')}>{schedule}</aside>
+      {map}
+    </div> : <>
+      {map}
+      <IonModal className="ionic-result-sheet" isOpen={active} canDismiss={false} animated={!reducedMotion}
       breakpoints={[0.3, 0.62, 1]} initialBreakpoint={0.62} backdropBreakpoint={0.62}
       handle handleBehavior="cycle" expandToScroll={false} onDidPresent={() => setReady(true)} onDidDismiss={() => setReady(false)}>
-      <IonContent className="ionic-result-sheet-content"><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} /></IonContent>
-    </IonModal>
+        <IonContent className="ionic-result-sheet-content">{schedule}</IonContent>
+      </IonModal>
+    </>}
   </IonPage>;
 }
 

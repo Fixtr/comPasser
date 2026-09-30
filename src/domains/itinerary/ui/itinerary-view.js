@@ -168,6 +168,8 @@ export default class ItineraryView extends HTMLElement {
   updateTexts() {
     applyTranslations(this.shadowRoot);
     this.refreshAccessControls();
+    const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex];
+    if (day) this.updateNextStop(day);
 
     // 값이 섞인 문장(종료 시각·초과 시간·비용·이동 안내)은 사전 키 하나로
     // 되돌릴 수 없다 — 상태가 그대로 있으니 그 자리에서 다시 그린다.
@@ -1095,6 +1097,7 @@ export default class ItineraryView extends HTMLElement {
       if (!badge) return;
       badge.innerHTML = item.endTime ? `${escapeHtml(item.time)} -<br>${escapeHtml(item.endTime)}` : escapeHtml(item.time);
     });
+    this.updateNextStop({ ...dayData, scheduleItems });
     refreshHours(this);
   }
 
@@ -1115,6 +1118,12 @@ export default class ItineraryView extends HTMLElement {
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
           <p id="anchor-time-warning" class="shared-notice" role="alert" data-i18n="anchorTransitConflict" hidden></p>
+          <section id="next-stop" class="next-stop" hidden>
+            <span id="next-stop-label"></span>
+            <strong id="next-stop-title"></strong>
+            <span id="next-stop-time"></span>
+            <button type="button" id="next-stop-directions"></button>
+          </section>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
@@ -1164,6 +1173,8 @@ export default class ItineraryView extends HTMLElement {
    */
   setError(msg) {
     this.setLoading(false);
+    const nextStop = this.shadowRoot.getElementById('next-stop');
+    if (nextStop) nextStop.hidden = true;
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = msg;
   }
@@ -1180,6 +1191,8 @@ export default class ItineraryView extends HTMLElement {
     this.cancelPendingLoad();
     this.state.deactivate();
     this.refreshAccessControls();
+    const nextStop = this.shadowRoot.getElementById('next-stop');
+    if (nextStop) nextStop.hidden = true;
     const container = this.shadowRoot.getElementById('timeline-container');
     if (container) container.innerHTML = '';
     const dayTitle = this.shadowRoot.getElementById('day-title-header');
@@ -1336,6 +1349,7 @@ export default class ItineraryView extends HTMLElement {
 
       let globalIdx = 0;
       const items = dayData.scheduleItems || [];
+      this.updateNextStop(dayData);
       
       // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
       if (items.length === 0) {
@@ -1577,6 +1591,30 @@ export default class ItineraryView extends HTMLElement {
       });
       
     }, 150); // wait for fade out
+  }
+
+  updateNextStop(dayData) {
+    const panel = this.shadowRoot.getElementById('next-stop');
+    if (!panel || !this.hasAttribute?.('mobile-summary')) return;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isToday = String(dayData.date).slice(0, 10) === today;
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const stop = (dayData.scheduleItems || []).find(item =>
+      item.type !== 'departure' && item.title &&
+      (!Object.hasOwn(item, 'placeIntent') || item.placeStatus === 'verified') &&
+      (!isToday || (typeof item.time === 'string' && item.time >= currentTime)));
+    panel.hidden = !stop || Boolean(this.currentItinerary?.isFallback);
+    if (!stop) return;
+    this.shadowRoot.getElementById('next-stop-label').textContent = t(isToday ? 'nextStopToday' : 'firstStop');
+    this.shadowRoot.getElementById('next-stop-title').textContent = stop.title;
+    this.shadowRoot.getElementById('next-stop-time').textContent = stop.time || '';
+    const directions = this.shadowRoot.getElementById('next-stop-directions');
+    directions.textContent = t('directionsBtn');
+    directions.onclick = () => openNavPopup(
+      typeof stop.location === 'string' && stop.location ? stop.location : stop.title,
+      safeHttpUrl(stop.googleMapsUrl), directions, this.shadowRoot,
+    );
   }
 
   /**

@@ -889,6 +889,30 @@ export const itineraryStyles = `
           opacity: 0.75;
         }
 
+        .next-stop { display: none; }
+        @media (max-width: 899px) {
+          :host([mobile-summary]) .next-stop:not([hidden]) {
+            display: grid;
+            gap: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+            background: var(--cp-surface);
+            border: 2px solid var(--cp-ink);
+            color: var(--cp-ink);
+          }
+          .next-stop span { color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
+          .next-stop strong { font-size: 1.25rem; line-height: 1.3; }
+          .next-stop button {
+            min-height: 48px;
+            margin-top: 0.5rem;
+            border: 0;
+            background: var(--cp-ink);
+            color: var(--cp-surface);
+            font: inherit;
+            font-weight: 700;
+          }
+        }
+
         /* ====== 빈 상태 · 오류 상태 ======
            일정을 못 찾았을 때가 이 화면의 첫인상이 되는 경우가 있다.
            나머지 화면과 다른 표기를 쓰면 그 인상이 앱 전체로 번진다. */

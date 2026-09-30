@@ -9,15 +9,28 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-settings { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 10000; display: flex; gap: 8px; }
 .ionic-settings button { min-height: 44px; padding: 0 12px; border: 1px solid var(--cp-rule-hard); border-radius: 8px; background: var(--cp-surface); color: var(--cp-ink); font: inherit; font-weight: 600; }
 .ionic-settings button:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
-.ionic-home { max-width: 56rem; margin: max(6vh, 36px) auto; }
+.ionic-home { max-width: 74rem; margin: max(6vh, 36px) auto; }
 .ionic-home h1 { font-size: clamp(2.1rem, 8vw, 3rem); }
 .ionic-home ion-button { min-height: 52px; margin-top: 18px; }
+@media (min-width: 900px) {
+  .ionic-home { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); align-items: start; gap: 3rem; }
+  .ionic-home-intro { position: sticky; top: 6rem; }
+}
+@media (max-width: 899px) {
+  .ionic-home { margin-top: 2rem; }
+  .ionic-home-actions { display: flex; flex-direction: column; }
+  .ionic-home-trips { order: -1; }
+}
 .ionic-legacy-auth { max-width: 35rem; margin: 0 auto; }
 .ionic-legacy-auth [role="alert"] { color: var(--cp-danger); font-weight: 700; }
 .shell-content preference-view, .shell-content travel-form, .shell-content profile-view, .shell-content account-deletion-status-view { display: block; width: 100%; }
 .ionic-form-hidden { display: none; }
 .ionic-generation { max-width: 32rem; margin: 18vh auto 0; text-align: center; }
 .ionic-result-page { --background: var(--cp-sunken); }
+.ionic-result-desktop { display: grid; grid-template-columns: minmax(320px, 41%) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
+.ionic-desktop-schedule { min-width: 0; overflow-y: auto; background: var(--cp-surface); border-right: 1px solid var(--cp-rule-hard); }
+.ionic-desktop-schedule itinerary-view { display: block; min-height: 100%; }
+.ionic-result-desktop .ionic-map-content { height: 100%; }
 .ionic-map-content { --background: var(--cp-sunken); }
 .ionic-map-content map-view { display: block; width: 100%; height: 100%; }
 .ionic-result-back, .ionic-result-edit { position: absolute; top: max(14px, env(safe-area-inset-top)); z-index: 2; --background: var(--cp-surface); --color: var(--cp-ink); --box-shadow: 0 1px 4px #17252250; }
@@ -28,4 +41,8 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-sheet-settings { display: flex; justify-content: flex-end; padding: 8px 12px; background: var(--cp-surface); }
 .ionic-sheet-settings .ionic-settings { position: static; }
 .ionic-result-sheet itinerary-view { display: block; min-height: 100%; }
+@media (max-width: 899px) {
+  .ionic-result-sheet { --border-radius: 18px 18px 0 0; }
+  .ionic-result-sheet::part(handle) { width: 48px; height: 6px; background: var(--cp-ink); opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
