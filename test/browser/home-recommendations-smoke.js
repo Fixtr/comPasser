@@ -40,6 +40,11 @@ async (page) => {
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
+  await cards.locator('button[data-filter=discoverFind]').click();
+  check(await cards.locator('article').count() === 1 && await cards.locator('#island-name').count() === 1,
+    'Discovery filters must show only the chosen place type');
+  check(await cards.locator('button[data-filter=discoverFind]').getAttribute('aria-pressed') === 'true', 'The active filter must be announced');
+  await cards.locator('button[data-filter=all]').click();
   check((await cards.locator('.photo figcaption').first().textContent()).includes('Photo:'), 'Photo credits must translate');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('min'), 'Visit time must translate');
   await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-en-mobile.png`, fullPage: true });
@@ -56,6 +61,12 @@ async (page) => {
   check(await cards.locator('button[data-place=forest]').getAttribute('aria-pressed') === 'true', 'First place must be selected');
   await cards.locator('button[data-place=island]').click();
   check(await cards.locator('button[data-place=island]').getAttribute('aria-pressed') === 'true', 'Second place must be selected');
+  await cards.locator('button[data-filter=discoverLandmark]').click();
+  check(await cards.locator('.selected-list button').count() === 2, 'Selected places must stay visible when a filter hides their cards');
+  await cards.locator('.selected-list button[data-remove=island]').click();
+  check(await cards.locator('.selected-list button').count() === 1, 'A hidden selected place must be removable from the summary');
+  await cards.locator('button[data-filter=all]').click();
+  await cards.locator('button[data-place=island]').click();
   check((await cards.locator('button[data-place=forest]').textContent()).includes('필수 방문지로 선택됨'), 'First place must be a required visit');
   check((await cards.locator('button[data-place=island]').textContent()).includes('필수 방문지로 선택됨'), 'Second place must be a required visit');
   await cards.locator('button[data-place=palace]').click();
@@ -108,6 +119,7 @@ async (page) => {
   check((await cards.locator('.pair h3').textContent()).includes('서촌 한옥마을'), 'The Seoul pair must name the nearby neighborhood');
   await cards.locator('#discover-pair').click();
   check(await cards.locator('#discover-pair').getAttribute('aria-pressed') === 'true', 'Pair selection must be visible');
+  check((await cards.locator('.selected-list').textContent()).includes('서촌 한옥마을'), 'The paired-only place must be visible in the selected summary');
   check(await cards.locator('button[data-place=palace]').getAttribute('aria-pressed') === 'true', 'Selecting a pair must select its visible card');
   await cards.locator('button[data-place=palace]').click();
   check(await cards.locator('#discover-plan').isDisabled(), 'Removing the visible card must also remove the paired-only place');

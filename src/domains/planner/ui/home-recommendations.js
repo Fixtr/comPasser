@@ -48,6 +48,7 @@ class HomeRecommendations extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.selectedIds = [];
     this.cityIndex = 0;
+    this.filter = 'all';
     this.updateTexts = () => {
       this.renderCards();
       this.renderPair();
@@ -88,6 +89,12 @@ class HomeRecommendations extends HTMLElement {
         .cities { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
         .cities button { width: auto; min-width: 88px; justify-content: center; }
         .rotation-hint { margin: -10px 0 18px; color: var(--cp-muted); font-size: 12px; }
+        .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+        .filters button { width: auto; min-width: 0; min-height: 44px; padding: 8px 12px; border-color: var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); }
+        .filters button[aria-pressed="true"] { border-color: var(--cp-ink); background: var(--cp-ink); color: var(--cp-surface); box-shadow: none; }
+        .cards.is-filtered { grid-template-columns: minmax(0, 360px); }
+        .selected-list { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+        .selected-list button { width: auto; min-height: 44px; padding: 8px 12px; background: var(--cp-surface); color: var(--cp-ink); }
         .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
         .pair { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 18px; padding: 20px 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
         .pair-copy { flex: 1; min-width: min(100%, 240px); }
@@ -105,9 +112,14 @@ class HomeRecommendations extends HTMLElement {
           ${cities.map(city => `<button type="button" data-city="${city.id}" data-i18n="${city.key}" aria-pressed="false"></button>`).join('')}
         </div>
         <p class="rotation-hint" data-i18n="discoverRotationHint"></p>
+        <div class="filters" role="group" data-i18n-aria="discoverFiltersLabel">
+          ${[['all', 'discoverFilterAll'], ['discoverLandmark', 'discoverLandmark'], ['discoverFind', 'discoverFind'], ['discoverWalk', 'discoverWalk']]
+            .map(([filter, key]) => `<button type="button" data-filter="${filter}" data-i18n="${key}" aria-pressed="false"></button>`).join('')}
+        </div>
         <div class="cards"></div>
         <div class="pair"></div>
         <div class="selection">
+          <div class="selected-list" data-i18n-aria="discoverSelectedPlacesLabel"></div>
           <p id="discover-selection" role="status" aria-live="polite"></p>
           <button type="button" id="discover-plan" disabled><span data-i18n="discoverPlan"></span>${icons.route}</button>
         </div>
@@ -117,6 +129,18 @@ class HomeRecommendations extends HTMLElement {
       if (cityButton) {
         this.showCity(cities.findIndex(city => city.id === cityButton.dataset.city));
         this.startRotation();
+        return;
+      }
+      const filterButton = event.target.closest('button[data-filter]');
+      if (filterButton) {
+        this.filter = filterButton.dataset.filter;
+        this.updateTexts();
+        return;
+      }
+      const removeButton = event.target.closest('button[data-remove]');
+      if (removeButton) {
+        this.selectedIds = this.selectedIds.filter(id => id !== removeButton.dataset.remove);
+        this.renderSelection();
         return;
       }
       if (event.target.closest('#discover-pair')) {
@@ -161,7 +185,9 @@ class HomeRecommendations extends HTMLElement {
 
   renderCards() {
     const city = cities[this.cityIndex];
-    this.shadowRoot.querySelector('.cards').innerHTML = city.places.filter(place => !place.pairOnly).map((place, index) => {
+    const cards = this.shadowRoot.querySelector('.cards');
+    cards.classList.toggle('is-filtered', this.filter !== 'all');
+    cards.innerHTML = city.places.filter(place => !place.pairOnly && (this.filter === 'all' || place.kind === this.filter)).map((place, index) => {
       const photo = photos[place.id];
       return `
       <article aria-labelledby="${place.id}-name">
@@ -209,7 +235,7 @@ class HomeRecommendations extends HTMLElement {
     clearInterval(this.rotationTimer);
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     this.rotationTimer = setInterval(() => {
-      if (!document.hidden && this.getClientRects().length && !this.matches(':hover, :focus-within') && !this.selectedIds.length) {
+      if (!document.hidden && this.getClientRects().length && !this.matches(':hover, :focus-within') && !this.selectedIds.length && this.filter === 'all') {
         this.showCity((this.cityIndex + 1) % cities.length);
       }
     }, ROTATION_MS);
@@ -218,6 +244,8 @@ class HomeRecommendations extends HTMLElement {
   renderSelection() {
     this.shadowRoot.querySelectorAll('button[data-city]').forEach(button =>
       button.setAttribute('aria-pressed', String(button.dataset.city === cities[this.cityIndex].id)));
+    this.shadowRoot.querySelectorAll('button[data-filter]').forEach(button =>
+      button.setAttribute('aria-pressed', String(button.dataset.filter === this.filter)));
     this.shadowRoot.querySelectorAll('button[data-place]').forEach(button => {
       const selected = this.selectedIds.includes(button.dataset.place);
       button.setAttribute('aria-pressed', String(selected));
@@ -230,6 +258,11 @@ class HomeRecommendations extends HTMLElement {
     pairButton.setAttribute('aria-pressed', String(pairSelected));
     pairButton.disabled = !pairSelected && new Set([...this.selectedIds, ...pair]).size > 3;
     pairButton.textContent = t(pairSelected ? 'discoverPairRemove' : 'discoverPairSelect');
+    const places = cities[this.cityIndex].places;
+    this.shadowRoot.querySelector('.selected-list').innerHTML = this.selectedIds.map(id => {
+      const name = t(`${places.find(place => place.id === id).key}Name`);
+      return `<button type="button" data-remove="${id}" aria-label="${t('discoverRemovePlace').replace('{0}', name)}">${name} <span aria-hidden="true">×</span></button>`;
+    }).join('');
     this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
       ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))
       : t('discoverSelectHint');
