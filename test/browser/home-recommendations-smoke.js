@@ -99,5 +99,26 @@ async (page) => {
   check(busan.startLocation === '이전 출발지' && busan.endLocation === '서울역', 'Busan picks must not replace endpoints');
   check(busan.anchorSchedules.slice(-3).map(anchor => anchor.name).join() === '해운대해수욕장,동백섬,광안리해수욕장',
     'Three Busan picks must reach the required schedule rows');
+  await page.evaluate(async () => {
+    window.navigate('/');
+    const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
+    plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
+  });
+  await cards.locator('button[data-city=seoul]').click();
+  check((await cards.locator('.pair h3').textContent()).includes('서촌 한옥마을'), 'The Seoul pair must name the nearby neighborhood');
+  await cards.locator('#discover-pair').click();
+  check(await cards.locator('#discover-pair').getAttribute('aria-pressed') === 'true', 'Pair selection must be visible');
+  check(await cards.locator('button[data-place=palace]').getAttribute('aria-pressed') === 'true', 'Selecting a pair must select its visible card');
+  await cards.locator('button[data-place=palace]').click();
+  check(await cards.locator('#discover-plan').isDisabled(), 'Removing the visible card must also remove the paired-only place');
+  await cards.locator('#discover-pair').click();
+  await cards.locator('button[data-place=forest]').click();
+  check(await cards.locator('button[data-place=island]').isDisabled(), 'A pair plus one place must respect the three-place limit');
+  await cards.locator('#discover-plan').click();
+  const pairDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(pairDraft.anchorSchedules.map(anchor => anchor.name).join() === '경복궁,서촌 한옥마을,서울숲',
+    'Both paired places and the extra pick must become required visits');
+  check(pairDraft.anchorSchedules.every(anchor => anchor.day === 1 && !anchor.time && !anchor.endTime),
+    'Pair selection must leave visit times for the traveler to set');
   return { errors: page.smokeErrors, findings: [] };
 }

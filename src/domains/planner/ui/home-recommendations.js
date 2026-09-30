@@ -6,17 +6,18 @@ import { plannerDraftStore } from '../services/planner-draft.mjs';
 // Curated places, not a popularity ranking or live crowd measurement.
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-09-30.
 const cities = [
-  { id: 'seoul', key: 'discoverSeoul', places: [
+  { id: 'seoul', key: 'discoverSeoul', pair: ['palace', 'seochon'], pairReason: 'discoverSeoulPairReason', places: [
     { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
     { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
     { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
+    { id: 'seochon', key: 'discoverSeochon', guide: 'https://english.visitseoul.net/attractions/SeochonHanokVillage/ENPhyd9ee', pairOnly: true },
   ] },
-  { id: 'busan', key: 'discoverBusan', places: [
+  { id: 'busan', key: 'discoverBusan', pair: ['haeundae', 'dongbaek'], pairReason: 'discoverBusanPairReason', places: [
     { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
     { id: 'dongbaek', key: 'discoverDongbaek', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
     { id: 'gwangalli', key: 'discoverGwangalli', kind: 'discoverWalk', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
   ] },
-  { id: 'jeju', key: 'discoverJeju', places: [
+  { id: 'jeju', key: 'discoverJeju', pair: ['yongduam', 'dongmun'], pairReason: 'discoverJejuPairReason', places: [
     { id: 'yongduam', key: 'discoverYongduam', kind: 'discoverLandmark', stay: '20–40', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500469' },
     { id: 'dongmun', key: 'discoverDongmun', kind: 'discoverFind', stay: '45–75', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
     { id: 'iho', key: 'discoverIho', kind: 'discoverWalk', stay: '30–60', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
@@ -49,6 +50,7 @@ class HomeRecommendations extends HTMLElement {
     this.cityIndex = 0;
     this.updateTexts = () => {
       this.renderCards();
+      this.renderPair();
       applyTranslations(this.shadowRoot);
       this.shadowRoot.getElementById('discover-eyebrow').textContent = `${t('discoverEyebrow')} · ${t(cities[this.cityIndex].key)}`;
       this.renderSelection();
@@ -87,6 +89,12 @@ class HomeRecommendations extends HTMLElement {
         .cities button { width: auto; min-width: 88px; justify-content: center; }
         .rotation-hint { margin: -10px 0 18px; color: var(--cp-muted); font-size: 12px; }
         .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
+        .pair { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 18px; padding: 20px 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
+        .pair-copy { flex: 1; min-width: min(100%, 240px); }
+        .pair h3 { margin-bottom: 8px; font-size: 19px; }
+        .pair p { margin: 0; color: var(--cp-ink-2); font-size: 13px; line-height: 1.6; }
+        .pair .pair-label { margin-bottom: 8px; color: var(--cp-muted); font: 600 11px/1.5 var(--cp-mono); letter-spacing: .05em; }
+        .pair button { width: auto; min-width: 180px; justify-content: center; }
         :is(button, a):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
       </style>
       <section aria-labelledby="discover-title">
@@ -98,6 +106,7 @@ class HomeRecommendations extends HTMLElement {
         </div>
         <p class="rotation-hint" data-i18n="discoverRotationHint"></p>
         <div class="cards"></div>
+        <div class="pair"></div>
         <div class="selection">
           <p id="discover-selection" role="status" aria-live="polite"></p>
           <button type="button" id="discover-plan" disabled><span data-i18n="discoverPlan"></span>${icons.route}</button>
@@ -110,12 +119,25 @@ class HomeRecommendations extends HTMLElement {
         this.startRotation();
         return;
       }
+      if (event.target.closest('#discover-pair')) {
+        const pair = cities[this.cityIndex].pair;
+        this.selectedIds = pair.every(id => this.selectedIds.includes(id))
+          ? this.selectedIds.filter(id => !pair.includes(id))
+          : [...new Set([...this.selectedIds, ...pair])];
+        this.renderSelection();
+        return;
+      }
       const places = cities[this.cityIndex].places;
       const place = places.find(place => place.id === event.target.closest('button[data-place]')?.dataset.place);
       if (place) {
-        this.selectedIds = this.selectedIds.includes(place.id)
+        const selected = this.selectedIds.includes(place.id);
+        this.selectedIds = selected
           ? this.selectedIds.filter(id => id !== place.id)
           : [...this.selectedIds, place.id].slice(0, 3);
+        const [pairFirst, pairSecond] = cities[this.cityIndex].pair;
+        if (selected && place.id === pairFirst && places.find(item => item.id === pairSecond)?.pairOnly) {
+          this.selectedIds = this.selectedIds.filter(id => id !== pairSecond);
+        }
         this.renderSelection();
         return;
       }
@@ -139,7 +161,7 @@ class HomeRecommendations extends HTMLElement {
 
   renderCards() {
     const city = cities[this.cityIndex];
-    this.shadowRoot.querySelector('.cards').innerHTML = city.places.map((place, index) => {
+    this.shadowRoot.querySelector('.cards').innerHTML = city.places.filter(place => !place.pairOnly).map((place, index) => {
       const photo = photos[place.id];
       return `
       <article aria-labelledby="${place.id}-name">
@@ -161,6 +183,19 @@ class HomeRecommendations extends HTMLElement {
         </a>
       </article>`;
     }).join('');
+  }
+
+  renderPair() {
+    const city = cities[this.cityIndex];
+    const [first, second] = city.pair.map(id => city.places.find(place => place.id === id));
+    this.shadowRoot.querySelector('.pair').innerHTML = `
+      <div class="pair-copy">
+        <p class="pair-label">${t('discoverPairLabel')}</p>
+        <h3>${t(`${first.key}Name`)} + ${t(`${second.key}Name`)}</h3>
+        <p>${t(city.pairReason)}</p>
+        <a class="guide" href="${second.guide}" target="_blank" rel="noopener noreferrer">${t('discoverGuide')}</a>
+      </div>
+      <button type="button" id="discover-pair" aria-pressed="false"></button>`;
   }
 
   showCity(index) {
@@ -189,6 +224,12 @@ class HomeRecommendations extends HTMLElement {
       button.disabled = !selected && this.selectedIds.length === 3;
       button.querySelector('span').textContent = t(selected ? 'discoverRequiredSelected' : 'discoverSelect');
     });
+    const pair = cities[this.cityIndex].pair;
+    const pairSelected = pair.every(id => this.selectedIds.includes(id));
+    const pairButton = this.shadowRoot.getElementById('discover-pair');
+    pairButton.setAttribute('aria-pressed', String(pairSelected));
+    pairButton.disabled = !pairSelected && new Set([...this.selectedIds, ...pair]).size > 3;
+    pairButton.textContent = t(pairSelected ? 'discoverPairRemove' : 'discoverPairSelect');
     this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
       ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))
       : t('discoverSelectHint');
