@@ -56,14 +56,14 @@ try {
     if (!await geo.resolvePlace('서울역')) throw new Error('Maps preflight failed: cannot resolve Seoul Station');
     const coordinate = value => ({ lat: typeof value.lat === 'function' ? value.lat() : value.lat,
       lng: typeof value.lng === 'function' ? value.lng() : value.lng });
-    window.captureDay = async (day, constraint, excludedPlaceIds = []) => {
+    window.captureDay = async (day, constraint, excludedPlaceIds = [], budget = null) => {
       const state = createItineraryState();
       state.open({ days: [day] });
       const rounds = [];
       for (let round = 0; round < 5; round++) {
         const diagnosticStart = diagnostics.length;
         const items = state.current.plan.days[0].scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
-        const places = await geo.geocodeSchedule(items, day.date, excludedPlaceIds);
+        const places = await geo.geocodeSchedule(items, day.date, excludedPlaceIds, budget);
         state.resolvePlaces(0, items.map((item, index) => {
           const found = places.find(p => p.displayIndex === index + 1);
           return { index, name: found?.resolvedName || '', address: found?.resolvedAddress || '',
@@ -111,28 +111,36 @@ try {
         state.replaceDayItems(0, fit.items);
         if (!fit.adjusted) break;
       }
-      return { ...day, scheduleItems: state.current.plan.days[0].scheduleItems,
+      const finalItems = state.current.plan.days[0].scheduleItems;
+      const priceEvidence = await Promise.all(finalItems.flatMap((item, index) =>
+        item.verifiedPlace && ['restaurant', 'cafe'].includes(item.placeIntent?.category)
+          ? [{ index, placeId: item.verifiedPlace.placeId }] : []).map(async item => ({
+        ...item, priceLevel: (await geo.getHours(item.placeId))?.priceLevel || null
+      })));
+      return { ...day, scheduleItems: finalItems, priceEvidence,
         transitRoutes: rounds.at(-1).transitRoutes, rounds };
     };
   });
   for (const file of (await readdir(values.captures)).filter(f => f.endsWith('.capture.json')).sort()) {
     const record = JSON.parse(await readFile(join(values.captures, file), 'utf8'));
     if (record.error) continue;
-    const days = enforcePlannerConstraints(prepareGeneratedPlaces(record.response.days), record.request, 'ko');
+    const days = enforcePlannerConstraints(prepareGeneratedPlaces(record.response.days, record.request.budget), record.request, 'ko');
     const hash = data => createHash('sha256').update(data).digest('hex');
     const sourceHashes = {};
     for (const path of ['planner/services/planner-constraints.mjs', 'map/services/geocoding-service.js', 'map/services/routing-service.js',
       'map/services/recommendation-place.mjs', 'itinerary/services/itinerary-state.mjs',
-      'itinerary/services/itinerary-end-fit.mjs', 'itinerary/services/itinerary-schedule-adjust.mjs']) {
+      'itinerary/services/itinerary-end-fit.mjs', 'itinerary/services/itinerary-schedule-adjust.mjs',
+      'itinerary/services/itinerary-hours.mjs']) {
       sourceHashes[path] = hash(await readFile(join(root, 'src/domains', path)));
     }
     const snapshot = { source: 'google_maps', capturedAt: new Date().toISOString(), timezone: 'Asia/Seoul',
       collectorHash: hash(await readFile(new URL(import.meta.url))), sourceHashes, days: [] };
     const excludedPlaceIds = [];
     for (const day of days) {
-      const measured = await page.evaluate(({ day, constraint, excludedPlaceIds }) =>
-        window.captureDay(day, constraint, excludedPlaceIds),
-        { day, constraint: record.request.dailyData.find(c => c.day === day.day), excludedPlaceIds });
+      const measured = await page.evaluate(({ day, constraint, excludedPlaceIds, budget }) =>
+        window.captureDay(day, constraint, excludedPlaceIds, budget),
+        { day, constraint: record.request.dailyData.find(c => c.day === day.day), excludedPlaceIds,
+          budget: record.request.budget });
       snapshot.days.push(measured);
       excludedPlaceIds.push(...measured.scheduleItems.map(item => item.verifiedPlace?.placeId).filter(Boolean));
       console.log(`${record.case} day ${day.day}: ${measured.transitRoutes.filter(r => r.durationMinutes !== null).length}/${measured.scheduleItems.length - 1} routes`);

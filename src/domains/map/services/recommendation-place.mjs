@@ -68,11 +68,16 @@ export function recommendationFields(item, verifiedPlace) {
 
 // Only the generation boundary calls this; saved trusted snapshots are not
 // scrubbed during reload. The model cannot self-assert a verified identity.
-export function prepareGeneratedPlaces(days) {
+export function prepareGeneratedPlaces(days, budget = null) {
   return days.map(day => ({ ...day, scheduleItems: day.scheduleItems.map(item => {
     const clean = { ...item, verifiedPlace: null, selectedPlace: null, latLng: null, resolvedName: '', resolvedAddress: '' };
     if (isFixedPlace(item) || !Object.hasOwn(item, 'placeIntent')) return clean;
     clean.placeIntent = normalizePlaceIntent(item.placeIntent);
+    const priceWord = { budget: '저렴한', standard: '중간 가격대', flex: '고급' }[budget];
+    if (priceWord && ['restaurant', 'cafe'].includes(clean.placeIntent?.category)) {
+      const purpose = clean.placeIntent.purpose.replace(/저렴한|중간 가격대|중저가|고급|프리미엄|파인다이닝|budget-friendly|moderately priced|mid-range|inexpensive|affordable|premium|luxury|fine dining/gi, '').trim();
+      clean.placeIntent = { ...clean.placeIntent, purpose: `${priceWord} ${purpose || (clean.placeIntent.category === 'cafe' ? '카페' : '식당')}`.slice(0, 200) };
+    }
     return { ...clean, ...recommendationFields(clean, null), placeStatus: clean.placeIntent ? 'pending' : 'unresolved' };
   }) }));
 }

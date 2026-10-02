@@ -23,10 +23,10 @@ const THEME_INSTRUCTIONS = {
   - Local food, markets, desserts and cafes as visit purposes, without naming businesses.
   - Allocate generous time for meals (at least 1-1.5 hours per dining stop).
   - Aim for 2-3 food-related stops on a full day only when the available time permits.
-  - Recommend dishes that are signature to the region.`,
+  - Use regional cuisine as a search preference; do not claim that a selected restaurant serves a particular dish.`,
   activity: `The travel theme is "Activities & Adventures". You MUST prioritize:
-  - Experience-based activities: surfing, hiking, cultural workshops, theme parks, water sports, cycling.
-  - Include physically engaging stops and hands-on experiences.
+  - Searchable places suited to active visits: parks, trails, museums and public attractions.
+  - Do not promise equipment rental, classes or bookable experiences; venue services and availability are unverified.
   - Balance active stops with short rest/refreshment breaks.
   - Consider the season; live weather and availability have not been supplied.`,
   healing: `The travel theme is "Relaxation & Healing". You MUST prioritize:
@@ -49,18 +49,17 @@ const BUDGET_LABELS = {
 
 const BUDGET_INSTRUCTIONS = {
   flex: `The budget style is "Premium / Luxury (Flex)". You MUST:
-  - Prefer fine dining, premium food and comfortable activities as search purposes.
-  - Treat ₩50,000+ per meal and ₩30,000+ per activity as spending preferences, not verified venue prices.
-  - Prioritize comfort and exclusivity over cost savings.`,
+  - Use premium dining and cafes as search purposes; the app checks a venue's relative price level when available.
+  - Prioritize comfort and exclusivity, without claiming a particular menu price.`,
   standard: `The budget style is "Standard / Balanced". You MUST:
-  - Recommend mid-range restaurants (₩10,000-₩25,000 per meal) with good value.
-  - Balance paid attractions with free/low-cost options.
+  - Use moderately priced dining and cafes as search purposes; the app checks a venue's relative price level when available.
+  - Balance attractions without claiming admission is free or paid before verification.
   - Suggest a mix of popular spots and local favorites.`,
   budget: `The budget style is "Budget-friendly (짠내투어)". You MUST:
-  - Recommend street food, local markets, budget-friendly eateries (under ₩10,000 per meal).
-  - Prioritize FREE attractions: parks, temples, street art, public viewpoints, free museums.
+  - Use inexpensive dining and cafes as search purposes; the app checks a venue's relative price level when available.
+  - Prefer public parks and outdoor viewpoints; do not claim admission is free without verified price data.
   - Keep localTip empty; discounts and venue facts have not been verified.
-  - Minimize overall estimated spending per person.`
+  - Minimize likely spending without inventing a total or exact venue price.`
 };
 
 /**
@@ -106,7 +105,7 @@ const ITINERARY_SCHEMA = {
                 practicalInfo: {
                   type: "OBJECT",
                   properties: {
-                    estimatedCost: { type: "STRING", description: "Venue/activity spending only (admission, meal, activity), e.g. 'Approx. ₩15,000', 'Free entrance', or 'Cost unknown'. Empty for departure/arrival. Never include transport fares." },
+                    estimatedCost: { type: "STRING", description: "Always 'Cost unknown' for optional visits: no venue price has been verified. Never include transport fares." },
                     operatingHours: { type: "STRING", description: "Empty string; do not invent hours." },
                     localTip: { type: "STRING", description: "Empty string; no actual venue has been selected." },
                     top3Recommendations: {
@@ -240,9 +239,11 @@ ${buildStyleBlock(constraints)}
 
 PRIORITY: fixed appointments and day bounds > realistic stay lengths and free travel gaps > meals > theme and budget.
 The app inserts departure, arrival and AnchorSchedule items with the user's exact identity and times. Generate ONLY optional visits between them. Never emit, copy or paraphrase a fixed stop as a recommendation. If no optional visit fits, return scheduleItems: [] for that day. Include every requested day/date even when its array is empty.
+On a day with fixed appointments, prefer a theme-defining visit over an extra cafe or snack when only one optional visit is likely to fit. Put it in the longer feasible free block near a fixed location.
 
 PLACE SEARCH:
 - Google Places selects the actual venue. Each item needs a nonempty placeIntent.purpose: a short searchable phrase such as "한식 식당", "카페", "공원 산책", "미술관" (or English equivalents). Avoid long wishes, transport narration, business names, district names and street addresses in purpose.
+- When a budget is selected, make each restaurant/cafe purpose include both the cuisine or visit kind and its budget style (inexpensive, moderate or premium). Avoid generic purposes such as "카페" or "점심 식사". A search phrase is a preference, not proof of a venue's price.
 - Pick placeIntent.nearLocation EXACTLY from that day's Allowed nearLocation values; copy it into location. Never use a previous recommendation or an invented area as the next search center.
 - category must be one of restaurant, cafe, park, museum, tourist_attraction, shopping_mall. Title and description describe the visit purpose. Never invent venue names, addresses, Place IDs, ratings, opening hours, ticket availability or reservations.
 - Prefer visits around the fixed location preceding or following their time slot. Do not claim a specific detour or walking distance before actual routing.
@@ -264,7 +265,7 @@ MEALS AND ACTIVITIES:
 OUTPUT:
 - Return ONLY schema-valid JSON, no markdown. Use ${language} for generated titles, descriptions, purposes and themes; copy allowed location strings unchanged. Descriptions are at most 1-2 sentences.
 - googleMapsUrl, officialWebsiteUrl, transitInfo, practicalInfo.operatingHours and practicalInfo.localTip must be empty strings; practicalInfo.top3Recommendations must be []. The app fills verified information later.
-- estimatedCost is venue/activity spending only. Use "Cost unknown" when no price is verified. Budget targets are not verified prices. Never put public-transit, train, taxi or other transport fares in this field.
+- No venue price is supplied to you. Set every optional visit's estimatedCost to "Cost unknown". Budget styles use relative price levels where available, never an exact won amount. Never put public-transit, train, taxi or other transport fares in this field.
 `;
 }
 

@@ -34,6 +34,14 @@ test('lookup coalesces, expires and safely handles denial and timeout',async()=>
   assert.equal(await createHoursLookup(async()=>{throw Error('denied');})('id'),null);
   assert.equal(await createHoursLookup(()=>new Promise(()=>{}),{timeoutMs:5})('id'),null);
 });
+test('existing place details lookup includes the relative price level',async()=>{
+  let fields;
+  const lookup=createHoursLookup(async()=>({Place:class {
+    async fetchFields(request){fields=request.fields;this.priceLevel='INEXPENSIVE';}
+  }}));
+  assert.equal((await lookup('restaurant')).priceLevel,'INEXPENSIVE');
+  assert.ok(fields.includes('priceLevel'));
+});
 test('identity is required and unresolved recommendations cannot reuse a stale ID',()=>{
   const selectedPlace={placeId:'id',displayName:'식당',formattedAddress:'서울',lat:37,lng:127};
   assert.equal(hoursPlaceId({selectedPlace}),'id');

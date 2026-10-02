@@ -68,7 +68,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
 
     return {
       request: normalizedRequest,
-      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days), normalizedRequest, currentLang), normalizedRequest)
+      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget), normalizedRequest, currentLang), normalizedRequest)
     };
   } catch (error) {
     // Bad input needs editing, never a generated-looking fallback result.

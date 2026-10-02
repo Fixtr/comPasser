@@ -296,7 +296,7 @@ export class MapView extends HTMLElement {
       // Tag every item with its timeline position first: geocoding drops
       // failures, so array order alone would desync pins from the list below.
       const scheduleItems = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
-      const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems, day.date, itineraryPlan.excludedPlaceIds);
+      const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems, day.date, itineraryPlan.excludedPlaceIds, itineraryPlan.budget);
       if (!isCurrent()) return;
 
       // Report failures as well, even when no marker can be drawn. Persistence

@@ -254,7 +254,8 @@ export default class ItineraryView extends HTMLElement {
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
-      detail: { plan: { days: [structuredClone(day)], ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
+      detail: { plan: { days: [structuredClone(day)], ...(this.currentItinerary?.request?.budget ? { budget: this.currentItinerary.request.budget } : {}),
+        ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
     }));
   }
 

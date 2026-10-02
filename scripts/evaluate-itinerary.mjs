@@ -74,7 +74,7 @@ function assess(record) {
   if (record.error) return { case: record.case, model: record.model, error: record.error };
   const raw = evaluate(record.request, record.response?.days);
   if (raw.structure !== 'pass' || raw.days.some(d => d.missing)) return { case: record.case, model: record.model, raw, normalized: null };
-  const normalizedDays = enforcePlannerConstraints(prepareGeneratedPlaces(record.response.days), record.request, 'ko');
+  const normalizedDays = enforcePlannerConstraints(prepareGeneratedPlaces(record.response.days, record.request.budget), record.request, 'ko');
   return { case: record.case, model: record.model, milliseconds: record.milliseconds, usage: record.usage,
     raw, normalized: evaluate(record.request, normalizedDays),
     // A Maps export must carry its own exact displayed items; indexes cannot be

@@ -40,6 +40,16 @@ test('map event includes the actual recommended Place ID and original item index
   assert.deepEqual(places[1].verifiedPlace,verifiedPlace);
   assert.equal(Object.hasOwn(places[0],'verifiedPlace'),false);
 });
+
+test('map forwards the itinerary budget to place resolution', async () => {
+  let seenBudget;
+  const app=harness({geocode:async (items,_date,_excluded,budget)=>{
+    seenBudget=budget;
+    return geocoded(items);
+  }});
+  await app.map.renderRoute({...plan('예산'),budget:'flex'},context(0));
+  assert.equal(seenBudget,'flex');
+});
 const response = () => ({ routes: [{ legs: [{ duration: { text: '30분', value: 1800 }, distance: { text: '1km' }, steps: [] }] }] });
 
 test('위치를 확인하지 못한 중간 장소를 건너뛰는 경로를 만들지 않는다', async () => {
@@ -79,7 +89,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
       if (library) await library(name);
       return libraries[name];
     } }),
-    GeocodingService: class { geocodeSchedule(items) { return geocode(items); } },
+    GeocodingService: class { geocodeSchedule(...args) { return geocode(...args); } },
     RoutingService: class { getTransitRoute(...args) { return route(...args); } },
     getLang: () => 'ko', buildTransitDepartureTime,
     getComputedStyle: () => ({ getPropertyValue: () => '' }), document: { documentElement: {} },
