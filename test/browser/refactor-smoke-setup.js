@@ -172,7 +172,10 @@ async (page) => {
         set value(v){this._value=v;if(this.shadowRoot.querySelector('input'))this.shadowRoot.querySelector('input').value=v;}
       }
       if(!customElements.get('gmp-place-autocomplete')) customElements.define('gmp-place-autocomplete',PlaceInput);
-      export const getMapsLoader=()=>({importLibrary:async()=>({Place:class {
+      window.google ??= {maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+      export const getMapsLoader=()=>({importLibrary:async()=>({
+        DirectionsService:class {async route(){return {routes:[{legs:[{duration:{value:900}}]}]};}},
+        Place:class {
         constructor({id}) { this.id=id; }
         async fetchFields() { Object.assign(this,window.__hoursFixtures?.[this.id] || {}); }
       }})});

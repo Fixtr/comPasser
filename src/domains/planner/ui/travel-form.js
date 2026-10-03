@@ -788,12 +788,14 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
+      const flexibleCount = plannerRequest.anchorSchedules.filter(anchor => anchor.flexible).length;
       const placement = await scheduleFlexibleVisits(plannerRequest,
-        plannerRequest.anchorSchedules.some(anchor => anchor.flexible) ? createFlexibleVisitChecks() : {});
+        flexibleCount ? createFlexibleVisitChecks(flexibleCount) : {});
       if (placement.issue) {
         const control = anchorRows.filter(row => !isAnchorBlank(row))[placement.issue.anchorIndex]?.el.querySelector('.anchor-name');
-        this._revealInvalidField(control, t(placement.issue.reason === 'flexible-visit-hours'
-          ? 'flexibleVisitHoursError' : 'flexibleVisitSpaceError'));
+        const messageKey = { 'flexible-visit-route': 'flexibleVisitRouteError',
+          'flexible-visit-hours': 'flexibleVisitHoursError' }[placement.issue.reason] || 'flexibleVisitSpaceError';
+        this._revealInvalidField(control, t(messageKey));
         this._resetSubmitButton(btn);
         this.isSubmitting = false;
         return;

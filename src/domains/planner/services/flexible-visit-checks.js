@@ -14,13 +14,13 @@ const within = (work, ms = 8000) => {
   })]).finally(() => clearTimeout(timer));
 };
 
-/** Reuse the same Maps and regular-hours sources that verify the result screen. */
-export function createFlexibleVisitChecks() {
+/** Reuse the same Maps and opening-hours sources that verify the result screen. */
+export function createFlexibleVisitChecks(visitCount = 1) {
   const loader = getMapsLoader();
   const routing = new RoutingService(loader);
   const geocoding = new GeocodingService(loader, { getLanguage: getLang });
   const routes = new Map(), places = new Map();
-  const deadline = Date.now() + 12000; // ponytail: cap preflight delay; the result screen rechecks unknown legs/hours.
+  const deadline = Date.now() + Math.min(45000, 12000 * Math.max(1, visitCount));
   const remaining = () => Math.max(0, Math.min(8000, deadline - Date.now()));
   return {
     async travelMinutes(from, to, date, time) {
@@ -47,9 +47,7 @@ export function createFlexibleVisitChecks() {
       const id = await places.get(key);
       if (!id || !remaining()) return 'unknown';
       const data = await within(lookupPlaceHours(id), remaining()).catch(() => null);
-      // A temporary closure today cannot establish the status of a future trip.
-      return data?.businessStatus === 'CLOSED_TEMPORARILY' ? 'unknown'
-        : assessVisitHours({ time, endTime }, date, data);
+      return assessVisitHours({ time, endTime }, date, data);
     }
   };
 }

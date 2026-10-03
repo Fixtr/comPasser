@@ -31,7 +31,10 @@ test('untimed required visits get valid slots while reservation times remain fix
       { day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 },
       { day: 1, name: '경복궁', location: '경복궁', flexible: true, stayMinutes: 90 }
     ] };
-  const { request: placed, issue } = await scheduleFlexibleVisits(request);
+  const { request: placed, issue } = await scheduleFlexibleVisits(request, {
+    travelMinutes: async () => 30,
+    hoursStatus: async () => 'unknown'
+  });
   assert.equal(issue, null);
   assert.deepEqual(placed.anchorSchedules.map(anchor => [anchor.name, anchor.time, anchor.endTime]), [
     ['공연', '15:00', '16:00'], ['서울숲', '09:30', '10:30'], ['경복궁', '11:00', '12:30']
@@ -50,7 +53,7 @@ test('untimed required visits get valid slots while reservation times remain fix
 test('an untimed visit that cannot fit is rejected rather than silently dropped', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '10:00',
     anchorSchedules: [{ day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 }] };
-  const result = await scheduleFlexibleVisits(request);
+  const result = await scheduleFlexibleVisits(request, { travelMinutes: async () => 30 });
   assert.deepEqual(result.issue, { reason: 'flexible-visit-space', day: 1, anchorIndex: 0 });
   assert.equal(result.request, request);
 });
@@ -76,8 +79,20 @@ test('measured journeys and known opening hours place a visit after a closed slo
 test('verified closure blocks generation instead of pretending the venue is open', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [{ day: 1, name: '박물관', location: '박물관', flexible: true, stayMinutes: 60 }] };
-  const result = await scheduleFlexibleVisits(request, { hoursStatus: async () => 'closed' });
+  const result = await scheduleFlexibleVisits(request, {
+    travelMinutes: async () => 0, hoursStatus: async () => 'closed'
+  });
   assert.equal(result.issue.reason, 'flexible-visit-hours');
+  assert.equal(result.request, request);
+});
+
+test('a failed map lookup cannot turn an unmeasured journey into a feasible visit', async () => {
+  const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
+    anchorSchedules: [{ day: 1, name: '박물관', location: '박물관', flexible: true, stayMinutes: 60 }] };
+  const result = await scheduleFlexibleVisits(request, {
+    travelMinutes: async () => null, hoursStatus: async () => 'regular'
+  });
+  assert.deepEqual(result.issue, { reason: 'flexible-visit-route', day: 1, anchorIndex: 0 });
   assert.equal(result.request, request);
 });
 

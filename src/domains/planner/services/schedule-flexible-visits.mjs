@@ -3,7 +3,6 @@ import { normalizePlannerRequest } from './planner-constraints.mjs';
 const parseTime = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
   ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
 const formatTime = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
-const travelBuffer = 30; // ponytail: fallback when Maps cannot measure a leg; result map rechecks it.
 
 /** Give untimed must-visits real slots before sending the existing timed-anchor contract. */
 export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStatus } = {}) {
@@ -35,14 +34,17 @@ export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStat
 
     for (const { anchor, index } of indexed.filter(({ anchor }) => anchor.flexible)) {
       const stay = Number.isInteger(anchor.stayMinutes) ? Math.min(120, Math.max(20, anchor.stayMinutes)) : 60;
-      let placed = false, hoursBlocked = false;
+      let placed = false, hoursBlocked = false, routeUnknown = false;
       for (const gap of gaps) {
+        if (gap.cursor + stay > gap.end) continue;
         const inbound = await travelMinutes?.(gap.previous.location, anchor.location, day.date, formatTime(gap.cursor));
-        const journeyIn = Number.isFinite(inbound) && inbound >= 0 ? Math.ceil(inbound) : travelBuffer;
+        if (!Number.isFinite(inbound) || inbound < 0) { routeUnknown = true; continue; }
+        const journeyIn = Math.ceil(inbound);
         const firstStart = gap.cursor + journeyIn;
         if (firstStart + stay > gap.end) continue;
         const outbound = await travelMinutes?.(anchor.location, gap.next.location, day.date, formatTime(firstStart + stay));
-        const journeyOut = Number.isFinite(outbound) && outbound >= 0 ? Math.ceil(outbound) : travelBuffer;
+        if (!Number.isFinite(outbound) || outbound < 0) { routeUnknown = true; continue; }
+        const journeyOut = Math.ceil(outbound);
         for (let visitStart = firstStart; visitStart + stay + journeyOut <= gap.end; visitStart += 15) {
           const visitEnd = visitStart + stay;
           const status = await hoursStatus?.(anchor, day.date, formatTime(visitStart), formatTime(visitEnd));
@@ -57,7 +59,7 @@ export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStat
         }
         if (placed) break;
       }
-      if (!placed) return { request, issue: { reason: hoursBlocked ? 'flexible-visit-hours' : 'flexible-visit-space',
+      if (!placed) return { request, issue: { reason: routeUnknown ? 'flexible-visit-route' : hoursBlocked ? 'flexible-visit-hours' : 'flexible-visit-space',
         day: day.day, anchorIndex: index } };
     }
   }

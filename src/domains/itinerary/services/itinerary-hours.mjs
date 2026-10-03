@@ -18,22 +18,26 @@ const point = p => p && Number.isInteger(p.day) && p.day >= 0 && p.day <= 6
   ? p.day * 1440 + p.hour * 60 + p.minute : null;
 
 // Korean travel dates and Places local wall-clock periods. No AI prose parsing.
-// Regular hours cannot certify holiday exceptions or last-order times.
-export function assessVisitHours(item, date, data) {
+export function assessVisitHours(item, date, data, now = Date.now()) {
   if (!data || data.utcOffsetMinutes !== 540) return 'unknown';
-  if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(data.businessStatus)) return 'closed';
+  if (data.businessStatus === 'CLOSED_PERMANENTLY') return 'closed';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return 'unknown';
   const parsed = new Date(`${date}T00:00:00Z`);
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return 'unknown';
+  const today = new Date(now + 540 * 60000).toISOString().slice(0, 10);
+  if (data.businessStatus === 'CLOSED_TEMPORARILY') return date <= today ? 'closed' : 'unknown';
   const start = clock(item.time), end = clock(item.endTime);
   if (start === null || end === null || start === end) return 'unknown';
-  const periods = data.regularOpeningHours?.periods;
-  if (!Array.isArray(periods) || !periods.length) return 'unknown';
+  const daysAhead = (parsed.getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86400000;
+  const current = daysAhead >= 0 && daysAhead < 7 && Array.isArray(data.currentOpeningHours?.periods);
+  const periods = current ? data.currentOpeningHours.periods : data.regularOpeningHours?.periods;
+  if (!Array.isArray(periods)) return 'unknown';
+  if (!periods.length) return current ? 'conflict' : 'unknown';
   const intervals = [];
   for (const p of periods) {
     const open = point(p.open), close = point(p.close);
     if (open === null) return 'unknown';
-    if (p.close == null && open === 0 && periods.length === 1) return 'regular';
+    if (p.close == null && open === 0 && periods.length === 1) return current ? 'current' : 'regular';
     if (close === null || open === close) return 'unknown';
     const until = close > open ? close : close + 10080;
     for (const shift of [-10080, 0, 10080]) intervals.push([open + shift, until + shift]);
@@ -45,7 +49,7 @@ export function assessVisitHours(item, date, data) {
     if (close <= covered) continue;
     if (open > covered) break;
     covered = close;
-    if (covered >= to) return 'regular';
+    if (covered >= to) return current ? 'current' : 'regular';
   }
   return 'conflict';
 }
@@ -64,8 +68,9 @@ export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now
           (async () => {
             const { Place } = await loadPlaces();
             const place = new Place({ id });
-            await place.fetchFields({ fields: ['regularOpeningHours', 'businessStatus', 'utcOffsetMinutes'] });
-            return { regularOpeningHours: place.regularOpeningHours, businessStatus: place.businessStatus,
+            await place.fetchFields({ fields: ['currentOpeningHours', 'regularOpeningHours', 'businessStatus', 'utcOffsetMinutes'] });
+            return { currentOpeningHours: place.currentOpeningHours,
+              regularOpeningHours: place.regularOpeningHours, businessStatus: place.businessStatus,
               utcOffsetMinutes: place.utcOffsetMinutes };
           })(),
           new Promise(resolve => { timer = setTimeout(() => resolve(null), timeoutMs); }),

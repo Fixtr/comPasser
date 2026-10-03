@@ -23,8 +23,22 @@ test('unknown or malformed data never certifies opening',()=>{
     assert.equal(check('11:00','12:00',periods),'unknown');
   assert.equal(check('11:00','12:00',[],'2026-02-30'),'unknown');
   assert.equal(assess({time:'11:00',endTime:'12:00'},'2026-09-17',{utcOffsetMinutes:0}),'unknown');
-  assert.equal(assess({},'2026-09-17',{utcOffsetMinutes:540,businessStatus:'CLOSED_TEMPORARILY'}),'closed');
+  assert.equal(assess({},'2026-09-17',{utcOffsetMinutes:540,businessStatus:'CLOSED_TEMPORARILY'},
+    Date.parse('2026-09-17T00:00:00Z')),'closed');
+  assert.equal(assess({time:'11:00',endTime:'12:00'},'2026-09-18',
+    {utcOffsetMinutes:540,businessStatus:'CLOSED_TEMPORARILY'},Date.parse('2026-09-17T00:00:00Z')),'unknown');
   assert.equal(hoursPlaceId({practicalInfo:{operatingHours:'24시간'}}),null);
+});
+test('near-term exceptional hours take precedence over regular hours',()=>{
+  const regular=[{open:p(4,9),close:p(4,18)}];
+  const exceptional=[{open:p(4,13),close:p(4,17)}];
+  const hours={...data(regular),currentOpeningHours:{periods:exceptional}};
+  const now=Date.parse('2026-09-16T15:00:00Z'); // Sep 17 in Korea
+  assert.equal(assess({time:'10:00',endTime:'11:00'},'2026-09-17',hours,now),'conflict');
+  assert.equal(assess({time:'14:00',endTime:'15:00'},'2026-09-17',hours,now),'current');
+  assert.equal(assess({time:'10:00',endTime:'11:00'},'2026-09-24',hours,now),'regular');
+  assert.equal(assess({time:'14:00',endTime:'15:00'},'2026-09-17',
+    {...hours,currentOpeningHours:{periods:[]}},now),'conflict');
 });
 test('lookup coalesces, expires and safely handles denial and timeout',async()=>{
   let calls=0, now=0;

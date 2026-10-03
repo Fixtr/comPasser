@@ -19,7 +19,7 @@ export function refreshHours(view) {
         || view.activeDayIndex !== dayIndex) return;
       const status = assessVisitHours(item, day.date, data);
       node.dataset.status = status;
-      node.textContent = t({unknown:'hoursUnknown', closed:'hoursClosed', conflict:'hoursConflict', regular:'hoursRegular'}[status]);
+      node.textContent = t({unknown:'hoursUnknown', closed:'hoursClosed', conflict:'hoursConflict', current:'hoursCurrent', regular:'hoursRegular'}[status]);
     });
   });
 }
