@@ -108,6 +108,8 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await expect(page.locator('.ionic-home')).toHaveCSS('display', 'block');
   const cards = page.locator('home-recommendations:visible');
   await expect(cards.locator('article')).toHaveCount(3);
+  const courses = page.locator('home-courses:visible');
+  await expect(courses.locator('article')).toHaveCount(3);
   await page.getByRole('button', { name: 'Switch to English' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('Seoul Forest');
   await page.screenshot({ path: testInfo.outputPath('recommendations-mobile.png'), fullPage: true });
@@ -137,6 +139,12 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await expect(page).toHaveURL(/\/plan$/);
   await expect(page.locator('travel-form .anchor-item .anchor-name').last()).toHaveValue('Seoul Forest');
   await expect(page.locator('travel-form .anchor-item .anchor-location input').last()).toHaveValue('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
+  await page.goto('/');
+  await courses.locator('button[data-city=busan]').click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const courseDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  expect(courseDraft.anchorSchedules.slice(-2).map(anchor => anchor.name)).toEqual(['Haeundae Beach', 'Dongbaekseom Island']);
+  expect(courseDraft.anchorSchedules.slice(-2).every(anchor => anchor.flexible && !anchor.time)).toBe(true);
 });
 
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {

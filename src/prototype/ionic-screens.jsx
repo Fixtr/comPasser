@@ -5,6 +5,7 @@ import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs
 import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { t } from '../utils/i18n.js';
 import '../domains/planner/ui/home-recommendations.js';
+import '../domains/planner/ui/home-courses.js';
 
 let generatedPlan = null;
 
@@ -22,6 +23,7 @@ export function HomeScreen({ user }) {
         </div>
       </div>
       <home-recommendations />
+      <home-courses />
     </div>
   </IonContent></IonPage>;
 }
