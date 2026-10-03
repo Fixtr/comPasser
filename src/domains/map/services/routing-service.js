@@ -15,9 +15,9 @@ export class RoutingService {
     }
 
     /**
-     * Calculates a TRANSIT route between two LatLng coordinates.
-     * @param {google.maps.LatLng} origin
-     * @param {google.maps.LatLng} destination
+     * Calculates a TRANSIT route between coordinates or place/address text.
+     * @param {google.maps.LatLng|string} origin
+     * @param {google.maps.LatLng|string} destination
      * @param {Date|null} departureTime Scheduled departure; omitted = "now",
      *   which picks timetables (e.g. night buses) matching the generation
      *   moment instead of the itinerary.

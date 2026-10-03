@@ -24,14 +24,14 @@ const flatRequest = {
   }]
 };
 
-test('untimed required visits get valid slots while reservation times remain fixed', () => {
+test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [
       { day: 1, name: '공연', location: '공연장', time: '15:00', endTime: '16:00' },
       { day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 },
       { day: 1, name: '경복궁', location: '경복궁', flexible: true, stayMinutes: 90 }
     ] };
-  const { request: placed, issue } = scheduleFlexibleVisits(request);
+  const { request: placed, issue } = await scheduleFlexibleVisits(request);
   assert.equal(issue, null);
   assert.deepEqual(placed.anchorSchedules.map(anchor => [anchor.name, anchor.time, anchor.endTime]), [
     ['공연', '15:00', '16:00'], ['서울숲', '09:30', '10:30'], ['경복궁', '11:00', '12:30']
@@ -47,11 +47,37 @@ test('untimed required visits get valid slots while reservation times remain fix
     ['필수 방문지', '필수 방문지', '고정 일정']);
 });
 
-test('an untimed visit that cannot fit is rejected rather than silently dropped', () => {
+test('an untimed visit that cannot fit is rejected rather than silently dropped', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '10:00',
     anchorSchedules: [{ day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 }] };
-  const result = scheduleFlexibleVisits(request);
+  const result = await scheduleFlexibleVisits(request);
   assert.deepEqual(result.issue, { reason: 'flexible-visit-space', day: 1, anchorIndex: 0 });
+  assert.equal(result.request, request);
+});
+
+test('measured journeys and known opening hours place a visit after a closed slot', async () => {
+  const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
+    startLocation: '출발지', endLocation: '도착지', anchorSchedules: [
+      { day: 1, name: '공연', location: '공연장', time: '13:00', endTime: '14:00' },
+      { day: 1, name: '박물관', location: '박물관', flexible: true, stayMinutes: 60 }
+    ] };
+  const routes = { '출발지:박물관': 90, '박물관:공연장': 45, '박물관:도착지': 30 };
+  const checked = [];
+  const result = await scheduleFlexibleVisits(request, {
+    travelMinutes: async (from, to) => routes[`${from}:${to}`] ?? 30,
+    hoursStatus: async (_anchor, _date, start) => { checked.push(start); return start < '11:00' ? 'conflict' : 'regular'; }
+  });
+  assert.equal(result.issue, null);
+  assert.deepEqual(checked, ['10:30', '10:45', '11:00']);
+  assert.deepEqual(result.request.anchorSchedules.map(anchor => [anchor.time, anchor.endTime]),
+    [['13:00', '14:00'], ['11:00', '12:00']]);
+});
+
+test('verified closure blocks generation instead of pretending the venue is open', async () => {
+  const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
+    anchorSchedules: [{ day: 1, name: '박물관', location: '박물관', flexible: true, stayMinutes: 60 }] };
+  const result = await scheduleFlexibleVisits(request, { hoursStatus: async () => 'closed' });
+  assert.equal(result.issue.reason, 'flexible-visit-hours');
   assert.equal(result.request, request);
 });
 

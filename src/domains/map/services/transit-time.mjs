@@ -15,7 +15,8 @@ export function buildTransitDepartureTime(dateStr, timeStr, now = new Date()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return null;
   if (!/^\d{2}:\d{2}$/.test(timeStr || '')) return null;
 
-  const departure = new Date(`${dateStr}T${timeStr}:00`);
+  // Trips are in Korea even when the visitor's device is in another timezone.
+  const departure = new Date(`${dateStr}T${timeStr}:00+09:00`);
   if (Number.isNaN(departure.getTime())) return null;
   if (departure >= now) return departure;
 

@@ -12,6 +12,7 @@ import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validati
 import { findMissingLocation } from '../services/location-validation.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
+import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
 
 /** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
 const ANCHOR_FIELD_SELECTOR = {
@@ -787,10 +788,12 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
-      const placement = scheduleFlexibleVisits(plannerRequest);
+      const placement = await scheduleFlexibleVisits(plannerRequest,
+        plannerRequest.anchorSchedules.some(anchor => anchor.flexible) ? createFlexibleVisitChecks() : {});
       if (placement.issue) {
         const control = anchorRows.filter(row => !isAnchorBlank(row))[placement.issue.anchorIndex]?.el.querySelector('.anchor-name');
-        this._revealInvalidField(control, t('flexibleVisitSpaceError'));
+        this._revealInvalidField(control, t(placement.issue.reason === 'flexible-visit-hours'
+          ? 'flexibleVisitHoursError' : 'flexibleVisitSpaceError'));
         this._resetSubmitButton(btn);
         this.isSubmitting = false;
         return;
