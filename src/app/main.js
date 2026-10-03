@@ -8,6 +8,7 @@ import '../domains/auth/ui/join-view.js';
 import '../domains/auth/ui/verify-view.js';
 import '../domains/planner/ui/preference-view.js';
 import '../domains/planner/ui/home-recommendations.js';
+import '../domains/planner/ui/home-courses.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';

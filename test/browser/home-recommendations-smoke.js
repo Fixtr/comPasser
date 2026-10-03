@@ -139,5 +139,20 @@ async (page) => {
     'Both paired places and the extra pick must become required visits');
   check(pairDraft.anchorSchedules.every(anchor => anchor.day === 1 && anchor.flexible && !anchor.time && !anchor.endTime),
     'Pair selection must keep untimed visits for automatic placement');
+  await page.evaluate(async () => {
+    window.navigate('/');
+    const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
+    plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
+  });
+  const courses = page.locator('home-courses');
+  check(await courses.locator('article').count() === 3, 'Curated route browsing must show all three cities');
+  await courses.locator('button[data-city=busan]').click();
+  await page.waitForURL('**/preference/1');
+  const copiedCourse = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(copiedCourse.startLocation === '이전 출발지' && copiedCourse.endLocation === '서울역',
+    'Copying a course must preserve the traveler’s own endpoints');
+  check(copiedCourse.anchorSchedules.map(anchor => anchor.name).join() === '해운대해수욕장,동백섬'
+    && copiedCourse.anchorSchedules.every(anchor => anchor.flexible && !anchor.time),
+  'A curated route must become untimed required visits in order');
   return { errors: page.smokeErrors, findings: [] };
 }

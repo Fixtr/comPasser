@@ -5,7 +5,7 @@ import { plannerDraftStore } from '../services/planner-draft.mjs';
 
 // Curated places, not a popularity ranking or live crowd measurement.
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-09-30.
-const cities = [
+export const cities = [
   { id: 'seoul', key: 'discoverSeoul', pair: ['palace', 'seochon'], pairReason: 'discoverSeoulPairReason', places: [
     { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
     { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
