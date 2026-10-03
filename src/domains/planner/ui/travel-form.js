@@ -11,12 +11,14 @@ import { findPastDate, todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
+import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 
 /** 고정 일정의 필수 칸 이름 → 그 칸을 찾는 선택자. */
 const ANCHOR_FIELD_SELECTOR = {
   name: '.anchor-name',
   time: '.anchor-time',
-  endTime: '.anchor-end-time'
+  endTime: '.anchor-end-time',
+  location: '.anchor-location'
 };
 
 /**
@@ -363,12 +365,14 @@ export default class TravelForm extends HTMLElement {
         <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" aria-label="${t('anchorNameLabel')}">
       </div>
       ${daySelectorHTML}
-      <div class="row-3">
-        <div class="form-group">
+      <label class="anchor-flexible-option"><input type="checkbox" class="anchor-flexible"><span data-i18n="anchorFlexibleLabel">${t('anchorFlexibleLabel')}</span></label>
+      <p class="anchor-flexible-hint" data-i18n="anchorFlexibleHint">${t('anchorFlexibleHint')}</p>
+      <div class="row-3 anchor-fields">
+        <div class="form-group anchor-time-field">
           <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
           <input type="time" class="anchor-time">
         </div>
-        <div class="form-group">
+        <div class="form-group anchor-time-field">
           <label data-i18n="anchorEndLabel">${t('anchorEndLabel')}</label>
           <input type="time" class="anchor-end-time">
         </div>
@@ -393,7 +397,23 @@ export default class TravelForm extends HTMLElement {
       restorePlaceInput(ac, data.location || '');
       const daySelect = template.querySelector('.anchor-day');
       if (daySelect && data.day) daySelect.value = data.day;
+      if (Number.isInteger(data.stayMinutes)) template.dataset.stayMinutes = String(data.stayMinutes);
     }
+
+    const flexibleToggle = template.querySelector('.anchor-flexible');
+    flexibleToggle.checked = data?.flexible === true;
+    const showFlexible = () => {
+      template.classList.toggle('is-flexible', flexibleToggle.checked);
+      template.querySelectorAll('.anchor-time, .anchor-end-time').forEach(input => {
+        input.disabled = flexibleToggle.checked;
+        if (flexibleToggle.checked) input.removeAttribute('aria-invalid');
+      });
+    };
+    showFlexible();
+    flexibleToggle.addEventListener('change', () => {
+      showFlexible();
+      this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
+    });
 
     container.appendChild(template);
 
@@ -725,7 +745,7 @@ export default class TravelForm extends HTMLElement {
         this.isSubmitting = false;
         return;
       }
-      const plannerRequest = this.getFormData();
+      let plannerRequest = this.getFormData();
       this.draft = plannerDraftStore.save(plannerRequest);
 
       // --- Date Validation ---
@@ -766,6 +786,16 @@ export default class TravelForm extends HTMLElement {
         this.isSubmitting = false;
         return;
       }
+
+      const placement = scheduleFlexibleVisits(plannerRequest);
+      if (placement.issue) {
+        const control = anchorRows.filter(row => !isAnchorBlank(row))[placement.issue.anchorIndex]?.el.querySelector('.anchor-name');
+        this._revealInvalidField(control, t('flexibleVisitSpaceError'));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
+      plannerRequest = placement.request;
 
       // Same canonical contract as the server, including each anchor's own
       // day's custom times. DOM-only checks above preserve precise row feedback.
@@ -819,7 +849,8 @@ export default class TravelForm extends HTMLElement {
       name: el.querySelector('.anchor-name')?.value || '',
       time: el.querySelector('.anchor-time')?.value || '',
       endTime: el.querySelector('.anchor-end-time')?.value || '',
-      location: getAutocompleteValue(el.querySelector('.anchor-location'))
+      location: getAutocompleteValue(el.querySelector('.anchor-location')),
+      flexible: el.querySelector('.anchor-flexible')?.checked === true
     }));
   }
 

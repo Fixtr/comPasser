@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { toPlannerDraft } from '../src/domains/planner/services/planner-draft.mjs';
+import { scheduleFlexibleVisits } from '../src/domains/planner/services/schedule-flexible-visits.mjs';
+import { findPlannerRequestIssue } from '../functions/planner-request-validation.mjs';
 
 import {
   enforcePlannerConstraints,
@@ -21,6 +23,37 @@ const flatRequest = {
     location: '국립중앙박물관'
   }]
 };
+
+test('untimed required visits get valid slots while reservation times remain fixed', () => {
+  const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
+    anchorSchedules: [
+      { day: 1, name: '공연', location: '공연장', time: '15:00', endTime: '16:00' },
+      { day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 },
+      { day: 1, name: '경복궁', location: '경복궁', flexible: true, stayMinutes: 90 }
+    ] };
+  const { request: placed, issue } = scheduleFlexibleVisits(request);
+  assert.equal(issue, null);
+  assert.deepEqual(placed.anchorSchedules.map(anchor => [anchor.name, anchor.time, anchor.endTime]), [
+    ['공연', '15:00', '16:00'], ['서울숲', '09:30', '10:30'], ['경복궁', '11:00', '12:30']
+  ]);
+  assert.equal(request.anchorSchedules[1].time, undefined);
+  assert.equal(placed.anchorSchedules[1].flexible, true);
+  assert.equal(toPlannerDraft(normalizePlannerRequest(placed)).anchorSchedules[1].flexible, true);
+  assert.equal(findPlannerRequestIssue(normalizePlannerRequest(placed)), null);
+  const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [] }], placed);
+  assert.deepEqual(day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => item.title),
+    ['서울숲', '경복궁', '공연']);
+  assert.deepEqual(day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => item.duration),
+    ['필수 방문지', '필수 방문지', '고정 일정']);
+});
+
+test('an untimed visit that cannot fit is rejected rather than silently dropped', () => {
+  const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '10:00',
+    anchorSchedules: [{ day: 1, name: '서울숲', location: '서울숲', flexible: true, stayMinutes: 60 }] };
+  const result = scheduleFlexibleVisits(request);
+  assert.deepEqual(result.issue, { reason: 'flexible-visit-space', day: 1, anchorIndex: 0 });
+  assert.equal(result.request, request);
+});
 
 test('recommendation-only empty days get authoritative boundaries and anchors exactly once', () => {
   const result = enforcePlannerConstraints([{ day: 1, date: flatRequest.date[0], scheduleItems: [] }], flatRequest);

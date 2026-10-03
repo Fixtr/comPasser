@@ -65,6 +65,14 @@ test('장소는 비어 있어도 된다', () => {
   assert.deepEqual(missingAnchorFields({ ...full, location: '' }), []);
 });
 
+test('시간 미정 방문지는 이름과 위치를 요구하고 시간은 요구하지 않는다', () => {
+  const flexible = { name: '서울숲', location: '서울숲, 서울 성동구 뚝섬로 273', flexible: true };
+  assert.equal(isAnchorBlank(flexible), false);
+  assert.deepEqual(missingAnchorFields(flexible), []);
+  assert.deepEqual(missingAnchorFields({ ...flexible, location: '' }), ['location']);
+  assert.deepEqual(missingAnchorFields({ name: '', location: '', flexible: true }), ['name', 'location']);
+});
+
 test('첫 번째 덜 찬 줄과 그 줄의 첫 빈 칸을 집어 준다', () => {
   const found = findIncompleteAnchor([
     full,

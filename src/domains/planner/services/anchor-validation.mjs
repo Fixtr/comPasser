@@ -27,6 +27,7 @@ const isBlank = (value) => typeof value === 'string' ? value.trim() === '' : val
  */
 export function isAnchorBlank(anchor) {
   if (!anchor) return true;
+  if (anchor.flexible === true) return false;
   return TOUCHED_FIELDS.every((field) => isBlank(anchor[field]));
 }
 
@@ -36,6 +37,7 @@ export function isAnchorBlank(anchor) {
  */
 export function missingAnchorFields(anchor) {
   if (isAnchorBlank(anchor)) return [];
+  if (anchor.flexible === true) return ['name', 'location'].filter(field => isBlank(anchor[field]));
   return REQUIRED_ANCHOR_FIELDS.filter((field) => isBlank(anchor[field]));
 }
 

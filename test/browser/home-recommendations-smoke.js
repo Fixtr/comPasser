@@ -6,7 +6,7 @@ async (page) => {
     window.navigate('/');
     window.__smoke.setUser(null);
     const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
-    plannerDraftStore.save({ date: ['2026-10-01'], startLocation: '이전 출발지', endLocation: '서울역',
+    plannerDraftStore.save({ date: ['2030-10-01'], startLocation: '이전 출발지', endLocation: '서울역',
       startTime: '09:00', endTime: '18:00',
       anchorSchedules: [{ name: '공연', day: 1, time: '15:00', endTime: '16:00', location: '공연장' }] });
   });
@@ -86,11 +86,18 @@ async (page) => {
   const form = await page.locator('travel-form').evaluate(el => el.getFormData());
   check(form.startLocation === '이전 출발지' && form.endLocation === '서울역', 'Home picks must not change departure or destination');
   check(form.anchorSchedules.map(anchor => anchor.name).join() === '공연,서울숲,선유도공원,경복궁', 'All three picks must appear as required schedule rows');
-  check(form.anchorSchedules.slice(1).every(anchor => anchor.day === 1 && !anchor.time && !anchor.endTime), 'Visitors must set the fixed visit times themselves');
+  check(form.anchorSchedules.slice(1).every(anchor => anchor.day === 1 && anchor.flexible && anchor.stayMinutes > 0 && !anchor.time && !anchor.endTime),
+    'Home picks must remain untimed required visits in the draft');
   check(form.selectedWaypoints.length === 0, 'Home picks must not be stored as optional waypoints');
   await page.locator('travel-form .primary-btn').click();
-  check(await page.locator('travel-form .anchor-item').nth(1).locator('.anchor-time').getAttribute('aria-invalid') === 'true',
-    'Generation must request a time for a required visit');
+  await page.waitForFunction(() => window.__smoke.requests.length > 0);
+  const submitted = await page.evaluate(() => window.__smoke.requests.at(-1));
+  check(submitted.anchorSchedules.length === 4 && submitted.anchorSchedules.every(anchor => anchor.time && anchor.endTime),
+    'Generation must assign times to every required visit');
+  check(submitted.anchorSchedules[0].time === '15:00' && submitted.anchorSchedules[0].endTime === '16:00',
+    'Automatic placement must preserve the existing reservation time');
+  check(submitted.anchorSchedules.slice(1).every(anchor => anchor.flexible && anchor.stayMinutes > 0),
+    'Generated visits must retain their flexible status for later editing');
   await page.evaluate(() => window.navigate('/'));
   for (const id of ['forest', 'island', 'palace']) {
     const button = cards.locator(`button[data-place=${id}]`);
@@ -130,7 +137,7 @@ async (page) => {
   const pairDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   check(pairDraft.anchorSchedules.map(anchor => anchor.name).join() === '경복궁,서촌 한옥마을,서울숲',
     'Both paired places and the extra pick must become required visits');
-  check(pairDraft.anchorSchedules.every(anchor => anchor.day === 1 && !anchor.time && !anchor.endTime),
-    'Pair selection must leave visit times for the traveler to set');
+  check(pairDraft.anchorSchedules.every(anchor => anchor.day === 1 && anchor.flexible && !anchor.time && !anchor.endTime),
+    'Pair selection must keep untimed visits for automatic placement');
   return { errors: page.smokeErrors, findings: [] };
 }

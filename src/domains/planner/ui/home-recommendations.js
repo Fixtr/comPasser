@@ -10,7 +10,7 @@ const cities = [
     { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
     { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
     { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
-    { id: 'seochon', key: 'discoverSeochon', guide: 'https://english.visitseoul.net/attractions/SeochonHanokVillage/ENPhyd9ee', pairOnly: true },
+    { id: 'seochon', key: 'discoverSeochon', stay: '60–90', guide: 'https://english.visitseoul.net/attractions/SeochonHanokVillage/ENPhyd9ee', pairOnly: true },
   ] },
   { id: 'busan', key: 'discoverBusan', pair: ['haeundae', 'dongbaek'], pairReason: 'discoverBusanPairReason', places: [
     { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
@@ -173,7 +173,8 @@ class HomeRecommendations extends HTMLElement {
           const name = t(`${place.key}Name`);
           const location = t(`${place.key}Location`);
           if (!anchorSchedules.some(anchor => anchor.name === name && anchor.location === location)) {
-            anchorSchedules.push({ day: 1, name, location, time: '', endTime: '' });
+            anchorSchedules.push({ day: 1, name, location, time: '', endTime: '',
+              flexible: true, stayMinutes: Number.parseInt(place.stay, 10) });
           }
         });
         plannerDraftStore.save({ ...draft, anchorSchedules, selectedWaypoints: [] });

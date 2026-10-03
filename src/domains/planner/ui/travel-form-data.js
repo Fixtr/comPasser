@@ -30,14 +30,16 @@ export function getFormData(shadowRoot, draft = {}) {
   const anchorsElements = shadowRoot.querySelectorAll('.anchor-item');
   const anchors = Array.from(anchorsElements).map(el => {
     const daySelect = el.querySelector('.anchor-day');
+    const flexible = el.querySelector('.anchor-flexible')?.checked === true;
     return {
       name: el.querySelector('.anchor-name').value,
-      time: el.querySelector('.anchor-time').value,
-      endTime: el.querySelector('.anchor-end-time').value,
+      time: flexible ? '' : el.querySelector('.anchor-time').value,
+      endTime: flexible ? '' : el.querySelector('.anchor-end-time').value,
       location: getAutocompleteValue(el.querySelector('.anchor-location')),
-      day: daySelect ? parseInt(daySelect.value, 10) : 1
+      day: daySelect ? parseInt(daySelect.value, 10) : 1,
+      ...(flexible ? { flexible: true, stayMinutes: Number(el.dataset.stayMinutes) || 60 } : {})
     };
-  }).filter(a => a.name || a.time || a.endTime || a.location);
+  }).filter(a => a.name || a.time || a.endTime || a.location || a.flexible);
 
   // The caller supplies the same draft used to paint the form. A read-only
   // date is presentation text, so use that draft's raw dates, not global storage.

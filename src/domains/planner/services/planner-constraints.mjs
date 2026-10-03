@@ -136,10 +136,12 @@ function makeAnchorItem(anchor, isKo) {
     endTime: anchor.endTime || '',
     type: 'AnchorSchedule',
     title: anchor.name || (isKo ? '필수 일정' : 'Anchor schedule'),
-    description: isKo ? '사용자가 지정한 필수 일정입니다.' : 'A required schedule selected by the user.',
+    description: anchor.flexible
+      ? (isKo ? '선택한 필수 방문지입니다. 시간은 임시 배치되었습니다.' : 'A required visit with a provisional time.')
+      : (isKo ? '사용자가 지정한 필수 일정입니다.' : 'A required schedule selected by the user.'),
     location,
     ...selectedFields(anchor.location),
-    duration: isKo ? '고정 일정' : 'Fixed schedule',
+    duration: anchor.flexible ? (isKo ? '필수 방문지' : 'Required visit') : (isKo ? '고정 일정' : 'Fixed schedule'),
     officialWebsiteUrl: '',
     googleMapsUrl: mapsSearchUrl(location),
     transitInfo: ''
