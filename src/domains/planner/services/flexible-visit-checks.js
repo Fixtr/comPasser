@@ -45,9 +45,11 @@ export function createFlexibleVisitChecks() {
         : within(geocoding.resolvePlace(getLocationName(anchor.location), null, anchor.name), remaining())
           .then(place => place?.resolvedPlace?.placeId || null).catch(() => null));
       const id = await places.get(key);
-      return id && remaining()
-        ? assessVisitHours({ time, endTime }, date, await within(lookupPlaceHours(id), remaining()).catch(() => null))
-        : 'unknown';
+      if (!id || !remaining()) return 'unknown';
+      const data = await within(lookupPlaceHours(id), remaining()).catch(() => null);
+      // A temporary closure today cannot establish the status of a future trip.
+      return data?.businessStatus === 'CLOSED_TEMPORARILY' ? 'unknown'
+        : assessVisitHours({ time, endTime }, date, data);
     }
   };
 }
