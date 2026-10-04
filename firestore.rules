@@ -54,6 +54,42 @@ service cloud.firestore {
         && request.resource.data.title.size() <= 100;
     }
 
+    function validPublicStop(stop) {
+      return stop is map
+        && stop.keys().hasOnly(['name', 'location', 'stayMinutes'])
+        && stop.keys().hasAll(['name', 'location', 'stayMinutes'])
+        && stop.name is string && stop.name.size() > 0 && stop.name.size() <= 100
+        && stop.location is string && stop.location.size() > 0 && stop.location.size() <= 200
+        && stop.stayMinutes is number && stop.stayMinutes >= 20 && stop.stayMinutes <= 360;
+    }
+
+    function validPublicStops(stops) {
+      return stops is list && stops.size() >= 2 && stops.size() <= 6
+        && validPublicStop(stops[0]) && validPublicStop(stops[1])
+        && (stops.size() < 3 || validPublicStop(stops[2]))
+        && (stops.size() < 4 || validPublicStop(stops[3]))
+        && (stops.size() < 5 || validPublicStop(stops[4]))
+        && (stops.size() < 6 || validPublicStop(stops[5]));
+    }
+
+    // Only an owner-approved projection is public; private dates and fixed visits stay in itineraries.
+    match /public_courses/{sourceId} {
+      allow read: if true;
+      allow create, update: if request.auth != null && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['ownerId', 'sourceId', 'title', 'stops', 'review', 'createdAt'])
+        && request.resource.data.keys().hasAll(['ownerId', 'sourceId', 'title', 'stops', 'review', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.sourceId == sourceId
+        && sourceId.matches('^[a-zA-Z0-9]+$')
+        && get(/databases/$(database)/documents/itineraries/$(sourceId)).data.userId == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 60
+        && request.resource.data.review is string && request.resource.data.review.size() <= 300
+        && validPublicStops(request.resource.data.stops)
+        && (request.method == 'create' || (resource.data.ownerId == request.auth.uid
+          && request.resource.data.createdAt == resource.data.createdAt));
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
     // shared_itineraries/{id}: 공유 링크로 배포되는 일정. 비로그인 게스트도 조회 가능해야 한다
     // (PRD Non-Goals: "Itinerary sharing is read-only for guests").
     // 생성은 로그인 사용자만 가능 (generateItinerary 자체가 로그인 필수이므로 공유 버튼 노출 시점엔 항상 인증됨).

@@ -6,6 +6,7 @@ import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/
 import { t } from '../utils/i18n.js';
 import '../domains/planner/ui/home-recommendations.js';
 import '../domains/planner/ui/home-courses.js';
+import '../domains/planner/ui/public-courses.js';
 
 let generatedPlan = null;
 
@@ -25,6 +26,7 @@ export function HomeScreen({ user, settings }) {
       </div>
       <home-recommendations />
       <home-courses />
+      <public-courses />
     </div>
   </IonContent></IonPage>;
 }

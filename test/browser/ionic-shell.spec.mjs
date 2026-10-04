@@ -166,6 +166,27 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   expect(courseDraft.anchorSchedules.slice(-2).every(anchor => anchor.flexible && !anchor.time)).toBe(true);
 });
 
+test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이어진다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return [{ id: 'route1', title: 'A quiet afternoon', review: 'Easy to walk', stops: [
+      { name: 'Museum', location: 'Seoul Museum', stayMinutes: 90 },
+      { name: 'Cafe', location: 'Seoul cafe', stayMinutes: 60 }
+    ] }]; }
+  ` }));
+  await page.goto('/');
+  const courses = page.locator('public-courses:visible');
+  await courses.scrollIntoViewIfNeeded();
+  await expect(courses.getByText('A quiet afternoon')).toBeVisible();
+  await expect(courses.getByText('Easy to walk')).toBeVisible();
+  await courses.getByRole('button').click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  expect(draft.anchorSchedules.map(stop => stop.name)).toEqual(['Museum', 'Cafe']);
+  expect(draft.anchorSchedules.every(stop => stop.flexible && !stop.time)).toBe(true);
+  expect(draft.startLocation).toBe('');
+});
+
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({

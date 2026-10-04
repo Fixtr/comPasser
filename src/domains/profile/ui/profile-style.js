@@ -298,6 +298,7 @@ export const profileStyles = `
 
                 .trip-card {
                     display: flex;
+                    flex-wrap: wrap;
                     justify-content: space-between;
                     align-items: center;
                     gap: 1rem;
@@ -322,7 +323,14 @@ export const profileStyles = `
                 .trip-title { font-weight: 700; color: var(--cp-ink); word-break: keep-all; }
                 .trip-anchor-suffix { font-size: 0.85rem; color: var(--cp-muted); }
                 .trip-date { font-size: 0.82rem; color: var(--cp-muted); font-family: var(--cp-mono); }
-                .trip-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+                .trip-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; flex-shrink: 0; }
+                .public-course-editor { flex: 0 0 100%; display: grid; gap: 0.8rem; padding-top: 1rem; border-top: 1px solid var(--cp-rule); }
+                .public-course-editor input[type="text"], .public-course-editor textarea { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0.7rem; font: inherit; color: var(--cp-ink); background: var(--cp-surface); border: 1px solid var(--cp-rule); }
+                .public-course-editor textarea { min-height: 90px; resize: vertical; }
+                .public-course-options { display: grid; gap: 0.45rem; }
+                .public-course-options label { display: flex; align-items: flex-start; gap: 0.5rem; overflow-wrap: anywhere; }
+                .public-course-options input { min-width: 20px; min-height: 20px; }
+                .public-course-editor button, .btn-public-course { min-height: 44px; cursor: pointer; font: inherit; }
 
                 .btn-rename {
                     display: inline-flex;

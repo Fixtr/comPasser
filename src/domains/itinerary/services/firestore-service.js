@@ -72,10 +72,14 @@ export async function getUserItineraries(userId) {
 
 export async function deleteItinerary(documentId) {
     try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
+        const { db, doc, getDocFromServer, writeBatch } = await loadFirestore();
         const docRef = doc(db, "itineraries", documentId);
-        await deleteDoc(docRef);
+        const publicRef = doc(db, 'public_courses', documentId);
+        const publicSnapshot = await getDocFromServer(publicRef);
+        const batch = writeBatch(db);
+        if (publicSnapshot.exists()) batch.delete(publicRef);
+        batch.delete(docRef);
+        await batch.commit();
         console.log(`Itinerary ${documentId} successfully deleted.`);
     } catch (error) {
         console.error("Error deleting itinerary: ", error);
@@ -91,10 +95,7 @@ export async function deleteAllUserItineraries(userId) {
         const q = query(itinerariesRef, where("userId", "==", userId));
         const querySnapshot = await getDocs(q);
         
-        const deletePromises = [];
-        querySnapshot.forEach((doc) => {
-            deletePromises.push(deleteDoc(doc.ref));
-        });
+        const deletePromises = querySnapshot.docs.map(document => deleteItinerary(document.id));
         
         await Promise.all(deletePromises);
         console.log(`Deleted all ${deletePromises.length} itineraries for user ${userId}`);

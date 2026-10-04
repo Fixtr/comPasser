@@ -9,6 +9,8 @@ import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
+import { publishableStops } from '../../itinerary/services/public-course.mjs';
+import { getPublicCourse, publishCourse, unpublishCourse } from '../../itinerary/services/public-course-service.js';
 
 /** 목록 자리에 한 줄짜리 안내를 놓는다(불러오는 중·실패·비어 있음). */
 function stateBlock(className, text) {
@@ -50,7 +52,7 @@ class ProfileView extends HTMLElement {
 
         // 언어를 바꾸면 이 화면도 따라와야 한다. 마크업의 data-i18n 은
         // 첫 그림만 t() 로 채워지고, 이후 전환은 이 자리가 맡는다.
-        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); this.renderGenerationCredits(); };
+        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); this.renderGenerationCredits(); if (this.itineraries.length) this.renderItineraries(); };
         window.addEventListener('i18n-changed', this._i18nHandler);
 
         const observer = new MutationObserver((mutations) => {
@@ -303,7 +305,7 @@ class ProfileView extends HTMLElement {
             card.innerHTML = `
                 <div class="trip-info">
                     <div class="trip-title-row">
-                        <span class="trip-title">${tripTitle}</span>
+                        <span class="trip-title"></span>
                         <span class="trip-anchor-suffix">${anchorSuffix}</span>
                         <button class="btn-rename" data-i18n-title="renameTitle" title="${t('renameTitle')}" data-i18n-aria="renameAria" aria-label="${t('renameAria')}">${icons.pencil}</button>
                     </div>
@@ -311,9 +313,14 @@ class ProfileView extends HTMLElement {
                 </div>
                 <div class="trip-actions">
                     <button class="btn-view" data-id="${item.id}" data-i18n="viewBtn">${t('viewBtn')}</button>
+                    <button class="btn-public-course" type="button"></button>
                     <button class="btn-delete-trip" data-id="${item.id}" data-i18n="deleteBtn">${t('deleteBtn')}</button>
                 </div>
             `;
+            card.querySelector('.trip-title').textContent = tripTitle;
+            const publicButton = card.querySelector('.btn-public-course');
+            publicButton.textContent = t('publicCourseManage');
+            publicButton.onclick = () => this.editPublicCourse(item, card);
 
             card.querySelector('.btn-view').onclick = (e) => {
                 e.stopPropagation();
@@ -330,6 +337,86 @@ class ProfileView extends HTMLElement {
 
             listContainer.appendChild(card);
         });
+    }
+
+    async editPublicCourse(item, card) {
+        const old = card.querySelector('.public-course-editor');
+        if (old) { old.remove(); return; }
+        const editor = document.createElement('div');
+        editor.className = 'public-course-editor';
+        editor.textContent = t('publicCourseLoading');
+        card.append(editor);
+        try {
+            const existing = await getPublicCourse(item.id);
+            const available = publishableStops(item.itineraryPlan);
+            if (available.length < 2 && !existing) {
+                editor.textContent = t('publicCourseNotEnough');
+                return;
+            }
+            editor.replaceChildren();
+            const notice = document.createElement('p');
+            notice.textContent = t('publicCourseNotice');
+            const title = document.createElement('input');
+            title.type = 'text'; title.maxLength = 60; title.required = true;
+            title.placeholder = t('publicCourseTitlePlaceholder');
+            title.setAttribute('aria-label', t('publicCourseTitlePlaceholder'));
+            title.value = existing?.title || '';
+            const review = document.createElement('textarea');
+            review.maxLength = 300;
+            review.placeholder = t('publicCourseReviewPlaceholder');
+            review.setAttribute('aria-label', t('publicCourseReviewPlaceholder'));
+            review.value = existing?.review || '';
+            const options = document.createElement('div');
+            options.className = 'public-course-options';
+            for (const stop of available) {
+                const label = document.createElement('label');
+                const input = document.createElement('input');
+                input.type = 'checkbox'; input.checked = !existing || existing.stops.some(saved => saved.name === stop.name && saved.location === stop.location);
+                input._stop = stop;
+                const description = document.createElement('span');
+                description.textContent = `${stop.name} · ${stop.location}`;
+                label.append(input, description);
+                options.append(label);
+            }
+            const feedback = document.createElement('p');
+            feedback.setAttribute('role', 'status');
+            const publish = document.createElement('button');
+            publish.type = 'button'; publish.textContent = t(existing ? 'publicCourseUpdate' : 'publicCoursePublish');
+            publish.onclick = async () => {
+                const selected = [...options.querySelectorAll('input:checked')].map(input => input._stop);
+                if (!title.value.trim() || selected.length < 2) {
+                    feedback.textContent = t('publicCourseValidation'); return;
+                }
+                const approved = await showConfirm({ title: t('publicCourseConfirmTitle'), message: t('publicCourseConfirmNotice'), confirmText: t('publicCourseConfirm'), cancelText: t('cancelBtn') });
+                if (!approved) return;
+                publish.disabled = true;
+                try {
+                    await publishCourse(item.id, { title: title.value, stops: selected, review: review.value });
+                    feedback.textContent = t('publicCourseSaved');
+                    showToast(t('publicCourseSaved'));
+                } catch (error) {
+                    console.error('Public course publishing failed:', error);
+                    feedback.textContent = t('publicCourseFailed');
+                } finally { publish.disabled = false; }
+            };
+            editor.append(notice, title, options, review, publish);
+            if (existing) {
+                const remove = document.createElement('button');
+                remove.type = 'button'; remove.textContent = t('publicCourseUnpublish');
+                remove.onclick = async () => {
+                    const approved = await showConfirm({ title: t('publicCourseUnpublish'), message: t('publicCourseUnpublishNotice'), confirmText: t('publicCourseUnpublish'), cancelText: t('cancelBtn') });
+                    if (!approved) return;
+                    remove.disabled = true;
+                    try { await unpublishCourse(item.id); editor.remove(); showToast(t('publicCourseUnpublished')); }
+                    catch (error) { console.error('Unpublish failed:', error); feedback.textContent = t('publicCourseFailed'); remove.disabled = false; }
+                };
+                editor.append(remove);
+            }
+            editor.append(feedback);
+        } catch (error) {
+            console.error('Public course loading failed:', error);
+            editor.textContent = t('publicCourseFailed');
+        }
     }
 
     /**
@@ -408,7 +495,7 @@ class ProfileView extends HTMLElement {
         const userId = getCurrentUser()?.uid;
         const ok = await showConfirm({
             title: '일정 삭제',
-            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다. 이 일정에 연결된 공유 링크에서도 내용을 볼 수 없게 됩니다. 다른 사람이 저장한 사본과 원본 연결이 없는 구버전 공유본은 유지됩니다.',
+            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다. 공개 코스도 목록에서 삭제되고, 이 일정에 연결된 공유 링크에서도 내용을 볼 수 없게 됩니다. 다른 사람이 저장한 사본과 원본 연결이 없는 구버전 공유본은 유지됩니다.',
             confirmText: '삭제',
             cancelText: '취소'
         });
