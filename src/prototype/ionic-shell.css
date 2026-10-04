@@ -9,12 +9,14 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-settings { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 10000; display: flex; gap: 8px; }
 .ionic-settings button { min-height: 44px; padding: 0 12px; border: 1px solid var(--cp-rule-hard); border-radius: 8px; background: var(--cp-surface); color: var(--cp-ink); font: inherit; font-weight: 600; }
 .ionic-settings button:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
+.ionic-home-settings { display: flex; justify-content: flex-end; max-width: 74rem; margin: 0 auto; }
+.ionic-home-settings .ionic-settings { position: static; }
 .ionic-home { max-width: 74rem; margin: max(6vh, 36px) auto; }
 .ionic-home h1 { font-size: clamp(2.1rem, 8vw, 3rem); }
 .ionic-home ion-button { min-height: 52px; margin-top: 18px; }
 @media (min-width: 900px) {
   .ionic-home { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); align-items: start; gap: 3rem; }
-  .ionic-home-intro { position: sticky; top: 6rem; }
+  .ionic-home home-courses { grid-column: 2; }
 }
 @media (max-width: 899px) {
   .ionic-home { margin-top: 2rem; }

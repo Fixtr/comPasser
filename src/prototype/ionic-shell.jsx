@@ -60,7 +60,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   if (active && path === '/preference') return <Navigate to="/preference/1" replace />;
 
   let screen;
-  if (path === '/' || path === '/home') screen = <HomeScreen user={user} />;
+  if (path === '/' || path === '/home') screen = <HomeScreen user={user} settings={settings} />;
   else if (path === '/login' || path === '/join' || path.startsWith('/verify')) screen = <AuthScreen kind={path === '/join' ? 'join' : path.startsWith('/verify') ? 'verify' : 'login'} search={search} />;
   else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} />;
   else if (path === '/plan') screen = <PlanScreen user={user} />;
@@ -100,7 +100,7 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange, onLanguage
       {pages.map(([path, titleKey]) => <Route key={path} path={path} element={<ShellPage titleKey={titleKey} routePath={path} user={user} authSettled={authSettled} settings={settings} />} />)}
       <Route path="*" element={<ShellPage titleKey="shellNotFound" routePath="*" user={user} authSettled={authSettled} settings={settings} />} />
     </IonRouterOutlet>
-    {!resultPath && settings}
+    {!resultPath && location.pathname !== '/' && location.pathname !== '/home' && settings}
     {showTabs && <IonTabBar slot="bottom" aria-label={t('tabBarLabel')}>
       {TABS.map((tab, index) => <IonTabButton key={tab.id} tab={tab.id} href={tab.path} selected={selectedTab === tab.id}>
         <IonIcon icon={icons[index]} /><IonLabel>{labels[index]}</IonLabel>

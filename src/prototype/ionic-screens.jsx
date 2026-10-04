@@ -9,9 +9,10 @@ import '../domains/planner/ui/home-courses.js';
 
 let generatedPlan = null;
 
-export function HomeScreen({ user }) {
+export function HomeScreen({ user, settings }) {
   const navigate = useNavigate();
   return <IonPage><IonContent className="ion-padding shell-content">
+    <div className="ionic-home-settings">{settings}</div>
     <div className="ionic-home">
       <div className="ionic-home-intro">
         <span className="shell-kicker">COMPASSER</span>

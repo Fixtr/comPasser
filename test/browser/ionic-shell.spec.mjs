@@ -115,6 +115,25 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await page.screenshot({ path: testInfo.outputPath('recommendations-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(page.locator('.ionic-home')).toHaveCSS('display', 'grid');
+  await expect(page.locator('.ionic-home-settings .ionic-settings')).toHaveCSS('position', 'static');
+  const columns = await page.locator('.ionic-home').evaluate(home => {
+    const intro = home.querySelector('.ionic-home-intro').getBoundingClientRect();
+    const recommendations = home.querySelector('home-recommendations').getBoundingClientRect();
+    const courses = home.querySelector('home-courses').getBoundingClientRect();
+    return { introRight: intro.right, recommendationsLeft: recommendations.left, coursesLeft: courses.left };
+  });
+  expect(columns.coursesLeft).toBeGreaterThan(columns.introRight);
+  expect(Math.abs(columns.coursesLeft - columns.recommendationsLeft)).toBeLessThan(2);
+  await courses.scrollIntoViewIfNeeded();
+  const scrolled = await page.locator('.ionic-home').evaluate(home => {
+    const intro = home.querySelector('.ionic-home-intro').getBoundingClientRect();
+    const courses = home.querySelector('home-courses').getBoundingClientRect();
+    const settings = document.querySelector('.ionic-home-settings').getBoundingClientRect();
+    return { introRight: intro.right, coursesLeft: courses.left, settingsBottom: settings.bottom, coursesTop: courses.top };
+  });
+  expect(scrolled.coursesLeft).toBeGreaterThan(scrolled.introRight);
+  expect(scrolled.settingsBottom).toBeLessThan(scrolled.coursesTop);
+  await page.screenshot({ path: testInfo.outputPath('courses-desktop.png') });
   await page.getByRole('button', { name: '한국어로 변경' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('서울숲');
   await page.screenshot({ path: testInfo.outputPath('recommendations-desktop.png'), fullPage: true });
