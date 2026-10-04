@@ -4,7 +4,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 
 // Curated places, not a popularity ranking or live crowd measurement.
-// Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-09-30.
+// Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-10-04.
 export const cities = [
   { id: 'seoul', key: 'discoverSeoul', pair: ['palace', 'seochon'], pairReason: 'discoverSeoulPairReason', places: [
     { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
@@ -22,12 +22,28 @@ export const cities = [
     { id: 'dongmun', key: 'discoverDongmun', kind: 'discoverFind', stay: '45–75', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CONT_000000000500745' },
     { id: 'iho', key: 'discoverIho', kind: 'discoverWalk', stay: '30–60', guide: 'https://www.visitjeju.net/en/detail/view?contentsid=CNTS_200000000007344' },
   ] },
+  { id: 'incheon', key: 'discoverIncheon', pair: ['chinatown', 'jayu'], pairReason: 'discoverIncheonPairReason', places: [
+    { id: 'chinatown', key: 'discoverChinatown', kind: 'discoverLandmark', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=105442' },
+    { id: 'jayu', key: 'discoverJayu', kind: 'discoverWalk', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=105439' },
+    { id: 'songdo', key: 'discoverSongdo', kind: 'discoverFind', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=61406' },
+  ] },
+  { id: 'daegu', key: 'discoverDaegu', pair: ['seomun', 'gyesan'], pairReason: 'discoverDaeguPairReason', places: [
+    { id: 'seomun', key: 'discoverSeomun', kind: 'discoverLandmark', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=87243' },
+    { id: 'gyesan', key: 'discoverGyesan', kind: 'discoverFind', stay: '20–40', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=88338' },
+    { id: 'dongseongro', key: 'discoverDongseongro', kind: 'discoverWalk', stay: '45–90', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=57224' },
+  ] },
+  { id: 'daejeon', key: 'discoverDaejeon', pair: ['hanbat', 'expo'], pairReason: 'discoverDaejeonPairReason', places: [
+    { id: 'hanbat', key: 'discoverHanbat', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=82059' },
+    { id: 'expo', key: 'discoverExpo', kind: 'discoverLandmark', stay: '45–75', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=95423' },
+    { id: 'yuseong', key: 'discoverYuseong', kind: 'discoverFind', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=139940' },
+  ] },
 ];
 const ROTATION_MS = 12000;
 const photoLicenses = {
   'CC0 1.0': 'https://creativecommons.org/publicdomain/zero/1.0/',
   'CC BY 2.0': 'https://creativecommons.org/licenses/by/2.0/',
   'CC BY-SA 2.0': 'https://creativecommons.org/licenses/by-sa/2.0/',
+  'CC BY-SA 3.0': 'https://creativecommons.org/licenses/by-sa/3.0/',
   'CC BY-SA 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/',
 };
 const photos = {
@@ -40,6 +56,15 @@ const photos = {
   yongduam: { file: 'File:Yongduam in jeju.jpg', author: 'Jeong seolah', license: 'CC0 1.0' },
   dongmun: { file: 'File:Jeju Dongmun Traditional Market 01.jpg', author: 'Grapesurgeon', license: 'CC BY-SA 4.0' },
   iho: { file: 'File:Dragon lighthouse (5223468346).jpg', author: 'garycycles', license: 'CC BY 2.0' },
+  chinatown: { file: 'File:Incheon Chinatown.jpg', author: 'Riodamascus', license: 'CC BY-SA 4.0' },
+  jayu: { file: 'File:Jayu Park 20230430 009.jpg', author: 'Mobius6', license: 'CC BY-SA 4.0' },
+  songdo: { file: 'File:Songdo Central Park in 2021.jpg', author: 'José Carioca', license: 'CC BY-SA 4.0' },
+  seomun: { file: 'File:Seomun Market Gate.JPG', author: 'hyolee2', license: 'CC BY-SA 4.0' },
+  gyesan: { file: 'File:Our Lady of Lourdes Cathedral, Daegu.jpg', author: 'Šolon', license: 'CC BY-SA 4.0' },
+  dongseongro: { file: 'File:Dongseongro Rodeo Street on February 20th, 2016.jpg', author: 'Choi2451', license: 'CC BY-SA 4.0' },
+  hanbat: { file: 'File:Hanbat Aboretum Garden under the Moon.jpg', author: 'Ryuch', license: 'CC BY-SA 4.0' },
+  expo: { file: 'File:Gate, bridge, and tower at Daejeon Expo Science Park.jpg', author: 'Yoo Chung', license: 'CC BY-SA 3.0' },
+  yuseong: { file: 'File:People take a foot bath at an outdoor public hot spring in Yuseong-gu, Daejeon, Korea.jpg', author: 'Pmlydon', license: 'CC BY-SA 4.0' },
 };
 
 class HomeRecommendations extends HTMLElement {

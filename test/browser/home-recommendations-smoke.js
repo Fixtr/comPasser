@@ -12,6 +12,7 @@ async (page) => {
   });
   const cards = page.locator('home-recommendations');
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
+  check(await cards.locator('button[data-city]').count() === 6, 'All six cities must be available');
   check(await cards.locator('article').count() === 3, 'Guests must see three places');
   check(await cards.locator('.photo img').count() === 3, 'Every place card must have a photo');
   await cards.locator('.photo img').first().scrollIntoViewIfNeeded();
@@ -144,8 +145,26 @@ async (page) => {
     const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
     plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
   });
+  for (const [city, firstPlace] of [['incheon', 'chinatown'], ['daegu', 'seomun'], ['daejeon', 'hanbat']]) {
+    await cards.locator(`button[data-city=${city}]`).click();
+    check(await cards.locator('article').count() === 3, `${city} must show three places`);
+    check(await cards.locator(`#${firstPlace}-name`).textContent() !== firstPlace, `${city} places must be translated`);
+    check(await cards.locator('.photo img').first().evaluate(image => image.decode().then(() => image.naturalWidth > 0)),
+      `${city} photos must load`);
+  }
+  await cards.locator('#discover-pair').click();
+  await cards.locator('#discover-plan').click();
+  await page.waitForURL('**/preference/1');
+  const daejeon = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(daejeon.anchorSchedules.map(anchor => anchor.name).join() === '한밭수목원,엑스포과학공원',
+    'A new city pair must become required visits');
+  await page.evaluate(async () => {
+    window.navigate('/');
+    const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
+    plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
+  });
   const courses = page.locator('home-courses');
-  check(await courses.locator('article').count() === 3, 'Curated route browsing must show all three cities');
+  check(await courses.locator('article').count() === 6, 'Curated route browsing must show all six cities');
   await courses.locator('button[data-city=busan]').click();
   await page.waitForURL('**/preference/1');
   const copiedCourse = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));

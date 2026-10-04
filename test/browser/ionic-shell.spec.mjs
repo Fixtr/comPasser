@@ -109,7 +109,7 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   const cards = page.locator('home-recommendations:visible');
   await expect(cards.locator('article')).toHaveCount(3);
   const courses = page.locator('home-courses:visible');
-  await expect(courses.locator('article')).toHaveCount(3);
+  await expect(courses.locator('article')).toHaveCount(6);
   await page.getByRole('button', { name: 'Switch to English' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('Seoul Forest');
   await page.screenshot({ path: testInfo.outputPath('recommendations-mobile.png'), fullPage: true });
