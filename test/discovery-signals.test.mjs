@@ -21,7 +21,8 @@ test('Seoul crowd accepts only fresh measurements for the named area', async () 
   const payload = { 'SeoulRtd.citydata_ppltn': [{ AREA_NM: '광화문·덕수궁',
     AREA_CONGEST_LVL: '여유', PPLTN_TIME: '2026-10-04 12:00' }] };
   assert.equal(parseCrowd(payload, now).level, '여유');
-  assert.equal(parseCrowd(payload, now + 21 * 60 * 1000), null);
+  assert.equal(parseCrowd(payload, now + 21 * 60 * 1000).delayed, true);
+  assert.equal(parseCrowd(payload, now + 61 * 60 * 1000), null);
   assert.equal(parseCrowd({ 'SeoulRtd.citydata_ppltn': [{ ...payload['SeoulRtd.citydata_ppltn'][0], AREA_NM: '서울숲공원' }] }, now), null);
   let url;
   const result = await getSeoulCrowd({ now, fetchImpl: async requestUrl => {

@@ -50,7 +50,7 @@ exports.getAccountDeletionStatus = onCall({ timeoutSeconds: 30, maxInstances: 5 
 exports.getSeoulCrowd = onCall({ timeoutSeconds: 10, maxInstances: 5 }, async () => {
     try { return await getSeoulCrowd(); }
     catch (error) {
-        logError('Seoul crowd unavailable', { message: error.message });
+        console.error('Seoul crowd unavailable:', error.message);
         throw new HttpsError('unavailable', '서울 실시간 혼잡 정보를 불러올 수 없습니다.');
     }
 });

@@ -265,10 +265,15 @@ class HomeRecommendations extends HTMLElement {
       .replace('{2}', this.crowd.observedAt);
     panel.replaceChildren();
     const line = document.createElement('p'); line.textContent = status;
+    panel.append(line);
+    if (this.crowd.delayed) {
+      const delayed = document.createElement('p'); delayed.textContent = t('discoverCrowdDelayed');
+      panel.append(delayed);
+    }
     const caveat = document.createElement('p'); caveat.textContent = t('discoverCrowdCaveat');
     const source = document.createElement('a'); source.href = this.crowd.source;
     source.target = '_blank'; source.rel = 'noopener noreferrer'; source.textContent = t('discoverCrowdSource');
-    panel.append(line, caveat, source);
+    panel.append(caveat, source);
   }
 
   async loadSignals() {

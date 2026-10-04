@@ -1,5 +1,5 @@
 const AREA = '광화문·덕수궁';
-const MAX_AGE_MS = 20 * 60 * 1000;
+const MAX_AGE_MS = 60 * 60 * 1000;
 
 function parseCrowd(payload, now = Date.now()) {
   const record = payload?.['SeoulRtd.citydata_ppltn']?.[0];
@@ -9,7 +9,8 @@ function parseCrowd(payload, now = Date.now()) {
     ? Date.parse(`${observedAt.trim().replace(' ', 'T')}+09:00`) : NaN;
   if (record?.AREA_NM !== AREA || !['여유', '보통', '약간 붐빔', '붐빔'].includes(level)
     || !Number.isFinite(measured) || measured > now + 60_000 || now - measured > MAX_AGE_MS) return null;
-  return { area: AREA, level, observedAt, source: 'https://data.seoul.go.kr/dataVisual/seoul/guide.do' };
+  return { area: AREA, level, observedAt, delayed: now - measured > 20 * 60 * 1000,
+    source: 'https://data.seoul.go.kr/dataVisual/seoul/guide.do' };
 }
 
 let cached;
