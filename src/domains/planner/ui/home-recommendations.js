@@ -258,15 +258,21 @@ class HomeRecommendations extends HTMLElement {
       panel.textContent = t(this.crowd === null ? 'discoverCrowdUnavailable' : 'discoverCrowdLoading');
       return;
     }
+    const measuredAt = Date.parse(`${this.crowd.observedAt?.replace(' ', 'T')}+09:00`);
+    const age = Date.now() - measuredAt;
+    if (!Number.isFinite(age) || age > 60 * 60 * 1000 || age < -60 * 1000) {
+      panel.textContent = t('discoverCrowdUnavailable');
+      return;
+    }
     const status = t('discoverCrowdStatus')
-      .replace('{0}', this.crowd.area)
+      .replace('{0}', t('discoverCrowdArea'))
       .replace('{1}', t({ '여유': 'discoverCrowdRelaxed', '보통': 'discoverCrowdNormal',
         '약간 붐빔': 'discoverCrowdSomewhatBusy', '붐빔': 'discoverCrowdBusy' }[this.crowd.level]))
       .replace('{2}', this.crowd.observedAt);
     panel.replaceChildren();
     const line = document.createElement('p'); line.textContent = status;
     panel.append(line);
-    if (this.crowd.delayed) {
+    if (age > 20 * 60 * 1000) {
       const delayed = document.createElement('p'); delayed.textContent = t('discoverCrowdDelayed');
       panel.append(delayed);
     }
@@ -288,6 +294,7 @@ class HomeRecommendations extends HTMLElement {
   }
 
   async loadCrowd() {
+    this.lastCrowdFetch = Date.now();
     try {
       const [{ app }, { getFunctions, httpsCallable }] = await Promise.all([
         import('../../auth/services/firebase-auth.js'), import('firebase/functions')]);
@@ -362,6 +369,11 @@ class HomeRecommendations extends HTMLElement {
   connectedCallback() {
     this.updateTexts();
     this.startRotation();
+    this.crowdTimer = setInterval(() => {
+      if (document.hidden) return;
+      this.renderCrowd();
+      if (Date.now() - this.lastCrowdFetch >= 5 * 60 * 1000) void this.loadCrowd();
+    }, 60 * 1000);
     window.addEventListener('i18n-changed', this.updateTexts);
     if (!this.signalsLoaded) {
       this.signalsLoaded = true;
@@ -376,6 +388,7 @@ class HomeRecommendations extends HTMLElement {
 
   disconnectedCallback() {
     clearInterval(this.rotationTimer);
+    clearInterval(this.crowdTimer);
     window.removeEventListener('i18n-changed', this.updateTexts);
     this.observer?.disconnect();
   }

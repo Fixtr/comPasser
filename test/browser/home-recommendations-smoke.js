@@ -44,6 +44,17 @@ async (page) => {
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#discover-title').textContent() === 'Choose places for your route', 'Card heading must translate');
   check(await cards.locator('#forest-name').textContent() === 'Seoul Forest', 'Place names must translate');
+  await cards.evaluate(el => {
+    el.crowd = { area: '광화문·덕수궁', level: '보통', observedAt: '2026-09-13 11:30', source: 'https://data.seoul.go.kr/dataVisual/seoul/guide.do' };
+    el.renderCrowd();
+  });
+  check((await cards.locator('.crowd').textContent()).includes('Gwanghwamun–Deoksugung')
+    && (await cards.locator('.crowd').textContent()).includes('Update delayed'),
+  'English crowd details must name the area and warn after 20 minutes');
+  await cards.evaluate(el => { el.crowd.observedAt = '2026-09-13 10:50'; el.renderCrowd(); });
+  check((await cards.locator('.crowd').textContent()).includes('unavailable'),
+    'Crowd observations older than 60 minutes must disappear even on an open page');
+  await cards.evaluate(el => { el.crowd = null; el.renderCrowd(); });
   await cards.locator('button[data-filter=discoverFind]').click();
   check(await cards.locator('article').count() === 1 && await cards.locator('#island-name').count() === 1,
     'Discovery filters must show only the chosen place type');
