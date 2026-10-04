@@ -415,6 +415,18 @@ const dictionary = {
         discoverPhotoCredit: "사진: {0} (화면에 맞춰 자름)",
         discoverLandmark: "대표 장소",
         discoverFind: "새로운 발견",
+        discoverEditorialNote: "‘새로운 발견’은 운영자 추천이며 방문객 수 순위가 아닙니다.",
+        discoverReason: "추천 이유",
+        discoverCourseMentions: "최근 공개 코스 {1}개 중 {0}개에 포함",
+        discoverCrowdLoading: "서울 실시간 혼잡도 확인 중…",
+        discoverCrowdUnavailable: "서울 실시간 혼잡도를 지금 확인할 수 없습니다.",
+        discoverCrowdStatus: "서울시 · {0} 일대 · {1} · 기준 {2} (한국 시간)",
+        discoverCrowdCaveat: "지역 전체의 추정 혼잡도이며 개별 장소의 대기 시간은 아닙니다.",
+        discoverCrowdSource: "서울시 데이터 안내",
+        discoverCrowdRelaxed: "여유",
+        discoverCrowdNormal: "보통",
+        discoverCrowdSomewhatBusy: "약간 붐빔",
+        discoverCrowdBusy: "붐빔",
         discoverWalk: "산책과 풍경",
         discoverStay: "둘러보기 예상 {0}분 · 방문 시간 자동 배치",
         discoverPairLabel: "가까운 두 곳 함께 보기",
@@ -963,6 +975,18 @@ const dictionary = {
         discoverPhotoCredit: "Photo: {0} (display cropped)",
         discoverLandmark: "Landmark",
         discoverFind: "Something different",
+        discoverEditorialNote: "Something different is an editorial pick, not a ranking by visitor count.",
+        discoverReason: "Why visit",
+        discoverCourseMentions: "In {0} of the latest {1} public courses",
+        discoverCrowdLoading: "Checking live Seoul crowd levels…",
+        discoverCrowdUnavailable: "Live Seoul crowd levels are unavailable right now.",
+        discoverCrowdStatus: "Seoul City · {0} area · {1} · as of {2} (Korea time)",
+        discoverCrowdCaveat: "This estimates crowding across an area, not queues at an individual place.",
+        discoverCrowdSource: "Seoul City data guide",
+        discoverCrowdRelaxed: "Relaxed",
+        discoverCrowdNormal: "Moderate",
+        discoverCrowdSomewhatBusy: "Somewhat busy",
+        discoverCrowdBusy: "Busy",
         discoverWalk: "Walks & views",
         discoverStay: "Suggested visit {0} min · time placed automatically",
         discoverPairLabel: "Explore two nearby places",
@@ -1138,6 +1162,10 @@ export function setLang(lang) {
 
 export function t(key) {
     return dictionary[currentLang]?.[key] || key;
+}
+
+export function tFor(key, lang) {
+    return dictionary[lang]?.[key] || key;
 }
 
 /**

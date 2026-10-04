@@ -11,6 +11,7 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 const cors = require("cors")({ origin: true });
 const { findPlannerRequestIssue } = require('./planner-request-validation.mjs');
+const { getSeoulCrowd } = require('./seoul-crowd');
 
 const {
     ITINERARY_SCHEMA,
@@ -46,6 +47,13 @@ const deletionHandler = handler => async request => {
 };
 exports.requestAccountDeletion = onCall({ timeoutSeconds: 60, maxInstances: 5 }, deletionHandler(accountDeletion.requestDeletion));
 exports.getAccountDeletionStatus = onCall({ timeoutSeconds: 30, maxInstances: 5 }, deletionHandler(accountDeletion.status));
+exports.getSeoulCrowd = onCall({ timeoutSeconds: 10, maxInstances: 5 }, async () => {
+    try { return await getSeoulCrowd(); }
+    catch (error) {
+        logError('Seoul crowd unavailable', { message: error.message });
+        throw new HttpsError('unavailable', '서울 실시간 혼잡 정보를 불러올 수 없습니다.');
+    }
+});
 exports.retryAccountDeletions = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds: 60, maxInstances: 1 }, accountDeletion.retryDue);
 
 exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, async request => {

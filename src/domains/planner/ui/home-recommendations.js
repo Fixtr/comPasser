@@ -2,6 +2,7 @@ import { t, applyTranslations } from '../../../utils/i18n.js';
 import { icons } from '../../../ui/icons.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
+import { countCourseMentions } from '../services/course-mentions.mjs';
 
 // Curated places, not a popularity ranking or live crowd measurement.
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-10-04.
@@ -74,9 +75,13 @@ class HomeRecommendations extends HTMLElement {
     this.selectedIds = [];
     this.cityIndex = 0;
     this.filter = 'all';
+    this.courseMentions = {};
+    this.courseSampleSize = 0;
+    this.crowd = undefined;
     this.updateTexts = () => {
       this.renderCards();
       this.renderPair();
+      this.renderCrowd();
       applyTranslations(this.shadowRoot);
       this.shadowRoot.getElementById('discover-eyebrow').textContent = `${t('discoverEyebrow')} · ${t(cities[this.cityIndex].key)}`;
       this.renderSelection();
@@ -98,6 +103,11 @@ class HomeRecommendations extends HTMLElement {
         .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
         .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
+        .evidence { margin: 0 0 12px; color: var(--cp-ink-2); font-size: 12px; line-height: 1.5; }
+        .provenance { margin: -5px 0 16px; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
+        .crowd { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--cp-rule); background: var(--cp-surface); font-size: 12px; line-height: 1.6; }
+        .crowd p { margin: 0 0 4px; }
+        .crowd a { color: inherit; text-underline-offset: 3px; }
         .kind { margin: 0; padding: 4px 8px; border: 1px solid var(--cp-rule); color: var(--cp-ink-2); font: 600 11px/1.5 var(--cp-mono); }
         h3 { margin: 0 0 6px; font-size: 23px; line-height: 1.25; letter-spacing: -.03em; overflow-wrap: anywhere; }
         .area { margin: 0; font-size: 12px; line-height: 1.5; color: var(--cp-muted); }
@@ -141,6 +151,8 @@ class HomeRecommendations extends HTMLElement {
           ${[['all', 'discoverFilterAll'], ['discoverLandmark', 'discoverLandmark'], ['discoverFind', 'discoverFind'], ['discoverWalk', 'discoverWalk']]
             .map(([filter, key]) => `<button type="button" data-filter="${filter}" data-i18n="${key}" aria-pressed="false"></button>`).join('')}
         </div>
+        <p class="provenance" data-i18n="discoverEditorialNote"></p>
+        <div class="crowd" role="status" aria-live="polite"></div>
         <div class="cards"></div>
         <div class="pair"></div>
         <div class="selection">
@@ -225,7 +237,8 @@ class HomeRecommendations extends HTMLElement {
         <p class="tag" data-i18n="${place.key}Tag"></p>
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
-        <p class="description" data-i18n="${place.key}Description"></p>
+        ${this.courseMentions[place.id] ? `<p class="evidence">${t('discoverCourseMentions').replace('{0}', this.courseMentions[place.id]).replace('{1}', this.courseSampleSize)}</p>` : ''}
+        <p class="description">${place.kind === 'discoverFind' ? `<strong>${t('discoverReason')} · </strong>` : ''}${t(`${place.key}Description`)}</p>
         <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
@@ -235,6 +248,52 @@ class HomeRecommendations extends HTMLElement {
         </a>
       </article>`;
     }).join('');
+  }
+
+  renderCrowd() {
+    const panel = this.shadowRoot.querySelector('.crowd');
+    panel.hidden = cities[this.cityIndex].id !== 'seoul';
+    if (panel.hidden) return;
+    if (!this.crowd) {
+      panel.textContent = t(this.crowd === null ? 'discoverCrowdUnavailable' : 'discoverCrowdLoading');
+      return;
+    }
+    const status = t('discoverCrowdStatus')
+      .replace('{0}', this.crowd.area)
+      .replace('{1}', t({ '여유': 'discoverCrowdRelaxed', '보통': 'discoverCrowdNormal',
+        '약간 붐빔': 'discoverCrowdSomewhatBusy', '붐빔': 'discoverCrowdBusy' }[this.crowd.level]))
+      .replace('{2}', this.crowd.observedAt);
+    panel.replaceChildren();
+    const line = document.createElement('p'); line.textContent = status;
+    const caveat = document.createElement('p'); caveat.textContent = t('discoverCrowdCaveat');
+    const source = document.createElement('a'); source.href = this.crowd.source;
+    source.target = '_blank'; source.rel = 'noopener noreferrer'; source.textContent = t('discoverCrowdSource');
+    panel.append(line, caveat, source);
+  }
+
+  async loadSignals() {
+    void this.loadCrowd();
+    try {
+      const { listPublicCourses } = await import('../../itinerary/services/public-course-service.js');
+      const courses = await listPublicCourses();
+      this.courseMentions = countCourseMentions(courses, cities);
+      this.courseSampleSize = courses.length;
+      if (this.isConnected) { this.renderCards(); this.renderSelection(); }
+    } catch (error) { console.warn('Public course signals unavailable:', error); }
+  }
+
+  async loadCrowd() {
+    try {
+      const [{ app }, { getFunctions, httpsCallable }] = await Promise.all([
+        import('../../auth/services/firebase-auth.js'), import('firebase/functions')]);
+      if (!app) throw new Error('Firebase app unavailable');
+      const result = await httpsCallable(getFunctions(app), 'getSeoulCrowd', { timeout: 12000 })();
+      this.crowd = result.data;
+    } catch (error) {
+      console.warn('Seoul crowd unavailable:', error);
+      this.crowd = null;
+    }
+    if (this.isConnected) this.renderCrowd();
   }
 
   renderPair() {
@@ -299,11 +358,21 @@ class HomeRecommendations extends HTMLElement {
     this.updateTexts();
     this.startRotation();
     window.addEventListener('i18n-changed', this.updateTexts);
+    if (!this.signalsLoaded) {
+      this.signalsLoaded = true;
+      if ('IntersectionObserver' in window) {
+        this.observer = new IntersectionObserver(entries => {
+          if (entries[0]?.isIntersecting) { this.observer.disconnect(); void this.loadSignals(); }
+        }, { rootMargin: '400px' });
+        this.observer.observe(this);
+      } else void this.loadSignals();
+    }
   }
 
   disconnectedCallback() {
     clearInterval(this.rotationTimer);
     window.removeEventListener('i18n-changed', this.updateTexts);
+    this.observer?.disconnect();
   }
 }
 

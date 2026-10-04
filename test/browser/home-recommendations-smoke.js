@@ -23,6 +23,9 @@ async (page) => {
   }), 'Place photos must fit the card without stretching its height');
   check((await cards.locator('.photo figcaption').first().textContent()).includes('CC BY-SA 4.0'), 'Photo author and license must be visible');
   check((await cards.locator('article').first().locator('.kind').textContent()) === '대표 장소', 'Cards must explain their discovery theme');
+  check((await cards.locator('.provenance').textContent()).includes('방문객 수 순위가 아닙니다'),
+    'Editorial picks must not claim measured visitor popularity');
+  check(await cards.locator('.crowd').isVisible(), 'The Seoul crowd signal must name its coverage separately from place cards');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('60–120분'), 'Cards must show approximate visit time');
   check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
   await page.waitForFunction(() => document.querySelector('home-recommendations')?.shadowRoot
@@ -45,6 +48,8 @@ async (page) => {
   check(await cards.locator('article').count() === 1 && await cards.locator('#island-name').count() === 1,
     'Discovery filters must show only the chosen place type');
   check(await cards.locator('button[data-filter=discoverFind]').getAttribute('aria-pressed') === 'true', 'The active filter must be announced');
+  check((await cards.locator('#island-name').locator('..').locator('.description').textContent()).includes('Why visit'),
+    'Editorial discovery cards must explain the reason to visit');
   await cards.locator('button[data-filter=all]').click();
   check((await cards.locator('.photo figcaption').first().textContent()).includes('Photo:'), 'Photo credits must translate');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('min'), 'Visit time must translate');
