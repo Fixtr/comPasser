@@ -2,6 +2,7 @@ import { listPublicCourses } from '../../itinerary/services/public-course-servic
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { t } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
+import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 
 class PublicCourses extends HTMLElement {
   constructor() {
@@ -72,6 +73,12 @@ class PublicCourses extends HTMLElement {
       const message = document.createElement('p');
       message.textContent = t(this.error ? 'publicCoursesError' : this.loaded ? 'publicCoursesEmpty' : 'publicCourseLoading');
       root.append(message);
+      if (this.loaded && !this.error) {
+        const action = document.createElement('button');
+        action.type = 'button'; action.textContent = t('publicCoursesShareFirst');
+        action.onclick = () => window.navigate(getCurrentUser() ? '/profile/trips' : '/login?next=%2Fprofile%2Ftrips');
+        root.append(action);
+      }
       return;
     }
     const cards = document.createElement('div'); cards.className = 'cards';

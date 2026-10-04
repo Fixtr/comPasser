@@ -187,6 +187,16 @@ test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이�
   expect(draft.startLocation).toBe('');
 });
 
+test('공개 코스가 없으면 게스트가 자기 코스를 공개하는 흐름으로 갈 수 있다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return []; }' }));
+  await page.goto('/');
+  const courses = page.locator('public-courses:visible');
+  await courses.scrollIntoViewIfNeeded();
+  await courses.getByRole('button', { name: '내 일정에서 코스 공개하기' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+});
+
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({

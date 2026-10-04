@@ -11,9 +11,10 @@ test('public course mentions count each course once across Korean and English na
   const courses = [
     { stops: [{ name: '경복궁' }, { name: '경복궁' }] },
     { stops: [{ name: 'Gyeongbokgung Palace' }] },
+    { stops: [{ name: 'Palace visit', location: 'Gyeongbokgung Palace, 161 Sajik-ro, Seoul' }] },
     { stops: [{ name: '서울숲' }] },
   ];
-  assert.equal(countCourseMentions(courses, cities).palace, 2);
+  assert.equal(countCourseMentions(courses, cities).palace, 3);
 });
 
 test('Seoul crowd accepts only fresh measurements for the named area', async () => {
