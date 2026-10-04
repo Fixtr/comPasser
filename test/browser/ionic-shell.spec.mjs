@@ -41,6 +41,28 @@ test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보�
   await expect(page.getByText('주소를 확인해 주세요.')).toBeVisible();
 });
 
+test('장소 저장 집계는 저장·취소와 정렬에 반영되고 필수 방문지 선택과 독립적이다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', emailVerified: true, providerData: [] };") }));
+  await page.route('**/src/domains/planner/services/discovery-saves.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function loadDiscoverySaves() { return { statistics: { forest: { count: 2, updatedAt: Date.now() } }, saved: [] }; }
+    export async function setDiscoveryPlaceSaved(placeId, saved) { return { saved, count: saved ? 3 : 2, updatedAt: Date.now() }; }
+  ` }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  const cards = page.locator('home-recommendations:visible');
+  await cards.scrollIntoViewIfNeeded();
+  await expect(cards.locator('button[data-save=forest]')).toBeEnabled();
+  await cards.locator('button[data-save=forest]').click();
+  await expect(cards.locator('button[data-save=forest]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(cards.locator('#forest-name').locator('..')).toContainText('이 장소를 저장한 계정 3개');
+  await expect(cards.locator('#discover-plan')).toBeDisabled();
+  await cards.locator('button[data-filter=popular]').click();
+  await expect(cards.locator('article').first().locator('h3')).toHaveText('서울숲');
+  await cards.locator('button[data-save=forest]').click();
+  await expect(cards.locator('button[data-save=forest]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(cards.locator('#forest-name').locator('..')).toContainText('이 장소를 저장한 계정 2개');
+});
+
 test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Switch to English' }).click();

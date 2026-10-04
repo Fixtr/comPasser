@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(new URL('../../functions/index.js', import.meta.url));
 const admin = require('firebase-admin');
 const { createAccountDeletion } = require('./account-deletion');
+const { createDiscoverySaves } = require('./discovery-saves');
 const app = admin.initializeApp({ projectId: 'demo-hackerton-deletion' }, 'deletion-integration');
 const db = app.firestore(); const auth = app.auth();
 test.after(() => app.delete());
@@ -14,6 +15,10 @@ test('real Admin SDK transactions and Auth emulator: failure checkpoint, retry, 
     let now; let authOffline = true;
     const user = await auth.createUser({ uid });
     now = Math.max(Date.now(), Date.parse(user.metadata.creationTime));
+    const saves = createDiscoverySaves({ db, now: () => now });
+    await Promise.all([saves.setSaved(uid, user.metadata.creationTime, now / 1000, 'island', true),
+        saves.setSaved(uid, user.metadata.creationTime, now / 1000, 'island', true)]);
+    assert.equal((await db.collection('discovery_popularity').doc('island').get()).data().count, 1);
     await db.collection('users').doc(uid).set({ phoneNumber: 'fixture-only' });
     await db.collection('itineraries').doc('integration-trip').set({ userId: uid });
     await db.collection('itineraries').doc('integration-other').set({ userId: 'other' });
@@ -26,6 +31,8 @@ test('real Admin SDK transactions and Auth emulator: failure checkpoint, retry, 
     assert.equal(result.state, 'pending'); assert.equal(result.stage, 'auth');
     assert.equal((await auth.getUser(uid)).metadata.creationTime, user.metadata.creationTime);
     assert.equal((await db.collection('users').doc(uid).get()).exists, false);
+    assert.equal((await db.collection('discovery_saves').doc(uid).get()).exists, false);
+    assert.equal((await db.collection('discovery_popularity').doc('island').get()).data().count, 0);
     assert.equal((await db.collection('itineraries').doc('integration-other').get()).exists, true);
     now += 60_001; authOffline = false;
     await service.retryDue();

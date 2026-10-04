@@ -12,6 +12,7 @@ const axios = require("axios");
 const cors = require("cors")({ origin: true });
 const { findPlannerRequestIssue } = require('./planner-request-validation.mjs');
 const { getSeoulCrowd } = require('./seoul-crowd');
+const { createDiscoverySaves } = require('./discovery-saves');
 
 const {
     ITINERARY_SCHEMA,
@@ -24,6 +25,7 @@ admin.initializeApp();
 
 const accountDeletion = createAccountDeletion({ db: admin.firestore(), auth: admin.auth(), log: logError });
 const generationCredits = createGenerationCredits({ db: admin.firestore() });
+const discoverySaves = createDiscoverySaves({ db: admin.firestore() });
 const isGenerationAdmin = user => user.email === 'sunkyu821@gmail.com' && user.emailVerified === true;
 function assertCurrentIdentity(request, user) {
     if (!Number.isFinite(Number(request.auth.token?.auth_time))
@@ -53,6 +55,13 @@ exports.getSeoulCrowd = onCall({ timeoutSeconds: 10, maxInstances: 5 }, async ()
         console.error('Seoul crowd unavailable:', error.message);
         throw new HttpsError('unavailable', '서울 실시간 혼잡 정보를 불러올 수 없습니다.');
     }
+});
+exports.setDiscoveryPlaceSaved = onCall({ timeoutSeconds: 15, maxInstances: 5 }, async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in first.');
+    const user = await admin.auth().getUser(request.auth.uid);
+    assertCurrentIdentity(request, user);
+    return deletionHandler(() => discoverySaves.setSaved(request.auth.uid, user.metadata.creationTime,
+        Number(request.auth.token.auth_time), request.data?.placeId, request.data?.saved))(request);
 });
 exports.retryAccountDeletions = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds: 60, maxInstances: 1 }, accountDeletion.retryDue);
 

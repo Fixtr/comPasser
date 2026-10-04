@@ -68,9 +68,14 @@ test('server requires authentication, explicit confirmation, recent auth_time an
 
 test('durable job deletes ONLY owned public courses, private itineraries, profile, then Auth; receipt has no personal data', async () => {
     const app = fixture({ courses: 2 });
+    app.docs.set('discovery_saves/owner', { placeIds: ['forest'] });
+    app.docs.set('discovery_saves/other', { placeIds: ['forest'] });
+    app.docs.set('discovery_popularity/forest', { count: 2, updatedAt: 0 });
     const result = await app.service.requestDeletion(app.request);
     assert.equal(result.state, 'completed');
-    assert.deepEqual(app.state.deletes, ['public_courses/trip0', 'public_courses/trip1', 'itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'users/owner', 'generation_credits/owner', 'auth/owner']);
+    assert.deepEqual(app.state.deletes, ['public_courses/trip0', 'public_courses/trip1', 'itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'discovery_saves/owner', 'users/owner', 'generation_credits/owner', 'auth/owner']);
+    assert.equal(app.docs.get('discovery_popularity/forest').count, 1);
+    assert.equal(app.docs.has('discovery_saves/other'), true);
     for (const path of ['users/other', 'generation_credits/other', 'itineraries/other', 'public_courses/other', 'shared_itineraries/public']) assert.equal(app.docs.has(path), true);
     assert.deepEqual(Object.keys(result).sort(), ['attempts', 'nextAttemptAt', 'receipt', 'stage', 'state']);
     assert.equal(app.job().stage, 'done');

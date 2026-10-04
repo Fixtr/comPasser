@@ -137,6 +137,14 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
             }
             if (job?.stage === 'profile') {
                 job = await change({ stage: 'auth' }, async tx => {
+                    const saveRef = db.collection('discovery_saves').doc(uid);
+                    const saved = await tx.get(saveRef);
+                    const refs = (saved.exists ? saved.data().placeIds : []).map(id => db.collection('discovery_popularity').doc(id));
+                    const statistics = await Promise.all(refs.map(stat => tx.get(stat)));
+                    statistics.forEach((stat, index) => {
+                        if (stat.exists) tx.set(refs[index], { count: Math.max(0, stat.data().count - 1), updatedAt: now() });
+                    });
+                    if (saved.exists) tx.delete(saveRef);
                     tx.delete(db.collection('users').doc(uid));
                     tx.delete(db.collection('generation_credits').doc(uid));
                 });

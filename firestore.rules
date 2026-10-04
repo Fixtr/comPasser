@@ -19,6 +19,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /discovery_popularity/{placeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /discovery_saves/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // users/{uid}: 프로필 문서. 현재 클라이언트가 쓰는 필드는 birthday뿐이다.
     // 과거 phoneNumber/isVerified를 구버전 클라이언트가 다시 기록하지 못하게 한다.
     match /users/{userId} {

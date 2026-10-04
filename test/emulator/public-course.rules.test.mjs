@@ -14,6 +14,16 @@ async function request(path, { method = 'GET', user, data, admin = false } = {})
   return fetch(`${root}/${path}`, { method, headers: { 'Content-Type': 'application/json', ...(admin ? { Authorization: 'Bearer owner' } : user ? { Authorization: `Bearer ${token(user)}` } : {}) }, ...(data ? { body: JSON.stringify({ fields: fields(data) }) } : {}) });
 }
 
+test('discovery counts are public, personal saves are owner-only, and clients cannot inflate counts', async () => {
+  await request('discovery_popularity/forest', { method: 'PATCH', admin: true, data: { count: 2, updatedAt: 2000000 } });
+  await request('discovery_saves/saveOwner', { method: 'PATCH', admin: true, data: { placeIds: ['forest'], identityCreatedAt: 'first' } });
+  assert.equal((await request('discovery_popularity/forest')).status, 200);
+  assert.equal((await request('discovery_saves/saveOwner', { user: 'saveOwner' })).status, 200);
+  for (const user of [undefined, 'someoneElse']) assert.equal((await request('discovery_saves/saveOwner', { user })).status, 403);
+  assert.equal((await request('discovery_popularity/forest', { method: 'PATCH', user: 'saveOwner', data: { count: 999 } })).status, 403);
+  assert.equal((await request('discovery_saves/saveOwner', { method: 'PATCH', user: 'saveOwner', data: { placeIds: ['forest'] } })).status, 403);
+});
+
 test('public courses require owner opt-in, bounded fields, and support unpublishing', async () => {
   const sourceId = 'publicSource';
   const path = `public_courses/${sourceId}`;

@@ -1,10 +1,10 @@
-import { t, applyTranslations } from '../../../utils/i18n.js';
+import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { icons } from '../../../ui/icons.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { countCourseMentions } from '../services/course-mentions.mjs';
 
-// Curated places, not a popularity ranking or live crowd measurement.
+// Curated catalogue; save counts measure interest within this service, not visits.
 // Addresses and guides checked against official Visit Seoul, VISITKOREA and Visit Jeju pages, 2026-10-04.
 export const cities = [
   { id: 'seoul', key: 'discoverSeoul', pair: ['palace', 'seochon'], pairReason: 'discoverSeoulPairReason', places: [
@@ -79,11 +79,15 @@ class HomeRecommendations extends HTMLElement {
     this.courseSampleSize = 0;
     this.courseStatus = 'loading';
     this.crowd = undefined;
+    this.popularity = {};
+    this.savedIds = [];
+    this.popularityStatus = 'loading';
     this.updateTexts = () => {
       this.renderCards();
       this.renderPair();
       this.renderCrowd();
       this.renderCourseStatus();
+      this.renderPopularityStatus();
       applyTranslations(this.shadowRoot);
       this.shadowRoot.getElementById('discover-eyebrow').textContent = `${t('discoverEyebrow')} · ${t(cities[this.cityIndex].key)}`;
       this.renderSelection();
@@ -131,6 +135,7 @@ class HomeRecommendations extends HTMLElement {
         .filters button { width: auto; min-width: 0; min-height: 44px; padding: 8px 12px; border-color: var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); }
         .filters button[aria-pressed="true"] { border-color: var(--cp-ink); background: var(--cp-ink); color: var(--cp-surface); box-shadow: none; }
         .cards.is-filtered { grid-template-columns: minmax(0, 360px); }
+        button[data-save] { margin-top: 8px; background: var(--cp-surface); color: var(--cp-ink); justify-content: center; }
         .selected-list { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         .selected-list button { width: auto; min-height: 44px; padding: 8px 12px; background: var(--cp-surface); color: var(--cp-ink); }
         .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
@@ -151,11 +156,12 @@ class HomeRecommendations extends HTMLElement {
         </div>
         <p class="rotation-hint" data-i18n="discoverRotationHint"></p>
         <div class="filters" role="group" data-i18n-aria="discoverFiltersLabel">
-          ${[['all', 'discoverFilterAll'], ['discoverLandmark', 'discoverLandmark'], ['discoverFind', 'discoverFind'], ['discoverWalk', 'discoverWalk']]
+          ${[['all', 'discoverFilterAll'], ['popular', 'discoverFilterPopular'], ['discoverLandmark', 'discoverLandmark'], ['discoverFind', 'discoverFind'], ['discoverWalk', 'discoverWalk']]
             .map(([filter, key]) => `<button type="button" data-filter="${filter}" data-i18n="${key}" aria-pressed="false"></button>`).join('')}
         </div>
         <p class="provenance" data-i18n="discoverEditorialNote"></p>
         <p class="provenance" id="discover-course-status" role="status"></p>
+        <p class="provenance" id="discover-popularity-status" role="status"></p>
         <div class="crowd" role="status" aria-live="polite"></div>
         <div class="cards"></div>
         <div class="pair"></div>
@@ -166,6 +172,8 @@ class HomeRecommendations extends HTMLElement {
         </div>
       </section>`;
     this.shadowRoot.addEventListener('click', event => {
+      const saveButton = event.target.closest('button[data-save]');
+      if (saveButton) { void this.toggleSaved(saveButton.dataset.save); return; }
       const cityButton = event.target.closest('button[data-city]');
       if (cityButton) {
         this.showCity(cities.findIndex(city => city.id === cityButton.dataset.city));
@@ -228,9 +236,16 @@ class HomeRecommendations extends HTMLElement {
   renderCards() {
     const city = cities[this.cityIndex];
     const cards = this.shadowRoot.querySelector('.cards');
-    cards.classList.toggle('is-filtered', this.filter !== 'all');
-    cards.innerHTML = city.places.filter(place => !place.pairOnly && (this.filter === 'all' || place.kind === this.filter)).map((place, index) => {
+    cards.classList.toggle('is-filtered', !['all', 'popular'].includes(this.filter));
+    const places = city.places.filter(place => !place.pairOnly && (['all', 'popular'].includes(this.filter) || place.kind === this.filter));
+    if (this.filter === 'popular') places.sort((a, b) => (this.popularity[b.id]?.count || 0) - (this.popularity[a.id]?.count || 0));
+    cards.innerHTML = places.map((place, index) => {
       const photo = photos[place.id];
+      const statistic = this.popularity[place.id];
+      const saved = this.savedIds.includes(place.id);
+      const updated = statistic?.updatedAt ? new Intl.DateTimeFormat(getLang() === 'ko' ? 'ko-KR' : 'en-US', {
+        timeZone: 'Asia/Seoul', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      }).format(new Date(statistic.updatedAt)) : '';
       return `
       <article aria-labelledby="${place.id}-name">
         <figure class="photo">
@@ -241,12 +256,14 @@ class HomeRecommendations extends HTMLElement {
         <p class="tag" data-i18n="${place.key}Tag"></p>
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
+        ${this.popularityStatus === 'ready' ? `<p class="evidence">${t('discoverSavedCount').replace('{0}', statistic?.count || 0)}${updated ? ` · ${t('discoverSavedUpdated').replace('{0}', updated)}` : ''}</p>` : ''}
         ${this.courseMentions[place.id] ? `<p class="evidence">${t('discoverCourseMentions').replace('{0}', this.courseMentions[place.id]).replace('{1}', this.courseSampleSize)}</p>` : ''}
         <p class="description"><strong>${t('discoverReason')} · </strong>${t(`${place.key}Description`)}</p>
         <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
         </button>
+        <button type="button" data-save="${place.id}" aria-pressed="${saved}" ${this.savingId || this.popularityStatus !== 'ready' ? 'disabled' : ''}>${t(this.savingId === place.id ? 'discoverSaving' : saved ? 'discoverUnsave' : 'discoverSave')}</button>
         <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
           <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
         </a>
@@ -291,8 +308,55 @@ class HomeRecommendations extends HTMLElement {
       ? t('discoverCourseEmpty') : this.courseStatus === 'unavailable' ? t('discoverCourseUnavailable') : '';
   }
 
+  renderPopularityStatus() {
+    const status = this.shadowRoot.getElementById('discover-popularity-status');
+    status.textContent = this.saveError
+      ? t('discoverSaveFailed') : t(this.popularityStatus === 'ready' ? 'discoverPopularityNote'
+        : this.popularityStatus === 'unavailable' ? 'discoverPopularityUnavailable' : 'discoverPopularityLoading');
+    if (this.popularityStatus === 'unavailable') {
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.textContent = t('tryAgainText');
+      retry.onclick = () => { this.popularityStatus = 'loading'; this.updateTexts(); void this.loadSavedSignals(); };
+      status.append(retry);
+    }
+  }
+
+  async loadSavedSignals() {
+    try {
+      const { loadDiscoverySaves } = await import('../services/discovery-saves.js');
+      const result = await loadDiscoverySaves();
+      this.popularity = result.statistics;
+      this.savedIds = result.saved;
+      this.popularityStatus = 'ready';
+    } catch (error) {
+      console.warn('Discovery saves unavailable:', error);
+      this.popularityStatus = 'unavailable';
+    }
+    if (this.isConnected) this.updateTexts();
+  }
+
+  async toggleSaved(placeId) {
+    if (this.savingId) return;
+    const { getCurrentUser } = await import('../../auth/services/firebase-auth.js');
+    const userId = getCurrentUser()?.uid;
+    if (!userId) { window.navigate('/login?next=%2Fhome'); return; }
+    this.savingId = placeId;
+    this.saveError = false;
+    this.updateTexts();
+    try {
+      const { setDiscoveryPlaceSaved } = await import('../services/discovery-saves.js');
+      const result = await setDiscoveryPlaceSaved(placeId, !this.savedIds.includes(placeId));
+      if (getCurrentUser()?.uid !== userId) return;
+      this.savedIds = result.saved ? [...new Set([...this.savedIds, placeId])] : this.savedIds.filter(id => id !== placeId);
+      this.popularity[placeId] = { count: result.count, updatedAt: result.updatedAt };
+      this.popularityStatus = 'ready';
+    } catch (error) { console.warn('Saving discovery place failed:', error); this.saveError = true; }
+    finally { this.savingId = null; if (this.isConnected) this.updateTexts(); }
+  }
+
   async loadSignals() {
     void this.loadCrowd();
+    void this.loadSavedSignals();
     try {
       const { listPublicCourses } = await import('../../itinerary/services/public-course-service.js');
       const courses = await listPublicCourses();
