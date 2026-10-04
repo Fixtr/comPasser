@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const { createAccountDeletion, LEASE_MS } = createRequire(import.meta.url)('../functions/account-deletion.js');
 
-function fixture({ trips = 3, courses = 0, batchSize = 2, maxBatches = 10 } = {}) {
+function fixture({ trips = 3, courses = 0, reviews = 0, batchSize = 2, maxBatches = 10 } = {}) {
     const state = { time: 1_800_000_000_000, user: { uid: 'owner', metadata: { creationTime: '2026-01-01' } }, fail: null, deletes: [], logs: [], beforeAuth: null };
     const docs = new Map([['users/owner', { phoneNumber: 'private' }], ['users/other', { keep: true }], ['generation_credits/owner', { balance: 1 }], ['generation_credits/other', { balance: 4 }], ['itineraries/other', { userId: 'other' }], ['shared_itineraries/public', { keep: true }]]);
     for (let i = 0; i < trips; i++) docs.set(`itineraries/trip${i}`, { userId: 'owner' });
     for (let i = 0; i < courses; i++) docs.set(`public_courses/trip${i}`, { ownerId: 'owner' });
     docs.set('public_courses/other', { ownerId: 'other' });
+    for (let i = 0; i < reviews; i++) docs.set(`course_reviews/review${i}`, { userId: 'owner' });
+    docs.set('course_reviews/other', { userId: 'other' });
     const snapshot = ref => ({ ref, id: ref.id, exists: docs.has(ref.path), data: () => structuredClone(docs.get(ref.path)) });
     function collection(name, filters = [], limit = Infinity, order) {
         return {
@@ -67,16 +69,17 @@ test('server requires authentication, explicit confirmation, recent auth_time an
 });
 
 test('durable job deletes ONLY owned public courses, private itineraries, profile, then Auth; receipt has no personal data', async () => {
-    const app = fixture({ courses: 2 });
+    const app = fixture({ courses: 2, reviews: 2 });
     app.docs.set('discovery_saves/owner', { placeIds: ['forest'] });
     app.docs.set('discovery_saves/other', { placeIds: ['forest'] });
     app.docs.set('discovery_popularity/forest', { count: 2, updatedAt: 0 });
     const result = await app.service.requestDeletion(app.request);
     assert.equal(result.state, 'completed');
-    assert.deepEqual(app.state.deletes, ['public_courses/trip0', 'public_courses/trip1', 'itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'discovery_saves/owner', 'users/owner', 'generation_credits/owner', 'auth/owner']);
+    assert.deepEqual(app.state.deletes, ['course_reviews/review0', 'course_reviews/review1', 'public_courses/trip0', 'public_courses/trip1', 'itineraries/trip0', 'itineraries/trip1', 'itineraries/trip2', 'discovery_saves/owner', 'users/owner', 'generation_credits/owner', 'auth/owner']);
     assert.equal(app.docs.get('discovery_popularity/forest').count, 1);
     assert.equal(app.docs.has('discovery_saves/other'), true);
     for (const path of ['users/other', 'generation_credits/other', 'itineraries/other', 'public_courses/other', 'shared_itineraries/public']) assert.equal(app.docs.has(path), true);
+    assert.equal(app.docs.has('course_reviews/other'), true);
     assert.deepEqual(Object.keys(result).sort(), ['attempts', 'nextAttemptAt', 'receipt', 'stage', 'state']);
     assert.equal(app.job().stage, 'done');
     assert.equal((await app.service.status({ data: { receipt: app.request.data.receipt } })).state, 'completed');

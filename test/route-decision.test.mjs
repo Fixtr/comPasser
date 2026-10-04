@@ -118,6 +118,14 @@ test('홈 추천에서 로그인해도 날짜 선택을 건너뛰지 않는다',
   }
 });
 
+test('커뮤니티 후기·코스 공개 로그인은 지정한 내부 화면으로 복귀한다', () => {
+  for (const value of ['/home', '/home?review=route123', '/profile/trips']) {
+    assert.equal(getSafeReturnPath(value), value);
+    assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), { action: 'redirect', to: value });
+    assert.equal(getSafeReturnPath(`${value}?delete=true`), null);
+  }
+});
+
 test('외부 주소·인코딩 우회·일정 외 주소는 복귀 주소로 사용하지 않는다', () => {
   for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', '/\\evil.example',
     '/share/abc?next=https://evil.example', '/view/abc#other', '/share/%2f%2fevil', '/share/../login',

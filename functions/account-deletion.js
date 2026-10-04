@@ -74,7 +74,7 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
             if (receiptSnapshot.exists) throw failure('invalid-argument', 'Receipt already used.');
             const next = {
                 receipt: request.data.receipt, identityCreatedAt: user.metadata.creationTime,
-                state: 'pending', stage: 'courses', attempts: 0,
+                state: 'pending', stage: 'reviews', attempts: 0,
                 createdAt: now(), updatedAt: now(), nextAttemptAt: now(),
                 leaseOwner: null, leaseUntil: 0,
             };
@@ -121,6 +121,13 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 return;
             }
             let job = claimed;
+            for (let batch = 0; job?.stage === 'reviews' && batch < maxBatches; batch++) {
+                job = await change({}, async tx => {
+                    const docs = await tx.get(db.collection('course_reviews').where('userId', '==', uid).limit(batchSize));
+                    for (const doc of docs.docs) tx.delete(doc.ref);
+                    return docs.empty ? { stage: 'courses' } : {};
+                });
+            }
             for (let batch = 0; job?.stage === 'courses' && batch < maxBatches; batch++) {
                 job = await change({}, async tx => {
                     const docs = await tx.get(db.collection('public_courses').where('ownerId', '==', uid).limit(batchSize));

@@ -210,17 +210,18 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
 test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이어진다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
-    export async function listPublicCourses() { return [{ id: 'route1', title: 'A quiet afternoon', review: 'Easy to walk', stops: [
+    export async function listPublicCourses() { return { courses: [{ id: 'route1', title: 'A quiet afternoon', review: 'Easy to walk', stops: [
       { name: 'Museum', location: 'Seoul Museum', stayMinutes: 90 },
       { name: 'Cafe', location: 'Seoul cafe', stayMinutes: 60 }
-    ] }]; }
+    ] }], hasMore: false }; }
+    export async function getPublicCourse() { return null; }
   ` }));
   await page.goto('/');
   const courses = page.locator('public-courses:visible');
   await courses.scrollIntoViewIfNeeded();
   await expect(courses.getByText('A quiet afternoon')).toBeVisible();
   await expect(courses.getByText('Easy to walk')).toBeVisible();
-  await courses.getByRole('button').click();
+  await courses.getByRole('button', { name: '이 코스로 일정 만들기' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
   const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   expect(draft.anchorSchedules.map(stop => stop.name)).toEqual(['Museum', 'Cafe']);
@@ -230,12 +231,62 @@ test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이�
 
 test('공개 코스가 없으면 게스트가 자기 코스를 공개하는 흐름으로 갈 수 있다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
-  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return []; }' }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return { courses: [], hasMore: false }; } export async function getPublicCourse() { return null; }' }));
   await page.goto('/');
   const courses = page.locator('public-courses:visible');
   await courses.scrollIntoViewIfNeeded();
   await courses.getByRole('button', { name: '내 일정에서 코스 공개하기' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+});
+
+test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·삭제한다', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    let mine = null;
+    export async function listPublicCourses() { return { courses: [{ id: 'reviewRoute', ownerId: 'another-user', title: 'Museum afternoon', review: '', stops: [
+      { name: 'Museum', location: 'Seoul Museum', stayMinutes: 90 }, { name: 'Cafe', location: 'Seoul cafe', stayMinutes: 60 }
+    ] }], hasMore: false }; }
+    export async function listCourseReviews() { return { reviews: mine ? [mine] : [], hasMore: false }; }
+    export async function getMyCourseReview() { return mine; }
+    export async function getPublicCourse() { return null; }
+    export async function saveCourseReview(course, input) { mine = { ...input, userId: 'test-user', walkingKm: Number(input.walkingKm), spentWon: Number(input.spentWon), visitMinutes: Number(input.visitMinutes) }; }
+    export async function deleteCourseReview() { mine = null; }
+  ` }));
+  await page.goto('/');
+  const courses = page.locator('public-courses:visible'); await courses.scrollIntoViewIfNeeded();
+  await expect(courses.getByText('Museum afternoon')).toBeVisible();
+  await courses.locator('select[name=city]').selectOption('busan');
+  await expect(courses.locator('article')).toHaveCount(0);
+  await courses.locator('select[name=city]').selectOption('seoul');
+  await courses.locator('input[name=search]').fill('missing');
+  await expect(courses.locator('article')).toHaveCount(0);
+  await courses.locator('input[name=search]').fill('museum');
+  await courses.locator('select[name=duration]').selectOption('short');
+  await expect(courses.locator('article')).toHaveCount(1);
+  await courses.getByRole('button', { name: '여행자 후기 보기·작성' }).click();
+  const reviews = courses.locator('course-reviews');
+  await reviews.getByRole('button', { name: '로그인하고 후기 쓰기' }).click();
+  await page.locator('login-view #email-input').last().fill('test@example.com');
+  await page.locator('login-view #password-input').last().fill('password');
+  await page.locator('login-view #email-login-btn').last().click();
+  await expect(page).toHaveURL(/\/home\?review=reviewRoute$/);
+  await reviews.locator('input[name=visitDate]').fill('2020-01-01');
+  await reviews.locator('input[name=walkingKm]').fill('3.5');
+  await reviews.locator('input[name=spentWon]').fill('20000');
+  await reviews.locator('input[name=visitMinutes]').fill('120');
+  await reviews.locator('textarea').fill('박물관은 시간이 더 필요했어요.');
+  await reviews.getByRole('button', { name: '후기 공개하기' }).click();
+  await page.locator('#app-confirm-host').getByRole('button', { name: '후기 공개하기' }).click();
+  await expect(reviews.locator('section .comment')).toHaveText('박물관은 시간이 더 필요했어요.');
+  await reviews.screenshot({ path: testInfo.outputPath('traveler-review-mobile.png') });
+  await reviews.locator('textarea').fill('수정한 후기');
+  await reviews.getByRole('button', { name: '내 후기 수정하기' }).click();
+  await page.locator('#app-confirm-host').getByRole('button', { name: '후기 공개하기' }).click();
+  await expect(reviews.locator('section .comment')).toHaveText('수정한 후기');
+  await reviews.getByRole('button', { name: '내 후기 삭제', exact: true }).click();
+  await page.locator('#app-confirm-host').getByRole('button', { name: '삭제', exact: true }).click();
+  await expect(reviews.locator('section')).toHaveCount(0);
 });
 
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {

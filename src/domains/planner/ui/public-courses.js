@@ -1,18 +1,22 @@
-import { listPublicCourses } from '../../itinerary/services/public-course-service.js';
+import { listPublicCourses, getPublicCourse } from '../../itinerary/services/public-course-service.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { t } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
+import { COURSE_CITIES, filterCourses } from '../../itinerary/services/course-community.mjs';
 
 class PublicCourses extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this.courses = [];
+    this.filters = { search: '', city: '', duration: '' };
     this.render = this.render.bind(this);
   }
 
   connectedCallback() {
+    const requestedReview = new URLSearchParams(window.location.search).get('review');
+    this.openReviewId = /^[a-zA-Z0-9]+$/.test(requestedReview || '') ? requestedReview : null;
     this.render();
     window.addEventListener('i18n-changed', this.render);
     this.shadowRoot.addEventListener('click', event => {
@@ -32,7 +36,8 @@ class PublicCourses extends HTMLElement {
       trackEvent('public_course_copy', { courseId: course.id });
       window.navigate('/login?next=%2Fpreference%2F1');
     });
-    if ('IntersectionObserver' in window) {
+    if (this.openReviewId) void this.load();
+    else if ('IntersectionObserver' in window) {
       this.observer = new IntersectionObserver(entries => {
         if (!entries[0]?.isIntersecting) return;
         this.observer.disconnect();
@@ -44,9 +49,20 @@ class PublicCourses extends HTMLElement {
 
   disconnectedCallback() { window.removeEventListener('i18n-changed', this.render); this.observer?.disconnect(); }
 
-  async load() {
-    try { this.courses = await listPublicCourses(); this.error = false; }
+  async load(more = false) {
+    if (this.loading) return;
+    this.loading = true;
+    try {
+      const result = await listPublicCourses(more ? this.cursor : null);
+      this.courses = more ? [...this.courses, ...result.courses.filter(course => !this.courses.some(saved => saved.id === course.id))] : result.courses;
+      if (this.openReviewId && !this.courses.some(course => course.id === this.openReviewId)) {
+        const requested = await getPublicCourse(this.openReviewId);
+        if (requested) this.courses.unshift({ id: this.openReviewId, ...requested });
+      }
+      this.cursor = result.cursor; this.hasMore = result.hasMore; this.error = false;
+    }
     catch (error) { console.error('Public courses unavailable:', error); this.error = true; }
+    this.loading = false;
     this.loaded = true;
     if (this.isConnected) this.render();
   }
@@ -65,6 +81,10 @@ class PublicCourses extends HTMLElement {
       .stops, .review { overflow-wrap:anywhere; }
       button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
       button:focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
+      .filters { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+      label { display:grid; gap:6px; flex:1 1 150px; }
+      input,select { width:100%; box-sizing:border-box; min-height:44px; padding:10px; font:inherit; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
+      .more { margin-top:16px; }
     `;
     const heading = document.createElement('h2'); heading.textContent = t('publicCoursesTitle');
     const intro = document.createElement('p'); intro.textContent = t('publicCoursesIntro');
@@ -73,6 +93,11 @@ class PublicCourses extends HTMLElement {
       const message = document.createElement('p');
       message.textContent = t(this.error ? 'publicCoursesError' : this.loaded ? 'publicCoursesEmpty' : 'publicCourseLoading');
       root.append(message);
+      if (this.error) {
+        const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry');
+        retry.onclick = () => void this.load(); root.append(retry);
+      }
+      if (this.courses.length) this.renderBrowse(root);
       if (this.loaded && !this.error) {
         const action = document.createElement('button');
         action.type = 'button'; action.textContent = t('publicCoursesShareFirst');
@@ -81,8 +106,40 @@ class PublicCourses extends HTMLElement {
       }
       return;
     }
-    const cards = document.createElement('div'); cards.className = 'cards';
-    for (const course of this.courses) {
+    this.renderBrowse(root);
+  }
+
+  renderBrowse(root) {
+    const filters = document.createElement('div'); filters.className = 'filters';
+    for (const [key, labelKey, options] of [
+      ['search', 'courseSearch', null],
+      ['city', 'courseCityFilter', [['', 'courseAllCities'], ...Object.keys(COURSE_CITIES).map(city => [city, `discover${city[0].toUpperCase()}${city.slice(1)}`])]],
+      ['duration', 'courseDurationFilter', [['', 'courseAllDurations'], ['short', 'courseDurationShort'], ['half', 'courseDurationHalf'], ['long', 'courseDurationLong']]],
+    ]) {
+      const label = document.createElement('label'); label.textContent = t(labelKey);
+      const control = document.createElement(options ? 'select' : 'input');
+      control.name = key;
+      if (options) for (const [value, text] of options) { const option = document.createElement('option'); option.value = value; option.textContent = t(text); control.append(option); }
+      else control.type = 'search';
+      control.value = this.filters[key];
+      control.addEventListener(options ? 'change' : 'input', () => { this.filters[key] = control.value; this.renderCards(); });
+      label.append(control); filters.append(label);
+    }
+    const hint = document.createElement('p'); hint.textContent = t('courseSearchScope');
+    this.cards = document.createElement('div'); this.cards.className = 'cards';
+    root.append(filters, hint, this.cards);
+    this.renderCards();
+    if (this.hasMore) {
+      const more = document.createElement('button'); more.className = 'more'; more.textContent = t('courseLoadMore');
+      more.onclick = () => { more.disabled = true; void this.load(true); }; root.append(more);
+    }
+  }
+
+  renderCards() {
+    this.cards.replaceChildren();
+    const filtered = filterCourses(this.courses, this.filters);
+    if (!filtered.length) { const empty = document.createElement('p'); empty.textContent = t('courseSearchEmpty'); this.cards.append(empty); }
+    for (const course of filtered) {
       const article = document.createElement('article');
       const label = document.createElement('span'); label.textContent = t('publicCoursesLabel');
       const title = document.createElement('h3'); title.textContent = course.title;
@@ -91,10 +148,26 @@ class PublicCourses extends HTMLElement {
       const review = document.createElement('p'); review.className = 'review'; review.textContent = course.review || '';
       const action = document.createElement('button'); action.type = 'button';
       action.dataset.course = course.id; action.textContent = t('courseCopyButton');
-      article.append(label, title, stops, review, action);
-      cards.append(article);
+      const reviews = document.createElement('button'); reviews.type = 'button'; reviews.textContent = t('courseReviewsButton'); reviews.setAttribute('aria-expanded', 'false');
+      reviews.onclick = async () => {
+        const old = article.querySelector('course-reviews');
+        if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); return; }
+        reviews.disabled = true;
+        try {
+          await import('./course-reviews.js');
+          if (!article.isConnected) return;
+          const panel = document.createElement('course-reviews'); panel.course = course;
+          article.append(panel); reviews.setAttribute('aria-expanded', 'true');
+        } catch { reviews.textContent = t('courseReviewsError'); }
+        finally { reviews.disabled = false; }
+      };
+      article.append(label, title, stops, review, action, reviews);
+      this.cards.append(article);
+      if (course.id === this.openReviewId) {
+        this.openReviewId = null;
+        void reviews.click(); article.scrollIntoView({ block: 'center' });
+      }
     }
-    root.append(cards);
   }
 }
 

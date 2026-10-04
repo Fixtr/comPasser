@@ -1,6 +1,8 @@
 const functions = require("firebase-functions");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { deletePublicationReviews } = require('./course-review-cleanup');
 const { error: logError } = require('firebase-functions/logger');
 const { createAccountDeletion } = require('./account-deletion');
 const { createGenerationCredits } = require('./generation-credits');
@@ -48,6 +50,12 @@ const deletionHandler = handler => async request => {
     }
 };
 exports.requestAccountDeletion = onCall({ timeoutSeconds: 60, maxInstances: 5 }, deletionHandler(accountDeletion.requestDeletion));
+exports.cleanupCourseReviews = onDocumentWritten({ document: 'public_courses/{courseId}', retry: true, timeoutSeconds: 540, maxInstances: 5 }, event => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || (after && before.createdAt?.isEqual?.(after.createdAt))) return;
+    return deletePublicationReviews(admin.firestore(), event.params.courseId, before.createdAt);
+});
 exports.getAccountDeletionStatus = onCall({ timeoutSeconds: 30, maxInstances: 5 }, deletionHandler(accountDeletion.status));
 exports.getSeoulCrowd = onCall({ timeoutSeconds: 10, maxInstances: 5 }, async () => {
     try { return await getSeoulCrowd(); }

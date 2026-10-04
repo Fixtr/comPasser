@@ -94,10 +94,40 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/itineraries/$(sourceId)).data.userId == request.auth.uid
         && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 60
         && request.resource.data.review is string && request.resource.data.review.size() <= 300
+        && request.resource.data.createdAt is timestamp
+        && (request.method != 'create' || request.resource.data.createdAt == request.time)
         && validPublicStops(request.resource.data.stops)
         && (request.method == 'create' || (resource.data.ownerId == request.auth.uid
-          && request.resource.data.createdAt == resource.data.createdAt));
+          && ((request.resource.data.stops == resource.data.stops && request.resource.data.createdAt == resource.data.createdAt)
+            || (request.resource.data.stops != resource.data.stops && request.resource.data.createdAt == request.time))));
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    function reviewIsPublic(data) {
+      let course = /databases/$(database)/documents/public_courses/$(data.courseId);
+      return exists(course) && data.courseCreatedAt == get(course).data.createdAt;
+    }
+
+    match /course_reviews/{reviewId} {
+      allow get: if !exists(/databases/$(database)/documents/course_reviews/$(reviewId))
+        || (request.auth != null && resource.data.userId == request.auth.uid)
+        || reviewIsPublic(resource.data);
+      allow list: if reviewIsPublic(resource.data);
+      allow create, update: if request.auth != null && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['userId', 'courseId', 'courseCreatedAt', 'createdAt', 'visitDate', 'comment', 'walkingKm', 'spentWon', 'visitMinutes'])
+        && request.resource.data.keys().hasAll(['userId', 'courseId', 'courseCreatedAt', 'createdAt', 'visitDate', 'comment', 'walkingKm', 'spentWon', 'visitMinutes'])
+        && request.resource.data.userId == request.auth.uid
+        && reviewId == request.resource.data.courseId + '_' + request.auth.uid
+        && (request.method == 'create' || resource.data.userId == request.auth.uid)
+        && reviewIsPublic(request.resource.data)
+        && get(/databases/$(database)/documents/public_courses/$(request.resource.data.courseId)).data.ownerId != request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.visitDate is string && request.resource.data.visitDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.comment is string && request.resource.data.comment.size() > 0 && request.resource.data.comment.size() <= 600
+        && (request.resource.data.walkingKm == null || (request.resource.data.walkingKm is number && request.resource.data.walkingKm >= 0 && request.resource.data.walkingKm <= 100))
+        && (request.resource.data.spentWon == null || (request.resource.data.spentWon is int && request.resource.data.spentWon >= 0 && request.resource.data.spentWon <= 10000000))
+        && (request.resource.data.visitMinutes == null || (request.resource.data.visitMinutes is int && request.resource.data.visitMinutes >= 0 && request.resource.data.visitMinutes <= 1440));
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
     // shared_itineraries/{id}: 공유 링크로 배포되는 일정. 비로그인 게스트도 조회 가능해야 한다

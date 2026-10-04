@@ -29,7 +29,8 @@ export function isHomePath(path) {
 
 /** 명시한 내부 화면만 복귀를 허용한다. 복귀 자체가 생성·삭제를 실행하지 않는다. */
 export function getSafeReturnPath(value) {
-  if (value === '/profile/security' || value === '/preference/1') return value;
+  if (value === '/profile/security' || value === '/profile/trips' || value === '/home' || value === '/preference/1') return value;
+  if (typeof value === 'string' && /^\/home\?review=[a-zA-Z0-9]+$/.test(value)) return value;
   return typeof value === 'string' && value.match(/^\/(?:share|view)\/[a-zA-Z0-9]+$/)?.[0] === value
     ? value
     : null;

@@ -1,6 +1,23 @@
 {
   "indexes": [
     {
+      "collectionGroup": "course_reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "courseCreatedAt", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "course_reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "courseCreatedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "account_deletions",
       "queryScope": "COLLECTION",
       "fields": [
