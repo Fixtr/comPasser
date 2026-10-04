@@ -4,11 +4,12 @@ const authModule = `
   export const missingFirebaseConfig = [];
   export const app = null;
   let currentUser = null;
-  let notify;
+  const listeners = new Set();
+  const notify = user => listeners.forEach(callback => callback(user));
   export function subscribeToAuthChanges(callback) {
-    notify = callback;
+    listeners.add(callback);
     setTimeout(() => callback(currentUser), 0);
-    return () => {};
+    return () => listeners.delete(callback);
   }
   export function getCurrentUser() { return currentUser; }
   export async function loginWithEmail() { currentUser = { uid: 'test-user', providerData: [], emailVerified: true }; notify(currentUser); }
@@ -39,6 +40,24 @@ test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보�
   await page.goto('/unknown-page');
   await expect(page).toHaveURL(/\/unknown-page$/);
   await expect(page.getByText('주소를 확인해 주세요.')).toBeVisible();
+});
+
+test('로그인 복원이 늦어도 장소 저장 정보를 자동으로 불러온다', async ({ page }) => {
+  const delayedAuth = authModule.replace('setTimeout(() => callback(currentUser), 0);', "setTimeout(() => { currentUser = { uid: 'test-user', emailVerified: true, providerData: [] }; callback(currentUser); }, 500);");
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: delayedAuth }));
+  await page.route('**/src/domains/planner/services/discovery-saves.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    import { getCurrentUser } from '../../auth/services/firebase-auth.js';
+    export async function loadDiscoverySaves() {
+      if (!getCurrentUser()) throw new Error('Auth restoration is still pending');
+      return { statistics: { forest: { count: 2, updatedAt: Date.now() } }, saved: ['forest'] };
+    }
+  ` }));
+  await page.goto('/home');
+  const cards = page.locator('home-recommendations:visible');
+  await cards.scrollIntoViewIfNeeded();
+  await expect(cards.locator('button[data-save=forest]')).toBeEnabled();
+  await expect(cards.locator('button[data-save=forest]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(cards.locator('#discover-popularity-status')).not.toContainText('지금 확인할 수 없습니다');
 });
 
 test('장소 저장 집계는 저장·취소와 정렬에 반영되고 필수 방문지 선택과 독립적이다', async ({ page }) => {

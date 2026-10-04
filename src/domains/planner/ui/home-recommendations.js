@@ -322,13 +322,20 @@ class HomeRecommendations extends HTMLElement {
   }
 
   async loadSavedSignals() {
+    const version = this.savedSignalsVersion = (this.savedSignalsVersion || 0) + 1;
+    this.savedIds = [];
+    this.popularityStatus = 'loading';
+    this.saveError = false;
+    if (this.isConnected) this.updateTexts();
     try {
       const { loadDiscoverySaves } = await import('../services/discovery-saves.js');
       const result = await loadDiscoverySaves();
+      if (version !== this.savedSignalsVersion || !this.isConnected) return;
       this.popularity = result.statistics;
       this.savedIds = result.saved;
       this.popularityStatus = 'ready';
     } catch (error) {
+      if (version !== this.savedSignalsVersion || !this.isConnected) return;
       console.warn('Discovery saves unavailable:', error);
       this.popularityStatus = 'unavailable';
     }
@@ -354,9 +361,15 @@ class HomeRecommendations extends HTMLElement {
     finally { this.savingId = null; if (this.isConnected) this.updateTexts(); }
   }
 
+  async watchSavedSignals() {
+    const { subscribeToAuthChanges } = await import('../../auth/services/firebase-auth.js');
+    if (!this.isConnected || this.unsubscribeSavedAuth) return;
+    this.unsubscribeSavedAuth = subscribeToAuthChanges(() => void this.loadSavedSignals());
+  }
+
   async loadSignals() {
     void this.loadCrowd();
-    void this.loadSavedSignals();
+    void this.watchSavedSignals();
     try {
       const { listPublicCourses } = await import('../../itinerary/services/public-course-service.js');
       const courses = await listPublicCourses();
@@ -447,6 +460,7 @@ class HomeRecommendations extends HTMLElement {
   connectedCallback() {
     this.updateTexts();
     this.startRotation();
+    if (this.signalsLoaded) void this.watchSavedSignals();
     this.crowdTimer = setInterval(() => {
       if (document.hidden) return;
       this.renderCrowd();
@@ -465,6 +479,9 @@ class HomeRecommendations extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.unsubscribeSavedAuth?.();
+    this.unsubscribeSavedAuth = null;
+    this.savedSignalsVersion = (this.savedSignalsVersion || 0) + 1;
     clearInterval(this.rotationTimer);
     clearInterval(this.crowdTimer);
     window.removeEventListener('i18n-changed', this.updateTexts);
