@@ -23,7 +23,7 @@ async (page) => {
   }), 'Place photos must fit the card without stretching its height');
   check((await cards.locator('.photo figcaption').first().textContent()).includes('CC BY-SA 4.0'), 'Photo author and license must be visible');
   check((await cards.locator('article').first().locator('.kind').textContent()) === '대표 장소', 'Cards must explain their discovery theme');
-  check((await cards.locator('.provenance').textContent()).includes('방문객 수 순위가 아닙니다'),
+  check((await cards.locator('.provenance').first().textContent()).includes('방문객 수 순위가 아닙니다'),
     'Editorial picks must not claim measured visitor popularity');
   check(await cards.locator('.crowd').isVisible(), 'The Seoul crowd signal must name its coverage separately from place cards');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('60–120분'), 'Cards must show approximate visit time');

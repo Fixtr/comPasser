@@ -77,11 +77,13 @@ class HomeRecommendations extends HTMLElement {
     this.filter = 'all';
     this.courseMentions = {};
     this.courseSampleSize = 0;
+    this.courseStatus = 'loading';
     this.crowd = undefined;
     this.updateTexts = () => {
       this.renderCards();
       this.renderPair();
       this.renderCrowd();
+      this.renderCourseStatus();
       applyTranslations(this.shadowRoot);
       this.shadowRoot.getElementById('discover-eyebrow').textContent = `${t('discoverEyebrow')} · ${t(cities[this.cityIndex].key)}`;
       this.renderSelection();
@@ -105,6 +107,7 @@ class HomeRecommendations extends HTMLElement {
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
         .evidence { margin: 0 0 12px; color: var(--cp-ink-2); font-size: 12px; line-height: 1.5; }
         .provenance { margin: -5px 0 16px; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
+        .provenance + .provenance { margin-top: 0; }
         .crowd { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--cp-rule); background: var(--cp-surface); font-size: 12px; line-height: 1.6; }
         .crowd p { margin: 0 0 4px; }
         .crowd a { color: inherit; text-underline-offset: 3px; }
@@ -152,6 +155,7 @@ class HomeRecommendations extends HTMLElement {
             .map(([filter, key]) => `<button type="button" data-filter="${filter}" data-i18n="${key}" aria-pressed="false"></button>`).join('')}
         </div>
         <p class="provenance" data-i18n="discoverEditorialNote"></p>
+        <p class="provenance" id="discover-course-status" role="status"></p>
         <div class="crowd" role="status" aria-live="polite"></div>
         <div class="cards"></div>
         <div class="pair"></div>
@@ -238,7 +242,7 @@ class HomeRecommendations extends HTMLElement {
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
         ${this.courseMentions[place.id] ? `<p class="evidence">${t('discoverCourseMentions').replace('{0}', this.courseMentions[place.id]).replace('{1}', this.courseSampleSize)}</p>` : ''}
-        <p class="description">${place.kind === 'discoverFind' ? `<strong>${t('discoverReason')} · </strong>` : ''}${t(`${place.key}Description`)}</p>
+        <p class="description"><strong>${t('discoverReason')} · </strong>${t(`${place.key}Description`)}</p>
         <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
@@ -282,6 +286,11 @@ class HomeRecommendations extends HTMLElement {
     panel.append(caveat, source);
   }
 
+  renderCourseStatus() {
+    this.shadowRoot.getElementById('discover-course-status').textContent = this.courseStatus === 'empty'
+      ? t('discoverCourseEmpty') : this.courseStatus === 'unavailable' ? t('discoverCourseUnavailable') : '';
+  }
+
   async loadSignals() {
     void this.loadCrowd();
     try {
@@ -289,8 +298,13 @@ class HomeRecommendations extends HTMLElement {
       const courses = await listPublicCourses();
       this.courseMentions = countCourseMentions(courses, cities);
       this.courseSampleSize = courses.length;
-      if (this.isConnected) { this.renderCards(); this.renderSelection(); }
-    } catch (error) { console.warn('Public course signals unavailable:', error); }
+      this.courseStatus = courses.length ? 'ready' : 'empty';
+      if (this.isConnected) { this.renderCards(); this.renderSelection(); this.renderCourseStatus(); }
+    } catch (error) {
+      console.warn('Public course signals unavailable:', error);
+      this.courseStatus = 'unavailable';
+      if (this.isConnected) this.renderCourseStatus();
+    }
   }
 
   async loadCrowd() {
