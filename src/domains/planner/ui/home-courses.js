@@ -2,6 +2,7 @@ import { cities } from './home-recommendations.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { t } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
+import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 
 class HomeCourses extends HTMLElement {
   constructor() {
@@ -70,6 +71,9 @@ class HomeCourses extends HTMLElement {
       action.dataset.city = city.id;
       action.textContent = t('courseCopyButton');
       article.append(label, title, reason, action);
+      const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(`curated-${city.id}`);
+      englishPage.textContent = t('publicRoutePageLink'); englishPage.style.display = 'block';
+      article.append(englishPage);
       cards.append(article);
     }
     root.append(style, heading, intro, cards);

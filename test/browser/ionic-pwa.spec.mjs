@@ -21,4 +21,6 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
   await expect(page.getByRole('heading', { name: '고정 일정에서 시작하는 여행' })).toBeVisible();
   await page.goto('/share/abc123');
   await expect(page.locator('ion-modal.ionic-result-sheet')).toBeVisible();
+  // Public pages must not display a cached copy after the owner unpublishes.
+  await expect(page.goto('/en/routes/curated-seoul')).rejects.toThrow();
 });

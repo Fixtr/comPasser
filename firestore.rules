@@ -64,13 +64,32 @@ service cloud.firestore {
         && request.resource.data.title.size() <= 100;
     }
 
+    function validVisitorInfo(info) {
+      return info is map && info.keys().hasOnly(['englishMenu', 'reservation', 'sourceUrl', 'checkedOn'])
+        && info.keys().hasAll(['englishMenu', 'reservation', 'sourceUrl', 'checkedOn'])
+        && info.englishMenu in ['unknown', 'available', 'unavailable']
+        && info.reservation in ['unknown', 'required', 'recommended', 'not_required']
+        && info.sourceUrl is string && info.sourceUrl.size() <= 500 && info.sourceUrl.matches('^https?://[^ ]+$')
+        && info.checkedOn is string && info.checkedOn.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
     function validPublicStop(stop) {
       return stop is map
-        && stop.keys().hasOnly(['name', 'location', 'stayMinutes'])
+        && stop.keys().hasOnly(['name', 'location', 'stayMinutes', 'englishName', 'visitorInfo'])
         && stop.keys().hasAll(['name', 'location', 'stayMinutes'])
         && stop.name is string && stop.name.size() > 0 && stop.name.size() <= 100
         && stop.location is string && stop.location.size() > 0 && stop.location.size() <= 200
-        && stop.stayMinutes is number && stop.stayMinutes >= 20 && stop.stayMinutes <= 360;
+        && stop.stayMinutes is number && stop.stayMinutes >= 20 && stop.stayMinutes <= 360
+        && (!('englishName' in stop) || (stop.englishName is string && stop.englishName.size() > 0 && stop.englishName.size() <= 100))
+        && (!('visitorInfo' in stop) || validVisitorInfo(stop.visitorInfo));
+    }
+
+    function validRouteExtras(data) {
+      return (!('titleEn' in data) || (data.titleEn is string && data.titleEn.size() > 0 && data.titleEn.size() <= 100))
+        && (!('credit' in data) || (data.credit is map && data.credit.keys().hasOnly(['name', 'url'])
+          && data.credit.keys().hasAll(['name', 'url']) && data.credit.name is string
+          && data.credit.name.size() > 0 && data.credit.name.size() <= 80 && data.credit.url is string
+          && data.credit.url.size() <= 500 && (data.credit.url == '' || data.credit.url.matches('^https?://[^ ]+$'))));
     }
 
     function validPublicStops(stops) {
@@ -86,7 +105,7 @@ service cloud.firestore {
     match /public_courses/{sourceId} {
       allow read: if true;
       allow create, update: if request.auth != null && canWriteAccountData()
-        && request.resource.data.keys().hasOnly(['ownerId', 'sourceId', 'title', 'stops', 'review', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['ownerId', 'sourceId', 'title', 'stops', 'review', 'createdAt', 'titleEn', 'credit'])
         && request.resource.data.keys().hasAll(['ownerId', 'sourceId', 'title', 'stops', 'review', 'createdAt'])
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.sourceId == sourceId
@@ -97,6 +116,7 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp
         && (request.method != 'create' || request.resource.data.createdAt == request.time)
         && validPublicStops(request.resource.data.stops)
+        && validRouteExtras(request.resource.data)
         && (request.method == 'create' || (resource.data.ownerId == request.auth.uid
           && ((request.resource.data.stops == resource.data.stops && request.resource.data.createdAt == resource.data.createdAt)
             || (request.resource.data.stops != resource.data.stops && request.resource.data.createdAt == request.time))));

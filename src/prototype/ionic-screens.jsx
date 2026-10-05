@@ -7,12 +7,33 @@ import { t } from '../utils/i18n.js';
 import '../domains/planner/ui/home-recommendations.js';
 import '../domains/planner/ui/home-courses.js';
 import '../domains/planner/ui/public-courses.js';
+import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
+import { addCourseToDraft } from '../domains/planner/services/course-draft.mjs';
 
 let generatedPlan = null;
 
 export function HomeScreen({ user, settings }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [importStatus, setImportStatus] = useState('');
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('course');
+    if (!id || !PUBLIC_ROUTE_ID.test(id)) return;
+    let cancelled = false;
+    setImportStatus('publicRouteImporting');
+    void (async () => {
+      try {
+        const course = curatedRoute(id) || await (await import('../domains/itinerary/services/public-course-service.js')).getPublicCourse(id);
+        if (cancelled) return;
+        if (!course) { setImportStatus('publicRouteGone'); return; }
+        plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), course, 'en'));
+        navigate('/login?next=%2Fpreference%2F1', { replace: true });
+      } catch { if (!cancelled) setImportStatus('publicRouteImportFailed'); }
+    })();
+    return () => { cancelled = true; };
+  }, [location.search, navigate]);
   return <IonPage><IonContent className="ion-padding shell-content">
+    {importStatus && <p role="status">{t(importStatus)}</p>}
     <div className="ionic-home-settings">{settings}</div>
     <div className="ionic-home">
       <div className="ionic-home-intro">
@@ -20,6 +41,7 @@ export function HomeScreen({ user, settings }) {
         <h1>{t('shellHomeTitle')}</h1>
         <p>{t('shellHomeDescription')}</p>
         <div className="ionic-home-actions">
+          <a href="/en/routes">{t('publicRouteDirectoryLink')}</a>
           <IonButton className="ionic-home-new" expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
           {user && <IonButton className="ionic-home-trips" expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
         </div>

@@ -11,6 +11,8 @@ import { t, applyTranslations } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { publishableStops } from '../../itinerary/services/public-course.mjs';
 import { getPublicCourse, publishCourse, unpublishCourse } from '../../itinerary/services/public-course-service.js';
+import { checkedVisitorInfo } from '../../itinerary/services/public-route.mjs';
+import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 
 /** 목록 자리에 한 줄짜리 안내를 놓는다(불러오는 중·실패·비어 있음). */
 function stateBlock(className, text) {
@@ -361,6 +363,15 @@ class ProfileView extends HTMLElement {
             title.placeholder = t('publicCourseTitlePlaceholder');
             title.setAttribute('aria-label', t('publicCourseTitlePlaceholder'));
             title.value = existing?.title || '';
+            const makeField = (key, type, value = '') => {
+                const label = document.createElement('label'); label.textContent = t(key);
+                const input = document.createElement('input'); input.type = type; input.value = value;
+                input.setAttribute('aria-label', t(key)); label.append(input);
+                return { label, input };
+            };
+            const titleEn = makeField('publicRouteEnglishTitle', 'text', existing?.titleEn); titleEn.input.maxLength = 100;
+            const creditName = makeField('publicRouteCreditName', 'text', existing?.credit?.name); creditName.input.maxLength = 80;
+            const creditUrl = makeField('publicRouteCreditUrl', 'url', existing?.credit?.url); creditUrl.input.maxLength = 500;
             const review = document.createElement('textarea');
             review.maxLength = 300;
             review.placeholder = t('publicCourseReviewPlaceholder');
@@ -377,13 +388,39 @@ class ProfileView extends HTMLElement {
                 description.textContent = `${stop.name} · ${stop.location}`;
                 label.append(input, description);
                 options.append(label);
+                const previous = existing?.stops.find(saved => saved.name === stop.name && saved.location === stop.location);
+                const details = document.createElement('details');
+                const summary = document.createElement('summary'); summary.textContent = t('publicRouteVisitorDetails');
+                const name = makeField('publicRouteEnglishPlaceName', 'text', previous?.englishName); name.input.maxLength = 100;
+                const selects = {};
+                for (const [key, labelKey, choices] of [
+                    ['englishMenu', 'publicRouteEnglishMenu', ['unknown', 'available', 'unavailable']],
+                    ['reservation', 'publicRouteReservation', ['unknown', 'required', 'recommended', 'not_required']],
+                ]) {
+                    const selectLabel = document.createElement('label'); selectLabel.textContent = t(labelKey);
+                    const select = document.createElement('select'); select.setAttribute('aria-label', t(labelKey));
+                    for (const value of choices) { const option = document.createElement('option'); option.value = value; option.textContent = t(`visitor_${value}`); select.append(option); }
+                    select.value = previous?.visitorInfo?.[key] || 'unknown'; selects[key] = select;
+                    selectLabel.append(select); details.append(selectLabel);
+                }
+                const source = makeField('publicRouteSource', 'url', previous?.visitorInfo?.sourceUrl); source.input.maxLength = 500;
+                const date = makeField('publicRouteCheckedOn', 'date', previous?.visitorInfo?.checkedOn);
+                const notice = document.createElement('p'); notice.textContent = t('publicRouteSourceNotice');
+                details.prepend(summary, name.label); details.append(source.label, date.label, notice); options.append(details);
+                input._readStop = () => {
+                    const visitorInfo = checkedVisitorInfo({ englishMenu: selects.englishMenu.value, reservation: selects.reservation.value,
+                        sourceUrl: source.input.value.trim(), checkedOn: date.input.value });
+                    return { ...stop, ...(name.input.value.trim() ? { englishName: name.input.value.trim() } : {}), ...(visitorInfo ? { visitorInfo } : {}) };
+                };
             }
             const feedback = document.createElement('p');
             feedback.setAttribute('role', 'status');
             const publish = document.createElement('button');
             publish.type = 'button'; publish.textContent = t(existing ? 'publicCourseUpdate' : 'publicCoursePublish');
             publish.onclick = async () => {
-                const selected = [...options.querySelectorAll('input:checked')].map(input => input._stop);
+                let selected;
+                try { selected = [...options.querySelectorAll('input[type=checkbox]:checked')].map(input => input._readStop()); }
+                catch (error) { feedback.textContent = t(error.message); return; }
                 if (!title.value.trim() || selected.length < 2) {
                     feedback.textContent = t('publicCourseValidation'); return;
                 }
@@ -391,16 +428,20 @@ class ProfileView extends HTMLElement {
                 if (!approved) return;
                 publish.disabled = true;
                 try {
-                    await publishCourse(item.id, { title: title.value, stops: selected, review: review.value });
+                    await publishCourse(item.id, { title: title.value, stops: selected, review: review.value,
+                        titleEn: titleEn.input.value, creditName: creditName.input.value, creditUrl: creditUrl.input.value });
                     feedback.textContent = t('publicCourseSaved');
+                    const link = document.createElement('a'); link.href = getPublicRouteUrl(item.id); link.textContent = t('publicRoutePageLink');
+                    feedback.append(document.createElement('br'), link);
                     showToast(t('publicCourseSaved'));
                 } catch (error) {
                     console.error('Public course publishing failed:', error);
-                    feedback.textContent = t('publicCourseFailed');
+                    feedback.textContent = t(error.message === 'publicRouteExtrasInvalid' ? error.message : 'publicCourseFailed');
                 } finally { publish.disabled = false; }
             };
-            editor.append(notice, title, options, review, publish);
+            editor.append(notice, title, titleEn.label, creditName.label, creditUrl.label, options, review, publish);
             if (existing) {
+                const link = document.createElement('a'); link.href = getPublicRouteUrl(item.id); link.textContent = t('publicRoutePageLink'); editor.append(link);
                 const remove = document.createElement('button');
                 remove.type = 'button'; remove.textContent = t('publicCourseUnpublish');
                 remove.onclick = async () => {

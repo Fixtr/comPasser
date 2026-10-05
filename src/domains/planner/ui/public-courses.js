@@ -4,6 +4,8 @@ import { t } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { COURSE_CITIES, filterCourses } from '../../itinerary/services/course-community.mjs';
+import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
+import { addCourseToDraft } from '../services/course-draft.mjs';
 
 class PublicCourses extends HTMLElement {
   constructor() {
@@ -24,15 +26,7 @@ class PublicCourses extends HTMLElement {
       if (!button) return;
       const course = this.courses.find(item => item.id === button.dataset.course);
       if (!course) return;
-      const draft = plannerDraftStore.read();
-      const anchors = [...draft.anchorSchedules];
-      for (const stop of course.stops) {
-        if (!anchors.some(item => item.name === stop.name && item.location === stop.location)) {
-          anchors.push({ day: 1, name: stop.name, location: stop.location, time: '', endTime: '',
-            flexible: true, stayMinutes: stop.stayMinutes });
-        }
-      }
-      plannerDraftStore.save({ ...draft, anchorSchedules: anchors, selectedWaypoints: [] });
+      plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), course));
       trackEvent('public_course_copy', { courseId: course.id });
       window.navigate('/login?next=%2Fpreference%2F1');
     });
@@ -162,6 +156,9 @@ class PublicCourses extends HTMLElement {
         finally { reviews.disabled = false; }
       };
       article.append(label, title, stops, review, action, reviews);
+      const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);
+      englishPage.textContent = t('publicRoutePageLink'); englishPage.style.display = 'block';
+      article.append(englishPage);
       this.cards.append(article);
       if (course.id === this.openReviewId) {
         this.openReviewId = null;

@@ -6,6 +6,7 @@ functions/node_modules/
 test-results/
 playwright-report/
 .firebase/
+.wrangler/
 
 # --- Local env files (절대 커밋 금지) ---
 .env

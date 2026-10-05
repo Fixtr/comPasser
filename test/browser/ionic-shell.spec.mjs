@@ -21,6 +21,98 @@ const authModule = `
   export async function logout() { currentUser = null; notify(null); }
 `;
 
+test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 방문지를 로그인까지 유지한다', async ({ page }, testInfo) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = async value => { window.copiedAddress = value; };
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/routes/curated-seoul');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Seoul');
+  await expect(page.getByText('English menu: Not checked').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Copy local address' }).first().click();
+  expect(await page.evaluate(() => window.copiedAddress)).toContain('서울');
+  expect(await page.locator('.qr').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  const qrResponse = await page.request.get('/en/routes/curated-seoul/qr.svg?download=1');
+  expect(qrResponse.headers()['content-disposition']).toContain('attachment');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('english-route-mobile.png'), fullPage: true });
+  await page.getByLabel('Start near your accommodation (optional)').fill('My hostel near Seoul Station');
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  expect(draft.startLocation).toBe('My hostel near Seoul Station');
+  expect(draft.endLocation).toBe('');
+  expect(draft.anchorSchedules).toHaveLength(2);
+  expect(draft.anchorSchedules.every(stop => stop.flexible && !stop.time && !stop.endTime)).toBe(true);
+  expect(draft.anchorSchedules[0].name).toBe('Gyeongbokgung Palace');
+  await page.reload();
+  await page.locator('login-view #email-input').last().fill('test@example.com');
+  await page.locator('login-view #password-input').last().fill('password');
+  await page.locator('login-view #email-login-btn').last().click();
+  await expect(page).toHaveURL(/\/preference\/1$/);
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation)).toBe(draft.startLocation);
+});
+
+test('영문 여행자 코스 가져오기 실패는 로그인으로 보내지 않고 다시 시도할 수 있다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return { courses: [], hasMore: false }; } export async function getPublicCourse() { return null; }' }));
+  await page.goto('/home?course=removedRoute&lang=en');
+  await expect(page.getByRole('status').filter({ hasText: 'This route is no longer public.' })).toBeVisible();
+  await expect(page).toHaveURL(/course=removedRoute/);
+});
+
+test('공개 코스 편집은 출처 없는 방문 정보를 거부하고 승인한 영문·작성자 정보만 전달한다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
+  await page.route('**/src/lib/firestore-lazy.mjs', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function loadFirestore() { return { db: {}, doc: () => ({}), getDoc: async () => ({ exists: () => false }) }; }' }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function getUserItineraries() { return [{ id: 'route1', title: 'My private trip', itineraryPlan: { days: [{ scheduleItems: [
+      { type: 'departure', title: 'Hotel', location: 'Private hotel address' },
+      { type: 'attraction', title: 'Museum', location: 'Seoul museum', duration: 90 },
+      { type: 'dining', title: 'Cafe', location: 'Seoul cafe', duration: 60 }
+    ] }] } }]; }
+    export async function saveItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+    export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
+    export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
+    export async function watchSharedItinerary() {} export async function getItineraryById() {}
+  ` }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function getPublicCourse() { return null; }
+    export async function publishCourse(id, data) { window.publishedRoute = data; }
+    export async function unpublishCourse() {}
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+  ` }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/profile/trips');
+  const profile = page.locator('profile-view:visible');
+  await profile.getByRole('button', { name: '코스 공개·관리' }).click();
+  const editor = profile.locator('.public-course-editor');
+  await editor.getByLabel('공개 코스 제목 (여행 날짜·숙소 정보 제외)').fill('박물관 오후');
+  await editor.getByLabel('영문 코스 제목 (선택)').fill('Museum afternoon');
+  await editor.getByLabel('공개 작성자 이름·채널명 (선택)').fill('Travel creator');
+  await editor.getByLabel('원본 영상·게시물 링크 (선택)').fill('https://example.com/video');
+  const details = editor.locator('details').first();
+  await details.locator('summary').click();
+  await details.getByLabel('영어 메뉴', { exact: true }).selectOption('available');
+  await editor.getByRole('button', { name: '이 코스 공개하기' }).click();
+  await expect(editor.getByRole('status')).toContainText('올바른 출처 URL');
+  expect(await page.evaluate(() => window.publishedRoute)).toBeUndefined();
+  await details.getByLabel('영문 장소명 (선택)').fill('Museum');
+  await details.getByLabel('확인한 출처 URL').fill('https://example.com/menu');
+  await details.getByLabel('확인 날짜').fill('2020-01-01');
+  await editor.getByRole('button', { name: '이 코스 공개하기' }).click();
+  await page.locator('#app-confirm-host .confirm-ok').click();
+  await expect(editor.getByRole('link', { name: '영문 코스·공유·QR 보기' })).toHaveAttribute('href', /\/en\/routes\/route1$/);
+  const published = await page.evaluate(() => window.publishedRoute);
+  expect(published.stops).toHaveLength(2);
+  expect(published.stops[0].visitorInfo.englishMenu).toBe('available');
+  expect(published.creditName).toBe('Travel creator');
+  expect(JSON.stringify(published)).not.toContain('Private hotel');
+  expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+});
+
 test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주소로 돌아온다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.goto('/share/abc123');

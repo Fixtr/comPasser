@@ -111,7 +111,10 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange, onLanguage
 
 function Shell() {
   const [auth, setAuth] = useState({ user: null, settled: !!missingFirebaseConfig.length });
-  const [lang, setLanguage] = useState(getLang);
+  const [lang, setLanguage] = useState(() => {
+    if (new URLSearchParams(window.location.search).get('lang') === 'en') setLang('en');
+    return getLang();
+  });
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

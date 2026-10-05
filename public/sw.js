@@ -72,6 +72,9 @@ self.addEventListener('fetch', (event) => {
   // 외부 도메인(Firebase, Google, 광고 등)은 그대로 통과시킨다.
   if (!isSameOrigin(url)) return;
 
+  // Public route pages must never restore an unpublished snapshot from offline caches.
+  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') return;
+
   // 서비스 워커 자신은 캐시하지 않는다(업데이트가 막힌다).
   if (url.pathname === '/sw.js') return;
 

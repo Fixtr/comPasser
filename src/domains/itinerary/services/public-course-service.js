@@ -1,6 +1,7 @@
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { validateCourseReview } from './course-community.mjs';
+import { preparePublicRouteExtras } from './public-route.mjs';
 
 export async function listPublicCourses(after = null) {
   const { db, collection, query, orderBy, limit, getDocsFromServer, startAfter } = await loadFirestore();
@@ -16,16 +17,19 @@ export async function getPublicCourse(sourceId) {
   return snapshot.exists() ? snapshot.data() : null;
 }
 
-export async function publishCourse(sourceId, { title, stops, review }) {
+export async function publishCourse(sourceId, { title, stops, review, titleEn, creditName, creditUrl }) {
   const ownerId = getCurrentUser()?.uid;
   if (!ownerId || !sourceId || !title?.trim() || stops.length < 2 || stops.length > 6) throw new Error('Invalid public course');
   const { db, doc, getDoc, setDoc, serverTimestamp } = await loadFirestore();
   const ref = doc(db, 'public_courses', sourceId);
   const previous = await getDoc(ref);
-  const signature = places => JSON.stringify(places.map(({ name, location, stayMinutes }) => [name, location, stayMinutes]));
+  const signature = places => JSON.stringify(places.map(stop => [stop.name, stop.location, stop.stayMinutes,
+    stop.englishName || '', stop.visitorInfo ? [stop.visitorInfo.englishMenu, stop.visitorInfo.reservation,
+      stop.visitorInfo.sourceUrl, stop.visitorInfo.checkedOn] : null]));
   const samePlaces = previous.exists() && signature(previous.data().stops) === signature(stops);
   await setDoc(ref, {
     ownerId, sourceId, title: title.trim(), stops, review: review.trim(),
+    ...preparePublicRouteExtras({ titleEn, creditName, creditUrl }),
     createdAt: samePlaces ? previous.data().createdAt : serverTimestamp(),
   });
 }

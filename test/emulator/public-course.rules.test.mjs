@@ -55,6 +55,23 @@ test('public courses require owner opt-in, bounded fields, and support unpublish
     updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }],
   }] }) });
   assert.equal(reset.status, 200, await reset.text());
+  const latest = new Date((await (await request(path)).json()).fields.createdAt.timestampValue);
+  const extras = { ...changed, createdAt: latest, titleEn: 'Museum and cafe', credit: { name: 'Travel creator', url: 'https://example.com/post' } };
+  assert.equal((await request(path, { method: 'PATCH', user: 'publisher', data: extras })).status, 200);
+  const visitorInfo = { englishMenu: 'available', reservation: 'recommended', sourceUrl: 'https://example.com/menu', checkedOn: '2026-10-04' };
+  const withInfo = { ...extras, stops: [{ ...stops[0], englishName: 'Museum', visitorInfo }, stops[1]] };
+  delete withInfo.createdAt;
+  const publishInfo = payload => fetch(`${root}:commit`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token('publisher')}` }, body: JSON.stringify({ writes: [{
+    update: { name: `projects/${project}/databases/(default)/documents/${path}`, fields: fields(payload) },
+    updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }],
+  }] }) });
+  for (const patch of [{ sourceUrl: '' }, { sourceUrl: 'javascript:alert(1)' }, { checkedOn: '' }, { privateNote: 'hotel' }]) {
+    assert.equal((await publishInfo({ ...withInfo, stops: [{ ...withInfo.stops[0], visitorInfo: { ...visitorInfo, ...patch } }, stops[1]] })).status, 403);
+  }
+  assert.equal((await publishInfo({ ...withInfo, credit: { name: 'Creator', url: 'javascript:alert(1)' } })).status, 403);
+  const checked = await publishInfo(withInfo); assert.equal(checked.status, 200, await checked.text());
+  const guest = await request(path); assert.equal(guest.status, 200);
+  assert.equal((await guest.json()).fields.stops.arrayValue.values[0].mapValue.fields.englishName.stringValue, 'Museum');
   assert.equal((await request(path, { method: 'DELETE', user: 'intruder' })).status, 403);
   assert.equal((await request(path, { method: 'DELETE', user: 'publisher' })).status, 200);
   assert.equal((await request(path)).status, 404);
