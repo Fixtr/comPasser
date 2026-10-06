@@ -52,7 +52,7 @@ export function renderPublicRoute(course, origin) {
     <section class="start"><label for="start-location">Start near your accommodation (optional)</label>
     <input id="start-location" maxlength="200" placeholder="Enter a hotel, station or address"></section>
     <div class="actions"><a class="action" id="plan-route" href="/home?course=${e(course.id)}&amp;lang=en">Plan with these places</a>
-      ${course.curated ? '' : `<a href="/home?review=${e(course.id)}&amp;lang=en">Traveler reviews</a>`}</div>
+      ${course.curated ? '' : `<a href="/courses?review=${e(course.id)}&amp;lang=en">Traveler reviews</a>`}</div>
     <p class="muted">Places become required visits. Check travel times and opening hours in your generated itinerary.</p>
     <section class="share"><h2>Share this route</h2><p>Use this link in a video, travel post or accommodation guide.</p>
       <code>${e(canonical)}</code><img class="qr" src="/en/routes/${e(course.id)}/qr.svg" alt="QR code for this route" width="190" height="190">

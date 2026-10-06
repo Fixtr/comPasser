@@ -4,9 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { t } from '../utils/i18n.js';
-import '../domains/planner/ui/home-recommendations.js';
-import '../domains/planner/ui/home-courses.js';
-import '../domains/planner/ui/public-courses.js';
+import '../domains/planner/ui/home-preview.js';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
 import { addCourseToDraft } from '../domains/planner/services/course-draft.mjs';
 
@@ -16,6 +14,14 @@ export function HomeScreen({ user, settings }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [importStatus, setImportStatus] = useState('');
+
+  useEffect(() => {
+    const reviewId = new URLSearchParams(location.search).get('review');
+    if (reviewId && /^[a-zA-Z0-9]+$/.test(reviewId)) {
+      navigate(`/courses?review=${encodeURIComponent(reviewId)}`, { replace: true });
+    }
+  }, [location.search, navigate]);
+
   useEffect(() => {
     const id = new URLSearchParams(location.search).get('course');
     if (!id || !PUBLIC_ROUTE_ID.test(id)) return;
@@ -32,6 +38,7 @@ export function HomeScreen({ user, settings }) {
     })();
     return () => { cancelled = true; };
   }, [location.search, navigate]);
+
   return <IonPage><IonContent className="ion-padding shell-content">
     {importStatus && <p role="status">{t(importStatus)}</p>}
     <div className="ionic-home-settings">{settings}</div>
@@ -41,12 +48,43 @@ export function HomeScreen({ user, settings }) {
         <h1>{t('shellHomeTitle')}</h1>
         <p>{t('shellHomeDescription')}</p>
         <div className="ionic-home-actions">
-          <a href="/en/routes">{t('publicRouteDirectoryLink')}</a>
           <IonButton className="ionic-home-new" expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
-          {user && <IonButton className="ionic-home-trips" expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
+          {user && <a className="ionic-home-trips-link" href="/profile/trips" onClick={e => { e.preventDefault(); navigate('/profile/trips'); }}>{t('myItineraries')}</a>}
         </div>
       </div>
+      <home-preview />
+    </div>
+  </IonContent></IonPage>;
+}
+
+export function RecommendScreen({ settings }) {
+  useEffect(() => {
+    void import('../domains/planner/ui/home-recommendations.js');
+  }, []);
+  return <IonPage><IonContent className="ion-padding shell-content">
+    <div className="ionic-page-nav">
+      <IonButton fill="clear" onClick={() => window.navigate('/')}>← {t('shellBack')}</IonButton>
+      {settings}
+    </div>
+    <div className="ionic-route-page">
       <home-recommendations />
+    </div>
+  </IonContent></IonPage>;
+}
+
+export function CoursesScreen({ settings }) {
+  useEffect(() => {
+    void Promise.all([
+      import('../domains/planner/ui/home-courses.js'),
+      import('../domains/planner/ui/public-courses.js'),
+    ]);
+  }, []);
+  return <IonPage><IonContent className="ion-padding shell-content">
+    <div className="ionic-page-nav">
+      <IonButton fill="clear" onClick={() => window.navigate('/')}>← {t('shellBack')}</IonButton>
+      {settings}
+    </div>
+    <div className="ionic-route-page">
       <home-courses />
       <public-courses />
     </div>

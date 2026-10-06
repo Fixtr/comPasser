@@ -144,7 +144,7 @@ test('로그인 복원이 늦어도 장소 저장 정보를 자동으로 불러�
       return { statistics: { forest: { count: 2, updatedAt: Date.now() } }, saved: ['forest'] };
     }
   ` }));
-  await page.goto('/home');
+  await page.goto('/recommend');
   const cards = page.locator('home-recommendations:visible');
   await cards.scrollIntoViewIfNeeded();
   await expect(cards.locator('button[data-save=forest]')).toBeEnabled();
@@ -159,7 +159,7 @@ test('장소 저장 집계는 저장·취소와 정렬에 반영되고 필수 �
     export async function setDiscoveryPlaceSaved(placeId, saved) { return { saved, count: saved ? 3 : 2, updatedAt: Date.now() }; }
   ` }));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/home');
+  await page.goto('/recommend');
   const cards = page.locator('home-recommendations:visible');
   await cards.scrollIntoViewIfNeeded();
   await expect(cards.locator('button[data-save=forest]')).toBeEnabled();
@@ -225,7 +225,7 @@ test('여행 취향을 고르면 기존 입력 화면으로 이어진다', async
   await expect(page.locator('travel-form:visible #travel-form')).toHaveCSS('display', 'grid');
 });
 
-test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택한 필수 방문지를 유지한다', async ({ page }, testInfo) => {
+test('추천 장소와 코스는 각각의 화면에서 선택하고 로그인 후에도 선택한 필수 방문지를 유지한다', async ({ page }, testInfo) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: `
     class PlaceInput extends HTMLElement {
@@ -237,36 +237,20 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
     export const getMapsLoader = () => ({ importLibrary: async () => ({}) });
   ` }));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await expect(page.locator('.ionic-home')).toHaveCSS('display', 'block');
+  await page.goto('/recommend');
   const cards = page.locator('home-recommendations:visible');
   await expect(cards.locator('article')).toHaveCount(3);
-  const courses = page.locator('home-courses:visible');
-  await expect(courses.locator('article')).toHaveCount(6);
   await page.getByRole('button', { name: 'Switch to English' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('Seoul Forest');
   await page.screenshot({ path: testInfo.outputPath('recommendations-mobile.png'), fullPage: true });
+
+  await page.goto('/courses');
+  const courses = page.locator('home-courses:visible');
+  await expect(courses.locator('article')).toHaveCount(6);
+  await page.screenshot({ path: testInfo.outputPath('courses-mobile.png'), fullPage: true });
+
   await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(page.locator('.ionic-home')).toHaveCSS('display', 'grid');
-  await expect(page.locator('.ionic-home-settings .ionic-settings')).toHaveCSS('position', 'static');
-  const columns = await page.locator('.ionic-home').evaluate(home => {
-    const intro = home.querySelector('.ionic-home-intro').getBoundingClientRect();
-    const recommendations = home.querySelector('home-recommendations').getBoundingClientRect();
-    const courses = home.querySelector('home-courses').getBoundingClientRect();
-    return { introRight: intro.right, recommendationsLeft: recommendations.left, coursesLeft: courses.left };
-  });
-  expect(columns.coursesLeft).toBeGreaterThan(columns.introRight);
-  expect(Math.abs(columns.coursesLeft - columns.recommendationsLeft)).toBeLessThan(2);
-  await courses.scrollIntoViewIfNeeded();
-  const scrolled = await page.locator('.ionic-home').evaluate(home => {
-    const intro = home.querySelector('.ionic-home-intro').getBoundingClientRect();
-    const courses = home.querySelector('home-courses').getBoundingClientRect();
-    const settings = document.querySelector('.ionic-home-settings').getBoundingClientRect();
-    return { introRight: intro.right, coursesLeft: courses.left, settingsBottom: settings.bottom, coursesTop: courses.top };
-  });
-  expect(scrolled.coursesLeft).toBeGreaterThan(scrolled.introRight);
-  expect(scrolled.settingsBottom).toBeLessThan(scrolled.coursesTop);
-  await page.screenshot({ path: testInfo.outputPath('courses-desktop.png') });
+  await page.goto('/recommend');
   await page.getByRole('button', { name: '한국어로 변경' }).click();
   await expect(cards.locator('#forest-name')).toHaveText('서울숲');
   await page.screenshot({ path: testInfo.outputPath('recommendations-desktop.png'), fullPage: true });
@@ -291,7 +275,8 @@ test('홈 추천 카드는 게스트에게 보이고 로그인 후에도 선택�
   await expect(page).toHaveURL(/\/plan$/);
   await expect(page.locator('travel-form .anchor-item .anchor-name').last()).toHaveValue('Seoul Forest');
   await expect(page.locator('travel-form .anchor-item .anchor-location input').last()).toHaveValue('Seoul Forest, 273 Ttukseom-ro, Seongdong-gu, Seoul');
-  await page.goto('/');
+
+  await page.goto('/courses');
   await courses.locator('button[data-city=busan]').click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
   const courseDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
@@ -308,7 +293,7 @@ test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이�
     ] }], hasMore: false }; }
     export async function getPublicCourse() { return null; }
   ` }));
-  await page.goto('/');
+  await page.goto('/courses');
   const courses = page.locator('public-courses:visible');
   await courses.scrollIntoViewIfNeeded();
   await expect(courses.getByText('A quiet afternoon')).toBeVisible();
@@ -324,7 +309,7 @@ test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이�
 test('공개 코스가 없으면 게스트가 자기 코스를 공개하는 흐름으로 갈 수 있다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return { courses: [], hasMore: false }; } export async function getPublicCourse() { return null; }' }));
-  await page.goto('/');
+  await page.goto('/courses');
   const courses = page.locator('public-courses:visible');
   await courses.scrollIntoViewIfNeeded();
   await courses.getByRole('button', { name: '내 일정에서 코스 공개하기' }).click();
@@ -345,7 +330,7 @@ test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·�
     export async function saveCourseReview(course, input) { mine = { ...input, userId: 'test-user', walkingKm: Number(input.walkingKm), spentWon: Number(input.spentWon), visitMinutes: Number(input.visitMinutes) }; }
     export async function deleteCourseReview() { mine = null; }
   ` }));
-  await page.goto('/');
+  await page.goto('/courses');
   const courses = page.locator('public-courses:visible'); await courses.scrollIntoViewIfNeeded();
   await expect(courses.getByText('Museum afternoon')).toBeVisible();
   await courses.locator('select[name=city]').selectOption('busan');
@@ -362,7 +347,7 @@ test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·�
   await page.locator('login-view #email-input').last().fill('test@example.com');
   await page.locator('login-view #password-input').last().fill('password');
   await page.locator('login-view #email-login-btn').last().click();
-  await expect(page).toHaveURL(/\/home\?review=reviewRoute$/);
+  await expect(page).toHaveURL(/\/courses\?review=reviewRoute$/);
   await reviews.locator('input[name=visitDate]').fill('2020-01-01');
   await reviews.locator('input[name=walkingKm]').fill('3.5');
   await reviews.locator('input[name=spentWon]').fill('20000');
@@ -414,3 +399,19 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await expect(page.locator('.ionic-desktop-schedule itinerary-view #timeline-container')).toHaveCSS('opacity', '1');
   await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });
+
+test('홈에는 가벼운 미리보기 카드가 뜨고 추천 및 코스 상세로 연결된다', async ({ page }) => {
+  await page.goto('/home');
+  const preview = page.locator('home-preview:visible');
+  await expect(preview).toBeVisible();
+  await expect(preview.locator('article')).toHaveCount(3);
+  await expect(preview.locator('a[href="/recommend"]')).toBeVisible();
+  await expect(preview.locator('a[href="/courses"]').first()).toBeVisible();
+});
+
+test('기존 /home?review= 링크는 /courses?review= 로 리다이렉트된다', async ({ page }) => {
+  await page.goto('/home?review=route123');
+  await expect(page).toHaveURL(/\/courses\?review=route123$/);
+  await expect(page.locator('public-courses:visible')).toBeVisible();
+});
+

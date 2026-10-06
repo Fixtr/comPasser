@@ -13,7 +13,7 @@ import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
 import { logout, missingFirebaseConfig, subscribeToAuthChanges } from '../domains/auth/services/firebase-auth.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
 import { trackEvent } from '../utils/analytics.js';
-import { HomeScreen, AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen } from './ionic-screens.jsx';
+import { HomeScreen, AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen } from './ionic-screens.jsx';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -28,7 +28,8 @@ import './ionic-shell.css';
 setupIonicReact({ experimentalCloseWatcher: true });
 
 const pages = [
-  ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/login', 'authEmailLoginBtn'], ['/join', 'joinTitle'],
+  ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
+  ['/login', 'authEmailLoginBtn'], ['/join', 'joinTitle'],
   ['/verify', 'verifyPendingTitle'], ['/account-deletion-status', 'shellAccountDeletion'],
   ['/preference', 'shellPreferences'], ['/preference/1', 'shellPreferences'], ['/preference/2', 'shellBudget'], ['/plan', 'tabPlan'],
   ['/profile', 'tabProfile'], ['/profile/trips', 'tabTrips'], ['/profile/personal', 'tabProfile'],
@@ -61,6 +62,8 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
 
   let screen;
   if (path === '/' || path === '/home') screen = <HomeScreen user={user} settings={settings} />;
+  else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
+  else if (path === '/courses') screen = <CoursesScreen settings={settings} />;
   else if (path === '/login' || path === '/join' || path.startsWith('/verify')) screen = <AuthScreen kind={path === '/join' ? 'join' : path.startsWith('/verify') ? 'verify' : 'login'} search={search} />;
   else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} />;
   else if (path === '/plan') screen = <PlanScreen user={user} />;
@@ -95,12 +98,13 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange, onLanguage
   const labels = [t('tabPlan'), t('tabTrips'), t('tabProfile')];
   const settings = <SettingsControls theme={theme} onThemeChange={onThemeChange} lang={lang} onLanguageChange={onLanguageChange} />;
   const resultPath = /^\/(?:view|share)(?:\/|$)/.test(location.pathname);
+  const isTopPage = location.pathname === '/' || location.pathname === '/home' || location.pathname === '/recommend' || location.pathname === '/courses';
   return <IonTabs>
     <IonRouterOutlet>
       {pages.map(([path, titleKey]) => <Route key={path} path={path} element={<ShellPage titleKey={titleKey} routePath={path} user={user} authSettled={authSettled} settings={settings} />} />)}
       <Route path="*" element={<ShellPage titleKey="shellNotFound" routePath="*" user={user} authSettled={authSettled} settings={settings} />} />
     </IonRouterOutlet>
-    {!resultPath && location.pathname !== '/' && location.pathname !== '/home' && settings}
+    {!resultPath && !isTopPage && settings}
     {showTabs && <IonTabBar slot="bottom" aria-label={t('tabBarLabel')}>
       {TABS.map((tab, index) => <IonTabButton key={tab.id} tab={tab.id} href={tab.path} selected={selectedTab === tab.id}>
         <IonIcon icon={icons[index]} /><IonLabel>{labels[index]}</IonLabel>

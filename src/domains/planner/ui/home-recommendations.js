@@ -6,7 +6,6 @@ import { countCourseMentions } from '../services/course-mentions.mjs';
 
 import { cities } from '../services/discovery-catalogue.mjs';
 export { cities };
-const ROTATION_MS = 12000;
 const photoLicenses = {
   'CC0 1.0': 'https://creativecommons.org/publicdomain/zero/1.0/',
   'CC BY 2.0': 'https://creativecommons.org/licenses/by/2.0/',
@@ -63,7 +62,7 @@ class HomeRecommendations extends HTMLElement {
       <style>
         :host { display: block; width: 100%; text-align: left; color: var(--cp-ink); font-family: var(--cp-font); }
         * { box-sizing: border-box; }
-        section { padding-top: 40px; }
+        section { padding-top: 24px; }
         .eyebrow { margin: 0 0 10px; font: 600 12px/1.5 var(--cp-mono); letter-spacing: .08em; color: var(--cp-muted); }
         h2 { margin: 0; font-size: clamp(1.4rem, 4vw, 1.8rem); line-height: 1.3; letter-spacing: -.035em; }
         .intro { margin: 12px 0 24px; max-width: 42rem; color: var(--cp-ink-2); font-size: 15px; line-height: 1.65; }
@@ -77,8 +76,10 @@ class HomeRecommendations extends HTMLElement {
         .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
         .evidence { margin: 0 0 12px; color: var(--cp-ink-2); font-size: 12px; line-height: 1.5; }
-        .provenance { margin: -5px 0 16px; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
-        .provenance + .provenance { margin-top: 0; }
+        .provenance { margin: 6px 0; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
+        .criteria-details { margin: 0 0 16px; font-size: 12px; color: var(--cp-muted); border: 1px solid var(--cp-rule); padding: 10px 14px; background: var(--cp-surface); }
+        .criteria-details summary { cursor: pointer; font-weight: 600; color: var(--cp-ink-2); user-select: none; }
+        .criteria-details[open] summary { margin-bottom: 8px; }
         .crowd { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--cp-rule); background: var(--cp-surface); font-size: 12px; line-height: 1.6; }
         .crowd p { margin: 0 0 4px; }
         .crowd a { color: inherit; text-underline-offset: 3px; }
@@ -92,12 +93,13 @@ class HomeRecommendations extends HTMLElement {
         button[aria-pressed="true"] { background: var(--cp-surface); color: var(--cp-ink); box-shadow: inset 0 0 0 2px var(--cp-ink); }
         button:disabled { opacity: .5; cursor: not-allowed; }
         button svg { flex: none; }
-        .selection { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+        .selection { position: sticky; bottom: 0; background: var(--cp-surface); border-top: 1px solid var(--cp-rule); padding: 16px 0; margin-top: 24px; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
         .selection p { flex: 1; min-width: 180px; margin: 0; color: var(--cp-ink-2); font-size: 14px; }
         .selection button { width: auto; min-width: 160px; justify-content: center; }
         .cities { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
-        .cities button { width: auto; min-width: 88px; justify-content: center; }
-        .rotation-hint { margin: -10px 0 18px; color: var(--cp-muted); font-size: 12px; }
+        .cities button { width: auto; min-width: 88px; justify-content: center; background: var(--cp-surface); color: var(--cp-ink); border-color: var(--cp-rule); }
+        .cities button:hover { background: var(--cp-paper); }
+        .cities button[aria-pressed="true"] { background: var(--cp-ink); color: var(--cp-surface); border-color: var(--cp-ink); box-shadow: none; }
         .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
         .filters button { width: auto; min-width: 0; min-height: 44px; padding: 8px 12px; border-color: var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); }
         .filters button[aria-pressed="true"] { border-color: var(--cp-ink); background: var(--cp-ink); color: var(--cp-surface); box-shadow: none; }
@@ -121,14 +123,16 @@ class HomeRecommendations extends HTMLElement {
         <div class="cities" role="group" data-i18n-aria="discoverCitiesLabel">
           ${cities.map(city => `<button type="button" data-city="${city.id}" data-i18n="${city.key}" aria-pressed="false"></button>`).join('')}
         </div>
-        <p class="rotation-hint" data-i18n="discoverRotationHint"></p>
         <div class="filters" role="group" data-i18n-aria="discoverFiltersLabel">
           ${[['all', 'discoverFilterAll'], ['popular', 'discoverFilterPopular'], ['discoverLandmark', 'discoverLandmark'], ['discoverFind', 'discoverFind'], ['discoverWalk', 'discoverWalk']]
             .map(([filter, key]) => `<button type="button" data-filter="${filter}" data-i18n="${key}" aria-pressed="false"></button>`).join('')}
         </div>
-        <p class="provenance" data-i18n="discoverEditorialNote"></p>
-        <p class="provenance" id="discover-course-status" role="status"></p>
-        <p class="provenance" id="discover-popularity-status" role="status"></p>
+        <details class="criteria-details">
+          <summary data-i18n="discoverCriteria"></summary>
+          <p class="provenance" data-i18n="discoverEditorialNote"></p>
+          <p class="provenance" id="discover-course-status" role="status"></p>
+          <p class="provenance" id="discover-popularity-status" role="status"></p>
+        </details>
         <div class="crowd" role="status" aria-live="polite"></div>
         <div class="cards"></div>
         <div class="pair"></div>
@@ -144,7 +148,6 @@ class HomeRecommendations extends HTMLElement {
       const cityButton = event.target.closest('button[data-city]');
       if (cityButton) {
         this.showCity(cities.findIndex(city => city.id === cityButton.dataset.city));
-        this.startRotation();
         return;
       }
       const filterButton = event.target.closest('button[data-filter]');
@@ -313,7 +316,7 @@ class HomeRecommendations extends HTMLElement {
     if (this.savingId) return;
     const { getCurrentUser } = await import('../../auth/services/firebase-auth.js');
     const userId = getCurrentUser()?.uid;
-    if (!userId) { window.navigate('/login?next=%2Fhome'); return; }
+    if (!userId) { window.navigate('/login?next=%2Frecommend'); return; }
     this.savingId = placeId;
     this.saveError = false;
     this.updateTexts();
@@ -386,16 +389,6 @@ class HomeRecommendations extends HTMLElement {
     this.updateTexts();
   }
 
-  startRotation() {
-    clearInterval(this.rotationTimer);
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this.rotationTimer = setInterval(() => {
-      if (!document.hidden && this.getClientRects().length && !this.matches(':hover, :focus-within') && !this.selectedIds.length && this.filter === 'all') {
-        this.showCity((this.cityIndex + 1) % cities.length);
-      }
-    }, ROTATION_MS);
-  }
-
   renderSelection() {
     this.shadowRoot.querySelectorAll('button[data-city]').forEach(button =>
       button.setAttribute('aria-pressed', String(button.dataset.city === cities[this.cityIndex].id)));
@@ -426,7 +419,6 @@ class HomeRecommendations extends HTMLElement {
 
   connectedCallback() {
     this.updateTexts();
-    this.startRotation();
     if (this.signalsLoaded) void this.watchSavedSignals();
     this.crowdTimer = setInterval(() => {
       if (document.hidden) return;
@@ -449,7 +441,6 @@ class HomeRecommendations extends HTMLElement {
     this.unsubscribeSavedAuth?.();
     this.unsubscribeSavedAuth = null;
     this.savedSignalsVersion = (this.savedSignalsVersion || 0) + 1;
-    clearInterval(this.rotationTimer);
     clearInterval(this.crowdTimer);
     window.removeEventListener('i18n-changed', this.updateTexts);
     this.observer?.disconnect();

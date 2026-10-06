@@ -32,7 +32,7 @@ const pending = (path) =>
   decideRoute({ path, user: null, authSettled: false, hasPreference: true });
 
 test('로그인 여부와 무관한 곳을 안다', () => {
-  for (const p of ['/', '/home', '/index.html', '/sub/index.html', '/login', '/join', '/account-deletion-status', '/verify', '/verify/abc', '/share/abc123']) {
+  for (const p of ['/', '/home', '/recommend', '/courses', '/index.html', '/sub/index.html', '/login', '/join', '/account-deletion-status', '/verify', '/verify/abc', '/share/abc123']) {
     assert.equal(isPublicPath(p), true, `${p} 는 로그인 없이 볼 수 있어야 한다`);
   }
   for (const p of ['/plan', '/view', '/view/abc', '/profile', '/preference/1']) {
@@ -119,7 +119,7 @@ test('홈 추천에서 로그인해도 날짜 선택을 건너뛰지 않는다',
 });
 
 test('커뮤니티 후기·코스 공개 로그인은 지정한 내부 화면으로 복귀한다', () => {
-  for (const value of ['/home', '/home?review=route123', '/profile/trips']) {
+  for (const value of ['/home', '/home?review=route123', '/recommend', '/courses', '/courses?review=route123', '/profile/trips']) {
     assert.equal(getSafeReturnPath(value), value);
     assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), { action: 'redirect', to: value });
     assert.equal(getSafeReturnPath(`${value}?delete=true`), null);

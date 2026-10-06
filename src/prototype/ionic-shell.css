@@ -11,19 +11,21 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-settings button:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
 .ionic-home-settings { display: flex; justify-content: flex-end; max-width: 74rem; margin: 0 auto; }
 .ionic-home-settings .ionic-settings { position: static; }
+.ionic-page-nav { display: flex; justify-content: space-between; align-items: center; max-width: 74rem; margin: 0 auto 12px; }
+.ionic-page-nav .ionic-settings { position: static; }
+.ionic-route-page { max-width: 74rem; margin: 0 auto 40px; }
 .ionic-home { max-width: 74rem; margin: max(6vh, 36px) auto; }
 .ionic-home h1 { font-size: clamp(2.1rem, 8vw, 3rem); }
 .ionic-home ion-button { min-height: 52px; margin-top: 18px; }
+.ionic-home-trips-link { display: block; text-align: center; margin-top: 14px; font-size: 14px; color: var(--cp-ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 @media (min-width: 900px) {
   .ionic-home { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); align-items: start; gap: 3rem; }
   .ionic-home-intro { position: sticky; top: 6rem; }
-  .ionic-home home-courses { grid-column: 2; }
-  .ionic-home public-courses { grid-column: 2; }
+  .ionic-home home-preview { grid-column: 2; }
 }
 @media (max-width: 899px) {
   .ionic-home { margin-top: 2rem; }
   .ionic-home-actions { display: flex; flex-direction: column; }
-  .ionic-home-trips { order: -1; }
 }
 .ionic-legacy-auth { max-width: 35rem; margin: 0 auto; }
 .ionic-legacy-auth [role="alert"] { color: var(--cp-danger); font-weight: 700; }

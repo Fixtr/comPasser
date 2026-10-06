@@ -79,7 +79,7 @@ class CourseReviews extends HTMLElement {
     const user = getCurrentUser();
     if (!user) {
       const login = document.createElement('button'); login.textContent = t('courseReviewLogin');
-      login.onclick = () => window.navigate(`/login?next=${encodeURIComponent(`/home?review=${this.course.id}`)}`); root.append(login); return;
+      login.onclick = () => window.navigate(`/login?next=${encodeURIComponent(`/courses?review=${this.course.id}`)}`); root.append(login); return;
     }
     if (user.uid === this.course.ownerId) { const note = document.createElement('p'); note.textContent = t('courseReviewOwnerHint'); root.append(note); return; }
     const form = document.createElement('form');

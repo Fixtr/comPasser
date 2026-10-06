@@ -29,8 +29,8 @@ export function isHomePath(path) {
 
 /** 명시한 내부 화면만 복귀를 허용한다. 복귀 자체가 생성·삭제를 실행하지 않는다. */
 export function getSafeReturnPath(value) {
-  if (value === '/profile/security' || value === '/profile/trips' || value === '/home' || value === '/preference/1') return value;
-  if (typeof value === 'string' && /^\/home\?review=[a-zA-Z0-9]+$/.test(value)) return value;
+  if (value === '/profile/security' || value === '/profile/trips' || value === '/home' || value === '/recommend' || value === '/courses' || value === '/preference/1') return value;
+  if (typeof value === 'string' && (/^\/home\?review=[a-zA-Z0-9]+$/.test(value) || /^\/courses\?review=[a-zA-Z0-9]+$/.test(value))) return value;
   return typeof value === 'string' && value.match(/^\/(?:share|view)\/[a-zA-Z0-9]+$/)?.[0] === value
     ? value
     : null;
@@ -49,7 +49,7 @@ export function getSafeReturnPath(value) {
 export function isPublicPath(path) {
   if (path == null) return true;
   const p = String(path);
-  return isHomePath(p) || p === '/login' || p === '/join' || p === '/account-deletion-status' || p.startsWith('/verify')
+  return isHomePath(p) || p === '/recommend' || p === '/courses' || p === '/login' || p === '/join' || p === '/account-deletion-status' || p.startsWith('/verify')
     || (/^\/share\//.test(p) && getSafeReturnPath(p) !== null);
 }
 
