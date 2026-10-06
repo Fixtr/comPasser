@@ -45,6 +45,7 @@ for (const [title, file] of [
   ['image export theme isolation', 'image-export-theme-smoke.js'],
   ['image export translations', 'image-export-i18n-smoke.js'],
   ['planner draft restoration', 'planner-draft-smoke.js'],
+  ['overnight connections and legacy trip editing', 'overnight-planner-smoke.js'],
   ['home recommendations through login and planning', 'home-recommendations-smoke.js'],
   ['planner input validation and retry', 'planner-validation-smoke.js'],
   ['planner autocomplete dropdown stacking', 'planner-autocomplete-layer-smoke.js'],

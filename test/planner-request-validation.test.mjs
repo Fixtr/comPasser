@@ -35,6 +35,21 @@ test('valid flat input, canonical input and legacy daily-only data agree without
   assert.deepEqual(request, original);
 });
 
+test('overnight boundary must match both adjoining days when supplied', () => {
+  const request = normalizePlannerRequest({...flat(),overnightLocations:['서울 호텔']});
+  assert.equal(findPlannerRequestIssue(request),null);
+  request.dailyData[1].startLocation='다른 곳';
+  assert.equal(findPlannerRequestIssue(request)?.reason,'overnight-mismatch');
+  request.dailyData[1].startLocation='서울 호텔';
+  request.overnightLocations=[];
+  assert.equal(findPlannerRequestIssue(request)?.reason,'overnight-length');
+  const hotel = {placeId:'hotel-a',displayName:'같은 이름',formattedAddress:'서울',lat:37.5,lng:127};
+  const other = {...hotel,placeId:'hotel-b'};
+  const selected = normalizePlannerRequest({...flat(),overnightLocations:[hotel]});
+  selected.dailyData[1].startLocation=other;
+  assert.equal(findPlannerRequestIssue(selected)?.reason,'overnight-mismatch');
+});
+
 const cases = [
   ['fifth day', r => { r.dailyData.push(...r.dailyData, r.dailyData[0]); }, 'day-limit'],
   ['missing date', r => { r.dailyData[0].date = ''; }, 'invalid-date'],

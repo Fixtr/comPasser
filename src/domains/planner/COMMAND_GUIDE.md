@@ -22,6 +22,7 @@
 - Preference controls update the draft only on explicit user changes, not while reconstructing controls. Re-entering the preference page restores the current draft; skipping clears theme and budget, including explicit null values.
 - Keep only editable fields in the draft. Saved derived `dailyData` must be rebuilt by `normalizePlannerRequest` after editing, so it cannot resurrect old dates, times, or deleted anchors.
 - Form reset clears detailed inputs while preserving the selected dates/theme/budget. The cleared draft must also survive reload.
+- Multi-day drafts use the first departure, final destination and explicit `overnightLocations`. Never infer lodging from legacy daily endpoints; restore the last day's destination and ask for missing stays when editing. `sameOvernightLocation` repeats the first selected stay for every night. Duration changes resize this array, and a day trip clears it. Saved/shared snapshots are unchanged until explicit regeneration.
 
 ## Input Validation Boundary
 

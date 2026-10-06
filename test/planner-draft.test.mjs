@@ -22,7 +22,10 @@ function form(draft, { readOnly = true, value = '2026-10-01 ~ 2026-10-02' } = {}
   };
   return {
     getElementById: id => elements[id],
-    querySelectorAll: () => draft.anchorSchedules.map(anchor => ({ querySelector: selector => ({ value: {
+    querySelectorAll: selector => selector === '.overnight-location'
+      ? (draft.overnightLocations || []).map(value => typeof value === 'string' ? {value, querySelector: () => null}
+        : {value:value.displayName,selectedPlace:value,selectedPlaceText:value.displayName})
+      : draft.anchorSchedules.map(anchor => ({ querySelector: selector => ({ value: {
       '.anchor-day': anchor.day, '.anchor-name': anchor.name, '.anchor-time': anchor.time,
       '.anchor-end-time': anchor.endTime, '.anchor-location': anchor.location,
     }[selector] }) })),
@@ -40,6 +43,51 @@ test('editing a saved trip replaces all preferences; read-only date submit uses 
   assert.equal(result.anchorSchedules[0].day, 2);
   assert.equal(result.dailyTimes.length, 2);
   assert.deepEqual(JSON.parse(values.get('userPreference')).date, edited().date);
+});
+
+test('overnight places survive draft storage and form reading', () => {
+  const {store} = fixture();
+  const hotel = {placeId:'hotel-id',displayName:'서울 호텔',formattedAddress:'서울 중구',lat:37.5,lng:127};
+  const draft = store.save({...edited(),overnightLocations:[hotel]});
+  assert.deepEqual(store.read().overnightLocations,[hotel]);
+  assert.deepEqual(getFormData(form(draft),draft).overnightLocations,[hotel]);
+});
+
+test('legacy repeated endpoints require lodging; first departure and final destination survive editing', () => {
+  const source = { dailyData: Array.from({ length: 4 }, (_, index) => ({
+    day: index + 1, date: `2026-10-0${index + 1}`, startTime: '09:00', endTime: '18:00',
+    startLocation: '서울역', endLocation: index === 3 ? '인천공항 T2' : '인천공항 T1', anchors: [],
+  })) };
+  const before = structuredClone(source);
+  const draft = toPlannerDraft(source);
+  assert.equal(draft.startLocation, '서울역');
+  assert.equal(draft.endLocation, '인천공항 T2');
+  assert.deepEqual(draft.overnightLocations, ['', '', '']);
+  assert.equal(draft.sameOvernightLocation, false);
+  assert.deepEqual(source, before);
+});
+
+test('consecutive-night selection repeats the selected identity and follows duration changes', () => {
+  const { store, storage } = fixture();
+  const hotel = { placeId: 'hotel-id', displayName: '서울 호텔', formattedAddress: '서울 중구', lat: 37.5, lng: 127 };
+  store.save({ ...edited(), sameOvernightLocation: true, overnightLocations: [hotel] });
+  const expanded = store.updatePreferences({ date: ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'] });
+  assert.deepEqual(expanded.overnightLocations, [hotel, hotel, hotel]);
+  assert.equal(createPlannerDraftStore({ getStorage: () => storage }).read().sameOvernightLocation, true);
+  const shorter = store.updatePreferences({ date: ['2026-10-01', '2026-10-02'] });
+  assert.deepEqual(shorter.overnightLocations, [hotel]);
+  const single = store.updatePreferences({ date: ['2026-10-01'] });
+  assert.deepEqual(single.overnightLocations, []);
+  assert.equal(single.sameOvernightLocation, false);
+});
+
+test('different-night selections resize without restoring removed lodging', () => {
+  const { store } = fixture();
+  store.save({ ...edited(), date: ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'],
+    overnightLocations: ['첫 숙소', '둘째 숙소', '셋째 숙소'] });
+  assert.deepEqual(store.updatePreferences({ date: edited().date }).overnightLocations, ['첫 숙소']);
+  assert.deepEqual(store.updatePreferences({ date: ['2026-10-01', '2026-10-02', '2026-10-03'] }).overnightLocations,
+    ['첫 숙소', '']);
 });
 
 test('reload and re-entry retain edited fields even when legacy preferences are stale', () => {

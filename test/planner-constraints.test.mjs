@@ -24,6 +24,36 @@ const flatRequest = {
   }]
 };
 
+test('overnight places connect each day to the next without changing the trip endpoints', () => {
+  const hotelA = {placeId:'hotel-a',displayName:'첫 숙소',formattedAddress:'서울 종로',lat:37.5,lng:127};
+  const hotelB = {placeId:'hotel-b',displayName:'둘째 숙소',formattedAddress:'서울 마포',lat:37.6,lng:126.9};
+  const request = {date:['2026-10-01','2026-10-02','2026-10-03','2026-10-04'],startTime:'09:00',endTime:'18:00',
+    startLocation:'서울역',endLocation:'인천공항',overnightLocations:[hotelA,hotelB,hotelB]};
+  const days = normalizePlannerRequest(request).dailyData;
+  assert.deepEqual(days.map(day => [day.startLocation,day.endLocation]), [
+    ['서울역',hotelA],[hotelA,hotelB],[hotelB,hotelB],[hotelB,'인천공항']
+  ]);
+  const result = enforcePlannerConstraints(request.date.map((date,index) => ({day:index + 1,date,scheduleItems:[]})),request);
+  assert.deepEqual(result.map(day => [day.scheduleItems[0].location,day.scheduleItems.at(-1).location]), [
+    ['서울역','첫 숙소'],['첫 숙소','둘째 숙소'],['둘째 숙소','둘째 숙소'],['둘째 숙소','인천공항']
+  ]);
+});
+
+test('lodging selections and edited trip endpoints override stale derived daily boundaries', () => {
+  const request = { date: ['2026-10-01', '2026-10-02'], startTime: '09:00', endTime: '18:00',
+    startLocation: '새 출발지', endLocation: '새 도착지', overnightLocations: ['선택한 숙소'],
+    dailyData: [
+      { day: 1, date: '2026-10-01', startLocation: '옛 출발지', endLocation: '옛 공항' },
+      { day: 2, date: '2026-10-02', startLocation: '옛 출발지', endLocation: '옛 공항' },
+    ] };
+  const normalized = normalizePlannerRequest(request);
+  assert.deepEqual(normalized.dailyData.map(day => [day.startLocation, day.endLocation]),
+    [['새 출발지', '선택한 숙소'], ['선택한 숙소', '새 도착지']]);
+  assert.equal(findPlannerRequestIssue(normalized), null);
+  request.startLocation = '';
+  assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)).reason, 'missing-location');
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [

@@ -52,6 +52,9 @@ export function getFormData(shadowRoot, draft = {}) {
 
   const globalStartTime = shadowRoot.getElementById('start-time').value;
   const globalEndTime = shadowRoot.getElementById('end-time').value;
+  const nights = Array.isArray(finalDate) ? Math.max(finalDate.length - 1, 0) : 0;
+  const sameOvernightLocation = nights > 0 && shadowRoot.getElementById('same-overnight-toggle')?.checked === true;
+  const stays = Array.from(shadowRoot.querySelectorAll('.overnight-location')).map(getAutocompleteValue);
 
   // Check toggle state for daily times
   const toggle = shadowRoot.getElementById('daily-times-toggle');
@@ -84,6 +87,9 @@ export function getFormData(shadowRoot, draft = {}) {
     dailyTimes: dailyTimes,
     startLocation: getAutocompleteValue(shadowRoot.getElementById('start-location')),
     endLocation: getAutocompleteValue(shadowRoot.getElementById('end-location')),
+    sameOvernightLocation,
+    overnightLocations: Array.from({ length: nights }, (_, index) =>
+      structuredClone(stays[sameOvernightLocation ? 0 : index] || '')),
     selectedWaypoints: structuredClone(draft.selectedWaypoints || []),
     anchorSchedules: anchors,
     theme,

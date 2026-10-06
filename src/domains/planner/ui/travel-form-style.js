@@ -394,8 +394,8 @@ export const travelFormStyles = `
           border-left-color: var(--cp-anchor);
         }
 
-        .anchor-flexible-option { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
-        .anchor-flexible-option input { width: 20px; height: 20px; padding: 0; flex: none; }
+        .anchor-flexible-option, .overnight-option { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
+        .anchor-flexible-option input, .overnight-option input { width: 20px; height: 20px; padding: 0; flex: none; }
         .anchor-flexible-hint { display: none; margin: 0 0 0.75rem; color: var(--cp-muted); font-size: 0.8rem; line-height: 1.5; }
         .anchor-item.is-flexible .anchor-flexible-hint { display: block; }
         .anchor-item.is-flexible .anchor-fields { display: block; }

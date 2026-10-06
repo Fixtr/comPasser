@@ -8,14 +8,22 @@ export function toPlannerDraft(request = {}) {
   const daily = Array.isArray(input.dailyData) ? input.dailyData : [];
   const first = daily[0] || {};
   const dates = input.date ?? input.datePref ?? daily.map(day => day.date);
+  const date = (Array.isArray(dates) ? [...dates] : [dates]).filter(date => typeof date === 'string' && date);
+  const nights = Math.min(Math.max(date.length - 1, 0), 3);
+  const sameOvernightLocation = nights > 0 && input.sameOvernightLocation === true;
+  // Legacy day endpoints are not lodging selections (often the airport).
+  const stays = Array.isArray(input.overnightLocations) ? input.overnightLocations : [];
   return {
-    date: (Array.isArray(dates) ? [...dates] : [dates]).filter(date => typeof date === 'string' && date),
+    date,
     theme: input.theme ?? null,
     budget: input.budget ?? null,
     startTime: input.startTime ?? first.startTime ?? '',
     endTime: input.endTime ?? first.endTime ?? '',
     startLocation: preserveLocation(input.startLocation ?? first.startLocation),
-    endLocation: preserveLocation(input.endLocation ?? first.endLocation),
+    endLocation: preserveLocation(input.endLocation ?? daily.at(-1)?.endLocation),
+    sameOvernightLocation,
+    overnightLocations: Array.from({ length: nights }, (_, index) =>
+      preserveLocation(stays[sameOvernightLocation ? 0 : index])),
     selectedWaypoints: Array.isArray(input.selectedWaypoints)
       ? input.selectedWaypoints.slice(0, 1).filter(stop => typeof stop?.name === 'string' && typeof stop?.location === 'string')
         .map(stop => ({ name: stop.name.trim().slice(0, 100), location: stop.location.trim().slice(0, 200) }))
