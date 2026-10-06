@@ -8,9 +8,6 @@ import '../domains/auth/ui/join-view.js';
 import '../domains/auth/ui/verify-view.js';
 import '../domains/planner/ui/preference-view.js';
 import '../domains/planner/ui/home-preview.js';
-import '../domains/planner/ui/home-recommendations.js';
-import '../domains/planner/ui/home-courses.js';
-import '../domains/planner/ui/public-courses.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
@@ -240,8 +237,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ----------------------------------------------------
     // [Paged Architecture] SPA Router
     // ----------------------------------------------------
-    window.navigate = function (path) {
-        window.history.pushState({}, '', path);
+    window.navigate = function (path, options = {}) {
+        if (options && options.replace) {
+            window.history.replaceState({}, '', path);
+        } else {
+            window.history.pushState({}, '', path);
+        }
         handleRouteChange(); // Immediately trigger route change logic
     };
 
@@ -396,12 +397,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             generationController.enterPlan();
         } else if (path === '/recommend') {
             if (pageRecommend) pageRecommend.style.display = 'block';
+            const mount = document.getElementById('recommend-mount');
+            if (mount && !mount.hasChildNodes()) {
+                void import('../domains/planner/ui/home-recommendations.js').then(() => {
+                    if (!mount.hasChildNodes()) {
+                        mount.appendChild(document.createElement('home-recommendations'));
+                    }
+                });
+            }
         } else if (path === '/courses') {
             if (pageCourses) pageCourses.style.display = 'block';
+            const mount = document.getElementById('courses-mount');
+            if (mount && !mount.hasChildNodes()) {
+                void Promise.all([
+                    import('../domains/planner/ui/home-courses.js'),
+                    import('../domains/planner/ui/public-courses.js'),
+                ]).then(() => {
+                    if (!mount.hasChildNodes()) {
+                        mount.appendChild(document.createElement('home-courses'));
+                        mount.appendChild(document.createElement('public-courses'));
+                    }
+                });
+            }
         } else if (isHomePath(path)) {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('review')) {
-                window.navigate('/courses' + window.location.search);
+                window.navigate('/courses' + window.location.search, { replace: true });
                 return;
             }
             if (pageHome) pageHome.style.display = 'flex';
