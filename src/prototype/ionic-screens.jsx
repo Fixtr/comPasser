@@ -48,8 +48,9 @@ export function HomeScreen({ user, settings }) {
         <h1>{t('shellHomeTitle')}</h1>
         <p>{t('shellHomeDescription')}</p>
         <div className="ionic-home-actions">
+          <a href="/en/routes">{t('publicRouteDirectoryLink')}</a>
           <IonButton className="ionic-home-new" expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
-          {user && <a className="ionic-home-trips-link" href="/profile/trips" onClick={e => { e.preventDefault(); navigate('/profile/trips'); }}>{t('myItineraries')}</a>}
+          {user && <IonButton className="ionic-home-trips" expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
         </div>
       </div>
       <home-preview />

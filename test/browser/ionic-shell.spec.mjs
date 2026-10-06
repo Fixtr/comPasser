@@ -400,13 +400,17 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });
 
-test('홈에는 가벼운 미리보기 카드가 뜨고 추천 및 코스 상세로 연결된다', async ({ page }) => {
+test('홈에는 가벼운 미리보기 카드가 뜨고 추천 및 코스 상세로 연결된다', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/home');
   const preview = page.locator('home-preview:visible');
   await expect(preview).toBeVisible();
   await expect(preview.locator('article')).toHaveCount(3);
   await expect(preview.locator('a[href="/recommend"]')).toBeVisible();
   await expect(preview.locator('a[href="/courses"]').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('home-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: testInfo.outputPath('home-mobile.png'), fullPage: true });
 });
 
 test('기존 /home?review= 링크는 /courses?review= 로 리다이렉트된다', async ({ page }) => {

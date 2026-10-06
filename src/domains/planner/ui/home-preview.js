@@ -48,38 +48,59 @@ class HomePreview extends HTMLElement {
         * { box-sizing: border-box; }
         section { padding-top: 40px; }
         .eyebrow { margin: 0 0 10px; font: 600 12px/1.5 var(--cp-mono); letter-spacing: .08em; color: var(--cp-muted); }
-        h2 { margin: 0 0 20px; font-size: clamp(1.4rem, 4vw, 1.8rem); line-height: 1.3; letter-spacing: -.035em; }
-        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; }
-        article { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
-        .photo { margin: -20px -20px 16px; }
+        h2 { margin: 0 0 10px; font-size: clamp(1.4rem, 4vw, 1.8rem); line-height: 1.3; letter-spacing: -.035em; }
+        .intro { margin: 0 0 24px; max-width: 42rem; color: var(--cp-ink-2); font-size: 15px; line-height: 1.65; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+        article { display: flex; flex-direction: column; min-width: 0; padding: 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
+        .photo { margin: -24px -24px 20px; }
         .photo img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: var(--cp-rule); }
-        .photo figcaption { padding: 6px 20px 0; color: var(--cp-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+        .photo figcaption { padding: 6px 24px 0; color: var(--cp-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
         .photo a { color: inherit; text-underline-offset: 2px; }
-        h3 { margin: 0 0 4px; font-size: 18px; line-height: 1.3; letter-spacing: -.02em; overflow-wrap: anywhere; }
+        .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
+        .kind { margin: 0; padding: 4px 8px; border: 1px solid var(--cp-rule); color: var(--cp-ink-2); font: 600 11px/1.5 var(--cp-mono); }
+        .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
+        h3 { margin: 0 0 6px; font-size: 23px; line-height: 1.25; letter-spacing: -.03em; overflow-wrap: anywhere; }
         .area { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--cp-muted); }
-        .more-row { display: flex; justify-content: flex-end; margin-top: 14px; margin-bottom: 32px; }
+        .description { flex: 1; margin: 16px 0; font-size: 14px; line-height: 1.7; color: var(--cp-ink-2); word-break: keep-all; overflow-wrap: anywhere; }
+        .stay { margin: 0 0 14px; color: var(--cp-muted); font-size: 12px; line-height: 1.5; }
+        .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 36px; margin-top: 4px; font-size: 12px; color: var(--cp-ink-2); text-decoration: underline; text-underline-offset: 3px; }
+        .more-row { display: flex; justify-content: flex-end; margin-top: 18px; margin-bottom: 32px; }
         .more-link { display: inline-flex; align-items: center; font-weight: 600; font-size: 14px; color: var(--cp-ink); text-decoration: none; border-bottom: 1px solid var(--cp-ink); padding-bottom: 2px; }
         .more-link:hover { opacity: .7; }
-        .divider { border: 0; border-top: 1px solid var(--cp-rule); margin: 0 0 28px; }
-        .courses-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-        .strip-label { font: 600 12px var(--cp-mono); color: var(--cp-muted); margin-right: 4px; }
-        .course-chip { padding: 6px 12px; border: 1px solid var(--cp-rule); background: var(--cp-surface); font-size: 13px; color: var(--cp-ink); text-decoration: none; }
-        .course-chip:hover { border-color: var(--cp-ink); }
+        .divider { border: 0; border-top: 1px solid var(--cp-rule); margin: 16px 0 40px; }
+        .courses-preview-section { margin-top: 8px; }
+        .courses-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+        .course-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
+        .course-card .kind { align-self: flex-start; margin-bottom: 12px; }
+        .course-card h3 { margin: 0 0 8px; font-size: 1.15rem; line-height: 1.35; letter-spacing: -.02em; }
+        .course-reason { flex: 1; margin: 0 0 20px; font-size: 13px; line-height: 1.6; color: var(--cp-ink-2); word-break: keep-all; }
+        .course-action { display: inline-flex; justify-content: center; align-items: center; width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--cp-ink); background: var(--cp-ink); color: var(--cp-surface); text-decoration: none; font-weight: 700; font-size: 14px; cursor: pointer; }
+        .course-action:hover { background: var(--cp-surface); color: var(--cp-ink); }
+        :is(button, a):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
       </style>
       <section aria-labelledby="preview-title">
-        <p class="eyebrow" data-i18n="discoverEyebrow"></p>
-        <h2 id="preview-title" data-i18n="homePreviewTitle"></h2>
+        <p class="eyebrow">${t('discoverEyebrow')} · ${t(seoul.key)}</p>
+        <h2 id="preview-title" data-i18n="discoverTitle"></h2>
+        <p class="intro" data-i18n="discoverDescription"></p>
         <div class="cards">
-          ${previewPlaces.map(place => {
+          ${previewPlaces.map((place, index) => {
             const photo = photos[place.id] || { file: '', author: '', license: 'CC0 1.0' };
             return `
-            <article>
+            <article aria-labelledby="${place.id}-name">
               <figure class="photo">
                 <img src="/discovery/${place.id}.jpg" alt="" loading="lazy" width="960" height="600">
                 <figcaption><a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.file)}" target="_blank" rel="noopener noreferrer">${t('discoverPhotoCredit').replace('{0}', photo.author)}</a> · <a href="${photoLicenses[photo.license]}" target="_blank" rel="noopener noreferrer">${photo.license}</a></figcaption>
               </figure>
-              <h3 data-i18n="${place.key}Name"></h3>
+              <div class="top"><p class="kind">${t(place.kind)}</p><span class="number" aria-hidden="true">0${index + 1} / ${seoul.id.toUpperCase()}</span></div>
+              <p class="tag" data-i18n="${place.key}Tag"></p>
+              <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
               <p class="area" data-i18n="${place.key}Area"></p>
+              <p class="description"><strong>${t('discoverReason')} · </strong>${t(`${place.key}Description`)}</p>
+              <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
+              <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
+                <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
+              </a>
             </article>`;
           }).join('')}
         </div>
@@ -87,14 +108,27 @@ class HomePreview extends HTMLElement {
           <a class="more-link" href="/recommend" data-nav data-i18n="homePreviewMore"></a>
         </div>
         <hr class="divider">
-        <div class="courses-strip">
-          <span class="strip-label" data-i18n="homeCoursesTitle"></span>
-          ${curatedPairs.map(city => {
-            const places = city.pair.map(id => city.places.find(p => p.id === id)).filter(Boolean);
-            const title = places.map(p => t(`${p.key}Name`)).join(' + ');
-            return `<a class="course-chip" href="/courses" data-nav>${title}</a>`;
-          }).join('')}
-          <a class="more-link" href="/courses" data-nav data-i18n="homeCoursesMore"></a>
+        <div class="courses-preview-section">
+          <p class="eyebrow" data-i18n="courseCuratedLabel"></p>
+          <h2 data-i18n="courseBrowseTitle"></h2>
+          <p class="intro" data-i18n="courseBrowseIntro"></p>
+          <div class="courses-grid">
+            ${curatedPairs.map(city => {
+              const places = city.pair.map(id => city.places.find(p => p.id === id)).filter(Boolean);
+              const title = places.map(p => t(`${p.key}Name`)).join(' + ');
+              return `
+                <div class="course-card">
+                  <span class="kind">${t('courseCuratedLabel')} · ${t(city.key)}</span>
+                  <h3>${title}</h3>
+                  <p class="course-reason">${t(city.pairReason)}</p>
+                  <a class="course-action" href="/courses" data-nav>${t('courseCopyButton')}</a>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div class="more-row">
+            <a class="more-link" href="/courses" data-nav data-i18n="homeCoursesMore"></a>
+          </div>
         </div>
       </section>
     `;
