@@ -912,8 +912,6 @@ const dictionary = {
         shellPreferences: "Travel preferences",
         shellBudget: "Travel budget",
         shellSecurity: "Account security",
-        nextStopToday: "Next stop",
-        firstStop: "First stop",
         shellAccountDeletion: "Account deletion status",
         verifyPendingTitle: "Verifying your email…",
         verifyPendingDesc: "Checking the link. One moment please.",

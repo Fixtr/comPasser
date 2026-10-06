@@ -43,7 +43,7 @@ function viewHarness({ user = null } = {}) {
     createItineraryActions, saveItinerary() {}, createSharedItinerary() {}, getSharedItineraryUrl() {},
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
-    setTimeout: callback => callback(), requestAnimationFrame: callback => callback(),
+    setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
@@ -63,6 +63,14 @@ function viewHarness({ user = null } = {}) {
 function planWith(item) {
   return { days: [{ day: 1, date: '2026-09-06', scheduleItems: [item] }] };
 }
+
+test('빈 날짜의 안내 카드가 투명한 상태에 남지 않는다', () => {
+  const { view, control } = viewHarness();
+  view.renderActiveDay({ days: [{ scheduleItems: [] }] });
+  const timeline = control('timeline-container');
+  assert.match(timeline.children[0].innerHTML, /viewNoItemsTitle/);
+  assert.equal(timeline.style.opacity, '1');
+});
 
 test('HTML 텍스트·속성 문자를 이스케이프하고 기존 문자 자체는 저장된 값대로 유지한다', () => {
   assert.equal(escapeHtml('&<>"\''), '&amp;&lt;&gt;&quot;&#39;');

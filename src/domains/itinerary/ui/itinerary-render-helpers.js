@@ -1,4 +1,5 @@
 import { t } from '../../../utils/i18n.js';
+import { escapeHtml } from '../../../utils/html-safety.mjs';
 
 /**
  * itinerary-view.js 의 대중교통/일정 요약 렌더링 로직. nav-popup.js 와 같은
@@ -82,14 +83,14 @@ export function renderTransitStep(step) {
     const boarding = t('boarding') || '승차';
     const alighting = t('alighting') || '하차';
     const stopsHtml = (step.departureStop && step.arrivalStop)
-      ? `<div class="step-stops">[${boarding}] ${step.departureStop} &rarr; [${alighting}] ${step.arrivalStop}</div>`
+      ? `<div class="step-stops">[${escapeHtml(boarding)}] ${escapeHtml(step.departureStop)} &rarr; [${escapeHtml(alighting)}] ${escapeHtml(step.arrivalStop)}</div>`
       : '';
 
     return `
       <div class="transit-step" style="background:${style.bg}; border-color:${style.border};">
         <span class="step-icon">${style.icon}</span>
-        <span class="step-main" style="color:${style.color};">${modeText}</span>
-        <span class="step-time">${step.duration}${stopsCount}</span>
+        <span class="step-main" style="color:${style.color};">${escapeHtml(modeText)}</span>
+        <span class="step-time">${escapeHtml(step.duration)}${escapeHtml(stopsCount)}</span>
         ${stopsHtml}
       </div>`;
   }
@@ -98,8 +99,8 @@ export function renderTransitStep(step) {
   return `
     <div class="transit-step walk">
       <span class="step-icon">${getTransitStyle('WALKING').icon}</span>
-      <span class="step-main">${t('walkText') || '도보'}</span>
-      <span class="step-time">${step.duration}${step.distance ? ` (${step.distance})` : ''}</span>
+      <span class="step-main">${escapeHtml(t('walkText') || '도보')}</span>
+      <span class="step-time">${escapeHtml(step.duration)}${step.distance ? ` (${escapeHtml(step.distance)})` : ''}</span>
     </div>`;
 }
 
@@ -136,8 +137,8 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
       el.innerHTML = `
         <div class="transit-seg-card">
           <div class="transit-seg-header">
-            <span>${headerText}</span>
-            <span class="transit-seg-total">${t('samePlaceLabel') || '같은 장소 · 이동 없음'}</span>
+            <span>${escapeHtml(headerText)}</span>
+            <span class="transit-seg-total">${escapeHtml(t('samePlaceLabel') || '같은 장소 · 이동 없음')}</span>
           </div>
         </div>
       `;
@@ -173,11 +174,11 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
     el.innerHTML = `
       <div class="transit-seg-card">
         <div class="transit-seg-header">
-          <span>${headerText}</span>
-          ${totalText ? `<span class="transit-seg-total">${totalText}</span>` : ''}
+          <span>${escapeHtml(headerText)}</span>
+          ${totalText ? `<span class="transit-seg-total">${escapeHtml(totalText)}</span>` : ''}
         </div>
         <div class="transit-steps">${stepsHtml}</div>
-        ${detail.directionsUrl ? `<div class="transit-verify">${t('transitVerify') || '구글 지도에서 경로 확인'}</div>` : ''}
+        ${detail.directionsUrl ? `<div class="transit-verify">${escapeHtml(t('transitVerify') || '구글 지도에서 경로 확인')}</div>` : ''}
       </div>
     `;
 
