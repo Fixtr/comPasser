@@ -118,6 +118,26 @@ test('known-closed recommendation is skipped for an open alternative on the visi
   assert.deepEqual(checked,['closed','open']);
 });
 
+test('budget preference selects a known matching restaurant price level before a known mismatch', async () => {
+  const {geocoder}=service([candidate('premium'),candidate('affordable')], {
+    getHours:async id => ({priceLevel:id === 'premium' ? 'EXPENSIVE' : 'INEXPENSIVE'})
+  });
+  const [,result]=await geocoder.geocodeSchedule([fixed,recommendation],'2026-10-06',[],'budget');
+  assert.equal(result.verifiedPlace.placeId,'affordable');
+  const {geocoder:onlyPremium}=service([candidate('premium')], {
+    getHours:async () => ({priceLevel:'EXPENSIVE'})
+  });
+  assert.deepEqual((await onlyPremium.geocodeSchedule([fixed,recommendation],'2026-10-06',[],'budget')).map(i=>i.type),['departure']);
+});
+
+test('missing price data remains eligible while known incompatible prices do not', async () => {
+  const {geocoder}=service([candidate('premium'),candidate('unknown')], {
+    getHours:async id => ({priceLevel:id === 'premium' ? 'VERY_EXPENSIVE' : undefined})
+  });
+  const [,result]=await geocoder.geocodeSchedule([fixed,recommendation],'2026-10-06',[],'budget');
+  assert.equal(result.verifiedPlace.placeId,'unknown');
+});
+
 test('a previously verified place is rechecked and replaced when closed on the visit date', async () => {
   const saved=selectRecommendation([candidate('closed')],intent,center);
   const item={...recommendation,...recommendationFields(recommendation,saved)};
@@ -181,6 +201,19 @@ test('generation cannot self-assert verified fields; malformed intents remain ex
   }
 });
 
+test('generation search purposes carry the selected budget without contradictory price words', () => {
+  const days=[{scheduleItems:[
+    {...recommendation,placeIntent:{...intent,purpose:'프리미엄 한식 맛집'}},
+    {...recommendation,placeIntent:{purpose:'카페',category:'cafe',nearLocation:'서울역'}},
+    {...recommendation,placeIntent:{purpose:'공원 산책',category:'park',nearLocation:'서울역'}}
+  ]}];
+  const [day]=prepareGeneratedPlaces(days,'budget');
+  assert.deepEqual(day.scheduleItems.map(item=>item.placeIntent.purpose),[
+    '저렴한 한식 맛집','저렴한 카페','공원 산책'
+  ]);
+  assert.equal(days[0].scheduleItems[0].placeIntent.purpose,'프리미엄 한식 맛집');
+});
+
 test('verified identity and coordinates survive state persistence; failure clears stale identity even if names unchanged', () => {
   const values=new Map();
   const storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
@@ -209,6 +242,11 @@ test('server schema and prompt require intent, not model-generated business iden
   assert.match(prompt,/Do not recommend ticketed special events or limited-date programs/);
   assert.doesNotMatch(prompt,/describe that whole multi-leg journey in the transitInfo/);
   assert.doesNotMatch(prompt,/EXACTLY 3 objects|Provide REAL street addresses|MUST specify exact departure/);
+  const styled=buildPrompt(sanitizePlannerRequest({date:['2026-10-20'],theme:'activity',budget:'budget'}),'ko');
+  assert.match(styled,/relative price level/);
+  assert.match(styled,/Do not promise equipment rental, classes or bookable experiences/);
+  assert.match(styled,/prefer a theme-defining visit over an extra cafe/);
+  assert.doesNotMatch(styled,/under ₩10,000 per meal/);
 });
 
 test('candidate filtering and Places failures carry different retry reasons into the itinerary', async () => {

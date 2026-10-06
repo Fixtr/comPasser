@@ -40,3 +40,13 @@ export const cases = [
       anchor('남산서울타워 관람', '11:00', '12:00', '남산서울타워', 4)]
   })
 ];
+
+export const MULTIDAY_CASE_VERSION = 2;
+export const multidayCases = [
+  { id: 'four-day-food-overnights', description: '3박 4일: 같은 숙소를 잇는 식도락 일정',
+    request: normalizePlannerRequest({ ...cases[4].request,
+      overnightLocations: ['롯데호텔 서울', '롯데호텔 서울', '롯데호텔 서울'] }) },
+  { id: 'four-day-anchors-overnights', description: '3박 4일: 필수 일정과 세 숙소를 잇는 일정',
+    request: normalizePlannerRequest({ ...cases[5].request,
+      overnightLocations: ['나인트리 프리미어 호텔 인사동', '노보텔 앰배서더 서울 용산', '호텔 포코 성수'] }) }
+];

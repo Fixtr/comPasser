@@ -68,10 +68,10 @@ export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now
           (async () => {
             const { Place } = await loadPlaces();
             const place = new Place({ id });
-            await place.fetchFields({ fields: ['currentOpeningHours', 'regularOpeningHours', 'businessStatus', 'utcOffsetMinutes'] });
+            await place.fetchFields({ fields: ['currentOpeningHours', 'regularOpeningHours', 'businessStatus', 'utcOffsetMinutes', 'priceLevel'] });
             return { currentOpeningHours: place.currentOpeningHours,
               regularOpeningHours: place.regularOpeningHours, businessStatus: place.businessStatus,
-              utcOffsetMinutes: place.utcOffsetMinutes };
+              utcOffsetMinutes: place.utcOffsetMinutes, priceLevel: place.priceLevel };
           })(),
           new Promise(resolve => { timer = setTimeout(() => resolve(null), timeoutMs); }),
         ]);

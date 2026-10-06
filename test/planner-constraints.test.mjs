@@ -24,6 +24,39 @@ const flatRequest = {
   }]
 };
 
+test('overnight places connect each day to the next without changing the trip endpoints', () => {
+  const hotelA = {placeId:'hotel-a',displayName:'첫 숙소',formattedAddress:'서울 종로',lat:37.5,lng:127};
+  const hotelB = {placeId:'hotel-b',displayName:'둘째 숙소',formattedAddress:'서울 마포',lat:37.6,lng:126.9};
+  const request = {date:['2026-10-01','2026-10-02','2026-10-03','2026-10-04'],startTime:'09:00',endTime:'18:00',
+    startLocation:'서울역',endLocation:'인천공항',overnightLocations:[hotelA,hotelB,hotelB]};
+  const days = normalizePlannerRequest(request).dailyData;
+  assert.deepEqual(days.map(day => [day.startLocation,day.endLocation]), [
+    ['서울역',hotelA],[hotelA,hotelB],[hotelB,hotelB],[hotelB,'인천공항']
+  ]);
+  const result = enforcePlannerConstraints(request.date.map((date,index) => ({day:index + 1,date,scheduleItems:[]})),request);
+  assert.deepEqual(result.map(day => [day.scheduleItems[0].location,day.scheduleItems.at(-1).location]), [
+    ['서울역','첫 숙소'],['첫 숙소','둘째 숙소'],['둘째 숙소','둘째 숙소'],['둘째 숙소','인천공항']
+  ]);
+});
+
+test('short generated visits are omitted without changing fixed appointments', () => {
+  const request = { date: ['2026-10-09'], startTime: '09:00', endTime: '14:00',
+    startLocation: '호텔 포코 성수', endLocation: '서울역',
+    anchorSchedules: [{ day: 1, name: '남산서울타워 관람', time: '11:00', endTime: '12:00', location: '남산서울타워' }] };
+  const visit = (title, type, category, time, endTime) => ({ title, type, time, endTime,
+    location: '남산서울타워', placeIntent: { purpose: title, category, nearLocation: '남산서울타워' } });
+  const generated = [{ day: 1, scheduleItems: [
+    visit('짧은 카페', 'dining', 'cafe', '09:30', '09:49'),
+    visit('점심 식사', 'dining', 'restaurant', '12:10', '13:00'),
+    visit('충분한 식사', 'dining', 'restaurant', '12:30', '13:30')
+  ] }];
+  const result = enforcePlannerConstraints(generated, request);
+  assert.deepEqual(result[0].scheduleItems.map(item => item.title), [
+    '출발 · 호텔 포코 성수', '남산서울타워 관람', '충분한 식사', '도착 · 서울역'
+  ]);
+  assert.deepEqual(enforcePlannerConstraints(result, request), result);
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [

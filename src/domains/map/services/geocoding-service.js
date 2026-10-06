@@ -5,6 +5,11 @@ import { assessVisitHours, lookupPlaceHours } from '../../itinerary/services/iti
 
 /** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
 const SUPPORTED_LANGUAGES = new Set(['ko', 'en']);
+const BUDGET_PRICE_LEVELS = {
+    budget: new Set(['FREE', 'INEXPENSIVE']),
+    standard: new Set(['INEXPENSIVE', 'MODERATE']),
+    flex: new Set(['EXPENSIVE', 'VERY_EXPENSIVE'])
+};
 
 export class GeocodingService {
     /**
@@ -110,7 +115,7 @@ export class GeocodingService {
         return resolved ? resolved.latLng : null;
     }
 
-    async resolveRecommendation(item, center, excluded, timeoutMs = 6000, date = '', biasCenter = center) {
+    async resolveRecommendation(item, center, excluded, timeoutMs = 6000, date = '', biasCenter = center, budget = null) {
         const intent = normalizePlaceIntent(item.placeIntent);
         if (!intent || !center) {
             item.unresolvedReason = intent ? 'missing-center' : 'invalid-intent';
@@ -122,10 +127,14 @@ export class GeocodingService {
             const { place, rejected, count } = await Promise.race([
                 (async () => {
                     let searchExcluded = excluded;
+                    const wantedPrices = ['restaurant', 'cafe'].includes(intent.category)
+                        ? BUDGET_PRICE_LEVELS[budget] : null;
+                    const priceFits = details => !wantedPrices || !details?.priceLevel || wantedPrices.has(details.priceLevel);
                     const saved = reusableRecommendation(item, center);
                     if (saved && !searchExcluded.has(saved.placeId)) {
-                        const status = date ? assessVisitHours(item, date, await this.getHours(saved.placeId)) : 'unknown';
-                        if (!['closed', 'conflict'].includes(status)) return { place: saved, rejected: {}, count: 0 };
+                        const details = date ? await this.getHours(saved.placeId) : null;
+                        const status = date ? assessVisitHours(item, date, details) : 'unknown';
+                        if (!['closed', 'conflict'].includes(status) && priceFits(details)) return { place: saved, rejected: {}, count: 0 };
                         searchExcluded = new Set([...searchExcluded, saved.placeId]);
                     }
                     await this.init();
@@ -141,17 +150,27 @@ export class GeocodingService {
                     });
                     const rejected = {};
                     const places = Array.isArray(result.places) ? result.places : [];
+                    let unknownPricePlace = null;
                     for (const candidate of places) {
                         const place = selectRecommendation([candidate], intent, center, searchExcluded, rejected);
                         if (!place) continue;
-                        const status = date ? assessVisitHours(item, date, await this.getHours(place.placeId)) : 'unknown';
+                        const details = date ? await this.getHours(place.placeId) : null;
+                        const status = date ? assessVisitHours(item, date, details) : 'unknown';
                         if (['closed', 'conflict'].includes(status)) {
                             rejected.hours = (rejected.hours || 0) + 1;
                             continue;
                         }
+                        if (!priceFits(details)) {
+                            rejected.budget = (rejected.budget || 0) + 1;
+                            continue;
+                        }
+                        if (wantedPrices && !details?.priceLevel) {
+                            unknownPricePlace ||= place;
+                            continue;
+                        }
                         return { place, rejected, count: places.length };
                     }
-                    return { place: null, rejected, count: places.length };
+                    return { place: unknownPricePlace, rejected, count: places.length };
                 })(),
                 new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Place search timeout')), timeoutMs); }),
             ]);
@@ -184,7 +203,7 @@ export class GeocodingService {
      * @param {Array} scheduleItems List of items containing a location string
      * @returns {Promise<Array>} The same list but with .latLng objects attached
      */
-    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = []) {
+    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = [], budget = null) {
         if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return [];
 
         const geocodeOne = async (item, biasCenter) => {
@@ -246,7 +265,7 @@ export class GeocodingService {
                     const previous = results.slice(0, index).reverse().find(result => result?.latLng)?.latLng;
                     const bias = nearestCenter?.index > index ? nearest
                         : previous && typeof previous.lat === 'number' ? previous : nearest;
-                    results[index] = await this.resolveRecommendation(item, nearest, excluded, Math.min(6000, deadline - Date.now()), date, bias);
+                    results[index] = await this.resolveRecommendation(item, nearest, excluded, Math.min(6000, deadline - Date.now()), date, bias, budget);
                     if (results[index]) excluded.add(results[index].verifiedPlace.placeId);
                 } else {
                     results[index] = await geocodeOne(item, nearest ? { lat: nearest.lat, lng: nearest.lng } : null);

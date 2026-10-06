@@ -1,4 +1,5 @@
 import { normalizeSelectedPlace } from './selected-place.mjs';
+import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
 function selectedFields(location) {
   const selectedPlace = normalizeSelectedPlace(location);
@@ -55,6 +56,8 @@ export function normalizePlannerRequest(plannerRequest = {}) {
   const anchors = Array.isArray(plannerRequest.anchorSchedules)
     ? plannerRequest.anchorSchedules
     : [];
+  const overnightLocations = Array.isArray(plannerRequest.overnightLocations)
+    ? plannerRequest.overnightLocations : null;
   const dayCount = Math.max(dates.length, existingDailyData.length, 1);
 
   const dailyData = Array.from({ length: dayCount }, (_, index) => {
@@ -76,8 +79,10 @@ export function normalizePlannerRequest(plannerRequest = {}) {
       // different global time. Validation must see the value the user sees.
       startTime: dayTimes.startTime ?? existingDay.startTime ?? plannerRequest.startTime ?? '',
       endTime: dayTimes.endTime ?? existingDay.endTime ?? plannerRequest.endTime ?? '',
-      startLocation: existingDay.startLocation || plannerRequest.startLocation || '',
-      endLocation: existingDay.endLocation || plannerRequest.endLocation || '',
+      startLocation: overnightLocations && index > 0
+        ? overnightLocations[index - 1] || '' : existingDay.startLocation || plannerRequest.startLocation || '',
+      endLocation: overnightLocations && index < dayCount - 1
+        ? overnightLocations[index] || '' : existingDay.endLocation || plannerRequest.endLocation || '',
       anchors: existingAnchors.length > 0 ? existingAnchors : flatAnchors
     };
   });
@@ -287,6 +292,16 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     scheduleItems = scheduleItems
       .filter(item => item.type === 'AnchorSchedule' || minutes(item.time) < endTimeMinutes)
       .sort((a, b) => minutes(a.time) - minutes(b.time));
+
+    // Keep the same stay minimum used by measured-route fitting. An optional
+    // 50-minute meal is not a valid 60-minute visit even before Maps runs.
+    scheduleItems = scheduleItems.filter(item => {
+      if (item.type === 'AnchorSchedule' || !item.placeIntent?.purpose) return true;
+      const start = minutes(item.time);
+      const end = minutes(item.endTime);
+      return start === Number.MAX_SAFE_INTEGER || end === Number.MAX_SAFE_INTEGER
+        || end - start >= minimumStayMinutes(item);
+    });
 
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,

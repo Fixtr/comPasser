@@ -5,6 +5,7 @@ async (page) => {
   const request = {
     date: ['2026-10-01', '2026-10-02'], theme: 'food', budget: 'budget',
     startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '서울역',
+    overnightLocations: ['서울역'],
     dailyTimes: [
       { day: 1, startTime: '09:00', endTime: '18:00', isCustom: true },
       { day: 2, startTime: '10:00', endTime: '19:00', isCustom: true },
@@ -39,6 +40,7 @@ async (page) => {
   check(actual.badges.includes('2026-10-01'), 'Badges must use the same draft');
   check(actual.days.join() === '1,2' && actual.request.anchorSchedules[0].day === 2, 'Day selector must use edited duration');
   check(actual.daily.join() === '09:00,10:00', 'Custom daily times must be restored');
+  check(actual.request.overnightLocations.join() === '서울역', 'Overnight place must be restored');
   results.push('PASS saved-trip edit: visible/submitted dates, preferences, anchor day and daily times agree');
 
   await page.locator('travel-form .anchor-name').fill('수정한 공연');
@@ -74,15 +76,17 @@ async (page) => {
   results.push('PASS preference re-entry/skip updates the same draft without losing details');
 
   await page.locator('travel-form #reselect-preference-btn').click();
-  await page.locator('preference-view [data-duration="3"]').click();
+  await page.locator('preference-view [data-duration="4"]').click();
   await page.locator('preference-view #next-step-btn').click();
   await page.locator('preference-view #skip-btn').click();
-  await page.waitForFunction(() => document.querySelector('travel-form').draft.date.length === 3);
+  await page.waitForFunction(() => document.querySelector('travel-form').draft.date.length === 4);
   actual = await read();
-  const changedDates = ['2026-10-01', '2026-10-02', '2026-10-03'];
+  const changedDates = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
   check(JSON.stringify(actual.request.date) === JSON.stringify(changedDates), 'Changed duration must update submitted dates');
-  check(actual.date.includes('2026-10-03') && actual.days.join() === '1,2,3', 'Date display and anchor options must update together');
+  check(actual.date.includes('2026-10-04') && actual.days.join() === '1,2,3,4', 'Date display and anchor options must update together');
   check(actual.request.anchorSchedules[0].day === 2, 'Duration expansion must keep anchor day');
+  check(actual.request.overnightLocations.length === 3 && actual.request.overnightLocations[0] === '서울역',
+    'Duration expansion must preserve existing overnight place and add a new night');
   results.push('PASS explicit duration change updates dates/day options and preserves anchors');
 
   await page.locator('travel-form #reset-btn').click();

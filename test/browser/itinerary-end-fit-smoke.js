@@ -58,9 +58,28 @@ async page => {
     ]}]});
     view.lastTransitRoutes = [];
     view.refreshEndTimeWarning();
-    return !view.shadowRoot.getElementById('anchor-time-warning').hidden;
+    const warning = view.shadowRoot.getElementById('anchor-time-warning');
+    return !warning.hidden && warning.textContent.includes('앞선 방문 일정을 조정');
   });
   if (!missingRouteConflict) throw new Error('Known overlap must warn before any route is available');
+  const fixedConflict = await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    view.state.open({request:{date:['2026-10-20'],startTime:'09:00',endTime:'18:00'},days:[{date:'2026-10-20',scheduleItems:[
+      {type:'departure',title:'서울역',time:'09:00'},
+      {type:'AnchorSchedule',title:'박물관',time:'10:00',endTime:'11:30'},
+      {type:'AnchorSchedule',title:'타워',time:'11:40',endTime:'12:40'},
+      {type:'arrival',title:'서울역',time:'18:00'}
+    ]}]});
+    view.renderCurrentState();
+    view.lastTransitRoutes = [{fromIndex:0,toIndex:1,durationMinutes:30},
+      {fromIndex:1,toIndex:2,durationMinutes:50},{fromIndex:2,toIndex:3,durationMinutes:30}];
+    view.refreshEndTimeWarning();
+    const warning = view.shadowRoot.getElementById('anchor-time-warning');
+    return {visible:!warning.hidden,text:warning.textContent};
+  });
+  if (!fixedConflict.visible || !fixedConflict.text.includes('앞선 방문을 빼도 해결되지')) {
+    throw new Error('Impossible fixed-to-fixed travel must tell users to change a fixed condition');
+  }
   const noRoutePrune = await page.evaluate(() => {
     const view = document.querySelector('itinerary-view');
     window.__fitMapRequests = [];

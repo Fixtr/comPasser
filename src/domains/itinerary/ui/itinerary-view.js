@@ -20,7 +20,7 @@ import { suggestRouteOrder } from '../services/itinerary-route-order.mjs';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
-import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
+import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { exportItineraryImage } from './itinerary-image-export.js';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
@@ -256,7 +256,8 @@ export default class ItineraryView extends HTMLElement {
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
-      detail: { plan: { days: [structuredClone(day)], ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
+      detail: { plan: { days: [structuredClone(day)], ...(this.currentItinerary?.request?.budget ? { budget: this.currentItinerary.request.budget } : {}),
+        ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
     }));
   }
 
@@ -610,12 +611,17 @@ export default class ItineraryView extends HTMLElement {
     // 보고 판단하는 getEndTimeWarning 을 쓴다.
     const { overflowMinutes, endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex, this.lastTransitRoutes);
     this.renderEndTimeWarning(overflowMinutes, endTime);
-    const anchorWarning = this.shadowRoot.getElementById('anchor-time-warning');
-    if (anchorWarning) {
-      anchorWarning.hidden = !hasFixedArrivalConflict(
-        applyTransitDelays(this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems, this.lastTransitRoutes), this.lastTransitRoutes);
-      anchorWarning.textContent = t('anchorTransitConflict');
-    }
+    this.updateAnchorWarning(applyTransitDelays(
+      this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems,
+      this.lastTransitRoutes), this.lastTransitRoutes);
+  }
+
+  updateAnchorWarning(items, routes) {
+    const warning = this.shadowRoot.getElementById('anchor-time-warning');
+    if (!warning) return;
+    warning.hidden = !hasFixedArrivalConflict(items, routes);
+    warning.textContent = t(hasUnavoidableFixedArrivalConflict(items, routes)
+      ? 'anchorFixedConflict' : 'anchorTransitConflict');
   }
 
   /**
@@ -1072,11 +1078,7 @@ export default class ItineraryView extends HTMLElement {
     const scheduleItems = fit.items;
     this.state.replaceDayItems(this.activeDayIndex, scheduleItems);
 
-    const anchorWarning = this.shadowRoot.getElementById('anchor-time-warning');
-    if (anchorWarning) {
-      anchorWarning.hidden = !hasFixedArrivalConflict(scheduleItems, transitRoutes);
-      anchorWarning.textContent = t('anchorTransitConflict');
-    }
+    this.updateAnchorWarning(scheduleItems, transitRoutes);
 
     if (fit.adjusted) {
       this._automaticFitCount = (this._automaticFitCount || 0) + 1;

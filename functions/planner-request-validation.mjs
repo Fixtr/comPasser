@@ -7,6 +7,14 @@ const isRecord = value => value !== null && typeof value === 'object' && !Array.
 const hasText = value => typeof value === 'string' && value.replace(/[\u0000-\u001F\u007F]/g, ' ').trim().length > 0;
 const hasLocation = value => hasText(value) || (isRecord(value)
   && [value.displayName, value.formattedAddress, value.address].some(hasText));
+const sameLocation = (left, right) => {
+  if (isRecord(left) && isRecord(right) && hasText(left.placeId) && hasText(right.placeId)) {
+    return left.placeId === right.placeId;
+  }
+  const name = value => (typeof value === 'string' ? value
+    : [value?.displayName, value?.formattedAddress, value?.address].find(hasText) || '').trim().toLowerCase();
+  return name(left) !== '' && name(left) === name(right);
+};
 const isTime = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 function isDate(value) {
@@ -68,6 +76,18 @@ export function findPlannerRequestIssue(request) {
       if (anchor.time >= anchor.endTime) return issue('anchor-time-order', 'endTime', anchorIndex);
       if (anchor.time < item.startTime) return issue('anchor-bounds', 'time', anchorIndex);
       if (anchor.endTime > item.endTime) return issue('anchor-bounds', 'endTime', anchorIndex);
+    }
+  }
+  if (request.overnightLocations !== undefined) {
+    if (!Array.isArray(request.overnightLocations) || request.overnightLocations.length !== days.length - 1) {
+      return {reason:'overnight-length'};
+    }
+    for (let index = 0; index < days.length - 1; index++) {
+      const stay = request.overnightLocations[index];
+      if (!hasLocation(stay) || !sameLocation(days[index].endLocation,stay)
+          || !sameLocation(stay,days[index + 1].startLocation)) {
+        return {reason:'overnight-mismatch',day:index + 1};
+      }
     }
   }
   return null;

@@ -198,6 +198,14 @@ test('다일 초안의 장소 검색은 다른 날에 이미 확인한 장소를
   assert.deepEqual(latestMapRequest(app).plan.excludedPlaceIds,['lunch-a']);
 });
 
+test('지도 요청은 저장된 일정의 예산 선택을 전달한다', () => {
+  const app=itineraryView({user:{uid:'owner'}});
+  const plan=samplePlan();
+  plan.request={budget:'budget'};
+  app.view.showResults(plan);
+  assert.equal(latestMapRequest(app).plan.budget,'budget');
+});
+
 function latestMapRequest(app) {
   return app.calls.events.filter(event => event.type === 'render-map-route').at(-1).detail;
 }
