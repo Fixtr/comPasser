@@ -16,6 +16,7 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-home ion-button { min-height: 52px; margin-top: 18px; }
 @media (min-width: 900px) {
   .ionic-home { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); align-items: start; gap: 3rem; }
+  .ionic-home-intro { position: sticky; top: 6rem; }
   .ionic-home home-courses { grid-column: 2; }
   .ionic-home public-courses { grid-column: 2; }
 }

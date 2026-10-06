@@ -906,6 +906,8 @@ const dictionary = {
         shellGenerationFailed: "Could not plan this trip",
         shellReturnToForm: "Return to the form",
         shellResult: "Itinerary",
+        nextStopToday: "Next stop",
+        firstStop: "First stop",
         shellShared: "Shared itinerary",
         shellPreferences: "Travel preferences",
         shellBudget: "Travel budget",
