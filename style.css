@@ -212,6 +212,37 @@ body.stage-map {
   text-align: center;
 }
 
+#page-recommend,
+#page-courses {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-back-nav {
+  margin-bottom: 1rem;
+  text-align: left;
+  width: 100%;
+}
+
+.page-back-btn {
+  background: transparent;
+  color: var(--cp-ink);
+  border: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--cp-radius);
+}
+
+.page-back-btn:hover {
+  background: var(--cp-surface);
+}
+
 /* 랜딩이 아닌 주소로 들어온 경우. head 스크립트가 경로만 보고 미리
    붙이므로 첫 페인트 전에 감춰진다(랜딩이 번쩍이지 않는다). */
 html[data-route="away"] #page-home {

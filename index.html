@@ -97,8 +97,7 @@
 
       <button id="go-to-login-btn" class="primary-btn" type="button" data-i18n="homeStart">로그인하고 시작하기</button>
 
-      <home-recommendations></home-recommendations>
-      <home-courses></home-courses>
+      <home-preview></home-preview>
 
       <script>
         document.getElementById('go-to-login-btn').addEventListener('click', () => {
@@ -107,6 +106,23 @@
           }
         });
       </script>
+    </div>
+
+    <!-- Recommend Landing Page -->
+    <div id="page-recommend" class="page-container" style="display: none;">
+      <div class="page-back-nav">
+        <button id="recommend-back-btn" class="page-back-btn" type="button">← <span data-i18n="shellBack">뒤로</span></button>
+      </div>
+      <home-recommendations></home-recommendations>
+    </div>
+
+    <!-- Courses Landing Page -->
+    <div id="page-courses" class="page-container" style="display: none;">
+      <div class="page-back-nav">
+        <button id="courses-back-btn" class="page-back-btn" type="button">← <span data-i18n="shellBack">뒤로</span></button>
+      </div>
+      <home-courses></home-courses>
+      <public-courses></public-courses>
     </div>
 
     <!-- Login Landing Page -->

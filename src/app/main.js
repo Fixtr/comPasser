@@ -7,8 +7,10 @@ import '../domains/auth/ui/login-view.js';
 import '../domains/auth/ui/join-view.js';
 import '../domains/auth/ui/verify-view.js';
 import '../domains/planner/ui/preference-view.js';
+import '../domains/planner/ui/home-preview.js';
 import '../domains/planner/ui/home-recommendations.js';
 import '../domains/planner/ui/home-courses.js';
+import '../domains/planner/ui/public-courses.js';
 import '../domains/planner/ui/travel-form.js';
 import '../domains/map/ui/map-view.js';
 import '../domains/itinerary/ui/itinerary-view.js';
@@ -158,6 +160,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pageLogin = document.getElementById('page-login');
     const pageJoin = document.getElementById('page-join');
     const pageHome = document.getElementById('page-home');
+    const pageRecommend = document.getElementById('page-recommend');
+    const pageCourses = document.getElementById('page-courses');
+    const recommendBackBtn = document.getElementById('recommend-back-btn');
+    const coursesBackBtn = document.getElementById('courses-back-btn');
+    recommendBackBtn?.addEventListener('click', () => {
+        if (window.history.length > 1) window.history.back();
+        else window.navigate('/');
+    });
+    coursesBackBtn?.addEventListener('click', () => {
+        if (window.history.length > 1) window.history.back();
+        else window.navigate('/');
+    });
     const pageVerify = document.getElementById('page-verify');
     const pagePlan = document.getElementById('page-plan');
     const pagePreference = document.getElementById('page-preference');
@@ -295,6 +309,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 1. Hide all pages by default
         if (pageHome) pageHome.style.display = 'none';
+        if (pageRecommend) pageRecommend.style.display = 'none';
+        if (pageCourses) pageCourses.style.display = 'none';
         if (pageLogin) pageLogin.style.display = 'none';
         if (pageVerify) pageVerify.style.display = 'none';
         if (pageJoin) pageJoin.style.display = 'none';
@@ -378,7 +394,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             generationController.enterPlan();
+        } else if (path === '/recommend') {
+            if (pageRecommend) pageRecommend.style.display = 'block';
+        } else if (path === '/courses') {
+            if (pageCourses) pageCourses.style.display = 'block';
         } else if (isHomePath(path)) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('review')) {
+                window.navigate('/courses' + window.location.search);
+                return;
+            }
             if (pageHome) pageHome.style.display = 'flex';
         } else if (path === '/login') {
             if (pageLogin) pageLogin.style.display = 'block';
