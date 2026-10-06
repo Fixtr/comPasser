@@ -42,8 +42,10 @@ class SimpleGreeting extends HTMLElement {
     style.textContent = `
       .wrapper {
         padding: 15px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
+        border: 1px solid var(--cp-rule, #D6D6D1);
+        border-radius: 0;
+        background: var(--cp-surface, #FFFFFF);
+        color: var(--cp-ink, #141414);
       }
     `;
     shadow.appendChild(style);
@@ -57,16 +59,17 @@ customElements.define('simple-greeting', SimpleGreeting);
 // <simple-greeting name="User"></simple-greeting>
 ```
 
-## **Modern CSS (Baseline Features)**
+## **Modern CSS (Baseline Features & Design Contracts)**
 
-The AI will use modern, widely supported CSS features to create responsive and maintainable styles.
+The AI will use modern, widely supported CSS features strictly aligned with ComPasser's design contracts (`src/styles/tokens.css`).
 
 * **Container Queries (`@container`):** Create components that respond to the size of their parent container, not just the viewport.
 * **Cascade Layers (`@layer`):** Manage the CSS cascade with explicit layers to prevent style conflicts, especially when integrating third-party styles.
 * **The `:has()` Selector:** Select parent elements based on their children, simplifying complex styling scenarios without JavaScript.
 * **Logical Properties:** Use properties like `margin-inline-start` instead of `margin-left` for better support in different writing modes.
-* **Modern Color Spaces (`oklch`, `lch`):** Use color functions that provide access to more vibrant and perceptually uniform colors.
-* **CSS Variables:** Use custom properties (`--main-color: #333;`) for theming and easier maintenance.
+* **Design Tokens (`--cp-*`):** Use custom properties defined in `src/styles/tokens.css` with solid hex values (e.g., `--cp-paper: #F4F4F1; --cp-ink: #141414; --cp-surface: #FFFFFF; --cp-rule: #D6D6D1;`).
+* **Strict Color Constraints (No `oklch` / `color-mix` / `rgba`):** Modern wide-gamut functions (`oklch`, `lch`, `color-mix`) and arbitrary `rgba` are strictly prohibited because they break `html2canvas` DOM captures and violate style contracts (`test/frame-style-contract.test.mjs`).
+* **Monochrome UI with Functional Accents:** The UI itself is strictly monochrome. Accent colors are reserved strictly for map markers and their corresponding timeline items (`--cp-anchor` #7c3aed, `--cp-start` #10b981, `--cp-stop` #3b82f6) and status badges.
 
 ## **Modern JavaScript (Baseline Features)**
 
@@ -109,24 +112,26 @@ A critical function of the AI is to continuously monitor for and automatically r
   * Common JavaScript runtime errors.
 * **Problem Reporting:** If an error cannot be automatically resolved, the AI will clearly report the specific error message, its location, and a concise explanation with a suggested manual intervention or alternative approach to the user.
 
-## **Visual Design**
+## **Visual Design & Contracts**
 
-**Aesthetics:** The AI always makes a great first impression by creating a unique user experience that incorporates modern components, a visually balanced layout with clean spacing, and polished styles that are easy to understand.
+**Aesthetics:** The AI strictly enforces ComPasser's flat, monochrome design contracts (`tokens.css` and `test/frame-style-contract.test.mjs`). Clean spacing, sharp lines, zero shadows, high outdoor legibility, and zero capture errors.
 
-1. Build beautiful and intuitive user interfaces that follow modern design guidelines.
-2. Ensure your app is mobile responsive and adapts to different screen sizes, working perfectly on mobile and web.
-3. Propose colors, fonts, typography, iconography, animation, effects, layouts, texture, drop shadows, gradients, etc.
-4. If images are needed, make them relevant and meaningful, with appropriate size, layout, and licensing (e.g., freely available). If real images are not available, provide placeholder images.
-5. If there are multiple pages for the user to interact with, provide an intuitive and easy navigation bar or controls.
+1. Build clean, minimal, and intuitive user interfaces that follow ComPasser's `--cp-*` design tokens.
+2. Ensure the app is mobile responsive and adapts to different screen sizes, working seamlessly across web and Capacitor mobile shells.
+3. Propose clean typography, 1px solid borders, high-contrast layouts, and functional iconography.
+4. Prohibit `box-shadow` and `gradient`: all elevation and separation is achieved through `1px solid var(--cp-rule)` borders or distinct background surfaces (`--cp-paper`, `--cp-surface`, `--cp-sunken`).
+5. Border radius is strictly `0` (or `9999px` for pill badges/buttons). Avoid arbitrary `8px`, `12px`, or rounded card aesthetics.
+6. If images are needed, make them relevant and meaningful, with appropriate size, layout, and licensing.
+7. If there are multiple pages for the user to interact with, provide an intuitive navigation bar or controls.
 
-**Bold Definition:** The AI uses modern, interactive iconography, images, and UI components like buttons, text fields, animation, effects, gestures, sliders, carousels, navigation, etc.
+**Bold Definition & Interactivity:** The AI designs high-performance, accessible UI elements.
 
-1. Fonts \- Choose expressive and relevant typography. Stress and emphasize font sizes to ease understanding, e.g., hero text, section headlines, list headlines, keywords in paragraphs, etc.
-2. Color \- Include a wide range of color concentrations and hues in the palette to create a vibrant and energetic look and feel.
-3. Texture \- Apply subtle noise texture to the main background to add a premium, tactile feel.
-4. Visual effects \- Multi-layered drop shadows create a strong sense of depth. Cards have a soft, deep shadow to look "lifted."
-5. Iconography \- Incorporate icons to enhance the user’s understanding and the logical navigation of the app.
-6. Interactivity \- Buttons, checkboxes, sliders, lists, charts, graphs, and other interactive elements have a shadow with elegant use of color to create a "glow" effect.
+1. Fonts - Choose clean, legible typography with clear hierarchy (hero, section headlines, badges, body).
+2. Color - Strictly monochrome foundation (`--cp-ink`, `--cp-paper`, `--cp-surface`) with functional marker accents only (`--cp-anchor`, `--cp-start`, `--cp-stop`). No decorative gradients or saturated cards.
+3. Texture & Background - Solid paper tone (`--cp-paper: #F4F4F1;`) without artificial noise, skeuomorphism, or gradients.
+4. Visual effects - Zero drop shadows (`box-shadow: none`). Zero gradient text (`background-clip: text` prohibited).
+5. Iconography - Incorporate standard monochrome icons or functional emoji to enhance quick scanning.
+6. Interactivity - Buttons and interactive chips use high-contrast ink reversal on hover/active (`background: var(--cp-ink); color: var(--cp-surface);`) instead of translateY vertical lifts or glowing shadow effects.
 
 ## **Accessibility or A11Y Standards:** The AI implements accessibility features to empower all users, assuming a wide variety of users with different physical abilities, mental abilities, age groups, education levels, and learning styles.
 

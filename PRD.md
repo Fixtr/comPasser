@@ -74,8 +74,8 @@ ComPasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
   - **데이터 구조화**: AI가 예상 비용, 운영 시간, 현지 팁을 개별 필드로 생성하도록 스키마 고도화.
   - **3단 레이아웃**: 💰, 🕐, 💡 아이콘을 활용한 멀티라인 UI를 통해 여행자에게 필요한 핵심 정보를 즉각적으로 제공.
   - **하위 호환성**: 신규/기존 데이터 포맷에 관계없이 안정적인 렌더링을 보장하는 Fallback 로직 구축.
-- **컴포넌트 폴리싱**: 입력 폼과 버튼에 부드러운 테두리 및 메인 컬러 포커스 투영 효과(Shadow), 호버 애니메이션을 적용하여 입체적인 시각 경험 제공.
-- **안정적인 일정 이미지 내보내기 (Troubleshooting)**: `html2canvas` 라이브러리를 활용한 DOM 캡처 중, 최신 CSS 색상 함수(예: `color(display-p3)`)를 파싱하지 못해 이미지 다운로드가 실패하는 렌더링 엔진 호환성 문제 발생. 이를 해결하기 위해 캡처 프로세스 시작 시 문제가 되는 최신 CSS 속성 및 캡처에 불필요한 UI 요소(버튼 등)를 `ignoreElements` 콜백과 임시 스타일 변환(Cleanup 로직 포함)을 통해 필터링하여 안정적인 이미지 내보내기 기능 복구 완료.
+- **플랫 & 무채색 디자인 시스템 (`--cp-*`)**: UI는 무채색 기반의 정갈한 타이포그래피와 1px 실선(`--cp-rule`), 0px(또는 9999px 알약) 테두리 반경을 적용하며, 그림자(`box-shadow: none`)와 그라디언트를 전면 배제합니다. 색상은 지도 마커 규칙(Anchor 보라, 시작 초록, 일반 파랑) 및 필수 상태 뱃지에만 제한적으로 사용하여 야외 시인성과 저사양 렌더 성능을 극대화합니다. 버튼 등 인터랙션은 translateY 들뜸 효과 대신 잉크 반전(`--cp-ink` 배경 / `--cp-surface` 텍스트)을 적용합니다.
+- **안정적인 일정 이미지 내보내기 (Troubleshooting)**: `html2canvas` 라이브러리를 활용한 DOM 캡처 중, 최신 CSS 색상 함수(예: `oklch`, `color-mix`, `color(display-p3)`)를 파싱하지 못해 이미지 다운로드가 실패하는 렌더링 엔진 호환성 문제 발생. 이를 해결하기 위해 모든 디자인 토큰을 순수 hex로 통일하고, 캡처에 불필요한 UI 요소(버튼 등)를 `ignoreElements` 콜백과 임시 스타일 변환(Cleanup 로직 포함)을 통해 필터링하여 안정적인 이미지 내보내기 기능 복구 완료.
 
 ### 3.8. 로딩 대기 시간 활용 제휴 광고 배너 캐러셀 (Ad Banner Carousel)
 - AI 일정 생성 대기 중 한국 여행 외국인 관광객 타겟의 가상 제휴 광고 배너를 3.5초 간격으로 자동 슬라이드합니다.
@@ -121,7 +121,9 @@ ComPasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **개인 보관용 데이터 (`itineraries`)**: 사용자가 개인 계정에 직접 보관한 일정은 철저하게 `read, write: if request.auth != null && request.auth.uid == resource.data.userId` 규칙으로 보호.
 
 ## 5. Technical Stack
-- **Frontend**: Vite, Vanilla JS (ES Modules)
+- **Frontend Core**: Vite, Vanilla JS (ES Modules) + Web Components
+- **Mobile & App Shell**: Ionic React Shell (`ionic-shell.jsx`, `ionic-screens.jsx`), Capacitor (iOS/Android)
+- **Design System**: `--cp-*` CSS 토큰 (순수 hex 기반, `oklch`/`color-mix`/`rgba` 금지, 1px 실선, 0/9999px radius, 0 shadow, 0 gradient)
 - **APIs**: Google Maps JS API, Google Gemini API
 - **네비게이션 딥링크**: 네이버 지도 / 카카오맵 / Google Maps URL Scheme
-- **Backend/Auth**: Firebase Auth, Firebase Firestore
+- **Backend/Auth**: Firebase Auth, Firebase Firestore, Cloud Functions

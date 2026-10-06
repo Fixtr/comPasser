@@ -3,7 +3,7 @@
 > 📌 **요약본(English)** · `CLAUDE.md` 와 `/review` 커맨드가 참조하는 규칙 기준 문서입니다. 사람이 읽는 상세 설계는 [`../ARCHITECTURE.md`](../ARCHITECTURE.md) 를 보세요.
 
 ## Overview
-ComPasser is built as a serverless web and mobile application utilizing Vanilla JS and Capacitor. It fully adopts Domain-Driven Design (DDD).
+ComPasser is built as a serverless web and mobile application utilizing a Dual Shell architecture (Vanilla JS Web Components core + Ionic React mobile distribution shell), Capacitor, and `--cp-*` flat design tokens. It fully adopts Domain-Driven Design (DDD).
 
 ## Domain Structure
 1. `auth/`: Firebase Google/Email Auth, Profile management.

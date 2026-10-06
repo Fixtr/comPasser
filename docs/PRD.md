@@ -20,6 +20,6 @@
 ## 🚫 Non-Goals (Strictly Excluded to prevent Scope Creep)
 - **NO Custom Payment Infrastructure:** Absolutely no PG integrations beyond simple affiliate redirect linking.
 - **NO Social Network Features:** No user-to-user following, social feeds, or in-app messaging.
-- **NO Custom UI Frameworks:** Avoid heavy frameworks. Standard Web Components and Vanilla CSS only.
+- **NO Heavy Full-Stack Frameworks:** Avoid heavy SSR frameworks (e.g., Next.js). Vanilla Web Components core with a lightweight Ionic React mobile distribution shell.
 - **NO Real-time Collaborative Editing:** Itinerary sharing is read-only for guests.
 - **NO Server-side Rendering (SSR):** Architecture remains 100% Client-Side Rendered (CSR) + Firebase.
