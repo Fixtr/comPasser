@@ -227,3 +227,21 @@ npm run check
 ```
 
 최초 검사 환경 설치, 부분 실행, 실패 기록 확인은 [검사 실행 안내](docs/TESTING.md)를 참고하세요. GitHub 자동 검사 설정도 포함되어 있으며, 원격에 반영되면 PR과 `main` 푸시에서 실행됩니다. 이 검사는 배포를 수행하거나 기존 Cloudflare 자동 배포를 차단하지 않습니다.
+
+---
+
+## 📚 문서 가이드 (Documentation)
+
+모든 프로젝트 사양 및 운영 문서는 [`docs/`](docs/) 디렉토리에서 관리됩니다.
+
+- [**PRD (제품 요구사항 정의서)**](docs/PRD.md): 제품 기능 명세, 가드레일, 비기능 요구사항
+- [**ARCHITECTURE (시스템 아키텍처)**](docs/ARCHITECTURE.md): 시스템 구조, 듀얼 셸, 앵커 최적화 알고리즘
+- [**Schema (데이터베이스 스키마)**](docs/Schema.md): Firestore 컬렉션 구조 및 데이터 계약
+- [**ADR (아키텍처 결정 기록)**](docs/ADR.md): 주요 기술적 의사결정 기록
+- [**COMMAND_GUIDE (도메인 규칙)**](docs/COMMAND_GUIDE.md): 도메인별 설계 원칙 및 테스트 기준
+- [**TESTING (테스트 가이드)**](docs/TESTING.md): 단위/브라우저/에뮬레이터 테스트 실행 가이드
+- [**DEPLOY (배포 가이드)**](docs/DEPLOY.md): Cloud Functions 및 웹 배포 가이드
+- [**PLAY_STORE (앱 출시 가이드)**](docs/PLAY_STORE.md): Android/Capacitor 빌드 및 플레이스토어 설정
+- [**IONIC_PROTOTYPE (모바일 셸)**](docs/IONIC_PROTOTYPE.md): Ionic React 셸 구조 및 다이나믹 로딩 가이드
+- [**과거 검증/QA 일지**](docs/history/): 날짜별 과거 테스트 및 배포 기록 보관함
+

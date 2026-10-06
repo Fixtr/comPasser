@@ -92,7 +92,7 @@ the app's public-transit routing; budget preferences apply to venue spending.
 
 ## Recommendation place resolution (2026-09-15)
 
-For source-linked sharing/deletion behavior introduced on 2026-09-18, see [shared deletion](SHARED_DELETION_2026-09-18.md).
+For source-linked sharing/deletion behavior introduced on 2026-09-18, see [shared deletion](history/SHARED_DELETION_2026-09-18.md).
 
 New AI responses include `placeIntent: { purpose, category, nearLocation }` on each item.
 Ordinary items describe an activity goal, not a business identity. Categories are

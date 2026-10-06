@@ -26,6 +26,6 @@
 - `test/profile-view.test.mjs` executes the actual UI handlers with the real service and fake SDK/DOM boundaries to verify display updates, errors, and deletion control cleanup.
 - `test/account-deletion-guard.test.mjs` covers actual authentication time, UID races, the real auth adapter with fake SDK boundaries, and local cleanup only after successful auth deletion.
 - `test/account-deletion-client.test.mjs` and `test/account-deletion-server.test.mjs` cover durable receipts, checkpoints, concurrent leases, failure recovery, and identity generation protection.
-- `test/emulator/*.test.mjs` verifies real Firestore rules, Admin SDK transactions, Auth cleanup, and callable HTTP protocol against a strictly local demo project. See `docs/ACCOUNT_DELETION_SERVER_2026-09-11.md` for the command and deployment prerequisites.
+- `test/emulator/*.test.mjs` verifies real Firestore rules, Admin SDK transactions, Auth cleanup, and callable HTTP protocol against a strictly local demo project. See `docs/history/ACCOUNT_DELETION_SERVER_2026-09-11.md` for the command and deployment prerequisites.
 - `test/browser/account-deletion-smoke.js` verifies re-login, explicit confirmation, lost responses, pending status across reload, and completion-driven logout with fake external services.
 - Run `npm test` and `npm run build`. Never test account deletion against a real account as part of refactoring verification.

@@ -7,7 +7,7 @@ CRITICAL: INFRASTRUCTURE & ARCHITECTURE
 - Maintain lightweight Vanilla JS + Vite + Firebase environment.
 - Any mobile-specific adjustments must ensure Capacitor (iOS/Android) compatibility.
 - Ensure DDD separation (`auth`, `planner`, `itinerary`, `profile`, `map`).
-- Always adhere to the global `GEMINI.md` guidelines (Web Components, Baseline CSS, ES Modules) when creating new UI assets.
+- Maintain modern web standards (Web Components, ES Modules) when creating new UI assets.
 
 CRITICAL: BLUEPRINT WORKFLOW & TDD
 - Always reference and update `blueprint.md` in the root directory before and after executing tasks.
