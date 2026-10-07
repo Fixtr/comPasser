@@ -16,7 +16,9 @@ import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableIte
 import { openPlaceReplacement } from './place-replacement.js';
 import { refreshHours } from './itinerary-hours.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
-import { suggestRouteOrder } from '../services/itinerary-route-order.mjs';
+import { hoursPlaceId, lookupPlaceHours } from '../services/itinerary-hours.mjs';
+import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
+import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
@@ -112,6 +114,8 @@ export default class ItineraryView extends HTMLElement {
       // 45분이 걸리는데 다음 항목이 이동시간 없이 바로 시작하는 것처럼
       // 생성되는 경우). 실제 이동시간이 밝혀졌으니 뒤 항목들의 시각을
       // 필요한 만큼만 보정한다.
+      if (this.verifyRouteImprovement(transitRoutes)) return;
+      if (this.startRouteImprovement(transitRoutes)) return;
       if (transitRoutes.length && this.applyTransitDelaysToActiveDay(transitRoutes)) return;
       this.renderTransitInfo(transitRoutes);
     };
@@ -233,14 +237,14 @@ export default class ItineraryView extends HTMLElement {
 
   /** 생성·불러오기·날짜 전환·편집 모두 이곳에서 같은 요청 표식을 붙인다. */
   requestMapRoute({ automaticFit = false, scheduleEdited = false } = {}) {
-    if (!automaticFit) this._automaticFitCount = 0;
+    if (!automaticFit) { this._automaticFitCount = 0; this._routeOrderChecked = false; this._routeOrderOriginal = null; }
     if (!automaticFit) this._allowTimeAdjustment = scheduleEdited || this.state.current?.source.kind === 'draft';
     const plan = this.normalizeData(this.currentItinerary);
     const day = plan?.days?.[this.activeDayIndex];
     if (!day) return;
     const excludedPlaceIds = this.state.current?.source.kind === 'draft'
       ? plan.days.flatMap((other, index) => index === this.activeDayIndex ? []
-        : other.scheduleItems.map(item => item.verifiedPlace?.placeId).filter(Boolean))
+        : other.scheduleItems.map(item => item.selectedPlace?.placeId || item.verifiedPlace?.placeId).filter(Boolean))
       : [];
     const context = {
       itineraryVersion: this._itineraryVersion,
@@ -585,7 +589,8 @@ export default class ItineraryView extends HTMLElement {
   }
 
   renderTransitInfo(transitRoutes) {
-    renderTransitInfo(this.shadowRoot, transitRoutes);
+    const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex];
+    renderTransitInfo(this.shadowRoot, transitRoutes, day?.scheduleItems);
   }
 
   /**
@@ -1048,6 +1053,59 @@ export default class ItineraryView extends HTMLElement {
     box.style.display = 'block';
   }
 
+  verifyRouteImprovement(routes) {
+    const original = this._routeOrderOriginal;
+    if (!original) return false;
+    this._routeOrderOriginal = null;
+    const known = routes.filter(route => Number.isInteger(route.fromIndex) && route.fromIndex >= 0 &&
+      route.fromIndex < original.items.length - 1 && (route.toIndex ?? route.fromIndex + 1) === route.fromIndex + 1 &&
+      Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0);
+    const items = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems;
+    if (known.length === original.items.length - 1 &&
+        new Set(known.map(route => route.fromIndex)).size === original.items.length - 1 &&
+        !hasFixedArrivalConflict(items, known) &&
+        getEndTimeWarning(this.currentItinerary, this.activeDayIndex, known).overflowMinutes === 0 &&
+        original.beforeMinutes - known.reduce((sum, route) => sum + route.durationMinutes, 0) >= 2) return false;
+    // Changed departure times can change timetables. Roll back an unconfirmed saving once.
+    this.state.replaceDayItems(this.activeDayIndex, original.items);
+    this.requestMapRoute({automaticFit:true});
+    return true;
+  }
+
+  startRouteImprovement(routes) {
+    if (this._routeOrderChecked || this.state.current?.source.kind !== 'draft' || !this._allowTimeAdjustment) return false;
+    this._routeOrderChecked = true;
+    const source = this.currentItinerary, dayIndex = this.activeDayIndex, context = this._mapRequest;
+    const day = this.normalizeData(source)?.days?.[dayIndex];
+    const items = day?.scheduleItems;
+    if (!items?.some(item => (item.placeIntent && item.addedByUser !== true) ||
+        (item.type === 'AnchorSchedule' && item.flexible === true)) ||
+        !suggestRouteOrder(items, this.lastResolvedPlaces, { automatic:true }).changed) return false;
+    const constraints = getDayConstraints(source, dayIndex);
+    const checks = createFlexibleVisitChecks(items.length - 1);
+    improveMeasuredRouteOrder(items, this.lastResolvedPlaces, routes, {
+      ...constraints, date:day.date, travelMinutes:checks.travelMinutes,
+      hoursByIndex:items.map(item => lookupPlaceHours.cached(hoursPlaceId(item)))
+    }).then(result => {
+      if (!this.isCurrentMapResult({context}) || source !== this.currentItinerary ||
+          items !== this.normalizeData(this.currentItinerary)?.days?.[dayIndex]?.scheduleItems) return;
+      if (result.changed) {
+        this._routeOrderOriginal = { items, beforeMinutes: result.beforeMinutes };
+        this.state.replaceDayItems(dayIndex, result.items);
+        this.requestMapRoute({automaticFit:true});
+      } else {
+        if (this.applyTransitDelaysToActiveDay(routes)) return;
+        this.renderTransitInfo(routes);
+      }
+    }).catch(() => {
+      if (this.isCurrentMapResult({context}) && source === this.currentItinerary) {
+        if (this.applyTransitDelaysToActiveDay(routes)) return;
+        this.renderTransitInfo(routes);
+      }
+    });
+    return true;
+  }
+
   applyTransitDelaysToActiveDay(transitRoutes) {
     if (!this.currentItinerary) return;
 
@@ -1067,7 +1125,11 @@ export default class ItineraryView extends HTMLElement {
     const startTime = getDayConstraints(this.currentItinerary, this.activeDayIndex)?.startTime;
     // ponytail: four rechecks cap Maps cost; raise only if measured plans still need more removals.
     const fit = this.canEdit() && (this._automaticFitCount || 0) < 4
-      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime)
+      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime, {
+        compact: dayData.scheduleItems.some(item => item.placeIntent && item.addedByUser !== true),
+        date: dayData.date,
+        hoursByIndex: dayData.scheduleItems.map(item => lookupPlaceHours.cached(hoursPlaceId(item)))
+      })
       : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
     const scheduleItems = fit.items;
     this.state.replaceDayItems(this.activeDayIndex, scheduleItems);

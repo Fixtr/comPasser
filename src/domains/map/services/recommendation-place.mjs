@@ -29,6 +29,8 @@ export function selectRecommendation(places, intent, center, excluded = new Set(
   return (Array.isArray(places) ? places : []).flatMap(place => {
     const snapshot = normalizeSelectedPlace(place);
     if (!snapshot) return reject('identity');
+    // ponytail: named airport/restricted interiors are excluded; use provider access metadata when available.
+    if (/(?:면세|보안구역|출국장|duty.?free|airside|departure hall|(?:공항|airport).*?(?:터미널|terminal))/i.test(snapshot.displayName)) return reject('restricted-access');
     if (excluded.has(snapshot.placeId)) return reject('duplicate');
     if (!place.types?.includes(intent.category)) return reject('type');
     if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(place.businessStatus)) return reject('closed');

@@ -57,7 +57,7 @@ export function assessVisitHours(item, date, data, now = Date.now()) {
 // In-memory only: never persist live provider data into saved/shared schedules.
 export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now } = {}) {
   const cache = new Map();
-  return id => {
+  const lookup = id => {
     if (!id) return Promise.resolve(null);
     const existing = cache.get(id);
     if (existing && now() - existing.at < 300000) return existing.promise;
@@ -78,9 +78,16 @@ export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now
       } catch { return null; }
       finally { clearTimeout(timer); }
     })();
-    cache.set(id, { at: now(), promise });
+    const entry = { at: now(), promise, data: null };
+    cache.set(id, entry);
+    promise.then(data => { entry.data = data; });
     return promise;
   };
+  lookup.cached = id => {
+    const entry = cache.get(id);
+    return entry && now() - entry.at < 300000 ? entry.data : null;
+  };
+  return lookup;
 }
 
 // Search and timeline share this short-lived lookup so validating a candidate

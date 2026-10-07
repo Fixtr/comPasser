@@ -24,9 +24,15 @@ export function createFlexibleVisitChecks(visitCount = 1) {
   const remaining = () => Math.max(0, Math.min(8000, deadline - Date.now()));
   return {
     async travelMinutes(from, to, date, time) {
-      const origin = formatLocationForPrompt(from), destination = formatLocationForPrompt(to);
+      const selectedFrom = normalizeSelectedPlace(from), selectedTo = normalizeSelectedPlace(to);
+      // Active map results can supply legacy coordinates without a saved Place ID.
+      const endpoint = value => Number.isFinite(value?.lat) && Math.abs(value.lat) <= 90 &&
+        Number.isFinite(value?.lng) && Math.abs(value.lng) <= 180
+        ? {lat:value.lat,lng:value.lng} : formatLocationForPrompt(value);
+      const origin = endpoint(selectedFrom || from), destination = endpoint(selectedTo || to);
       if (!origin || !destination) return null;
-      if (origin === destination) return 0;
+      if ((selectedFrom && selectedTo && selectedFrom.placeId === selectedTo.placeId) ||
+          (typeof origin === 'string' ? origin === destination : origin.lat === destination.lat && origin.lng === destination.lng)) return 0;
       if (!remaining()) return null;
       const key = JSON.stringify([origin, destination, date, time]);
       if (!routes.has(key)) routes.set(key, within(routing.getTransitRoute(origin, destination,

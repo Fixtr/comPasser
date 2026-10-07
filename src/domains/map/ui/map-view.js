@@ -580,7 +580,7 @@ export class MapView extends HTMLElement {
             // 밀어내는 보정(applyTransitDelays)에 쓰인다. Directions API가
             // 항상 초 단위 value를 주므로 여기서만 분으로 환산해둔다.
             durationMinutes: typeof leg.duration.value === 'number'
-              ? Math.round(leg.duration.value / 60)
+              ? Math.ceil(leg.duration.value / 60)
               : null,
             distance: leg.distance.text,
             mode: hasTransitStep ? 'TRANSIT' : 'WALKING', /* Ubiquitous Language */
@@ -588,7 +588,8 @@ export class MapView extends HTMLElement {
             lineName: primaryLineName,
             transitDetailsExtended,
             steps,
-            directionsUrl
+            directionsUrl: directionsUrl.replace('travelmode=transit', `travelmode=${hasTransitStep ? 'transit' : 'walking'}`),
+            warnings: response.routes[0]?.warnings || []
           };
         }
         return routeResult;

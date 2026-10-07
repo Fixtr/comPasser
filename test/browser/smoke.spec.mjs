@@ -50,6 +50,7 @@ for (const [title, file] of [
   ['planner input validation and retry', 'planner-validation-smoke.js'],
   ['planner autocomplete dropdown stacking', 'planner-autocomplete-layer-smoke.js'],
   ['measured transit end-time fitting', 'itinerary-end-fit-smoke.js'],
+  ['four-day measured route quality and flexible visits', 'itinerary-routing-quality-smoke.js'],
   ['selected place identity persistence', 'selected-place-smoke.js'],
   ['recommended place verification and persistence', 'recommendation-place-smoke.js'],
   ['partial route fitting and immutable saved times', 'time-snapshot-smoke.js'],

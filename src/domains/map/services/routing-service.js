@@ -1,3 +1,5 @@
+import { distanceMeters } from './recommendation-place.mjs';
+
 export class RoutingService {
     constructor(loader) {
         this.loader = loader;
@@ -36,6 +38,21 @@ export class RoutingService {
             request.transitOptions = { departureTime };
         }
 
-        return this.directionsService.route(request);
+        const transit = this.directionsService.route(request);
+        const coordinate = value => {
+            const lat = typeof value?.lat === 'function' ? value.lat() : value?.lat;
+            const lng = typeof value?.lng === 'function' ? value.lng() : value?.lng;
+            return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+        };
+        const from = coordinate(origin), to = coordinate(destination);
+        const short = from && to && distanceMeters(from, to) <= 1000;
+        const walking = short ? this.directionsService.route({ origin, destination, travelMode: 'WALKING' }).catch(() => null) : Promise.resolve(null);
+        const [bus, walk] = await Promise.allSettled([transit, walking]);
+        const seconds = result => result?.routes?.[0]?.legs?.[0]?.duration?.value;
+        const walkSeconds = seconds(walk.value), busSeconds = seconds(bus.value);
+        if (Number.isFinite(walkSeconds) && walkSeconds >= 0 && walkSeconds <= 1200 &&
+            (!Number.isFinite(busSeconds) || walkSeconds <= busSeconds)) return walk.value;
+        if (bus.status === 'rejected') throw bus.reason;
+        return bus.value;
     }
 }
