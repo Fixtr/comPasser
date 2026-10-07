@@ -6,6 +6,7 @@ import { findPlannerRequestIssue } from '../functions/planner-request-validation
 
 import {
   enforcePlannerConstraints,
+  recoverSparseGeneratedDays,
   normalizePlannerRequest
 } from '../src/domains/planner/services/planner-constraints.mjs';
 
@@ -37,6 +38,24 @@ test('overnight places connect each day to the next without changing the trip en
   assert.deepEqual(result.map(day => [day.scheduleItems[0].location,day.scheduleItems.at(-1).location]), [
     ['서울역','첫 숙소'],['첫 숙소','둘째 숙소'],['둘째 숙소','둘째 숙소'],['둘째 숙소','인천공항']
   ]);
+});
+
+test('sparse multi-day blocks receive one provisional visit only when a long gap exists', () => {
+  const request = { date:['2026-10-01','2026-10-02','2026-10-03','2026-10-04'],
+    startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'인천공항',
+    overnightLocations:['호텔 A','호텔 B','호텔 C'],dailyTimes:[{day:4,startTime:'15:00',endTime:'17:00'}] };
+  const generated = request.date.map((date,index) => ({day:index+1,date,scheduleItems:index===2
+    ? [{type:'attraction',title:'기존 방문',location:'호텔 B',time:'11:00',endTime:'12:00'}] : []}));
+  const days = enforcePlannerConstraints(generated,request);
+  const recovered = recoverSparseGeneratedDays(days);
+  assert.deepEqual(recovered.map(day => day.scheduleItems.filter(item => item.placeStatus === 'pending').length),[1,1,1,0]);
+  assert.ok(recovered[2].scheduleItems.some(item => item.title === '기존 방문'));
+  assert.equal(recovered[1].scheduleItems[1].placeIntent.nearLocation,'호텔 A');
+  assert.equal(recovered[0].scheduleItems[1].placeStatus,'pending');
+  assert.deepEqual(recovered.map(day => [day.scheduleItems[0].location,day.scheduleItems.at(-1).location]),
+    [['서울역','호텔 A'],['호텔 A','호텔 B'],['호텔 B','호텔 C'],['호텔 C','인천공항']]);
+  assert.deepEqual(recoverSparseGeneratedDays(days.slice(0,1)),days.slice(0,1));
+  assert.deepEqual(days[0].scheduleItems.map(item => item.type),['departure','arrival']);
 });
 
 test('lodging selections and edited trip endpoints override stale derived daily boundaries', () => {

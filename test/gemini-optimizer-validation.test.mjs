@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { normalizePlannerRequest, enforcePlannerConstraints } from '../src/domains/planner/services/planner-constraints.mjs';
+import { normalizePlannerRequest, enforcePlannerConstraints, recoverSparseGeneratedDays } from '../src/domains/planner/services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../src/domains/planner/services/planner-validation.js';
 import { buildMockItinerary, isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
 import { setLang } from '../src/utils/i18n.js';
@@ -11,19 +11,28 @@ import { prepareGeneratedPlaces } from '../src/domains/map/services/recommendati
 const source = readFileSync(new URL('../src/domains/planner/services/gemini-optimizer.js', import.meta.url), 'utf8')
   .replace(/^import\s[\s\S]*?from\s+['"][^'"]+['"];\s*/gm, '').replace(/^export /gm, '');
 assert.doesNotMatch(source, /^import /m);
-function fixture(error, creditBalance = 2) {
+function fixture(error, creditBalance = 2, generatedDays = [{ day: 1, scheduleItems: [] }]) {
   const calls = [];
-  const context = { normalizePlannerRequest, enforcePlannerConstraints, findPlannerInputIssue, plannerValidationMessage,
-    buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, app: {}, getLang: () => 'en',
+  const context = { normalizePlannerRequest, enforcePlannerConstraints, recoverSparseGeneratedDays, findPlannerInputIssue, plannerValidationMessage,
+    buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, addSelectedWaypoint: days => days,
+    app: {}, getLang: () => 'en',
     getFunctions: () => { calls.push('functions'); return {}; },
     httpsCallable: (_functions, name) => async () => { calls.push(name === 'getGenerationCredits' ? 'credits' : 'call'); if (error) throw error;
-      return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : { balance: creditBalance } : { days: [{ day: 1, scheduleItems: [] }] } }; }, console: { log() {}, error() {} } };
+      return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : { balance: creditBalance } : { days: generatedDays } }; }, console: { log() {}, error() {} } };
   vm.createContext(context);
   const run = vm.runInContext(`${source}\ngenerateOptimizedItinerary`, context);
   const getCredits = vm.runInContext('getGenerationCredits', context);
   return { run, getCredits, calls };
 }
 const valid = () => ({ date: '2026-10-01', startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '호텔', anchorSchedules: [] });
+
+test('successful multi-day generation restores an optional visit on an otherwise empty day', async () => {
+  const app = fixture(null,2,[{day:1,date:'2026-10-01',scheduleItems:[]},{day:2,date:'2026-10-02',scheduleItems:[]}]);
+  const result = await app.run({...valid(),date:['2026-10-01','2026-10-02'],
+    overnightLocations:['호텔'],endLocation:'인천공항'});
+  assert.deepEqual(result.days.map(day => day.scheduleItems.filter(item => item.placeIntent).length),[1,1]);
+  assert.equal(result.days[1].scheduleItems[1].placeIntent.nearLocation,'호텔');
+});
 
 test('invalid local input stops before creating or invoking a callable and never returns mock data', async () => {
   const app = fixture();

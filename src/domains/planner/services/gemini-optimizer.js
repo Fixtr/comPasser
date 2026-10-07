@@ -3,6 +3,7 @@ import { app } from "../../auth/services/firebase-auth.js";
 import { getLang } from "../../../utils/i18n.js";
 import {
   enforcePlannerConstraints,
+  recoverSparseGeneratedDays,
   normalizePlannerRequest
 } from "./planner-constraints.mjs";
 import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
@@ -68,7 +69,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
 
     return {
       request: normalizedRequest,
-      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days), normalizedRequest, currentLang), normalizedRequest)
+      days: addSelectedWaypoint(recoverSparseGeneratedDays(enforcePlannerConstraints(prepareGeneratedPlaces(days), normalizedRequest, currentLang), currentLang), normalizedRequest)
     };
   } catch (error) {
     // Bad input needs editing, never a generated-looking fallback result.

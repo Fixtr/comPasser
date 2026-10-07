@@ -67,7 +67,7 @@ export function normalizePlannerRequest(plannerRequest = {}) {
       || existingDailyData[index]
       || {};
     const dayTimes = dailyTimes.find(day => Number(day.day) === dayNumber)
-      || dailyTimes[index]
+      || (dailyTimes[index]?.day === undefined ? dailyTimes[index] : null)
       || {};
     const flatAnchors = anchors.filter(anchor => Number(anchor.day || 1) === dayNumber);
     const existingAnchors = Array.isArray(existingDay.anchors) ? existingDay.anchors : [];
@@ -386,5 +386,29 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     });
 
     return { ...day, day: dayNumber, scheduleItems };
+  });
+}
+
+// ponytail: at most one provisional visit per long gap/day; Places and
+// measured routing may reject it. Add more only if sparse days remain common.
+export function recoverSparseGeneratedDays(days, language = 'ko') {
+  if (!Array.isArray(days) || days.length < 2) return days;
+  return days.map(day => {
+    const items = day.scheduleItems;
+    if (!Array.isArray(items)) return day;
+    const gaps = items.slice(0, -1).map((item, index) => ({
+      from: item, start: minutes(item.endTime || item.time), end: minutes(items[index + 1].time)
+    })).filter(gap => gap.start >= 0 && gap.start < 1440 && gap.end <= 1440 &&
+      gap.end - gap.start >= 180 && getLocationName(gap.from.selectedPlace || gap.from.location));
+    const gap = gaps.sort((a, b) => (b.end - b.start) - (a.end - a.start))[0];
+    if (!gap) return day;
+    const start = Math.floor((gap.start + gap.end - 60) / 2);
+    const clock = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+    const nearLocation = getLocationName(gap.from.selectedPlace || gap.from.location);
+    const visit = { type: 'attraction', time: clock(start), endTime: clock(start + 60),
+      title: language === 'ko' ? '주변 명소 탐방' : 'Nearby attraction', location: nearLocation,
+      placeIntent: { purpose: language === 'ko' ? '관광 명소' : 'tourist attraction',
+        category: 'tourist_attraction', nearLocation }, placeStatus: 'pending', verifiedPlace: null };
+    return { ...day, scheduleItems: [...items, visit].sort((a, b) => minutes(a.time) - minutes(b.time)) };
   });
 }
