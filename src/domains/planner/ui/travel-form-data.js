@@ -85,6 +85,12 @@ export function getFormData(shadowRoot, draft = {}) {
     startTime: globalStartTime,
     endTime: globalEndTime,
     dailyTimes: dailyTimes,
+    dailyLocations: nights > 0 && shadowRoot.getElementById('daily-locations-toggle')?.checked
+      ? Array.from(shadowRoot.querySelectorAll('.daily-location-row')).map(row => ({
+        day: Number(row.dataset.day),
+        startLocation: getAutocompleteValue(row.querySelector('.daily-start-location')),
+        endLocation: getAutocompleteValue(row.querySelector('.daily-end-location')),
+      })) : null,
     startLocation: getAutocompleteValue(shadowRoot.getElementById('start-location')),
     endLocation: getAutocompleteValue(shadowRoot.getElementById('end-location')),
     sameOvernightLocation,

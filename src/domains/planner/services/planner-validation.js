@@ -14,6 +14,7 @@ export function plannerValidationMessage(issue) {
     'day-order': 'plannerDateError', 'day-limit': 'plannerDayLimitError',
     'invalid-time': 'emptyTimeValidationError', 'time-order': 'basicTimeValidationError',
     'missing-location': 'plannerLocationError',
+    'daily-location-shape': 'plannerLocationError', 'daily-location-mismatch': 'plannerLocationError',
     'overnight-length': 'plannerLocationError', 'overnight-mismatch': 'plannerLocationError',
     'invalid-anchors': 'plannerAnchorError', 'incomplete-anchor': 'plannerAnchorError',
     'invalid-anchor-time': 'plannerAnchorError', 'anchor-time-order': 'plannerAnchorError',

@@ -59,6 +59,34 @@ async (page) => {
   check((await read()).overnightLocations.every(place => place.placeId === hotel.placeId), 'Turning off consecutive nights keeps selected hotels');
   await page.locator('travel-form #overnight-location-2 input').fill('둘째 숙소');
   await page.locator('travel-form #overnight-location-3 input').fill('셋째 숙소');
+  const locationToggle = page.locator('travel-form #daily-locations-toggle');
+  await locationToggle.focus();
+  await locationToggle.press('Space');
+  await page.locator('travel-form #daily-locations-panel').waitFor({state:'visible'});
+  check(await page.locator('travel-form .daily-location-row').count() === 4, 'One location override row per day');
+  await page.locator('travel-form #daily-start-location-2 input').fill('부산역');
+  await page.locator('travel-form #daily-locations-notice').waitFor({state:'visible'});
+  check((await page.locator('travel-form #daily-locations-notice').innerText()).includes('부산역'), 'Explain the transfer between different day boundaries');
+  await locationToggle.uncheck();
+  check((await read()).dailyLocations === null, 'Turning off overrides restores lodging defaults');
+  await locationToggle.check();
+  check((await read()).dailyLocations.every(day => !day.startLocation && !day.endLocation), 'Turning off clears hidden overrides');
+  const departure = {...hotel, placeId:'station-b', displayName:'둘째 날 출발역'};
+  await page.locator('travel-form #daily-start-location-2').evaluate((element, place) => {
+    element.dispatchEvent(Object.assign(new Event('gmp-select'), {placePrediction:{toPlace:() => ({...place, fetchFields:async()=>{}})}}));
+  }, departure);
+  await page.waitForFunction(() => document.querySelector('travel-form').draft.dailyLocations?.[1].startLocation?.placeId === 'station-b');
+  await page.reload();
+  await page.locator('travel-form #daily-locations-panel').waitFor({state:'visible'});
+  check((await read()).dailyLocations[1].startLocation.placeId === 'station-b', 'Restore selected override identity after reload');
+  for (const width of [390,1280]) {
+    await page.setViewportSize({width,height:900});
+    const bounds = await page.locator('travel-form #daily-start-location-2').boundingBox();
+    check(bounds.x >= 0 && bounds.x + bounds.width <= width, 'Daily override inputs fit mobile and desktop');
+    await page.locator('travel-form #daily-start-location-2').scrollIntoViewIfNeeded();
+    await page.screenshot({path:page.smokeOutputDir + `/daily-locations-${width}.png`,fullPage:true});
+  }
+  results.push('PASS daily location overrides, defaults, keyboard, transfer warning, reload and responsive layout');
   request = await read();
   check(request.overnightLocations[0].placeId === hotel.placeId && request.overnightLocations[1] === '둘째 숙소'
     && request.overnightLocations[2] === '셋째 숙소', 'Different lodging each night');
@@ -72,7 +100,7 @@ async (page) => {
     return generated.map(day => [day.scheduleItems[0].location, day.scheduleItems.at(-1).location]);
   });
   check(JSON.stringify(boundaries) === JSON.stringify([
-    ['서울역', '연박 호텔'], ['연박 호텔', '둘째 숙소'], ['둘째 숙소', '셋째 숙소'], ['셋째 숙소', '인천공항 T2'],
+    ['서울역', '연박 호텔'], ['둘째 날 출발역', '둘째 숙소'], ['둘째 숙소', '셋째 숙소'], ['셋째 숙소', '인천공항 T2'],
   ]), 'Generated day boundaries connect each selected night');
   await page.locator('#show-results-btn').click();
   await page.locator('#save-itinerary-btn').waitFor();
@@ -81,6 +109,7 @@ async (page) => {
   await page.locator('#edit-itinerary-btn').click();
   await page.locator('travel-form #overnight-location-3').waitFor();
   request = await read();
+  check(request.dailyLocations[1].startLocation.placeId === 'station-b', 'Save/edit preserves explicit daily overrides');
   check(request.overnightLocations[1] === '둘째 숙소' && request.overnightLocations[2] === '셋째 숙소', 'Save/edit restores different hotels');
   check(await page.evaluate(legacy => JSON.stringify(JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.legacyStay.itineraryPlan.request)
     === JSON.stringify(legacy), legacy), 'Editing/regeneration must not rewrite the legacy snapshot');
@@ -107,6 +136,7 @@ async (page) => {
   await duration(1);
   await page.locator('travel-form #overnight-wrapper').waitFor({ state: 'hidden' });
   request = await read();
+  check(request.dailyLocations === null, 'Day trip clears daily location overrides');
   check(request.overnightLocations.length === 0 && !request.sameOvernightLocation, 'Day trip has no nights');
   check((await page.locator('travel-form label[for="start-location"]').innerText()) === '시작 장소 (호텔, 공항 등)', 'Restore day-trip label');
   results.push('PASS duration changes resize lodging, preserve consecutive stays and restore day-trip form');

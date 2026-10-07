@@ -21,6 +21,12 @@ export function toPlannerDraft(request = {}) {
     endTime: input.endTime ?? first.endTime ?? '',
     startLocation: preserveLocation(input.startLocation ?? first.startLocation),
     endLocation: preserveLocation(input.endLocation ?? daily.at(-1)?.endLocation),
+    dailyLocations: nights > 0 && Array.isArray(input.dailyLocations)
+      ? date.map((_, index) => {
+        const day = input.dailyLocations.find(day => Number(day.day) === index + 1);
+        return { day: index + 1, startLocation: preserveLocation(day?.startLocation),
+          endLocation: preserveLocation(day?.endLocation) };
+      }) : null,
     sameOvernightLocation,
     overnightLocations: Array.from({ length: nights }, (_, index) =>
       preserveLocation(stays[sameOvernightLocation ? 0 : index])),

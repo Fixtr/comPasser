@@ -61,6 +61,8 @@ export function normalizePlannerRequest(plannerRequest = {}) {
 
   const dailyData = Array.from({ length: dayCount }, (_, index) => {
     const dayNumber = index + 1;
+    const override = dates.length > 1 && Array.isArray(plannerRequest.dailyLocations)
+      ? plannerRequest.dailyLocations.find(day => Number(day.day) === dayNumber) : null;
     const existingDay = existingDailyData.find(day => Number(day.day) === dayNumber)
       || existingDailyData[index]
       || {};
@@ -78,10 +80,10 @@ export function normalizePlannerRequest(plannerRequest = {}) {
       // different global time. Validation must see the value the user sees.
       startTime: dayTimes.startTime ?? existingDay.startTime ?? plannerRequest.startTime ?? '',
       endTime: dayTimes.endTime ?? existingDay.endTime ?? plannerRequest.endTime ?? '',
-      startLocation: overnightLocations
+      startLocation: getLocationName(override?.startLocation) ? override.startLocation : overnightLocations
         ? (index > 0 ? overnightLocations[index - 1] || '' : plannerRequest.startLocation ?? existingDay.startLocation ?? '')
         : existingDay.startLocation || plannerRequest.startLocation || '',
-      endLocation: overnightLocations
+      endLocation: getLocationName(override?.endLocation) ? override.endLocation : overnightLocations
         ? (index < dayCount - 1 ? overnightLocations[index] || '' : plannerRequest.endLocation ?? existingDay.endLocation ?? '')
         : existingDay.endLocation || plannerRequest.endLocation || '',
       anchors: existingAnchors.length > 0 ? existingAnchors : flatAnchors

@@ -10,7 +10,7 @@ import { showErrorToast } from '../../../utils/toast.js';
 import { findPastDate, todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
-import { getLocationName } from '../services/planner-constraints.mjs';
+import { getLocationName, normalizePlannerRequest } from '../services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
@@ -208,6 +208,7 @@ export default class TravelForm extends HTMLElement {
       label.textContent = t(label.dataset.i18n).replace('{0}', label.dataset.night);
       label.nextElementSibling?.setAttribute('aria-label', label.textContent);
     });
+    this.updateDailyLocationSummary();
     this.renderGenerationCredits();
   }
 
@@ -283,6 +284,15 @@ export default class TravelForm extends HTMLElement {
             </label>
             <p id="overnight-notice" class="subtitle" role="status" data-i18n="overnightLocationRequired" hidden></p>
             <div id="overnight-locations"></div>
+            <label class="overnight-option">
+              <input type="checkbox" id="daily-locations-toggle" aria-controls="daily-locations-panel">
+              <span data-i18n="dailyLocationsToggle"></span>
+            </label>
+            <div id="daily-locations-panel" hidden>
+              <p class="subtitle" data-i18n="dailyLocationsHelp"></p>
+              <div id="daily-locations"></div>
+              <p id="daily-locations-notice" class="subtitle" role="status" hidden></p>
+            </div>
           </div>
           <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
             <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
@@ -336,7 +346,7 @@ export default class TravelForm extends HTMLElement {
       // Bind to existing anchors if any
       const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
       anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
-      this.shadowRoot.querySelectorAll('.overnight-location').forEach(ac => this.setupAutocompleteListener(ac));
+      this.shadowRoot.querySelectorAll('.overnight-location, .daily-start-location, .daily-end-location').forEach(ac => this.setupAutocompleteListener(ac));
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
@@ -630,12 +640,69 @@ export default class TravelForm extends HTMLElement {
       }
       this.shadowRoot.querySelector('label[for="start-location"]').dataset.i18n = isMultiDay ? 'tripStartLocation' : 'startLocation';
       this.shadowRoot.querySelector('label[for="end-location"]').dataset.i18n = isMultiDay ? 'tripEndLocation' : 'endLocation';
+      this.renderDailyLocations();
       this.updateOvernightFields();
       this.renderPreferenceBadges();
       this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
       console.error("[Auto-fill Error] Failed to populate form:", error);
     }
+  }
+
+  renderDailyLocations() {
+    const container = this.shadowRoot.getElementById('daily-locations');
+    const enabled = Array.isArray(this.draft.dailyLocations);
+    this.shadowRoot.getElementById('daily-locations-toggle').checked = enabled;
+    this.shadowRoot.getElementById('daily-locations-panel').hidden = !enabled;
+    container.replaceChildren();
+    if (this.draft.date.length < 2) return;
+    this.draft.date.forEach((date, index) => {
+      const row = document.createElement('div');
+      row.className = 'daily-location-row';
+      row.dataset.day = index + 1;
+      row.innerHTML = `<h3></h3><p class="subtitle daily-location-default"></p><div class="row-2">
+        <div class="form-group"><label for="daily-start-location-${index + 1}" data-i18n="dailyDeparture"></label>
+          <gmp-place-autocomplete id="daily-start-location-${index + 1}" class="daily-start-location"></gmp-place-autocomplete></div>
+        <div class="form-group"><label for="daily-end-location-${index + 1}" data-i18n="dailyArrival"></label>
+          <gmp-place-autocomplete id="daily-end-location-${index + 1}" class="daily-end-location"></gmp-place-autocomplete></div>
+        </div>`;
+      row.querySelector('h3').textContent = `Day ${index + 1} · ${date}`;
+      container.appendChild(row);
+      for (const kind of ['start', 'end']) {
+        const input = row.querySelector(`.daily-${kind}-location`);
+        restorePlaceInput(input, this.draft.dailyLocations?.[index]?.[`${kind}Location`] || '');
+        if (this._placesReady) this.setupAutocompleteListener(input);
+      }
+    });
+  }
+
+  updateDailyLocationSummary() {
+    const panel = this.shadowRoot.getElementById('daily-locations-panel');
+    if (!panel || panel.hidden) return;
+    const request = this.getFormData();
+    const defaults = normalizePlannerRequest({ ...request, dailyLocations: null }).dailyData;
+    const days = normalizePlannerRequest(request).dailyData;
+    this.shadowRoot.querySelectorAll('.daily-location-row').forEach((row, index) => {
+      row.querySelector('.daily-location-default').textContent = t('dailyLocationDefault')
+        .replace('{0}', getLocationName(defaults[index].startLocation) || t('locationUnset'))
+        .replace('{1}', getLocationName(defaults[index].endLocation) || t('locationUnset'));
+      for (const kind of ['start', 'end']) {
+        const input = row.querySelector(`.daily-${kind}-location`);
+        input.setAttribute('placeholder', t('dailyLocationInherit'));
+        input.setAttribute('aria-label', `Day ${index + 1} ${t(kind === 'start' ? 'dailyDeparture' : 'dailyArrival')}`);
+      }
+    });
+    const transfers = [];
+    days.slice(0, -1).forEach((day, index) => {
+      const next = days[index + 1];
+      const from = getLocationName(day.endLocation), to = getLocationName(next.startLocation);
+      const same = day.endLocation?.placeId && next.startLocation?.placeId
+        ? day.endLocation.placeId === next.startLocation.placeId : from === to;
+      if (from && to && !same) transfers.push(`Day ${day.day} ${from} → Day ${next.day} ${to}`);
+    });
+    const notice = this.shadowRoot.getElementById('daily-locations-notice');
+    notice.hidden = transfers.length === 0;
+    notice.textContent = transfers.length ? `${t('dailyLocationTransfer')} ${transfers.join(' / ')}` : '';
   }
 
   getFormData() {
@@ -645,6 +712,7 @@ export default class TravelForm extends HTMLElement {
   saveDraft() {
     this.draft = plannerDraftStore.save(this.getFormData());
     this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
+    this.updateDailyLocationSummary();
     this.renderPreferenceBadges();
   }
 
@@ -703,6 +771,16 @@ export default class TravelForm extends HTMLElement {
       // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
       if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
       if (e.target.id !== 'same-overnight-toggle') this.saveDraft();
+    });
+
+    this.shadowRoot.getElementById('daily-locations-toggle').addEventListener('change', event => {
+      this.shadowRoot.getElementById('daily-locations-panel').hidden = !event.target.checked;
+      if (!event.target.checked) {
+        this.shadowRoot.querySelectorAll('.daily-start-location, .daily-end-location')
+          .forEach(input => restorePlaceInput(input, ''));
+      }
+      this.saveDraft();
+      this.updateTexts();
     });
 
     this.shadowRoot.getElementById('same-overnight-toggle').addEventListener('change', () => {

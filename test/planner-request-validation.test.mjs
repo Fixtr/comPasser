@@ -128,3 +128,19 @@ test('safe reason codes translate in both languages and untrusted details are no
   }
   setLang('ko');
 });
+
+test('explicit overrides allow overnight exceptions but reject malformed or conflicting canonical data', () => {
+  const request = normalizePlannerRequest({...flat(), overnightLocations:['숙소'], dailyLocations:[
+    {day:1,startLocation:'',endLocation:'공연장'}, {day:2,startLocation:'역',endLocation:''},
+  ]});
+  assert.equal(findPlannerRequestIssue(request), null);
+  const prompt = buildPrompt(sanitizePlannerRequest(request), 'ko');
+  assert.match(prompt, /공연장/);
+  assert.match(prompt, /explicit day overrides may differ/);
+  for (const dailyLocations of [{}, [], [null, null], [{day:2}, {day:1}],
+    [{day:1,startLocation:42},{day:2}], [{day:1,endLocation:'다른 곳'}, {day:2}]]) {
+    assert.ok(findPlannerRequestIssue({...request,dailyLocations}), JSON.stringify(dailyLocations));
+  }
+  request.dailyData[1].startLocation = '몰래 바꾼 곳';
+  assert.equal(findPlannerRequestIssue(request).reason, 'daily-location-mismatch');
+});

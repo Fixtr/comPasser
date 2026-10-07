@@ -246,7 +246,7 @@ PLACE SEARCH:
 - Pick placeIntent.nearLocation EXACTLY from that day's Allowed nearLocation values; copy it into location. Never use a previous recommendation or an invented area as the next search center.
 - category must be one of restaurant, cafe, park, museum, tourist_attraction, shopping_mall. Title and description describe the visit purpose. Never invent venue names, addresses, Place IDs, ratings, opening hours, ticket availability or reservations.
 - Prefer visits around the fixed location preceding or following their time slot. Do not claim a specific detour or walking distance before actual routing.
-${dailyData.length > 1 ? '- Plan all days as one continuous trip: the end of Day 1 and start of Day 2 are the same overnight place, and likewise for each later boundary. Do not invent another lodging location or a cross-day transfer. Give different parts of the trip distinct activities. Avoid repeating the same attraction, area or visit purpose on different days, except ordinary meals.\n' : ''}
+${dailyData.length > 1 ? '- Plan all days as one continuous trip: use each day’s exact departure and destination listed above. They normally connect through an overnight place, but explicit day overrides may differ. Do not replace these endpoints or invent lodging or cross-day transfers; transfers outside the daily time windows are not part of the generated visits. Give different parts of the trip distinct activities. Avoid repeating the same attraction, area or visit purpose on different days, except ordinary meals.\n' : ''}
 
 TIME AND TRANSPORT:
 - The app supports public transit and walking for every budget. Budget changes food/activity spending preferences only. Do not assume taxis or rental cars.

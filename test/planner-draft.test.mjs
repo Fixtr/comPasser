@@ -181,3 +181,20 @@ test('a rejected recovery write does not restore the old form over the current e
   store.save(edited());
   assert.deepEqual(store.read(), toPlannerDraft(edited()));
 });
+
+test('daily location overrides survive storage, resize by duration and never infer from legacy dailyData', () => {
+  const {store} = fixture();
+  const place = {placeId:'station',displayName:'부산역',formattedAddress:'부산',lat:35.1,lng:129};
+  store.save({...edited(), dailyLocations: [{day:2,startLocation:place,endLocation:''}]});
+  assert.deepEqual(store.read().dailyLocations, [
+    {day:1,startLocation:'',endLocation:''}, {day:2,startLocation:place,endLocation:''},
+  ]);
+  store.updatePreferences({date:['2026-10-01','2026-10-02','2026-10-03']});
+  assert.deepEqual(store.read().dailyLocations[2], {day:3,startLocation:'',endLocation:''});
+  store.updatePreferences({date:['2026-10-01']});
+  assert.equal(store.read().dailyLocations, null);
+  store.updatePreferences({date:['2026-10-01','2026-10-02']});
+  assert.equal(store.read().dailyLocations, null);
+  assert.equal(toPlannerDraft({dailyData:[{date:'2026-10-01',startLocation:'역'},
+    {date:'2026-10-02',startLocation:'공항'}]}).dailyLocations, null);
+});

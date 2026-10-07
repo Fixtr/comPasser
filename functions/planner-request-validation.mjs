@@ -37,6 +37,24 @@ export function findPlannerRequestIssue(request) {
   const dates = request.date === undefined ? null : (Array.isArray(request.date) ? request.date : [request.date]);
   if (dates && dates.length !== days.length) return { reason: 'date-mismatch' };
 
+  const overrides = request.dailyLocations;
+  if (overrides != null) {
+    if (!Array.isArray(overrides) || days.length < 2 || overrides.length !== days.length) {
+      return { reason: 'daily-location-shape' };
+    }
+    for (let index = 0; index < overrides.length; index++) {
+      const override = overrides[index];
+      if (!isRecord(override) || override.day !== index + 1) return { reason: 'daily-location-shape' };
+      for (const field of ['startLocation', 'endLocation']) {
+        const value = override[field];
+        if (value === '' || value == null) continue;
+        if (!hasLocation(value) || !sameLocation(value, days[index]?.[field])) {
+          return { reason: 'daily-location-mismatch', day: index + 1, field };
+        }
+      }
+    }
+  }
+
   // Flat anchors are retained for saved-request compatibility. Do not silently
   // lose an anchor whose day lies outside the trip during normalization.
   if (Array.isArray(request.anchorSchedules)) {
@@ -84,8 +102,10 @@ export function findPlannerRequestIssue(request) {
     }
     for (let index = 0; index < days.length - 1; index++) {
       const stay = request.overnightLocations[index];
-      if (!hasLocation(stay) || !sameLocation(days[index].endLocation,stay)
-          || !sameLocation(stay,days[index + 1].startLocation)) {
+      const end = overrides?.[index]?.endLocation;
+      const start = overrides?.[index + 1]?.startLocation;
+      if (!hasLocation(stay) || !sameLocation(days[index].endLocation, hasLocation(end) ? end : stay)
+          || !sameLocation(hasLocation(start) ? start : stay, days[index + 1].startLocation)) {
         return {reason:'overnight-mismatch',day:index + 1};
       }
     }
