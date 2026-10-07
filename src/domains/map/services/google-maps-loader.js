@@ -1,5 +1,7 @@
-import { Loader } from "@googlemaps/js-api-loader";
+import * as GoogleMapsLoaderPkg from "@googlemaps/js-api-loader";
 import { getLang } from "../../../utils/i18n.js";
+
+const Loader = GoogleMapsLoaderPkg.Loader || GoogleMapsLoaderPkg['default']?.Loader;
 
 // Singleton wrapper for the Google Maps API Loader
 let loaderInstance = null;

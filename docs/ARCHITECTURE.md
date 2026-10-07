@@ -7,7 +7,7 @@
 ## 1. Architecture Overview & Boundaries (English)
 
 ### 1.1. Overview
-ComPasser is built as a serverless web and mobile application utilizing a Dual Shell architecture (Vanilla JS Web Components core + Ionic React mobile distribution shell), Capacitor, and `--cp-*` flat design tokens. It fully adopts Domain-Driven Design (DDD).
+ComPasser is built as a serverless web and mobile application utilizing a unified Ionic React Shell (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`) combined with Web Components core, Capacitor, and `--cp-*` flat design tokens. It fully adopts Domain-Driven Design (DDD).
 
 ### 1.2. Domain Structure
 1. `auth/`: Firebase Google/Email/Social Auth, Profile management.
@@ -37,12 +37,12 @@ ComPasser is built as a serverless web and mobile application utilizing a Dual S
 이 문서는 시스템의 주요 아키텍처, 기술 스택, 그리고 핵심 로직인 동선 최적화 알고리즘에 대해 설명합니다.
 
 ### 2.2. 기술 스택 (Tech Stack)
-본 프로젝트는 시스템 권장 환경(`GEMINI.md`) 및 `--cp-*` 디자인 토큰 계약을 준수하여 가볍고 빠른 Web Component와 Baseline 웹 표준 기술, 그리고 모바일 배포를 위한 듀얼 셸(Dual Shell: Vanilla JS + Ionic React Shell) 아키텍처를 채택하고 있습니다.
+본 프로젝트는 시스템 권장 환경(`GEMINI.md`) 및 `--cp-*` 디자인 토큰 계약을 준수하여 가볍고 빠른 Web Component와 Baseline 웹 표준 기술, 그리고 개발 및 프로덕션 배포 일원화를 위한 **Ionic React Shell** 아키텍처를 채택하고 있습니다.
 
 *   **Frontend**: 
-    *   **듀얼 셸 구조**: 빠른 초기 구동 및 독립 단위 테스트를 위한 **Vanilla JS (ES Modules) + Web Components**와, 모바일 앱 배포 및 부드러운 스크린 트랜지션을 위한 **Ionic React Shell**을 병행 지원.
+    *   **단일 Ionic Shell 구조**: 개발 환경(`npm run dev`)과 웹(Cloudflare Pages)/앱(Capacitor) 배포 환경 모두 **Ionic React Shell (`ionic-shell.html`)**로 일원화하여 로컬과 배포 사이의 시각적·동작적 괴리를 제거. Web Components 기반 도메인 UI 자산은 그대로 호환 마운트. (레거시 검증용 설정은 `vite.legacy.config.js`로 분리 보존)
     *   **플랫 디자인 토큰 (`--cp-*`)**: 모든 색상은 `html2canvas` 캡처 호환성을 위해 hex 기반으로 선언되며, `oklch`, `color-mix`, `box-shadow`, `gradient`는 계약 테스트로 전면 금지됩니다. UI는 무채색, 색상은 지도 핀 규칙에만 한정됩니다.
-    *   Vite를 개발 서버 및 번들러로 활용하여 HMR(Hot Module Replacement) 및 듀얼 타겟 빌드 지원.
+    *   Vite를 기본 개발 서버 및 번들러로 활용하여 HMR 및 통합 빌드 지원.
 *   **Backend & DB**:
     *   **Firebase**: Firestore (인프라 및 사용자 일정 데이터베이스), Cloud Functions (LLM 프롬프트 생성 및 외부 API 라우팅).
     *   서버리스 생태계를 통해 API 키 노출 방지 및 빠른 백엔드 구현.
