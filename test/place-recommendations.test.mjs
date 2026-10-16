@@ -112,6 +112,20 @@ test('an undated exhibition statement falls back to another grounded statement a
   await assert.rejects(fixture({statements:[current,other]}).run(),e=>e.details.rejected?.event===1);
  }
 });
+test('stacked Korean particles and a shorter statement name still identify the same venue',async()=>{
+ for(const statement of ['국립중앙박물관에서는 한국의 문화유산을 볼 수 있습니다.','한국 역사를 보려면 국립중앙박물관입니다.','국립중앙박물관으로도 많은 여행자가 찾습니다.'])
+  assert.equal((await fixture({statements:[statement]}).run()).places.length,1,statement);
+ const full='서울시립미술관 서소문본관',statement='서울시립미술관은 근현대 미술 소장품을 소개하는 공공 미술관입니다.';
+ const app=fixture({statements:[statement],candidates:[{...candidate(full),mentionedName:'서울시립미술관'}],places:[venue(full)]});
+ const result=await app.run();
+ assert.equal(result.places[0].place.displayName,full);assert.equal(result.places[0].reason,statement);
+ assert.match(app.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^서울시립미술관 서소문본관, /);
+ for(const [mentionedName,text] of [['국립중앙박물관','국립중앙박물관은 한국의 문화유산을 소개합니다.'],['미술관','미술관은 근현대 미술을 소개합니다.']]){
+  const other=fixture({statements:[text],candidates:[{...candidate(full),mentionedName}],places:[venue(full)]});
+  await assert.rejects(other.run(),e=>e.details.rejected?.mention===1);
+  assert.equal(other.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
+ }
+});
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
  assert.equal(result.places.length,1);assert.deepEqual(result.weather,{status:'forecast',description:'비',minC:12,maxC:19,rainPercent:80});
