@@ -40,6 +40,7 @@
     "@googlemaps/js-api-loader": "^1.16.10",
     "@ionic/react": "^9.0.5",
     "@ionic/react-router": "^9.0.5",
+    "d3-geo": "3.1.1",
     "firebase": "^12.18.0",
     "html2canvas-pro": "^2.3.9",
     "ionicons": "^8.1.0",
@@ -47,7 +48,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^6.30.6",
-    "react-router-dom": "^6.30.6"
+    "react-router-dom": "^6.30.6",
+    "topojson-client": "3.1.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.0",
