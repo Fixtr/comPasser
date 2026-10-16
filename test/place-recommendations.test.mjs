@@ -86,13 +86,31 @@ test('permanent museum wording, translated candidate names and empty event objec
  const permanent='국립중앙박물관은 상설 전시와 다양한 전시실에서 한국의 문화유산을 소개합니다.';
  assert.equal((await fixture({statements:[permanent]}).run()).places.length,1);
  assert.equal((await fixture({statements:['국립중앙박물관 houses exhibits on Korean history.']}).run()).places.length,1);
- const translated=fixture({statements:['* **국립중앙박물관 (National Museum of Korea)**: 한국의 역사를 살펴볼 수 있습니다.'],
-  candidates:[candidate('국립중앙박물관 (National Museum of Korea)')]});
+ const translated=fixture({statements:['* **경복궁 (Gyeongbokgung Palace)**: 한국의 역사를 살펴볼 수 있습니다.'],
+  candidates:[candidate('경복궁 (Gyeongbokgung Palace)')],places:[venue('경복궁')]});
  const result=await translated.run();
- assert.equal(result.places[0].place.displayName,'국립중앙박물관');
- assert.match(translated.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^국립중앙박물관, /);
+ assert.equal(result.places[0].place.displayName,'경복궁');
+ assert.match(translated.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^경복궁, /);
  assert.equal((await fixture({candidates:[{...candidate(),event:{name:'',startDate:'',endDate:''}}]}).run()).places.length,1);
  await assert.rejects(fixture({statements:['국립중앙박물관에서 가을 기획전이 열리고 있습니다.']}).run(),e=>e.details.rejected?.event===1);
+});
+test('parenthesized branches and unreviewed translations cannot resolve to an unqualified venue',async()=>{
+ for(const name of ['Local Gallery (Gangnam)','경복궁 (별관)','경복궁 (Unreviewed Translation)']){
+  const primary=name.split(' (')[0];
+  const app=fixture({candidates:[candidate(name)],statements:[`${name} is a visitor destination.`],places:[venue(primary)]});
+  await assert.rejects(app.run(),{code:'unavailable'});
+ }
+ const name='Local Gallery (Gangnam)';
+ const exact=fixture({candidates:[candidate(name)],statements:[`${name} is a visitor destination.`],places:[venue(name)]});
+ assert.equal((await exact.run()).places[0].place.displayName,name);
+});
+test('an undated exhibition statement falls back to another grounded statement about the same venue only',async()=>{
+ const current='국립중앙박물관에서 현재 가을 기획전이 열리고 있습니다.',timeless='국립중앙박물관은 한국의 역사와 문화유산을 소장한 실내 공간입니다.';
+ const result=await fixture({statements:[current,timeless]}).run();
+ assert.equal(result.places.length,1);assert.equal(result.places[0].reason,timeless);
+ for(const other of ['리움미술관은 현대미술을 소장합니다.','국립중앙박물관은 오늘 영업 중입니다.','국립중앙박물관에서 2026-10-01부터 특별전이 열립니다.']){
+  await assert.rejects(fixture({statements:[current,other]}).run(),e=>e.details.rejected?.event===1);
+ }
 });
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
