@@ -81,11 +81,11 @@ function groundedEvidence(grounded) {
 // Generic museum wording (상설 전시, 다양한 전시, houses exhibits) describes the venue, not a dated event.
 const EVENT_CLAIM = /특별\s*전|기획\s*전|전시회|축제|페스티벌|공연|행사|이벤트|팝업|개최|개막|폐막|기간\s*한정|진행\s*(?:중|되는)|열리(?:고|는)|\b(?:(?:special|temporary|current|upcoming|limited[ -]time)\s+(?:exhibitions?|exhibits?|shows?)|festivals?|concerts?|performances?|events?|pop[ -]?ups?|limited[ -]time|on view|now showing)\b/i;
 
-// Formatter names sometimes carry a translation, e.g. "서울미술관 (Seoul Museum of Art)"; Places matches the venue name only.
-// Keep the full name too: some real venue names contain parentheses.
-function nameVariants(name) {
-  const primary = name.replace(/\s*[(（][^()（）]*[)）]/g,' ').replace(/\s+/g,' ').trim();
-  return [...new Set([primary,name].filter(Boolean))];
+// Only unwrap reviewed translations: parentheses can identify a different branch or facility.
+function nameVariants(name,cityId) {
+  const parts = name.match(/^([^()（）]+?)\s*[(（]([^()（）]+)[)）]\s*$/);
+  if (!parts || !RECOMMENDATION_NAME_GROUPS[cityId].some(group => parts.slice(1).every(part => group.some(alias => normalized(alias) === normalized(part))))) return [name];
+  return [...new Set([parts[1].trim(),name])];
 }
 
 // shortcut: lexical guard catches common dynamic claims, not arbitrary factual errors; source audits remain separate.
@@ -192,7 +192,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
       || !Number.isInteger(candidate.evidenceIndex) || candidate.evidenceIndex < 0) return reject('input');
     const supported = evidence[candidate.evidenceIndex];
     if (!supported) return reject('evidence');
-    const variants = nameVariants(candidate.name);
+    const variants = nameVariants(candidate.name,input.cityId);
     if (!variants.some(variant => mentionsVenue(supported.text,variant))) return reject('mention');
     if (DYNAMIC_CLAIM.test(supported.text)) return reject('dynamic');
     const {text:reason,sources:citations} = supported;
@@ -279,7 +279,7 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
       // Gate counts only (no request data) so an empty result can be diagnosed from the client error.
       const reject = (gate, venue) => { rejected[gate] = (rejected[gate] || 0)+1; console.warn('[recommendPlaces] rejected',{gate,venue:String(venue || '').slice(0,120),cityId:input.cityId}); return null; };
       for (const candidate of candidates) {
-        const nameKeys = typeof candidate?.name === 'string' ? nameVariants(candidate.name).map(normalized) : [];
+        const nameKeys = typeof candidate?.name === 'string' ? nameVariants(candidate.name,input.cityId).map(normalized) : [];
         if (nameKeys.some(key => excludedNames.has(key))) { reject('excluded',candidate.name); continue; }
         if (nameKeys.some(key => names.has(key))) { reject('duplicate',candidate.name); continue; }
         let result;
@@ -305,6 +305,12 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
       return {cityId:input.cityId,country:input.country,date:input.date,lang:input.lang,interest:input.interest,weather:forecast,places,
         searchSuggestions:metadata.searchEntryPoint.renderedContent,generatedAt:now().toISOString()};
     } catch (error) {
+      // Status and reason only: provider bodies and request data are not logged.
+      console.error('[recommendPlaces] failed',{cityId:input.cityId,interest:input.interest,
+        reason:error.details?.reason || null,providerStatus:error.response?.status || null,
+        providerUrl:String(error.config?.url || '').split('?')[0].slice(0,120) || null,
+        message:error.details?.reason ? null : String(error.message || '').slice(0,200),
+        ...(error.details?.rejected ? {evidence:error.details.evidence,candidates:error.details.candidates,rejected:error.details.rejected} : {})});
       if (error.code && error.details?.reason) throw error;
       if (error.response?.status === 429) throw fail('resource-exhausted','recommendation-provider-limit');
       throw fail('unavailable','recommendation-unavailable');
