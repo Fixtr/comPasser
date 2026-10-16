@@ -24,7 +24,7 @@ test('네이티브 가입은 localhost 또는 앱 스킴을 메일에 담지 않
 });
 
 test('안전한 일정 상세가 아니면 메일 복귀 설정도 만들지 않는다', () => {
-  for (const returnTo of ['https://evil.example', '//evil.example', '/plan', '/share/abc?next=evil', '/share/abc\n']) {
+  for (const returnTo of ['https://evil.example', '//evil.example', '/plan?generate=1', '/share/abc?next=evil', '/share/abc\n']) {
     assert.equal(getEmailVerificationSettings({ returnTo, origin: 'https://app.example' }), null);
   }
 });

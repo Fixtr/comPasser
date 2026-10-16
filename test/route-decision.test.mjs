@@ -35,7 +35,7 @@ test('로그인 여부와 무관한 곳을 안다', () => {
   for (const p of ['/', '/home', '/recommend', '/courses', '/index.html', '/sub/index.html', '/login', '/join', '/account-deletion-status', '/verify', '/verify/abc', '/share/abc123']) {
     assert.equal(isPublicPath(p), true, `${p} 는 로그인 없이 볼 수 있어야 한다`);
   }
-  for (const p of ['/plan', '/view', '/view/abc', '/profile', '/preference/1']) {
+  for (const p of ['/plan?generate=1', '/view', '/view/abc', '/profile', '/preference/1']) {
     assert.equal(isPublicPath(p), false, `${p} 는 인증 확정이 필요하다`);
   }
 });
@@ -77,7 +77,7 @@ test('예전 일정 링크는 인증 확정 후 게스트도 공유본을 조회
 });
 
 test('로그인하지 않았으면 로그인으로 보낸다', () => {
-  for (const path of ['/view', '/plan', '/profile', '/preference/1']) {
+  for (const path of ['/view', '/plan?generate=1', '/profile', '/preference/1']) {
     assert.deepEqual(settled(path, null), { action: 'redirect', to: '/login' });
   }
 });
@@ -113,13 +113,13 @@ test('홈 추천에서 로그인해도 날짜 선택을 건너뛰지 않는다',
   assert.equal(isPublicPath('/preference/1'), false);
   assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true,
     hasPreference: true, returnTo: '/preference/1' }), { action: 'redirect', to: '/preference/1' });
-  for (const value of ['/preference/2', '/preference/1?next=https://evil.example', '/preference/1/']) {
+  for (const value of ['/preference/3', '/preference/1?next=https://evil.example', '/preference/1/']) {
     assert.equal(getSafeReturnPath(value), null);
   }
 });
 
 test('커뮤니티 후기·코스 공개 로그인은 지정한 내부 화면으로 복귀한다', () => {
-  for (const value of ['/home', '/home?review=route123', '/recommend', '/courses', '/courses?review=route123', '/profile/trips']) {
+  for (const value of ['/home', '/home?review=route123', '/recommend', '/courses', '/courses?review=route123', '/profile/trips', '/profile/personal?tab=trips']) {
     assert.equal(getSafeReturnPath(value), value);
     assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), { action: 'redirect', to: value });
     assert.equal(getSafeReturnPath(`${value}?delete=true`), null);
@@ -129,7 +129,7 @@ test('커뮤니티 후기·코스 공개 로그인은 지정한 내부 화면으
 test('외부 주소·인코딩 우회·일정 외 주소는 복귀 주소로 사용하지 않는다', () => {
   for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', '/\\evil.example',
     '/share/abc?next=https://evil.example', '/view/abc#other', '/share/%2f%2fevil', '/share/../login',
-    '/share/abc\n', '/login', '/plan', '/view', '/share/']) {
+    '/share/abc\n', '/login', '/plan?generate=1', '/view', '/share/']) {
     assert.equal(getSafeReturnPath(value), null, String(value));
     assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), {
       action: 'redirect', to: '/preference/1',

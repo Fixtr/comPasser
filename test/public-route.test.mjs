@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { curatedRoute, checkedVisitorInfo, preparePublicRouteExtras, publicRouteUrl } from '../src/domains/itinerary/services/public-route.mjs';
+import { courseCities, curatedRoute, checkedVisitorInfo, preparePublicRouteExtras, publicRouteUrl } from '../src/domains/itinerary/services/public-route.mjs';
 import { renderPublicRoute } from '../src/domains/itinerary/services/public-route-html.mjs';
 import { addCourseToDraft } from '../src/domains/planner/services/course-draft.mjs';
 import worker from '../src/server/public-routes-worker.mjs';
@@ -9,6 +9,23 @@ const origin = 'https://example.com';
 const env = { PUBLIC_APP_URL: origin, FIREBASE_PROJECT_ID: 'example-project' };
 const request = path => new Request(`${origin}${path}`);
 const info = { englishMenu: 'available', reservation: 'recommended', sourceUrl: 'https://example.com/menu', checkedOn: '2026-10-04' };
+test('every city offers three distinct importable courses and valid English pages', async () => {
+  for (const city of courseCities) {
+    const combinations = new Set();
+    for (const suffix of ['', '-2', '-3']) {
+      const id = `curated-${city.id}${suffix}`;
+      const route = curatedRoute(id);
+      assert.equal(route.stops.length, 2);
+      assert.ok(route.stops.every(stop => stop.name && stop.location && stop.stayMinutes > 0));
+      combinations.add(route.stops.map(stop => stop.name).join('|'));
+      assert.equal(addCourseToDraft({anchorSchedules: []}, route).anchorSchedules.length, 2);
+      assert.equal((await worker.fetch(request(`/en/routes/${id}`), env)).status, 200);
+      assert.equal(publicRouteUrl(id, origin), `${origin}/en/routes/${id}`);
+    }
+    assert.equal(combinations.size, 3);
+    assert.equal(curatedRoute(`curated-${city.id}-4`), null);
+  }
+});
 const encode = value => Array.isArray(value) ? { arrayValue: { values: value.map(encode) } }
   : value && typeof value === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, encode(item)])) } }
     : typeof value === 'number' ? { integerValue: String(value) } : { stringValue: value };
@@ -53,6 +70,11 @@ test('English landing HTML escapes publisher content and distinguishes unchecked
 });
 
 test('curated English pages, QR downloads, HEAD and invalid routes work without private data', async () => {
+  const overseas = await worker.fetch(request('/en/routes/curated-newyork'), env);
+  assert.equal(overseas.status, 200);
+  const overseasHtml = await overseas.text();
+  assert.match(overseasHtml, /The Metropolitan Museum of Art/);
+  assert.doesNotMatch(overseasHtml, /plan your visit in Korea/);
   const response = await worker.fetch(request('/en/routes/curated-busan'), env);
   assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.match(await response.text(), /Busan: a first visit/);
@@ -90,9 +112,10 @@ test('public pages read only the guest-readable collection and stop serving revo
 test('directory and sitemap use canonical individual route URLs', async t => {
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ documents: [] })));
   const directory = await worker.fetch(request('/en/routes'), env);
-  assert.match(await directory.text(), /https:\/\/example.com\/en\/routes\/curated-jeju/);
+  const html = await directory.text();
+  for (const city of courseCities) for (const suffix of ['', '-2', '-3']) assert.ok(html.includes(`https://example.com/en/routes/curated-${city.id}${suffix}`));
   const sitemap = await worker.fetch(request('/sitemap.xml'), env);
   assert.equal(sitemap.headers.get('Content-Type'), 'application/xml');
-  assert.equal((await sitemap.text()).match(/<loc>/g).length, 7);
+  assert.equal((await sitemap.text()).match(/<loc>/g).length, courseCities.length * 3 + 1);
   assert.match(await (await worker.fetch(request('/robots.txt'), env)).text(), /Sitemap: https:\/\/example.com\/sitemap.xml/);
 });

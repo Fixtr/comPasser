@@ -162,6 +162,7 @@ async (page) => {
       export const GeminiOptimizer = { generateOptimizedItinerary };
     `,
     '/src/domains/map/services/google-maps-loader.js': `
+      import fixtures from '/test/fixtures/destination-places.json?import';
       class PlaceInput extends HTMLElement {
         constructor() { super(); this.attachShadow({mode:'open'}); }
         connectedCallback() {
@@ -177,7 +178,16 @@ async (page) => {
         DirectionsService:class {async route(){return {routes:[{legs:[{duration:{value:900}}]}]};}},
         Place:class {
         constructor({id}) { this.id=id; }
-        async fetchFields() { Object.assign(this,window.__hoursFixtures?.[this.id] || {}); }
+        async fetchFields() {
+          if (window.__hoursDelay) await new Promise(resolve=>setTimeout(resolve,window.__hoursDelay));
+          Object.assign(this,window.__hoursFixtures?.[this.id] || {});
+        }
+        static async searchByText(query) {
+          const curated = query.fields?.includes('addressComponents') && fixtures.find(row => query.textQuery.startsWith(row.queryName + ' '));
+          if (curated) return {places:[curated.place]};
+          const named=window.__namedPlacesFixtures?.[query.textQuery.split(' ')[0]];
+          return {places:named?[named]:window.__placesFixtures || []};
+        }
       }})});
     `,
     '/src/domains/map/ui/map-view.js': `

@@ -34,6 +34,6 @@ test('multi-day prompt connects overnight boundaries and asks for distinct visit
     {day:2,date:'2026-10-07',startTime:'09:00',endTime:'18:00',startLocation:'호텔',endLocation:'인천공항',anchors:[]}
   ]});
   const prompt=buildPrompt(constraints,'ko');
-  assert.match(prompt,/end of Day 1 and start of Day 2 are the same overnight place/);
+  assert.match(prompt,/explicit day overrides may differ/);
   assert.match(prompt,/Avoid repeating the same attraction, area or visit purpose on different days/);
 });

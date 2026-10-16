@@ -105,7 +105,7 @@ test('Firebase 인증 삭제가 실패하면 로컬 저장소도 먼저 비우�
 test('Firebase 인증 삭제 성공 후에만 로컬 상태를 정리한다', async () => {
   const app=authFixture();
   await app.api.deleteCurrentUser('owner');
-  assert.deepEqual(app.calls,[['delete','owner'],['local','hasSeenTutorial'],['session','currentFormData'],['session','savedItineraryData']]);
+  assert.deepEqual(app.calls,[['delete','owner'],['local','hasSeenTutorial'],['local','compasser.offline.v1'],['local','compasser.planner.v1'],['session','currentFormData'],['session','savedItineraryData'],['session','userPreference'],['session','compasser.itineraries.v1']]);
 });
 
 test('Firebase 인증 삭제 어댑터도 대상 계정 변경을 차단한다', async () => {

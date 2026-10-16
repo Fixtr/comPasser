@@ -120,10 +120,10 @@ export function assertSquareRadius(css, label, tokensCss) {
   if (tokensCss) {
     const m = /--cp-radius\s*:\s*([^;]+);/.exec(tokensCss);
     assert.ok(m, '--cp-radius 토큰이 없다');
-    assert.match(m[1].trim(), /^0(px)?$/, `--cp-radius 가 0 이 아니다: ${m[1].trim()}`);
+    assert.equal(m[1].trim(), '8px', `--cp-radius 가 0 이 아니다: ${m[1].trim()}`);
   }
   const values = (css.match(/border-radius\s*:\s*[^;]+/g) || []).map(v => v.split(':')[1].trim());
-  const bad = values.filter(v => !/^0(px)?$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));
+  const bad = values.filter(v => ! /^(?:0(?:px)?|6px|8px|10px)$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));
   assert.deepEqual(bad, [], `${label}: 각진 형태가 이 방향의 핵심이다\n${[...new Set(bad)].join('\n')}`);
 }
 

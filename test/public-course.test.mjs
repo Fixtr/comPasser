@@ -13,6 +13,14 @@ test('course discovery combines address search, city and visit-duration filters'
   assert.deepEqual(filterCourses(routes, { search: 'Museum', city: 'busan' }), []);
 });
 
+test('international course cities match local names and complete Latin city names', () => {
+  const routes = ['東京都', '京都市', 'Paris, France', 'Nice, France', 'Venice, Italy', '부산'].map(location => ({ title: location, stops: [{ name: 'Walk', location, stayMinutes: 60 }] }));
+  for (const [city, index] of [['tokyo', 0], ['kyoto', 1], ['paris', 2], ['nice', 3], ['busan', 5]]) {
+    assert.deepEqual(filterCourses(routes, { city }), [routes[index]]);
+  }
+  assert.deepEqual(filterCourses(routes, { city: 'unknown' }), []);
+});
+
 test('travel reviews reject future/impossible dates and invalid actual metrics', () => {
   const input = { visitDate: '2026-10-04', comment: ' Easy to walk ', walkingKm: '2.5', spentWon: '', visitMinutes: '90' };
   assert.deepEqual(validateCourseReview(input, '2026-10-05'), { visitDate: '2026-10-04', comment: 'Easy to walk', walkingKm: 2.5, spentWon: null, visitMinutes: 90 });

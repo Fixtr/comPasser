@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
+  outputDir: './test-results/pwa',
   testDir: './test/browser',
   testMatch: 'ionic-pwa.spec.mjs',
   workers: 1,
@@ -14,7 +15,7 @@ export default defineConfig({
     serviceWorkers: 'allow',
   },
   webServer: {
-    command: 'npm run build:release && npx vite preview --outDir dist --host 127.0.0.1 --port 4185 --strictPort',
+    command: 'node scripts/test-browser-server.mjs --build && npx vite preview --outDir dist --host 127.0.0.1 --port 4185 --strictPort',
     url: 'http://127.0.0.1:4185',
     reuseExistingServer: false,
     timeout: 30_000,

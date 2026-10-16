@@ -57,5 +57,28 @@ async page => {
     const results=await service.geocodeSchedule(items.filter(i=>i.placeIntent?.category!=='park'));
     if(results.find(i=>i.verifiedPlace)?.verifiedPlace.placeId!=='real-restaurant') throw Error('Saved ID not reused');
   });
+  await page.evaluate(async()=>{
+    const {normalizePlannerRequest,enforcePlannerConstraints}=await import('/src/domains/planner/services/planner-constraints.mjs');
+    const {GeocodingService}=await import('/src/domains/map/services/geocoding-service.js');
+    const station={placeId:'station',displayName:'서울역',formattedAddress:'서울 중구',lat:37.55,lng:126.97};
+    const hotel={placeId:'hotel',displayName:'호텔',formattedAddress:'서울 중구',lat:37.552,lng:126.971};
+    const request=normalizePlannerRequest({date:['2026-10-20','2026-10-21'],startTime:'09:00',endTime:'18:00',
+      startLocation:station,endLocation:hotel,overnightLocations:[hotel]});
+    const days=enforcePlannerConstraints(request.date.map((date,index)=>({day:index+1,date,scheduleItems:[]})),request);
+    days[0].scheduleItems.splice(1,0,{type:'attraction',time:'10:00',endTime:'11:00',placeStatus:'pending',
+      placeIntent:{purpose:'관광 명소',category:'tourist_attraction',nearLocation:'서울역'}});
+    if(days[0].scheduleItems[1]?.placeStatus!=='pending') throw Error('Empty day did not receive a recoverable visit');
+    days[0].scheduleItems[1].placeIntent.purpose='한옥 문화 체험';
+    const queries=[];
+    const service=new GeocodingService({importLibrary:async()=>({Place:{searchByText:async query=>{
+      queries.push(query.textQuery);
+      return {places:query.textQuery==='관광 명소'?[{id:'verified-visit',displayName:'검증된 명소',
+        formattedAddress:'서울 중구',location:{lat:37.551,lng:126.971},types:['tourist_attraction'],
+        businessStatus:'OPERATIONAL',addressComponents:[{types:['country'],shortText:'KR'}]}]:[]};
+    }}})});
+    const found=await service.geocodeSchedule(days[0].scheduleItems.map((item,index)=>({...item,displayIndex:index+1})));
+    if(queries.join('|')!=='한옥 문화 체험|관광 명소'||found[1]?.verifiedPlace?.placeId!=='verified-visit')
+      throw Error('Recovered visit did not become a verified nearby place');
+  });
   return {results:['PASS intent → real candidate filtering → canonical card/link → unresolved warning → save/reload → ID reuse; stale result ignored'],errors:page.smokeErrors};
 }

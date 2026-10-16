@@ -27,7 +27,7 @@ async (page) => {
   check(await page.locator('#loading-transition-view').isVisible(), 'Auth reevaluation must preserve loading');
   page.smokeResults.push('PASS generation loading/button lock/same-user auth reevaluation');
 
-  await page.getByRole('link',{name:'프로필',exact:true}).click();
+  await page.evaluate(() => window.navigate('/profile/personal'));
   await page.locator('#page-profile').waitFor({state:'visible'});
   check(!await page.locator('travel-form .primary-btn').isDisabled(), 'Leaving route must release submit');
   await page.goBack();

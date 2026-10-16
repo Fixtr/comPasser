@@ -53,6 +53,21 @@ test('hanok activity searches its purpose and keeps a relevant result ahead of a
   assert.equal(result.verifiedPlace.placeId,'hanok');
 });
 
+test('an empty specific search recovers a verified nearby place with one typed retry', async () => {
+  const requests=[];
+  const geocoder=new GeocodingService({importLibrary:async()=>({Place:{searchByText:async request=>{
+    requests.push(request);
+    return {places:request.textQuery==='관광 명소'
+      ? [candidate('nearby',{types:['tourist_attraction'],location:{lat:37.551,lng:126.971}})] : []};
+  }}})});
+  const visit={...recommendation,type:'attraction',placeIntent:{purpose:'한옥 특별 문화 체험',
+    category:'tourist_attraction',nearLocation:'서울역'}};
+  const [,found]=await geocoder.geocodeSchedule([fixed,visit]);
+  assert.deepEqual(requests.map(request=>request.textQuery),['한옥 특별 문화 체험','관광 명소']);
+  assert.equal(found.verifiedPlace.placeId,'nearby');
+  assert.equal(found.placeStatus,'verified');
+});
+
 test('failed candidates report why they were rejected without relaxing type or distance rules', () => {
   const rejected = {};
   const places = [candidate('wrong-type', { types: ['museum'] }),

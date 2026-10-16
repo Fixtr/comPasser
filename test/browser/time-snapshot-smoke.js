@@ -14,11 +14,11 @@ async page => {
     window.navigate('/view'); view.renderCurrentState();
   });
   await page.locator('itinerary-view .schedule-title').filter({hasText:'박물관 푸드코트'}).waitFor({state:'visible'});
-  await page.evaluate(()=>{
+  await page.evaluate(async()=>{
     const view=document.querySelector('itinerary-view');
     window.__measuredRoutes=[8,10,21,27].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
-    const send=()=>window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:view._mapRequest,routes:window.__measuredRoutes}}));
-    send(); send();
+    const send=()=>view._transitInfoHandler({detail:{context:view._mapRequest,routes:window.__measuredRoutes}});
+    await send(); await send();
     const items=view.currentItinerary.days[0].scheduleItems;
     if(items[0].time!=='09:00'||items[0].endTime!=='') throw Error('Requested departure changed to preparation start');
     if(items[3].endTime!=='12:27'||items[4].time!=='12:54') throw Error('Measured morning block not repaired');

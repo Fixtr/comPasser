@@ -35,6 +35,7 @@ function viewHarness({ user = null } = {}) {
     HTMLElement: class {
       attachShadow() { this.shadowRoot = { getElementById: control }; }
       setAttribute() {}
+      hasAttribute() { return false; }
     },
     customElements: { define() {} },
     document: { createElement: element, getElementById: () => null },

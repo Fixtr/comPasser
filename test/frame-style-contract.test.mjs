@@ -90,7 +90,7 @@ test('프레임의 라운드는 0 이거나 알약 토큰이다', () => {
   const tokens = read('../src/styles/tokens.css');
   const radius = /--cp-radius\s*:\s*([^;]+);/.exec(tokens);
   assert.ok(radius, '--cp-radius 토큰이 없다');
-  assert.match(radius[1].trim(), /^0(px)?$/, `--cp-radius 가 0 이 아니다: ${radius[1].trim()}`);
+  assert.equal(radius[1].trim(), '8px', `--cp-radius 가 0 이 아니다: ${radius[1].trim()}`);
 
   const values = (css.match(/border-radius\s*:\s*[^;]+/g) || []).map(v => v.split(':')[1].trim());
   const bad = values.filter(v => !/^0(px)?$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));

@@ -10,6 +10,8 @@ import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src
 import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
+import { suggestRouteOrder, improveMeasuredRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
+import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../src/domains/itinerary/services/itinerary-hours.mjs';
 import { t, getLang, setLang, applyTranslations } from '../src/utils/i18n.js';
 
 // Firebase 초기화와 브라우저 렌더링만 대체하고, 실제 화면 클래스의
@@ -28,7 +30,7 @@ function fakeElement() {
   };
 }
 
-function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false, watch = async () => () => {} } = {}) {
+function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false, watch = async () => () => {}, routeMinutes = async () => null } = {}) {
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
@@ -58,7 +60,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
       removeEventListener: type => listeners.delete(type),
     },
     CustomEvent: class { constructor(type, { detail } = {}) { this.type = type; this.detail = detail; } },
-    console: { error: (...args) => calls.errors.push(args) },
+    console: { error: (...args) => calls.errors.push(args), warn: (...args) => calls.errors.push(args) },
     getCurrentUser: () => state.user,
     loadItineraryDocument: async (id, options) => {
       calls.loads.push({ id, options });
@@ -78,7 +80,8 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning, buildItineraryViewModel,
-    applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {},
+    suggestRouteOrder, improveMeasuredRouteOrder, createFlexibleVisitChecks: () => ({travelMinutes:routeMinutes}),
+    hoursPlaceId, lookupPlaceHours, loadScheduleHours, applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {},
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
   const view = new View();
@@ -231,7 +234,7 @@ test('다른 날짜의 오래된 장소·이동시간·실패 이벤트는 현�
   assert.deepEqual(app.view.state.snapshot().plan, before);
 
   app.emit('places-resolved', { context: second.context, places });
-  app.emit('transit-info-ready', { context: second.context, routes: transit });
+  await app.emit('transit-info-ready', { context: second.context, routes: transit });
   assert.deepEqual(plan.days[0], before.days[0]);
   assert.notDeepEqual(plan.days[1].scheduleItems, before.days[1].scheduleItems);
   assert.equal(plan.days[1].scheduleItems[1].resolvedName, '확인된 장소');
@@ -453,7 +456,7 @@ test('편집한 개인 일정에 돌아오면 다시 조회하거나 보정하�
   assert.deepEqual(app.calls.errors, []);
 });
 
-test('초안 새로고침은 이동시간 보정과 선택 날짜를 그대로 복원한다', () => {
+test('초안 새로고침은 이동시간 보정과 선택 날짜를 그대로 복원한다', async () => {
   const values = new Map();
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
   const first = itineraryView({ user: { uid: 'owner' }, storage, mapEvents: true });
@@ -461,7 +464,7 @@ test('초안 새로고침은 이동시간 보정과 선택 날짜를 그대로 �
   plan.days.push({ ...structuredClone(plan.days[0]), day: 2 });
   first.view.showResults(plan);
   first.view.selectDay(1);
-  first.emit('transit-info-ready', { context: latestMapRequest(first).context, routes: transit });
+  await first.emit('transit-info-ready', { context: latestMapRequest(first).context, routes: transit });
   const expected = structuredClone(first.view.currentItinerary);
   const fresh = itineraryView({ user: { uid: 'owner' }, storage });
   fresh.view.setSessionUser('owner');
@@ -706,4 +709,45 @@ test('저장·공유 전달 실패는 화면에서 알리고 버튼을 다시 �
     assert.equal(app.calls.toasts[0][1], true);
     assert.deepEqual(app.calls.navigations, []);
   }
+});
+
+test('a route saving lost after timetable recheck is rolled back once; day changes discard the pending comparison', () => {
+  const app=itineraryView({user:{uid:'owner'}});
+  const plan=samplePlan();app.view.showResults(plan);
+  const original=structuredClone(plan.days[0].scheduleItems);
+  app.view._routeOrderChecked=true;
+  app.view._routeOrderOriginal={items:original,beforeMinutes:60};
+  const count=app.calls.events.length;
+  assert.equal(app.view.verifyRouteImprovement([{fromIndex:0,toIndex:1,durationMinutes:70}]),true);
+  assert.deepEqual(app.view.currentItinerary.days[0].scheduleItems,original);
+  assert.equal(app.view._routeOrderOriginal,null);
+  assert.ok(app.calls.events.length>count);
+  assert.equal(app.view.verifyRouteImprovement([{fromIndex:0,toIndex:1,durationMinutes:70}]),false);
+  app.view._routeOrderOriginal={items:original,beforeMinutes:60};
+  app.view.requestMapRoute();
+  assert.equal(app.view._routeOrderOriginal,null);
+});
+
+
+test('late measured reorder cannot change a draft after switching days', async () => {
+  let release;
+  const pending = new Promise(resolve => {release=resolve;});
+  const app=itineraryView({user:{uid:'owner'},mapEvents:true,routeMinutes:()=>pending});
+  const point=n=>({placeId:`race-${n}`,displayName:`P${n}`,formattedAddress:'서울',lat:37.5,lng:127+n*.02});
+  const stop=(n,type,time,endTime='')=>({title:`P${n}`,type,time,endTime,selectedPlace:point(n)});
+  const first=[stop(0,'departure','09:00'),stop(3,'attraction','09:10','09:40'),
+    stop(1,'attraction','09:50','10:20'),stop(2,'leisure','10:30','11:00'),stop(4,'arrival','15:00')];
+  first[1]={...first[1],selectedPlace:null,verifiedPlace:point(3),placeStatus:'verified',placeIntent:{purpose:'공원',category:'park'}};
+  const plan={request:{date:['2030-10-01','2030-10-02'],startTime:'09:00',endTime:'15:00'},
+    days:[{day:1,date:'2030-10-01',scheduleItems:first},{day:2,date:'2030-10-02',scheduleItems:[stop(4,'departure','09:00'),stop(4,'arrival','15:00')]}]};
+  app.view.showResults(plan);
+  const before=structuredClone(plan);
+  app.emit('transit-info-ready',{context:latestMapRequest(app).context,
+    routes:[30,30,30,30].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}))});
+  await new Promise(resolve=>setImmediate(resolve));
+  app.view.selectDay(1);release(10);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(plan,before);
+  assert.equal(app.view.activeDayIndex,1);
+  assert.equal(app.view._routeOrderOriginal,null);
 });

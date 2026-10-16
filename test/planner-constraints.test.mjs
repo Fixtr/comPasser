@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { toPlannerDraft } from '../src/domains/planner/services/planner-draft.mjs';
 import { scheduleFlexibleVisits } from '../src/domains/planner/services/schedule-flexible-visits.mjs';
 import { findPlannerRequestIssue } from '../functions/planner-request-validation.mjs';
+import { destinations } from '../src/domains/planner/services/travel-destinations.mjs';
+import { travelRegion } from '../functions/travel-region.mjs';
 
 import {
   enforcePlannerConstraints,
@@ -37,6 +39,21 @@ test('overnight places connect each day to the next without changing the trip en
   assert.deepEqual(result.map(day => [day.scheduleItems[0].location,day.scheduleItems.at(-1).location]), [
     ['서울역','첫 숙소'],['첫 숙소','둘째 숙소'],['둘째 숙소','둘째 숙소'],['둘째 숙소','인천공항']
   ]);
+});
+
+test('lodging selections and edited trip endpoints override stale derived daily boundaries', () => {
+  const request = { date: ['2026-10-01', '2026-10-02'], startTime: '09:00', endTime: '18:00',
+    startLocation: '새 출발지', endLocation: '새 도착지', overnightLocations: ['선택한 숙소'],
+    dailyData: [
+      { day: 1, date: '2026-10-01', startLocation: '옛 출발지', endLocation: '옛 공항' },
+      { day: 2, date: '2026-10-02', startLocation: '옛 출발지', endLocation: '옛 공항' },
+    ] };
+  const normalized = normalizePlannerRequest(request);
+  assert.deepEqual(normalized.dailyData.map(day => [day.startLocation, day.endLocation]),
+    [['새 출발지', '선택한 숙소'], ['선택한 숙소', '새 도착지']]);
+  assert.equal(findPlannerRequestIssue(normalized), null);
+  request.startLocation = '';
+  assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)).reason, 'missing-location');
 });
 
 test('short generated visits are omitted without changing fixed appointments', () => {
@@ -79,6 +96,7 @@ test('untimed required visits get valid slots while reservation times remain fix
   const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [] }], placed);
   assert.deepEqual(day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => item.title),
     ['서울숲', '경복궁', '공연']);
+  assert.deepEqual(day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => item.flexible === true), [true, true, false]);
   assert.deepEqual(day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => item.duration),
     ['필수 방문지', '필수 방문지', '고정 일정']);
 });
@@ -619,4 +637,37 @@ test('a genuine stop whose name merely contains 이동 is not stripped', () => {
 
   assert.ok(day.scheduleItems.some(i => i.title === '이동갈비 맛집'));
   assert.ok(day.scheduleItems.some(i => i.title === '이동면 자연휴양림'));
+});
+
+test('explicit daily locations override lodging and stale dailyData without changing adjacent days', () => {
+  const station = { placeId: 'station', displayName: '부산역', formattedAddress: '부산', lat: 35.1, lng: 129.0 };
+  const request = {
+    date: ['2026-10-07', '2026-10-08', '2026-10-09'],
+    startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '공항',
+    overnightLocations: ['숙소 A', '숙소 B'],
+    dailyLocations: [{ day: 2, startLocation: station, endLocation: '' }],
+    dailyData: [{ day: 2, startLocation: '오래된 출발지', endLocation: '오래된 도착지' }],
+  };
+  const normalized = normalizePlannerRequest(request);
+  assert.deepEqual(normalized.dailyData.map(day => [day.startLocation, day.endLocation]), [
+    ['서울역', '숙소 A'], [station, '숙소 B'], ['숙소 B', '공항'],
+  ]);
+  assert.deepEqual(normalizePlannerRequest(normalized), normalized);
+  const generated = enforcePlannerConstraints([{day: 2, scheduleItems: []}], request);
+  assert.equal(generated[0].scheduleItems[0].selectedPlace.placeId, 'station');
+  assert.equal(generated[0].scheduleItems.at(-1).location, '숙소 B');
+  assert.equal(normalizePlannerRequest({...request, dailyLocations: null}).dailyData[1].startLocation, '숙소 A');
+  assert.equal(normalizePlannerRequest({...request, date: ['2026-10-07'], dailyData: [],
+    dailyLocations: [{day: 1, startLocation: station}]}).dailyData[0].startLocation, '서울역');
+});
+
+test('every offered destination survives normalization with its local timezone and passes the canonical boundary', () => {
+  const hotel = {placeId: 'hotel', displayName: 'Hotel', formattedAddress: 'Hotel address', lat: 40.7, lng: -74};
+  for (const city of destinations) {
+    const request = normalizePlannerRequest({destination: {id: city.id, country: city.country, name: city.id}, date: ['2030-10-17'], startTime: '09:00', endTime: '18:00', startLocation: hotel, endLocation: hotel, anchorSchedules: []});
+    assert.equal(request.dailyData[0].timeZone, travelRegion(request).timeZone);
+    assert.equal(request.destination.id, city.id);
+    assert.equal(findPlannerRequestIssue(request), null);
+    assert.equal(findPlannerRequestIssue({...request, destination: {...request.destination, id: 'unknown'}}).reason, 'travel-region');
+  }
 });

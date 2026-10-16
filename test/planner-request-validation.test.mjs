@@ -93,7 +93,7 @@ test('four days, ten anchors and inclusive day time boundaries are valid', () =>
   const request = valid();
   request.date = ['2028-02-28', '2028-02-29', '2028-03-01', '2028-03-02'];
   request.dailyData = request.date.map((date, i) => ({ ...request.dailyData[0], day: i + 1, date,
-    anchors: Array.from({ length: 10 }, () => ({ name: '행사', time: '09:00', endTime: '18:00' })) }));
+    anchors: Array.from({ length: 10 }, (_, index) => ({ name: '행사', time: `${String(9+Math.floor(index/2)).padStart(2,'0')}:${index%2?'30':'00'}`, endTime: `${String(9+Math.floor(index/2)).padStart(2,'0')}:${index%2?'50':'20'}` })) }));
   assert.equal(findPlannerRequestIssue(request), null);
 });
 
@@ -127,4 +127,33 @@ test('safe reason codes translate in both languages and untrusted details are no
     assert.equal(plannerValidationMessage({ reason: 'constructor' }), message);
   }
   setLang('ko');
+});
+
+test('explicit overrides allow overnight exceptions but reject malformed or conflicting canonical data', () => {
+  const request = normalizePlannerRequest({...flat(), overnightLocations:['숙소'], dailyLocations:[
+    {day:1,startLocation:'',endLocation:'공연장'}, {day:2,startLocation:'역',endLocation:''},
+  ]});
+  assert.equal(findPlannerRequestIssue(request), null);
+  const prompt = buildPrompt(sanitizePlannerRequest(request), 'ko');
+  assert.match(prompt, /공연장/);
+  assert.match(prompt, /explicit day overrides may differ/);
+  for (const dailyLocations of [{}, [], [null, null], [{day:2}, {day:1}],
+    [{day:1,startLocation:42},{day:2}], [{day:1,endLocation:'다른 곳'}, {day:2}]]) {
+    assert.ok(findPlannerRequestIssue({...request,dailyLocations}), JSON.stringify(dailyLocations));
+  }
+  request.dailyData[1].startLocation = '몰래 바꾼 곳';
+  assert.equal(findPlannerRequestIssue(request).reason, 'daily-location-mismatch');
+});
+
+
+test('US requests use the selected city timezone at normalization, validation and prompt boundaries', () => {
+  const hotel = {placeId:'hotel-us',displayName:'Hotel',formattedAddress:'United States',lat:34.05,lng:-118.24};
+  for (const [id, zone] of [['losangeles','America/Los_Angeles'],['chicago','America/Chicago'],['honolulu','Pacific/Honolulu']]) {
+    const request = normalizePlannerRequest({destination:{id,country:'USA',name:id},date:['2030-07-01'],startTime:'09:00',endTime:'18:00',startLocation:hotel,endLocation:hotel,anchorSchedules:[]});
+    assert.equal(request.dailyData[0].timeZone,zone);
+    assert.equal(findPlannerRequestIssue(request),null);
+    assert.equal(findPlannerRequestIssue({...request,dailyData:[{...request.dailyData[0],timeZone:'America/New_York'}]}).reason,'invalid-time');
+    const prompt=buildPrompt(sanitizePlannerRequest(request));
+    assert.ok(JSON.stringify(prompt).includes(zone));
+  }
 });

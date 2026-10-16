@@ -64,9 +64,10 @@ async (page) => {
   await page.evaluate(() => window.navigate('/profile'));
   await page.goBack();
   await page.locator('travel-form #reselect-preference-btn').click();
-  await page.locator('preference-view #next-step-btn').waitFor({ state: 'visible' });
+  await page.locator('preference-view #skip-btn').waitFor({ state: 'visible' });
   check(await page.locator('preference-view [data-duration="2"]').evaluate(el => el.classList.contains('selected')), 'Preference re-entry must restore edited duration');
-  await page.locator('preference-view #next-step-btn').click();
+  check(await page.locator('preference-view #theme-grid [data-value="food"]').evaluate(el => el.classList.contains('selected')), 'Theme edit must restore the current selection');
+  check(await page.locator('preference-view #budget-grid [data-value="budget"]').evaluate(el => el.classList.contains('selected')), 'Budget edit must restore the current selection');
   await page.locator('preference-view #skip-btn').click();
   await page.locator('travel-form #schedule-date').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.querySelector('travel-form').draft.theme === null);
@@ -76,6 +77,7 @@ async (page) => {
   results.push('PASS preference re-entry/skip updates the same draft without losing details');
 
   await page.locator('travel-form #reselect-preference-btn').click();
+  await page.locator('preference-view #prev-step-btn').click();
   await page.locator('preference-view [data-duration="4"]').click();
   await page.locator('preference-view #next-step-btn').click();
   await page.locator('preference-view #skip-btn').click();

@@ -1,3 +1,4 @@
+import { travelRegion } from '../functions/travel-region.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -84,6 +85,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
   };
   const deps = {
     HTMLElement: class { attachShadow() { this.shadowRoot = { getElementById: () => ({ style: { display: 'block' } }) }; } },
+    travelRegion,
     customElements: { define() {} }, environment: {},
     getMapsLoader: () => ({ importLibrary: async name => {
       if (library) await library(name);

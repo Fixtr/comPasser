@@ -26,7 +26,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
   const session = { user, data };
   const calls = { basic: [], extended: [], writes: [], stages: [], events: [], toasts: [], errors: [], logouts: 0 };
   const controls = new Map([
-    'input-birthday', 'btn-delete-account-trigger', 'delete-modal',
+    'profile-language', 'input-birthday', 'btn-delete-account-trigger', 'delete-modal',
     'btn-modal-cancel', 'btn-modal-confirm', 'modal-close-x', 'account-deletion-status',
   ].map(id => [id, element()]));
   const location = { href: '/profile/security' };
@@ -80,6 +80,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
       session.user = null;
     },
     showErrorToast: (...args) => calls.toasts.push(args),
+    getLang: () => 'ko', setLang: () => {},
     t: key => key,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ProfileView;`)(...Object.values(dependencies));

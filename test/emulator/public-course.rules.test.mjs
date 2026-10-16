@@ -1,6 +1,7 @@
 import './assert-local.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
 
 const project = 'demo-hackerton-deletion';
 const root = `http://${process.env.FIRESTORE_EMULATOR_HOST}/v1/projects/${project}/databases/(default)/documents`;
@@ -13,6 +14,25 @@ const fields = data => Object.fromEntries(Object.entries(data).map(([key, value]
 async function request(path, { method = 'GET', user, data, admin = false } = {}) {
   return fetch(`${root}/${path}`, { method, headers: { 'Content-Type': 'application/json', ...(admin ? { Authorization: 'Bearer owner' } : user ? { Authorization: `Bearer ${token(user)}` } : {}) }, ...(data ? { body: JSON.stringify({ fields: fields(data) }) } : {}) });
 }
+
+test('AI recommendation limits reserve atomically and cannot be read or reset by clients',async()=>{
+  const require=createRequire(new URL('../../functions/index.js',import.meta.url));
+  const {initializeApp,deleteApp}=require('firebase-admin/app');
+  const {getFirestore}=require('firebase-admin/firestore');
+  const {createRecommendationLimiter}=require('./place-recommendations');
+  const app=initializeApp({projectId:project},'ai-limits-test');const db=getFirestore(app);
+  try {
+    await db.collection('ai_place_limits').doc('global').set({});
+    const reserve=createRecommendationLimiter({db,now:()=>Date.parse('2026-10-14T03:00:00Z')});
+    const results=await Promise.allSettled(Array.from({length:8},()=>reserve('emulator-fixture-ip')));
+    assert.equal(results.filter(result=>result.status==='fulfilled').length,1);
+    assert.equal((await db.collection('ai_place_limits').doc('global').get()).data().count,1);
+    for(const user of [undefined,'limits-user']) {
+      assert.equal((await request('ai_place_limits/global',{user})).status,403);
+      assert.equal((await request('ai_place_limits/global',{user,method:'PATCH',data:{count:0}})).status,403);
+    }
+  } finally {await db.terminate();await deleteApp(app);}
+});
 
 test('discovery counts are public, personal saves are owner-only, and clients cannot inflate counts', async () => {
   await request('discovery_popularity/forest', { method: 'PATCH', admin: true, data: { count: 2, updatedAt: 2000000 } });

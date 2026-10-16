@@ -10,13 +10,18 @@ async (page) => {
       startTime: '09:00', endTime: '18:00',
       anchorSchedules: [{ name: '공연', day: 1, time: '15:00', endTime: '16:00', location: '공연장' }] });
   });
+  check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
+  await page.locator('home-preview a[href="/recommend"]').click();
+  await page.waitForURL('**/recommend');
   const cards = page.locator('home-recommendations');
   await cards.locator('button[data-place=forest]').waitFor({ state: 'visible' });
   check(await cards.locator('button[data-city]').count() === 6, 'All six cities must be available');
-  check(await cards.locator('article').count() === 3, 'Guests must see three places');
-  check(await cards.locator('.photo img').count() === 3, 'Every place card must have a photo');
+  check(await cards.locator('article').count() === 6, 'Guests must see six places');
+  check(await cards.locator('.photo img').count() === 3, 'Existing licensed place photos must remain available');
+  await cards.locator('article').first().locator('details.place-details summary').click();
   await cards.locator('.photo img').first().scrollIntoViewIfNeeded();
-  check(await cards.locator('.photo img').first().evaluate(image => image.decode().then(() => image.naturalWidth > 0)), 'Place photos must load');
+  await cards.locator('article').first().locator('details.place-details summary').click();
+    check(await cards.locator('.photo img').first().evaluate(image => image.decode().then(() => image.naturalWidth > 0)), 'Place photos must load');
   check(await cards.locator('.photo img').first().evaluate(image => {
     const { width, height } = image.getBoundingClientRect();
     return width / height > 1.5 && width / height < 1.7;
@@ -27,18 +32,15 @@ async (page) => {
     'Editorial picks must not claim measured visitor popularity');
   check(await cards.locator('.crowd').isVisible(), 'The Seoul crowd signal must name its coverage separately from place cards');
   check((await cards.locator('article').first().locator('.stay').textContent()).includes('60–120분'), 'Cards must show approximate visit time');
-  check(await page.locator('#go-to-login-btn').isVisible(), 'Direct planning must remain available');
-  await page.waitForFunction(() => document.querySelector('home-recommendations')?.shadowRoot
-    .querySelector('button[data-city=busan][aria-pressed=true]'), null, { timeout: 15000 });
-  check(await cards.locator('#haeundae-name').textContent() === '해운대해수욕장', 'City cards must rotate to Busan');
+  await cards.locator('button[data-city=busan]').click();
+  check(await cards.locator('#haeundae-name').textContent() === '해운대해수욕장', 'City selection must show Busan');
   await page.locator('#lang-toggle').click();
   check(await cards.locator('#haeundae-name').textContent() === 'Haeundae Beach', 'Busan cards must translate');
   await page.locator('#lang-toggle').click();
   await cards.locator('button[data-city=jeju]').click();
   check(await cards.locator('#yongduam-name').textContent() === '용두암', 'Visitors must be able to choose Jeju');
   await cards.locator('button[data-place=yongduam]').click();
-  await page.waitForTimeout(10500);
-  check(await cards.locator('button[data-city=jeju]').getAttribute('aria-pressed') === 'true', 'Selection must pause rotation');
+  check(await cards.locator('button[data-city=jeju]').getAttribute('aria-pressed') === 'true', 'Place selection must preserve the chosen city');
   await cards.locator('button[data-city=seoul]').click();
   check(await cards.locator('button[data-place=yongduam]').count() === 0, 'Manual city switch must clear the previous selection');
   await page.locator('#lang-toggle').click();
@@ -56,7 +58,7 @@ async (page) => {
     'Crowd observations older than 60 minutes must disappear even on an open page');
   await cards.evaluate(el => { el.crowd = null; el.renderCrowd(); });
   await cards.locator('button[data-filter=discoverFind]').click();
-  check(await cards.locator('article').count() === 1 && await cards.locator('#island-name').count() === 1,
+  check(await cards.locator('article').count() === 2 && await cards.locator('#island-name').count() === 1,
     'Discovery filters must show only the chosen place type');
   check(await cards.locator('button[data-filter=discoverFind]').getAttribute('aria-pressed') === 'true', 'The active filter must be announced');
   check((await cards.locator('#island-name').locator('..').locator('.description').textContent()).includes('Why visit'),
@@ -115,7 +117,7 @@ async (page) => {
     'Automatic placement must preserve the existing reservation time');
   check(submitted.anchorSchedules.slice(1).every(anchor => anchor.flexible && anchor.stayMinutes > 0),
     'Generated visits must retain their flexible status for later editing');
-  await page.evaluate(() => window.navigate('/'));
+  await page.evaluate(() => window.navigate('/recommend'));
   for (const id of ['forest', 'island', 'palace']) {
     const button = cards.locator(`button[data-place=${id}]`);
     if (await button.getAttribute('aria-pressed') === 'true') await button.click();
@@ -126,62 +128,62 @@ async (page) => {
   const one = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   check(one.startLocation === '이전 출발지' && one.endLocation === '서울역', 'Another pick must still leave endpoints unchanged');
   check(one.anchorSchedules.filter(anchor => anchor.name === '선유도공원').length === 1, 'Repeating a pick must not duplicate a required visit');
-  await page.evaluate(() => window.navigate('/'));
+  await page.evaluate(() => window.navigate('/recommend'));
   await cards.locator('button[data-city=busan]').click();
   for (const id of ['haeundae', 'dongbaek', 'gwangalli']) await cards.locator(`button[data-place=${id}]`).click();
   await cards.locator('#discover-plan').click();
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('currentFormData')).anchorSchedules.at(-1)?.name === '광안리해수욕장');
   const busan = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   check(busan.startLocation === '이전 출발지' && busan.endLocation === '서울역', 'Busan picks must not replace endpoints');
   check(busan.anchorSchedules.slice(-3).map(anchor => anchor.name).join() === '해운대해수욕장,동백섬,광안리해수욕장',
     'Three Busan picks must reach the required schedule rows');
   await page.evaluate(async () => {
-    window.navigate('/');
+    window.navigate('/recommend');
     const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
     plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
   });
   await cards.locator('button[data-city=seoul]').click();
-  check((await cards.locator('.pair h3').textContent()).includes('서촌 한옥마을'), 'The Seoul pair must name the nearby neighborhood');
-  await cards.locator('#discover-pair').click();
-  check(await cards.locator('#discover-pair').getAttribute('aria-pressed') === 'true', 'Pair selection must be visible');
-  check((await cards.locator('.selected-list').textContent()).includes('서촌 한옥마을'), 'The paired-only place must be visible in the selected summary');
-  check(await cards.locator('button[data-place=palace]').getAttribute('aria-pressed') === 'true', 'Selecting a pair must select its visible card');
+  check(await cards.locator('.pair, #discover-pair').count() === 0, 'Recommendations must not show the nearby pair card');
   await cards.locator('button[data-place=palace]').click();
-  check(await cards.locator('#discover-plan').isDisabled(), 'Removing the visible card must also remove the paired-only place');
-  await cards.locator('#discover-pair').click();
-  await cards.locator('button[data-place=forest]').click();
-  check(await cards.locator('button[data-place=island]').isDisabled(), 'A pair plus one place must respect the three-place limit');
+  await cards.locator('button[data-place=palace]').click();
+  check(await cards.locator('#discover-plan').isEnabled(), 'Removing the only selection must still allow continuation');
+  check((await cards.locator('#discover-plan').textContent()).includes('장소 선택 없이 다음'), 'Empty selections must offer continuation without places');
+  for (const id of ['palace', 'forest', 'island']) await cards.locator(`button[data-place=${id}]`).click();
   await cards.locator('#discover-plan').click();
-  const pairDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
-  check(pairDraft.anchorSchedules.map(anchor => anchor.name).join() === '경복궁,서촌 한옥마을,서울숲',
-    'Both paired places and the extra pick must become required visits');
-  check(pairDraft.anchorSchedules.every(anchor => anchor.day === 1 && anchor.flexible && !anchor.time && !anchor.endTime),
-    'Pair selection must keep untimed visits for automatic placement');
+  const selectedDraft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  check(selectedDraft.anchorSchedules.map(anchor => anchor.name).join() === '경복궁,서울숲,선유도공원',
+    'Individual selections must become required visits');
+  check(selectedDraft.anchorSchedules.every(anchor => anchor.day === 1 && anchor.flexible && !anchor.time && !anchor.endTime),
+    'Individual selections must remain untimed visits for automatic placement');
   await page.evaluate(async () => {
-    window.navigate('/');
+    window.navigate('/recommend');
     const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
     plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
   });
   for (const [city, firstPlace] of [['incheon', 'chinatown'], ['daegu', 'seomun'], ['daejeon', 'hanbat']]) {
     await cards.locator(`button[data-city=${city}]`).click();
-    check(await cards.locator('article').count() === 3, `${city} must show three places`);
+    check(await cards.locator('article').count() === 6, `${city} must show six places`);
     check(await cards.locator(`#${firstPlace}-name`).textContent() !== firstPlace, `${city} places must be translated`);
+    await cards.locator('article').first().locator('details.place-details summary').click();
     check(await cards.locator('.photo img').first().evaluate(image => image.decode().then(() => image.naturalWidth > 0)),
       `${city} photos must load`);
   }
-  await cards.locator('#discover-pair').click();
+  await cards.locator('button[data-place=hanbat]').click();
+  await cards.locator('button[data-place=expo]').click();
   await cards.locator('#discover-plan').click();
   await page.waitForURL('**/preference/1');
   const daejeon = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   check(daejeon.anchorSchedules.map(anchor => anchor.name).join() === '한밭수목원,엑스포과학공원',
-    'A new city pair must become required visits');
+    'Two individual city selections must become required visits');
   await page.evaluate(async () => {
-    window.navigate('/');
+    window.navigate('/courses');
     const { plannerDraftStore } = await import('/src/domains/planner/services/planner-draft.mjs');
     plannerDraftStore.save({ ...plannerDraftStore.read(), anchorSchedules: [] });
   });
   const courses = page.locator('home-courses');
-  check(await courses.locator('article').count() === 6, 'Curated route browsing must show all six cities');
-  await courses.locator('button[data-city=busan]').click();
+  await courses.locator('button[data-course=curated-busan]').waitFor({ state: 'visible' });
+  check(await courses.locator('article').count() === 18, 'Curated route browsing must show three courses per domestic city');
+  await courses.locator('button[data-course=curated-busan]').click();
   await page.waitForURL('**/preference/1');
   const copiedCourse = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   check(copiedCourse.startLocation === '이전 출발지' && copiedCourse.endLocation === '서울역',

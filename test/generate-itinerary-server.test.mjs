@@ -15,7 +15,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 
 // Run the actual exported callback with fake SDK/HTTP boundaries. No credentials,
 // account reads, network, paid AI or production initialization are involved.
-function fixture({ fail, empty = false, responses, user = {} } = {}) {
+function fixture({ fail, empty = false, responses, user = {}, recommendationError } = {}) {
   const calls = [];
   const modelUrls = [];
   let responseIndex = 0;
@@ -35,6 +35,7 @@ function fixture({ fail, empty = false, responses, user = {} } = {}) {
       settle: async (_uid, _createdAt, _id, succeeded) => { calls.push(succeeded ? 'debit' : 'refund'); },
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
+    './place-recommendations': {validateRecommendationInput:require('./place-recommendations').validateRecommendationInput,createRecommendationLimiter:()=>()=>{},createPlaceRecommendations:()=>async request=>{calls.push('recommendation');if(recommendationError)throw recommendationError;return {cityId:request.data.cityId};}},
     axios: { post: async url => {
       calls.push('ai');
       modelUrls.push(url);
@@ -46,8 +47,26 @@ function fixture({ fail, empty = false, responses, user = {} } = {}) {
   };
   const exports = {};
   vm.runInNewContext(source, { exports, console, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
-  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }) };
+  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}) };
 }
+
+test('recommendation callable allows limited guest browsing and checks signed-in account identity',async()=>{
+ const guest=fixture();assert.equal((await guest.recommend(null)).cityId,'seoul');assert.deepEqual(guest.calls,['recommendation']);
+ const old=fixture();await assert.rejects(old.recommend({uid:'test-user',token:{auth_time:1}}),{code:'unauthenticated'});assert.deepEqual(old.calls,['account-check','user']);
+});
+test('recommendation callable maps quota and provider failures without exposing provider errors',async()=>{
+ const limited=fixture({recommendationError:Object.assign(new Error('limited'),{code:'resource-exhausted',details:{reason:'recommendation-limit'}})});
+ await assert.rejects(limited.recommend(null),{code:'resource-exhausted',details:{reason:'recommendation-limit'}});
+ const exhausted=fixture({recommendationError:Object.assign(new Error('recommendation-no-new-places'),{code:'not-found',details:{reason:'recommendation-no-new-places'}})});
+ await assert.rejects(exhausted.recommend(null),{code:'not-found',details:{reason:'recommendation-no-new-places'}});
+ const failed=fixture({recommendationError:new Error('private provider failure')});await assert.rejects(failed.recommend(null),{code:'unavailable',message:'recommendation-unavailable'});
+});
+test('recommendation callable rejects malformed input before account reads or external work',async()=>{
+ const app=fixture();await assert.rejects(app.recommend({uid:'test-user',token:{auth_time:1800000000}},{}),{code:'invalid-argument'});
+ await assert.rejects(app.recommend({uid:'test-user',token:{auth_time:1800000000}},{cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko',interest:'untrusted prompt'}),{code:'invalid-argument'});
+ await assert.rejects(app.recommend({uid:'test-user',token:{auth_time:1800000000}},{cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko',excludedPlaces:[{placeId:'id',displayName:'name',prompt:'injected'}]}),{code:'invalid-argument'});
+ assert.deepEqual(app.calls,[]);
+});
 
 test('actual server callback rejects malformed input before any account/secret/prompt/AI work', async () => {
   for (const request of [undefined, null, {}, { dailyData: [] }, { dailyData: [{}] },
