@@ -173,11 +173,13 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     } catch { return {status:'unavailable'}; }
   }
 
-  async function resolve(input,city,candidate,key,evidence) {
+  async function resolve(input,city,candidate,key,evidence,reject = () => null) {
     if (typeof candidate?.name !== 'string' || !normalized(candidate.name) || candidate.name.length > 120
-      || !Number.isInteger(candidate.evidenceIndex) || candidate.evidenceIndex < 0) return null;
+      || !Number.isInteger(candidate.evidenceIndex) || candidate.evidenceIndex < 0) return reject('input');
     const supported = evidence[candidate.evidenceIndex];
-    if (!supported || !mentionsVenue(supported.text,candidate.name) || DYNAMIC_CLAIM.test(supported.text)) return null;
+    if (!supported) return reject('evidence');
+    if (!mentionsVenue(supported.text,candidate.name)) return reject('mention');
+    if (DYNAMIC_CLAIM.test(supported.text)) return reject('dynamic');
     const {text:reason,sources:citations} = supported;
     const dates = [...new Set(reason.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
     if (candidate.event !== null || EVENT_CLAIM.test(reason) || dates.length) {
@@ -187,7 +189,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
         || !dateRange(event.startDate,1).length || !dateRange(event.endDate,1).length
         || event.startDate > event.endDate || input.date < event.startDate || input.date > event.endDate
         || !dates.includes(event.startDate) || !dates.includes(event.endDate)
-        || dates.some(date => date !== event.startDate && date !== event.endDate)) return null;
+        || dates.some(date => date !== event.startDate && date !== event.endDate)) return reject('event');
     }
     const [name,lat,lng,radius] = city, deltaLat = radius/111, deltaLng = radius/(111*Math.cos(lat*Math.PI/180));
     const expectedNames = RECOMMENDATION_NAME_GROUPS[input.cityId].find(group => group.some(alias => normalized(alias) === normalized(candidate.name))) || [candidate.name];
@@ -207,12 +209,13 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
         && Math.abs(place.location.latitude-lat) <= deltaLat && Math.abs(place.location.longitude-lng) <= deltaLng;
     });
     // Never resolve an ambiguous chain/branch name by taking whichever result the provider ranks first.
-    if (new Set(matches.map(place => place.id)).size !== 1) return null;
+    const matchCount = new Set(matches.map(place => place.id)).size;
+    if (matchCount !== 1) return reject(matchCount ? 'places-ambiguous' : 'places-none');
     const found = matches[0];
-    if (['CLOSED_PERMANENTLY','CLOSED_TEMPORARILY','FUTURE_OPENING'].includes(found.businessStatus)) return null;
+    if (['CLOSED_PERMANENTLY','CLOSED_TEMPORARILY','FUTURE_OPENING'].includes(found.businessStatus)) return reject('closed-status');
     const today = localTravelDate(now(),travelRegion({destination:{id:input.cityId,country:input.country}}).timeZone);
     const hours = recommendationHours(found,input.date,today);
-    if (hours.status === 'closed') return null;
+    if (hours.status === 'closed') return reject('closed-hours');
     return {group:placeGroup(found),recommendation:{place:{placeId:found.id,displayName:found.displayName.text,formattedAddress:found.formattedAddress,lat:found.location.latitude,lng:found.location.longitude},
       reason,sources:citations,hours,mapsUrl:safeSource(found.googleMapsUri),
       attributions:(found.attributions || []).slice(0,5).map(a => ({name:String(a.provider || '').slice(0,120),url:safeSource(a.providerUri)}))}};
@@ -255,12 +258,14 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
       let candidates;
       try { candidates = JSON.parse(formatted.text).places; } catch { throw fail('unavailable','recommendation-response'); }
       if (!Array.isArray(candidates) || candidates.length > 6) throw fail('unavailable','recommendation-response');
-      const verified = [], ids = new Set(), names = new Set();
+      const verified = [], ids = new Set(), names = new Set(), rejected = {};
+      // Gate counts only (no request data) so an empty result can be diagnosed from the client error.
+      const reject = (gate, venue) => { rejected[gate] = (rejected[gate] || 0)+1; console.warn('[recommendPlaces] rejected',{gate,venue:String(venue || '').slice(0,120),cityId:input.cityId}); return null; };
       for (const candidate of candidates) {
-        if (typeof candidate?.name === 'string' && excludedNames.has(normalized(candidate.name))) continue;
-        if (typeof candidate?.name === 'string' && names.has(normalized(candidate.name))) continue;
+        if (typeof candidate?.name === 'string' && excludedNames.has(normalized(candidate.name))) { reject('excluded',candidate.name); continue; }
+        if (typeof candidate?.name === 'string' && names.has(normalized(candidate.name))) { reject('duplicate',candidate.name); continue; }
         let result;
-        try { result = await resolve(input,city,candidate,keys.maps,evidence); }
+        try { result = await resolve(input,city,candidate,keys.maps,evidence,gate => reject(gate,candidate?.name)); }
         catch (error) {
           if (verified.length < 4) throw error;
           break; // An optional diversity lookup must not discard four already verified recommendations.
@@ -274,7 +279,11 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
         verified.push({...result,isDefault:defaultKeys.has(normalized(place.displayName)),order:verified.length});
       }
       const places = selectVariedPlaces(verified);
-      if (!places.length) throw fail(input.excludedPlaces.length ? 'not-found' : 'unavailable',input.excludedPlaces.length ? 'recommendation-no-new-places' : 'recommendation-no-places');
+      if (!places.length) {
+        const error = fail(input.excludedPlaces.length ? 'not-found' : 'unavailable',input.excludedPlaces.length ? 'recommendation-no-new-places' : 'recommendation-no-places');
+        error.details = {...error.details,evidence:evidence.length,candidates:candidates.length,rejected};
+        throw error;
+      }
       return {cityId:input.cityId,country:input.country,date:input.date,lang:input.lang,interest:input.interest,weather:forecast,places,
         searchSuggestions:metadata.searchEntryPoint.renderedContent,generatedAt:now().toISOString()};
     } catch (error) {

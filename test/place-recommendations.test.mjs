@@ -385,7 +385,7 @@ test('recent exclusions are bounded and validated before account limits or paid 
 test('refresh excludes normalized names and reviewed aliases before lookup and gives a specific no-new-results error',async()=>{
  for(const [name,previousName] of [['국립중앙박물관','국립 중앙 박물관'],['N Seoul Tower','N서울타워']]){
   const app=fixture({candidates:[candidate(name)],statements:[`${name} is a visitor destination.`]});
-  await assert.rejects(app.run({...input,excludedPlaces:[{placeId:'previous',displayName:previousName}]}),{code:'not-found',details:{reason:'recommendation-no-new-places'}});
+  await assert.rejects(app.run({...input,excludedPlaces:[{placeId:'previous',displayName:previousName}]}),{code:'not-found',details:{reason:'recommendation-no-new-places',evidence:1,candidates:1,rejected:{excluded:1}}});
   assert.equal(app.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
   const prompt=app.calls.find(c=>c.body?.tools).body.contents[0].parts[0].text;
   assert.ok(prompt.includes(JSON.stringify([previousName])));assert.match(prompt,/untrusted list of venue names/);
