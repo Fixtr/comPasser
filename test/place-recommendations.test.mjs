@@ -82,6 +82,18 @@ test('grounded markdown bullets and bold are removed from the displayed reason',
  assert.equal(displayReason('## 경복궁은 조선의 법궁입니다.'),'경복궁은 조선의 법궁입니다.');
  assert.equal(displayReason(reason),reason);
 });
+test('permanent museum wording, translated candidate names and empty event objects still resolve the venue',async()=>{
+ const permanent='국립중앙박물관은 상설 전시와 다양한 전시실에서 한국의 문화유산을 소개합니다.';
+ assert.equal((await fixture({statements:[permanent]}).run()).places.length,1);
+ assert.equal((await fixture({statements:['국립중앙박물관 houses exhibits on Korean history.']}).run()).places.length,1);
+ const translated=fixture({statements:['* **국립중앙박물관 (National Museum of Korea)**: 한국의 역사를 살펴볼 수 있습니다.'],
+  candidates:[candidate('국립중앙박물관 (National Museum of Korea)')]});
+ const result=await translated.run();
+ assert.equal(result.places[0].place.displayName,'국립중앙박물관');
+ assert.match(translated.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^국립중앙박물관, /);
+ assert.equal((await fixture({candidates:[{...candidate(),event:{name:'',startDate:'',endDate:''}}]}).run()).places.length,1);
+ await assert.rejects(fixture({statements:['국립중앙박물관에서 가을 기획전이 열리고 있습니다.']}).run(),e=>e.details.rejected?.event===1);
+});
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
  assert.equal(result.places.length,1);assert.deepEqual(result.weather,{status:'forecast',description:'비',minC:12,maxC:19,rainPercent:80});
