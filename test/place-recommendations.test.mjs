@@ -11,7 +11,7 @@ import {validRecommendationWeather} from '../functions/recommendation-weather.mj
 import {destinations} from '../src/domains/planner/services/travel-destinations.mjs';
 import {tFor} from '../src/utils/i18n.js';
 const require=createRequire(import.meta.url);
-const {createPlaceRecommendations,createRecommendationLimiter,validateRecommendationInput}=require('../functions/place-recommendations.js');
+const {createPlaceRecommendations,createRecommendationLimiter,validateRecommendationInput,displayReason}=require('../functions/place-recommendations.js');
 const now=()=>new Date('2026-10-14T03:00:00Z');
 const input={cityId:'seoul',country:'KOR',date:'2026-10-15',lang:'ko',theme:'healing',budget:'standard'};
 const source={url:'https://english.visitseoul.net/guide',title:'Visit Seoul'};
@@ -73,6 +73,14 @@ test('server catalogue overlap names cover all 24 cities and every UI name, loca
   assert.deepEqual(new Set(DEFAULT_RECOMMENDATION_NAMES[city.id]),expected,city.id);
   assert.deepEqual(RECOMMENDATION_NAME_GROUPS[city.id],groups,city.id);
  }
+});
+test('grounded markdown bullets and bold are removed from the displayed reason',async()=>{
+ const statement='* **국립중앙박물관 (National Museum of Korea)**: 한국의 역사와 문화유산을 살펴볼 수 있는 실내 공간입니다.';
+ const result=await fixture({statements:[statement]}).run();
+ assert.equal(result.places[0].reason,'국립중앙박물관 (National Museum of Korea): 한국의 역사와 문화유산을 살펴볼 수 있는 실내 공간입니다.');
+ assert.equal(displayReason('1. __Gwangjang Market__ has `street food`.'),'Gwangjang Market has street food.');
+ assert.equal(displayReason('## 경복궁은 조선의 법궁입니다.'),'경복궁은 조선의 법궁입니다.');
+ assert.equal(displayReason(reason),reason);
 });
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();

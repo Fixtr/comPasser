@@ -83,6 +83,12 @@ const EVENT_CLAIM = /전시|축제|공연|행사|이벤트|팝업|개최|기간\
 // shortcut: lexical guard catches common dynamic claims, not arbitrary factual errors; source audits remain separate.
 const DYNAMIC_CLAIM = /날씨|예보|강수|기온|비가\s*(?:내|올|오)|눈이\s*(?:내|올|오)|실시간|인기\s*(?:\d+\s*위|순위)|(?:영업|운영|개관)\s*(?:중|시간)|(?:오늘|내일).{0,12}(?:영업|운영|개관|개장)|\b(?:forecasts?|temperatures?|precipitation|rainy|snowy|sunny|trending|most popular|live ranking|opening hours|open (?:today|tomorrow|now|daily|until|from|at|on)|opens at)\b|\b\d{1,2}:\d{2}\b/i;
 
+// Grounded segments keep the model's markdown (list bullets, bold); show plain text only.
+// Validation still runs on the original segment so event names and dates match the source.
+function displayReason(text) {
+  return text.replace(/^\s*(?:[*+-]|\d+[.)])\s+/,'').replace(/^#{1,6}\s+/,'').replace(/\*\*|__|`/g,'').replace(/\s+/g,' ').trim();
+}
+
 function mentionsVenue(text, name) {
   const escaped = name.normalize('NFKC').trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}]|(?:에서|으로|은|는|이|가|의|에|을|를|와|과|도|로)(?:$|[^\\p{L}\\p{N}]))`,'iu').test(text.normalize('NFKC'));
@@ -217,7 +223,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const hours = recommendationHours(found,input.date,today);
     if (hours.status === 'closed') return reject('closed-hours');
     return {group:placeGroup(found),recommendation:{place:{placeId:found.id,displayName:found.displayName.text,formattedAddress:found.formattedAddress,lat:found.location.latitude,lng:found.location.longitude},
-      reason,sources:citations,hours,mapsUrl:safeSource(found.googleMapsUri),
+      reason:displayReason(reason) || reason,sources:citations,hours,mapsUrl:safeSource(found.googleMapsUri),
       attributions:(found.attributions || []).slice(0,5).map(a => ({name:String(a.provider || '').slice(0,120),url:safeSource(a.providerUri)}))}};
   }
 
@@ -294,4 +300,4 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
   };
 }
 
-module.exports = {createPlaceRecommendations,createRecommendationLimiter,validateRecommendationInput};
+module.exports = {createPlaceRecommendations,createRecommendationLimiter,validateRecommendationInput,displayReason};
