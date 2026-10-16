@@ -32,35 +32,39 @@ export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStat
       cursor = Math.max(cursor, nextEnd);
     }
 
-    for (const { anchor, index } of indexed.filter(({ anchor }) => anchor.flexible)) {
-      const stay = Number.isInteger(anchor.stayMinutes) ? Math.min(120, Math.max(20, anchor.stayMinutes)) : 60;
-      let placed = false, hoursBlocked = false, routeUnknown = false;
-      for (const gap of gaps) {
-        if (gap.cursor + stay > gap.end) continue;
-        const inbound = await travelMinutes?.(gap.previous.location, anchor.location, day.date, formatTime(gap.cursor));
-        if (!Number.isFinite(inbound) || inbound < 0) { routeUnknown = true; continue; }
-        const journeyIn = Math.ceil(inbound);
-        const firstStart = gap.cursor + journeyIn;
-        if (firstStart + stay > gap.end) continue;
-        const outbound = await travelMinutes?.(anchor.location, gap.next.location, day.date, formatTime(firstStart + stay));
-        if (!Number.isFinite(outbound) || outbound < 0) { routeUnknown = true; continue; }
-        const journeyOut = Math.ceil(outbound);
-        for (let visitStart = firstStart; visitStart + stay + journeyOut <= gap.end; visitStart += 15) {
-          const visitEnd = visitStart + stay;
-          const status = await hoursStatus?.(anchor, day.date, formatTime(visitStart), formatTime(visitEnd));
-          if (status === 'closed') { hoursBlocked = true; break; }
-          if (status === 'conflict') { hoursBlocked = true; continue; }
-          anchor.time = formatTime(visitStart);
-          anchor.endTime = formatTime(visitEnd);
-          gap.previous = anchor;
-          gap.cursor = visitEnd;
-          placed = true;
-          break;
+    const remaining = indexed.filter(({ anchor }) => anchor.flexible);
+    // Choose the earliest feasible visit; an afternoon opening must not consume the morning gap.
+    while (remaining.length) {
+      let best = null, hoursBlocked = false, routeUnknown = false;
+      for (const { anchor, index } of remaining) {
+        const stay = Number.isInteger(anchor.stayMinutes) ? Math.min(120, Math.max(20, anchor.stayMinutes)) : 60;
+        for (const gap of gaps) {
+          if (gap.cursor + stay > gap.end) continue;
+          const inbound = await travelMinutes?.(gap.previous.location, anchor.location, day.date, formatTime(gap.cursor));
+          if (!Number.isFinite(inbound) || inbound < 0) { routeUnknown = true; continue; }
+          const firstStart = gap.cursor + Math.ceil(inbound);
+          for (let visitStart = firstStart; visitStart + stay <= gap.end; visitStart += 15) {
+            if (best && visitStart >= best.start) break;
+            const visitEnd = visitStart + stay;
+            const status = await hoursStatus?.(anchor, day.date, formatTime(visitStart), formatTime(visitEnd));
+            if (status === 'closed') { hoursBlocked = true; break; }
+            if (status === 'conflict') { hoursBlocked = true; continue; }
+            // Opening waits change the departure: measure the return leg at the actual visit end.
+            const outbound = await travelMinutes?.(anchor.location, gap.next.location, day.date, formatTime(visitEnd));
+            if (!Number.isFinite(outbound) || outbound < 0) { routeUnknown = true; break; }
+            if (visitEnd + Math.ceil(outbound) > gap.end) continue;
+            best = { anchor, index, gap, start: visitStart, end: visitEnd };
+            break;
+          }
         }
-        if (placed) break;
       }
-      if (!placed) return { request, issue: { reason: routeUnknown ? 'flexible-visit-route' : hoursBlocked ? 'flexible-visit-hours' : 'flexible-visit-space',
-        day: day.day, anchorIndex: index } };
+      if (!best) return { request, issue: { reason: routeUnknown ? 'flexible-visit-route' : hoursBlocked ? 'flexible-visit-hours' : 'flexible-visit-space',
+        day: day.day, anchorIndex: remaining[0].index } };
+      best.anchor.time = formatTime(best.start);
+      best.anchor.endTime = formatTime(best.end);
+      best.gap.previous = best.anchor;
+      best.gap.cursor = best.end;
+      remaining.splice(remaining.findIndex(item => item.index === best.index), 1);
     }
   }
   return { request: { ...request, anchorSchedules: scheduled }, issue: null };

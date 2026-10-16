@@ -21,7 +21,7 @@ function shell(title, description, canonical, body, { noindex = false, script = 
     <link rel="canonical" href="${e(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${e(title)}">
     <meta property="og:description" content="${e(description)}"><meta property="og:url" content="${e(canonical)}">
     ${noindex ? '<meta name="robots" content="noindex">' : ''}<link rel="icon" href="/favicon.svg"><style>${styles}</style></head>
-    <body><header><a href="/en/routes">ComPasser · Korea travel routes</a><a href="/home?lang=en">Build your trip</a></header>
+    <body><header><a href="/en/routes">ComPasser · Travel routes</a><a href="/home?lang=en">Build your trip</a></header>
     <main>${body}</main><footer>Choose your own dates, accommodation and fixed appointments when you build a trip.</footer>${script}</body></html>`;
 }
 
@@ -29,7 +29,7 @@ export function renderPublicRoute(course, origin) {
   const canonical = publicRouteUrl(course.id, origin);
   const title = course.titleEn || course.title;
   const names = course.stops.map(stop => stop.englishName || stop.name);
-  const description = `${names.join(' → ')}. Choose your dates and starting place to plan your visit in Korea.`;
+  const description = `${names.join(' → ')}. Choose your dates and starting place to plan your visit.`;
   const stopHtml = course.stops.map((stop, index) => {
     const info = stop.visitorInfo;
     const menu = { available: 'Available', unavailable: 'Not available', unknown: 'Not checked' };

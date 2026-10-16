@@ -20,7 +20,7 @@ export function distanceMeters(a, b) {
 
 // Bias alone does not restrict Google results. Apply a hard distance AND type
 // check after search, and accept only JSON-safe, identifiable physical places.
-export function selectRecommendation(places, intent, center, excluded = new Set(), rejected = null) {
+export function selectRecommendation(places, intent, center, excluded = new Set(), rejected = null, countryCode = 'KR') {
   if (!center || !normalizePlaceIntent(intent)) return null;
   const reject = reason => {
     if (rejected) rejected[reason] = (rejected[reason] || 0) + 1;
@@ -29,10 +29,12 @@ export function selectRecommendation(places, intent, center, excluded = new Set(
   return (Array.isArray(places) ? places : []).flatMap(place => {
     const snapshot = normalizeSelectedPlace(place);
     if (!snapshot) return reject('identity');
+    // ponytail: named airport/restricted interiors are excluded; use provider access metadata when available.
+    if (/(?:면세|보안구역|출국장|duty.?free|airside|departure hall|(?:공항|airport).*?(?:터미널|terminal))/i.test(snapshot.displayName)) return reject('restricted-access');
     if (excluded.has(snapshot.placeId)) return reject('duplicate');
     if (!place.types?.includes(intent.category)) return reject('type');
     if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(place.businessStatus)) return reject('closed');
-    if (!place.addressComponents?.some(c => c.types?.includes('country') && c.shortText === 'KR')) return reject('country');
+    if (!place.addressComponents?.some(c => c.types?.includes('country') && c.shortText === countryCode)) return reject('country');
     if (distanceMeters(center, snapshot) > RECOMMENDATION_RADIUS_METERS) return reject('distance');
     return [{ ...snapshot, source: 'google_places', category: intent.category,
       intentKey: intentKey(intent), centerPlaceId: center.placeId }];

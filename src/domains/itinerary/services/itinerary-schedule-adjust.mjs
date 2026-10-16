@@ -69,7 +69,7 @@ export function applyTransitDelays(scheduleItems, transitRoutes, requestedStartT
 
     for (let i = 1; i < result.length; i++) {
       // A late journey cannot reschedule a user's fixed appointment.
-      if (result[i].type === 'AnchorSchedule') continue;
+      if (result[i].type === 'AnchorSchedule' && result[i].flexible !== true) continue;
       const originalStart = minutesOf(result[i].time);
       if (originalStart === null) continue; // 시간 형식이 이상하면 건드리지 않는다
 

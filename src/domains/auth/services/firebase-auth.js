@@ -132,8 +132,14 @@ export async function loginWithGoogle() {
 
 export async function logout() {
     try {
+        try {
+        localStorage.removeItem('compasser.offline.v1');
+        localStorage.removeItem('compasser.planner.v1');
         sessionStorage.removeItem('currentFormData');
         sessionStorage.removeItem('savedItineraryData');
+        sessionStorage.removeItem('userPreference');
+        sessionStorage.removeItem('compasser.itineraries.v1');
+        } catch (error) { console.warn('Local travel cleanup failed', error); }
         await signOut(requireAuth());
 
         // 네이티브에서는 OS 쪽 구글 계정 선택도 함께 푼다. 안 풀면 다음
@@ -225,9 +231,15 @@ export async function deleteCurrentUser(expectedUserId) {
     if (user) {
         await deleteUser(user);
         // 인증 삭제 실패 때는 로컬 데이터까지 먼저 지우지 않는다.
+        try {
         localStorage.removeItem('hasSeenTutorial');
+        localStorage.removeItem('compasser.offline.v1');
+        localStorage.removeItem('compasser.planner.v1');
         sessionStorage.removeItem('currentFormData');
         sessionStorage.removeItem('savedItineraryData');
+        sessionStorage.removeItem('userPreference');
+        sessionStorage.removeItem('compasser.itineraries.v1');
+        } catch (error) { console.warn('Local travel cleanup failed', error); }
     }
 }
 

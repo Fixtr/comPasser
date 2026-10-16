@@ -6,5 +6,5 @@ export function addCourseToDraft(draft, course, language = 'ko') {
       anchors.push({ day: 1, name, location: stop.location, time: '', endTime: '', flexible: true, stayMinutes: stop.stayMinutes });
     }
   }
-  return { ...draft, anchorSchedules: anchors, selectedWaypoints: [] };
+  return { ...draft, ...(course.destination ? { country: course.destination.country, destination: course.destination, destinationStage: 'places' } : {}), anchorSchedules: anchors, selectedWaypoints: [] };
 }

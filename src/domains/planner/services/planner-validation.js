@@ -9,11 +9,13 @@ export function findPlannerInputIssue(request) {
 // Server details contain reason codes, not trusted display text.
 export function plannerValidationMessage(issue) {
   const keys = {
+    'travel-region': 'plannerLocationError', 'anchor-overlap': 'flowOverlap',
     'missing-days': 'plannerDateError', 'invalid-date': 'plannerDateError',
     'date-mismatch': 'plannerDateError', 'date-order': 'plannerDateError',
     'day-order': 'plannerDateError', 'day-limit': 'plannerDayLimitError',
     'invalid-time': 'emptyTimeValidationError', 'time-order': 'basicTimeValidationError',
     'missing-location': 'plannerLocationError',
+    'daily-location-shape': 'plannerLocationError', 'daily-location-mismatch': 'plannerLocationError',
     'overnight-length': 'plannerLocationError', 'overnight-mismatch': 'plannerLocationError',
     'invalid-anchors': 'plannerAnchorError', 'incomplete-anchor': 'plannerAnchorError',
     'invalid-anchor-time': 'plannerAnchorError', 'anchor-time-order': 'plannerAnchorError',

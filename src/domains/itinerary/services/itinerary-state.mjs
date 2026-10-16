@@ -103,7 +103,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if (kind !== 'draft' && !id) return null;
       if (kind === 'private' && !userId) return null;
       const source = kind === 'shared' ? { kind, id } : { kind, id, ownerId: userId || null };
-      const entry = { source, plan, dayIndex: 0 };
+      const entry = { source, plan, dayIndex: 0, dirtyDays: [], undoByDay: {} };
       activeKey = keyOf(source);
       entries.set(activeKey, entry);
       changed();
@@ -154,6 +154,27 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       return true;
     },
 
+    editDayItems(index, items, { undo = false } = {}) {
+      const entry=current();
+      const day=normalizeData(entry?.plan)?.days?.[index];
+      if (!day || entry.source.kind==='shared' || !Array.isArray(items)) return false;
+      entry.undoByDay ||= {};
+      if (undo) entry.undoByDay[index]=structuredClone(day.scheduleItems); else delete entry.undoByDay[index];
+      entry.dirtyDays ||= [];
+      if (!entry.dirtyDays.includes(index)) entry.dirtyDays.push(index);
+      day.scheduleItems=items;changed();return true;
+    },
+    undoDeletion(index) {
+      const entry=current(),items=entry?.undoByDay?.[index];
+      if(!items || entry.source.kind==='shared') return false;
+      delete entry.undoByDay[index];
+      if(!entry.dirtyDays.includes(index))entry.dirtyDays.push(index);
+      return this.replaceDayItems(index,items);
+    },
+    markDayRecalculated(index) {
+      const entry=current();if(!entry)return;
+      entry.dirtyDays=(entry.dirtyDays || []).filter(day=>day!==index);changed();
+    },
     resolvePlaces(index, places) {
       const items = normalizeData(current()?.plan)?.days?.[index]?.scheduleItems;
       if (!items || !Array.isArray(places) || !places.length) return;

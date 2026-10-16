@@ -6,8 +6,14 @@ import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { COURSE_CITIES, filterCourses } from '../../itinerary/services/course-community.mjs';
 import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { addCourseToDraft } from '../services/course-draft.mjs';
+import { destinations } from '../services/travel-destinations.mjs';
 
 class PublicCourses extends HTMLElement {
+  static get observedAttributes() { return ['city']; }
+  attributeChangedCallback() {
+    this.filters.city = this.getAttribute('city') || '';
+    if (this.isConnected) this.render();
+  }
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -69,8 +75,13 @@ class PublicCourses extends HTMLElement {
       :host { display:block; width:100%; padding:24px 0 48px; color:var(--cp-ink); font-family:var(--cp-font); }
       h2 { margin:0 0 8px; font-size:clamp(1.4rem,4vw,1.8rem); }
       p { color:var(--cp-ink-2); line-height:1.6; }
-      .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:14px; }
-      article { border:1px solid var(--cp-rule); background:var(--cp-surface); padding:24px; min-width:0; }
+      .cards { display:grid; grid-template-columns:repeat(3,minmax(0,280px)); gap:12px; }
+      @media (max-width:600px) { .cards { gap:10px; } .cards article { padding:12px; overflow-wrap:anywhere; } }
+      article { display:flex; flex-direction:column; border:1px solid var(--cp-rule); background:var(--cp-surface); padding:14px; min-width:0; overflow-wrap:anywhere; }
+      article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
+      article > button[data-course] { margin-top:auto; }
+      article > button + button { margin-top:8px; }
+      article > a { margin-top:8px; font-size:12px; }
       h3 { margin:8px 0; font-size:1.15rem; overflow-wrap:anywhere; }
       .stops, .review { overflow-wrap:anywhere; }
       button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
@@ -107,9 +118,10 @@ class PublicCourses extends HTMLElement {
     const filters = document.createElement('div'); filters.className = 'filters';
     for (const [key, labelKey, options] of [
       ['search', 'courseSearch', null],
-      ['city', 'courseCityFilter', [['', 'courseAllCities'], ...Object.keys(COURSE_CITIES).map(city => [city, `discover${city[0].toUpperCase()}${city.slice(1)}`])]],
+      ['city', 'courseCityFilter', [['', 'courseAllCities'], ...Object.keys(COURSE_CITIES).map(city => [city, destinations.find(item => item.id === city)?.key || `discover${city[0].toUpperCase()}${city.slice(1)}`])]],
       ['duration', 'courseDurationFilter', [['', 'courseAllDurations'], ['short', 'courseDurationShort'], ['half', 'courseDurationHalf'], ['long', 'courseDurationLong']]],
     ]) {
+      if (key === 'city' && this.hasAttribute('city')) continue;
       const label = document.createElement('label'); label.textContent = t(labelKey);
       const control = document.createElement(options ? 'select' : 'input');
       control.name = key;
@@ -131,7 +143,7 @@ class PublicCourses extends HTMLElement {
 
   renderCards() {
     this.cards.replaceChildren();
-    const filtered = filterCourses(this.courses, this.filters);
+    const filtered = filterCourses(this.courses, { ...this.filters, city: this.getAttribute('city') || this.filters.city });
     if (!filtered.length) { const empty = document.createElement('p'); empty.textContent = t('courseSearchEmpty'); this.cards.append(empty); }
     for (const course of filtered) {
       const article = document.createElement('article');
@@ -157,7 +169,7 @@ class PublicCourses extends HTMLElement {
       };
       article.append(label, title, stops, review, action, reviews);
       const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);
-      englishPage.textContent = t('publicRoutePageLink'); englishPage.style.display = 'block';
+      englishPage.textContent = t('courseEnglishLink'); englishPage.style.display = 'block';
       article.append(englishPage);
       this.cards.append(article);
       if (course.id === this.openReviewId) {

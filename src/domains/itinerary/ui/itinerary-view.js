@@ -16,7 +16,10 @@ import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableIte
 import { openPlaceReplacement } from './place-replacement.js';
 import { refreshHours } from './itinerary-hours.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
-import { suggestRouteOrder } from '../services/itinerary-route-order.mjs';
+import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/itinerary-hours.mjs';
+import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
+import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
+import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
@@ -261,16 +264,18 @@ export default class ItineraryView extends HTMLElement {
     this.setupDownloadListener();
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
     this.shadowRoot.getElementById('recalculate-times-btn')?.addEventListener('click', () => {
-      if (this.canEdit()) this.requestMapRoute({ scheduleEdited: true });
+      if (this.canEdit()) { this._explicitRecalculation=true; this.requestMapRoute({ scheduleEdited: true }); }
+    });
+    this.shadowRoot.getElementById('undo-deletion-btn')?.addEventListener('click', () => {
+      if (this.canEdit() && this.state.undoDeletion(this.activeDayIndex)) { this.requestMapRoute(); this.refreshAccessControls(); }
     });
     this.updateTexts();
 
-    window.addEventListener('i18n-changed', () => {
-      this.updateTexts();
-    });
+    this._languageHandler = () => this.updateTexts();
+    window.addEventListener('i18n-changed', this._languageHandler);
 
     // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
-    this._transitInfoHandler = (e) => {
+    this._transitInfoHandler = async (e) => {
       if (!this.isCurrentMapResult(e.detail)) return;
       const transitRoutes = Array.isArray(e.detail.routes) ? e.detail.routes : [];
       this.lastTransitRoutes = transitRoutes;
@@ -282,8 +287,22 @@ export default class ItineraryView extends HTMLElement {
       // 45분이 걸리는데 다음 항목이 이동시간 없이 바로 시작하는 것처럼
       // 생성되는 경우). 실제 이동시간이 밝혀졌으니 뒤 항목들의 시각을
       // 필요한 만큼만 보정한다.
+      const context = e.detail.context;
+      const source = this.currentItinerary;
+      const day = this.normalizeData(source)?.days?.[this.activeDayIndex];
+      if (!day?.scheduleItems) return;
+      if (this.canEdit() && this._allowTimeAdjustment) {
+        const hours = await loadScheduleHours(day.scheduleItems, this.lastResolvedPlaces);
+        if (!this.isCurrentMapResult({ context }) || source !== this.currentItinerary) return;
+        this._measuredHours = { context, hours };
+      }
+      if (this.verifyRouteImprovement(transitRoutes)) return;
+      if (this.startRouteImprovement(transitRoutes)) return;
       if (transitRoutes.length && this.applyTransitDelaysToActiveDay(transitRoutes)) return;
       this.renderTransitInfo(transitRoutes);
+      if (this._explicitRecalculation && transitRoutes.length===Math.max(day.scheduleItems.length-1,0) && transitRoutes.every(route=>Number.isFinite(route.durationMinutes))) {
+        this.state.markDayRecalculated(this.activeDayIndex);this._explicitRecalculation=false;this.refreshAccessControls();
+      }
     };
     window.addEventListener('transit-info-ready', this._transitInfoHandler);
 
@@ -322,6 +341,7 @@ export default class ItineraryView extends HTMLElement {
 
   disconnectedCallback() {
     this.cancelPendingLoad();
+    window.removeEventListener('i18n-changed', this._languageHandler);
     window.removeEventListener('focus', this._sharedRecheck);
     window.removeEventListener('offline', this._sharedRecheck);
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
@@ -403,14 +423,14 @@ export default class ItineraryView extends HTMLElement {
 
   /** 생성·불러오기·날짜 전환·편집 모두 이곳에서 같은 요청 표식을 붙인다. */
   requestMapRoute({ automaticFit = false, scheduleEdited = false } = {}) {
-    if (!automaticFit) this._automaticFitCount = 0;
-    if (!automaticFit) this._allowTimeAdjustment = scheduleEdited || this.state.current?.source.kind === 'draft';
+    if (!automaticFit) { this._automaticFitCount = 0; this._routeOrderChecked = false; this._routeOrderOriginal = null; }
+    if (!automaticFit) this._allowTimeAdjustment = scheduleEdited || (this.state.current?.source.kind === 'draft' && !this.state.current?.dirtyDays?.includes(this.activeDayIndex));
     const plan = this.normalizeData(this.currentItinerary);
     const day = plan?.days?.[this.activeDayIndex];
     if (!day) return;
     const excludedPlaceIds = this.state.current?.source.kind === 'draft'
       ? plan.days.flatMap((other, index) => index === this.activeDayIndex ? []
-        : other.scheduleItems.map(item => item.verifiedPlace?.placeId).filter(Boolean))
+        : other.scheduleItems.map(item => item.selectedPlace?.placeId || item.verifiedPlace?.placeId).filter(Boolean))
       : [];
     const context = {
       itineraryVersion: this._itineraryVersion,
@@ -418,6 +438,7 @@ export default class ItineraryView extends HTMLElement {
       requestId: ++this._mapRequestId,
     };
     this._mapRequest = context;
+    this._measuredHours = null;
     this.lastTransitRoutes = [];
     this.lastResolvedPlaces = [];
     this.transitUnavailable = false;
@@ -426,14 +447,16 @@ export default class ItineraryView extends HTMLElement {
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
-      detail: { plan: { days: [structuredClone(day)], ...(this.currentItinerary?.request?.budget ? { budget: this.currentItinerary.request.budget } : {}),
+      detail: { plan: { days: [structuredClone(day)], ...(this.currentItinerary?.request ? { request: this.currentItinerary.request } : {}), ...(this.currentItinerary?.request?.budget ? { budget: this.currentItinerary.request.budget } : {}),
         ...(excludedPlaceIds.length ? { excludedPlaceIds } : {}) }, context },
     }));
   }
 
   selectDay(index) {
     if (!this.state.selectDay(index)) return;
+    this._explicitRecalculation=false;
     this.requestMapRoute();
+    this.refreshAccessControls();
   }
 
   resumeMapRoute() {
@@ -466,7 +489,9 @@ export default class ItineraryView extends HTMLElement {
     }
     const editBtn = document.getElementById('edit-itinerary-btn');
     const recalculateBtn = this.shadowRoot.getElementById('recalculate-times-btn');
-    if (recalculateBtn) recalculateBtn.hidden = !hasPlan || !this.canEdit();
+    if (recalculateBtn) { recalculateBtn.hidden = !hasPlan || !this.canEdit(); recalculateBtn.disabled = this.hasAttribute('day-editing') && !this.state.current?.dirtyDays?.includes(this.activeDayIndex); }
+    const undo=this.shadowRoot.getElementById('undo-deletion-btn');if(undo)undo.hidden=!this.canEdit()||!this.state.current?.undoByDay?.[this.activeDayIndex];
+    const dirty=this.shadowRoot.getElementById('day-modified');if(dirty)dirty.hidden=!this.state.current?.dirtyDays?.includes(this.activeDayIndex);
     const improveBtn = this.shadowRoot.getElementById('improve-route-btn');
     if (improveBtn) improveBtn.hidden = !hasPlan || !this.canEdit();
     if (editBtn) {
@@ -756,7 +781,8 @@ export default class ItineraryView extends HTMLElement {
   }
 
   renderTransitInfo(transitRoutes) {
-    renderTransitInfo(this.shadowRoot, transitRoutes);
+    const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex];
+    renderTransitInfo(this.shadowRoot, transitRoutes, day?.scheduleItems);
   }
 
   /**
@@ -927,8 +953,9 @@ export default class ItineraryView extends HTMLElement {
       const items = this.normalizeData(this.currentItinerary).days[day].scheduleItems;
       const result = replaceSchedulePlace(items, index, place);
       if (!result.replaced) return;
-      this.state.replaceDayItems(day, result.items);
-      this.requestMapRoute({ scheduleEdited: true });
+      this.state.editDayItems(day, result.items);
+      this.requestMapRoute();
+      this.refreshAccessControls();
       showGlobalToast(t('replacePlaceDone'), { tone: 'success' });
     } });
   }
@@ -1011,8 +1038,9 @@ export default class ItineraryView extends HTMLElement {
       return;
     }
 
-    this.state.replaceDayItems(this.activeDayIndex, items);
-    this.requestMapRoute({ scheduleEdited: true });
+    this.state.editDayItems(this.activeDayIndex, items);
+    this.requestMapRoute();
+    this.refreshAccessControls();
     showGlobalToast(`"${inserted.title}"을 일정에 추가했습니다.`, { tone: 'success' });
 
   }
@@ -1041,8 +1069,9 @@ export default class ItineraryView extends HTMLElement {
         + ' ' + proposal.items.map(item=>item.title).join(' → ')});
     if (!ok || !this.canEdit() || this.currentItinerary!==source || this.activeDayIndex!==day
       || this._mapRequest!==request || JSON.stringify(this.normalizeData(source)?.days?.[day]?.scheduleItems)!==snapshot) return;
-    this.state.replaceDayItems(day,proposal.items);
-    this.requestMapRoute({scheduleEdited:true});
+    this.state.editDayItems(day,proposal.items);
+    this.requestMapRoute();
+    this.refreshAccessControls();
     showGlobalToast(t('routeOrderApplied'),{tone:'success'});
   }
 
@@ -1058,27 +1087,28 @@ export default class ItineraryView extends HTMLElement {
     if (action === 'remove') {
       const target = dayData.scheduleItems[index];
       const ok = await showConfirm({
-        title: '일정에서 빼기',
-        message: `"${target?.title || '이 항목'}"을 일정에서 뺄까요? 뒤 일정의 시각이 앞으로 당겨집니다.`,
-        confirmText: '빼기'
+        title: t('flowRemoveTitle'),
+        message: t('flowRemoveConfirm').replace('{0}',target?.title || ''),
+        confirmText: t('flowRemoveTitle')
       });
       if (!ok || !this.canEdit() || source !== this.currentItinerary
         || dayIndex !== this.activeDayIndex || request !== this._mapRequest) return;
 
       const { items, removed } = removeScheduleItem(dayData.scheduleItems, index);
       if (!removed) return;
-      this.state.replaceDayItems(this.activeDayIndex, items);
-      showGlobalToast(`"${removed.title}"을 일정에서 뺐습니다.`, { tone: 'success' });
+      this.state.editDayItems(this.activeDayIndex, items, {undo:true});
+      showGlobalToast(t('flowRemoved').replace('{0}',removed.title), { tone: 'success' });
     } else {
       const { items, moved } = moveScheduleItem(dayData.scheduleItems, index, action === 'up' ? -1 : 1);
       if (!moved) {
         showGlobalToast('더 옮길 수 없습니다.', { tone: 'warning' });
         return;
       }
-      this.state.replaceDayItems(this.activeDayIndex, items);
+      this.state.editDayItems(this.activeDayIndex, items);
     }
 
-    this.requestMapRoute({ scheduleEdited: true });
+    this.requestMapRoute();
+    this.refreshAccessControls();
   }
 
   /**
@@ -1104,8 +1134,9 @@ export default class ItineraryView extends HTMLElement {
       return;
     }
 
-    this.state.replaceDayItems(this.activeDayIndex, items);
-    this.requestMapRoute({ scheduleEdited: true });
+    this.state.editDayItems(this.activeDayIndex, items);
+    this.requestMapRoute();
+    this.refreshAccessControls();
 
     const parts = [];
     if (shortenedCount > 0) parts.push(`${shortenedCount}곳 체류 시간 단축`);
@@ -1224,6 +1255,65 @@ export default class ItineraryView extends HTMLElement {
     box.style.display = 'block';
   }
 
+  verifyRouteImprovement(routes) {
+    const original = this._routeOrderOriginal;
+    if (!original) return false;
+    this._routeOrderOriginal = null;
+    const known = routes.filter(route => Number.isInteger(route.fromIndex) && route.fromIndex >= 0 &&
+      route.fromIndex < original.items.length - 1 && (route.toIndex ?? route.fromIndex + 1) === route.fromIndex + 1 &&
+      Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0);
+    const items = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems;
+    if (known.length === original.items.length - 1 &&
+        new Set(known.map(route => route.fromIndex)).size === original.items.length - 1 &&
+        !hasFixedArrivalConflict(items, known) &&
+        getEndTimeWarning(this.currentItinerary, this.activeDayIndex, known).overflowMinutes === 0 &&
+        original.beforeMinutes - known.reduce((sum, route) => sum + route.durationMinutes, 0) >= 2) return false;
+    // Changed departure times can change timetables. Roll back an unconfirmed saving once.
+    this.state.replaceDayItems(this.activeDayIndex, original.items);
+    this.requestMapRoute({automaticFit:true});
+    return true;
+  }
+
+  activeScheduleHours(items) {
+    if (this._measuredHours?.context === this._mapRequest) return this._measuredHours.hours;
+    return items.map((item, index) => lookupPlaceHours.cached(hoursPlaceId({ ...item,
+      resolvedPlace: this.lastResolvedPlaces.find(place => place.index === index)?.resolvedPlace || item.resolvedPlace })));
+  }
+
+  startRouteImprovement(routes) {
+    if (this._routeOrderChecked || this.state.current?.source.kind !== 'draft' || !this._allowTimeAdjustment) return false;
+    this._routeOrderChecked = true;
+    const source = this.currentItinerary, dayIndex = this.activeDayIndex, context = this._mapRequest;
+    const day = this.normalizeData(source)?.days?.[dayIndex];
+    const items = day?.scheduleItems;
+    if (!items?.some(item => (item.placeIntent && item.addedByUser !== true) ||
+        (item.type === 'AnchorSchedule' && item.flexible === true)) ||
+        !suggestRouteOrder(items, this.lastResolvedPlaces, { automatic:true }).changed) return false;
+    const constraints = getDayConstraints(source, dayIndex);
+    const checks = createFlexibleVisitChecks(items.length - 1, this.currentItinerary?.request);
+    improveMeasuredRouteOrder(items, this.lastResolvedPlaces, routes, {
+      ...constraints, date:day.date, travelMinutes:checks.travelMinutes,
+      hoursByIndex:this.activeScheduleHours(items)
+    }).then(result => {
+      if (!this.isCurrentMapResult({context}) || source !== this.currentItinerary ||
+          items !== this.normalizeData(this.currentItinerary)?.days?.[dayIndex]?.scheduleItems) return;
+      if (result.changed) {
+        this._routeOrderOriginal = { items, beforeMinutes: result.beforeMinutes };
+        this.state.replaceDayItems(dayIndex, result.items);
+        this.requestMapRoute({automaticFit:true});
+      } else {
+        if (this.applyTransitDelaysToActiveDay(routes)) return;
+        this.renderTransitInfo(routes);
+      }
+    }).catch(() => {
+      if (this.isCurrentMapResult({context}) && source === this.currentItinerary) {
+        if (this.applyTransitDelaysToActiveDay(routes)) return;
+        this.renderTransitInfo(routes);
+      }
+    });
+    return true;
+  }
+
   applyTransitDelaysToActiveDay(transitRoutes) {
     if (!this.currentItinerary) return;
 
@@ -1243,7 +1333,11 @@ export default class ItineraryView extends HTMLElement {
     const startTime = getDayConstraints(this.currentItinerary, this.activeDayIndex)?.startTime;
     // ponytail: four rechecks cap Maps cost; raise only if measured plans still need more removals.
     const fit = this.canEdit() && (this._automaticFitCount || 0) < 4
-      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime)
+      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime, {
+        compact: dayData.scheduleItems.some(item => item.placeIntent && item.addedByUser !== true),
+        date: dayData.date,
+        hoursByIndex: this.activeScheduleHours(dayData.scheduleItems)
+      })
       : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
     const scheduleItems = fit.items;
     this.state.replaceDayItems(this.activeDayIndex, scheduleItems);
@@ -1296,6 +1390,7 @@ export default class ItineraryView extends HTMLElement {
             <span id="next-stop-time"></span>
             <button type="button" id="next-stop-directions"></button>
           </section>
+          <span id="day-modified" data-i18n="flowChanged" hidden></span><button type="button" id="undo-deletion-btn" data-i18n="flowUndo" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
@@ -1604,9 +1699,10 @@ export default class ItineraryView extends HTMLElement {
     const panel = this.shadowRoot.getElementById('next-stop');
     if (!panel || !this.hasAttribute?.('mobile-summary')) return;
     const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeZone = travelRegion(this.currentItinerary?.request || this.currentItinerary?.metadata?.request).timeZone;
+    const today = localTravelDate(now, timeZone);
     const isToday = String(dayData.date).slice(0, 10) === today;
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(now);
     const stop = (dayData.scheduleItems || []).find(item =>
       item.type !== 'departure' && item.title &&
       (!Object.hasOwn(item, 'placeIntent') || item.placeStatus === 'verified') &&

@@ -104,7 +104,7 @@ export function renderTransitStep(step) {
     </div>`;
 }
 
-export function renderTransitInfo(shadowRoot, transitRoutes) {
+export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
   // 새 데이터 수신 시 이전 이동 카드 초기화
   shadowRoot.querySelectorAll('.transit-info').forEach(el => {
     el.classList.add('hidden');
@@ -131,6 +131,13 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
       .replace('{0}', detail.fromIndex + 1)
       .replace('{1}', destIndex + 1);
 
+    const clock = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
+      ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
+    const fromEnd = clock(items[detail.fromIndex]?.endTime || items[detail.fromIndex]?.time);
+    const toStart = clock(items[destIndex]?.time);
+    const spare = fromEnd !== null && toStart !== null && Number.isFinite(detail.durationMinutes) && detail.durationMinutes >= 0
+      ? toStart - fromEnd - Math.ceil(detail.durationMinutes) : 0;
+    const freeTime = spare >= 30 ? `<div class="schedule-free-time" role="note">${escapeHtml(t('scheduleFreeTime').replace('{0}', spare))}</div>` : '';
     // 같은 장소에서 이어지는 일정은 이동 자체가 없다. "도보 0분" 같은
     // 빈 카드 대신 그 사실을 그대로 알려준다.
     if (detail.samePlace) {
@@ -140,6 +147,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
             <span>${escapeHtml(headerText)}</span>
             <span class="transit-seg-total">${escapeHtml(t('samePlaceLabel') || '같은 장소 · 이동 없음')}</span>
           </div>
+          ${freeTime}
         </div>
       `;
       el.classList.remove('hidden');
@@ -178,6 +186,8 @@ export function renderTransitInfo(shadowRoot, transitRoutes) {
           ${totalText ? `<span class="transit-seg-total">${escapeHtml(totalText)}</span>` : ''}
         </div>
         <div class="transit-steps">${stepsHtml}</div>
+        ${(Array.isArray(detail.warnings) ? detail.warnings : []).map(warning => `<div role="note">${escapeHtml(warning)}</div>`).join('')}
+        ${freeTime}
         ${detail.directionsUrl ? `<div class="transit-verify">${escapeHtml(t('transitVerify') || '구글 지도에서 경로 확인')}</div>` : ''}
       </div>
     `;

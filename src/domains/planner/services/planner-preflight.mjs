@@ -1,0 +1,28 @@
+import { normalizePlannerRequest } from './planner-constraints.mjs';
+const minutes = time => /^([01]\d|2[0-3]):[0-5]\d$/.test(time || '') ? Number(time.slice(0,2))*60+Number(time.slice(3)) : null;
+
+export async function findFixedVisitIssue(request, checks = {}) {
+  const days=normalizePlannerRequest(request).dailyData;
+  for (const day of days) {
+    const fixed=(day.anchors || []).filter(anchor=>!anchor.flexible);
+    for (const anchor of fixed) {
+      if (minutes(anchor.time)===null || minutes(anchor.endTime)===null || anchor.time>=anchor.endTime) return {reason:'time',anchor,day:day.day};
+    }
+    fixed.sort((a,b)=>a.time.localeCompare(b.time));
+    for (let index=1;index<fixed.length;index++) if(fixed[index-1].endTime>fixed[index].time) return {reason:'overlap',anchor:fixed[index],day:day.day};
+    for (const anchor of fixed) {
+      const hours = await checks.hoursStatus?.(anchor, day.date, anchor.time, anchor.endTime);
+      if (hours === 'closed' || hours === 'conflict') return { reason: 'hours', anchor, day: day.day };
+    }
+    if (!fixed.length || !checks.travelMinutes) continue;
+    const stops=[{location:day.startLocation,endTime:day.startTime},...fixed,{location:day.endLocation,time:day.endTime}];
+    for (let index=0;index<stops.length-1;index++) {
+      const from=stops[index],to=stops[index+1];
+      if(minutes(from.endTime)===null || minutes(to.time)===null) continue;
+      const travel=await checks.travelMinutes(from.location,to.location,day.date,from.endTime);
+      if(!Number.isFinite(travel)) return {reason:'route',anchor:to.name?to:from,day:day.day};
+      if(minutes(to.time)-minutes(from.endTime)<travel) return {reason:'travel',anchor:to.name?to:from,day:day.day};
+    }
+  }
+  return null;
+}

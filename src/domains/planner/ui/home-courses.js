@@ -1,10 +1,13 @@
-import { cities } from './home-recommendations.js';
+import { courseCities as cities, curatedRoute } from '../../itinerary/services/public-route.mjs';
+import { addCourseToDraft } from '../services/course-draft.mjs';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
-import { t } from '../../../utils/i18n.js';
+import { t, getLang } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 
 class HomeCourses extends HTMLElement {
+  static get observedAttributes() { return ['city']; }
+  attributeChangedCallback() { if (this.isConnected) this.render(); }
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -20,16 +23,9 @@ class HomeCourses extends HTMLElement {
       const city = cities.find(item => item.id === button.dataset.city);
       if (!city) return;
       const draft = plannerDraftStore.read();
-      const anchors = [...draft.anchorSchedules];
-      for (const id of city.pair) {
-        const place = city.places.find(item => item.id === id);
-        const name = t(`${place.key}Name`), location = t(`${place.key}Location`);
-        if (!anchors.some(item => item.name === name && item.location === location)) {
-          anchors.push({ day: 1, name, location, time: '', endTime: '',
-            flexible: true, stayMinutes: Number.parseInt(place.stay, 10) });
-        }
-      }
-      plannerDraftStore.save({ ...draft, anchorSchedules: anchors, selectedWaypoints: [] });
+      const route = curatedRoute(button.dataset.course);
+      if (!route) return;
+      plannerDraftStore.save(addCourseToDraft(draft, route, getLang()));
       trackEvent('curated_course_copy', { city: city.id });
       window.navigate('/login?next=%2Fpreference%2F1');
     });
@@ -42,41 +38,39 @@ class HomeCourses extends HTMLElement {
     root.replaceChildren();
     const style = document.createElement('style');
     style.textContent = `
-      :host { display:block; width:100%; padding:40px 0; color:var(--cp-ink); font-family:var(--cp-font); }
-      h2 { margin:0 0 8px; font-size:clamp(1.4rem,4vw,1.8rem); }
-      p { color:var(--cp-ink-2); line-height:1.6; }
-      .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:14px; }
-      article { border:1px solid var(--cp-rule); background:var(--cp-surface); padding:24px; }
-      h3 { margin:8px 0; font-size:1.15rem; }
-      button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
+      :host { display:block; width:100%; padding:24px 0; color:var(--cp-ink); font-family:var(--cp-font); }
+      h2 { margin:0 0 16px; font-size:clamp(1.4rem,4vw,1.8rem); }
+      .cards { display:grid; grid-template-columns:repeat(3,minmax(0,280px)); gap:12px; }
+      article { display:flex; flex-direction:column; border:1px solid var(--cp-rule); background:var(--cp-surface); padding:10px; min-width:0; overflow-wrap:anywhere; }
+      article a { font-size:12px; margin-top:6px; }
+      h3 { flex:1; margin:0 0 8px; font-size:1rem; }
+      button { min-height:44px; padding:8px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-size:13px; font-weight:700; }
+      @media (max-width:600px) { .cards { gap:8px; } article { padding:8px; } h3 { font-size:13px; } button { font-size:12px; } }
       button:focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
     `;
     const heading = document.createElement('h2');
-    heading.textContent = t('courseBrowseTitle');
-    const intro = document.createElement('p');
-    intro.textContent = t('courseBrowseIntro');
+    heading.textContent = t(this.hasAttribute('city') ? 'courseCuratedLabel' : 'courseBrowseTitle');
     const cards = document.createElement('div');
     cards.className = 'cards';
-    for (const city of cities) {
-      const places = city.pair.map(id => city.places.find(place => place.id === id));
+    for (const city of cities.filter(city => this.hasAttribute('city') ? city.id === this.getAttribute('city') : !city.country)) {
+     for (const suffix of ['', '-2', '-3']) {
+      const route = curatedRoute(`curated-${city.id}${suffix}`);
       const article = document.createElement('article');
-      const label = document.createElement('span');
-      label.textContent = `${t('courseCuratedLabel')} · ${t(city.key)}`;
       const title = document.createElement('h3');
-      title.textContent = places.map(place => t(`${place.key}Name`)).join(' + ');
-      const reason = document.createElement('p');
-      reason.textContent = t(city.pairReason);
+      title.textContent = route.stops.map(place => getLang() === 'en' ? place.englishName || place.name : place.name).join(' → ');
       const action = document.createElement('button');
       action.type = 'button';
       action.dataset.city = city.id;
+      action.dataset.course = route.id;
       action.textContent = t('courseCopyButton');
-      article.append(label, title, reason, action);
-      const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(`curated-${city.id}`);
-      englishPage.textContent = t('publicRoutePageLink'); englishPage.style.display = 'block';
+      article.append(title, action);
+      const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(route.id);
+      englishPage.textContent = t('courseEnglishLink'); englishPage.style.display = 'block';
       article.append(englishPage);
       cards.append(article);
+     }
     }
-    root.append(style, heading, intro, cards);
+    root.append(style, heading, cards);
   }
 }
 

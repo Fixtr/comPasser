@@ -62,9 +62,10 @@ export function showConfirm({
   title = '확인',
   confirmText = '확인',
   cancelText = '취소',
-  destructive = true
+  destructive = true,
+  signal,
 } = {}) {
-  if (typeof document === 'undefined') return Promise.resolve(false);
+  if (typeof document === 'undefined' || signal?.aborted) return Promise.resolve(false);
   ensureStyle();
 
   // 이미 열려 있으면 중복으로 띄우지 않는다.
@@ -110,6 +111,7 @@ export function showConfirm({
     document.body.appendChild(host);
 
     const close = (result) => {
+      signal?.removeEventListener('abort', abortHandler);
       document.removeEventListener('keydown', keyHandler, true);
       host.remove();
       if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
@@ -117,6 +119,8 @@ export function showConfirm({
       }
       resolve(result);
     };
+    const abortHandler = () => close(false);
+    signal?.addEventListener('abort', abortHandler, { once: true });
 
     const keyHandler = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); close(false); return; }

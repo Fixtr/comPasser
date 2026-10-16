@@ -8,6 +8,7 @@ import {
 import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
 import { findPlannerInputIssue, plannerValidationMessage } from './planner-validation.js';
 import { prepareGeneratedPlaces } from '../../map/services/recommendation-place.mjs';
+import { verifyGeneratedItinerary } from './generated-day-quality.js';
 import { addSelectedWaypoint } from './selected-waypoint.mjs';
 
 /**
@@ -66,10 +67,10 @@ export async function generateOptimizedItinerary(plannerRequest) {
       throw new Error("Invalid Output: Expected 'days' array to be present and not empty.");
     }
 
-    return {
+    return await verifyGeneratedItinerary({
       request: normalizedRequest,
       days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget), normalizedRequest, currentLang), normalizedRequest)
-    };
+    });
   } catch (error) {
     // Bad input needs editing, never a generated-looking fallback result.
     if (error?.code === 'functions/invalid-argument') {

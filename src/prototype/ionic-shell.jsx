@@ -7,12 +7,17 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { calendarOutline, listOutline, personOutline } from 'ionicons/icons';
+import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
 import { decideRoute, getSafeReturnPath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
+import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
+import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
+import { showErrorToast } from '../utils/toast.js';
+import { DestinationScreen } from './destination-screen.jsx';
+import { installPageTransitions } from './screen-transition.js';
+import { usePlanExitGuard } from './plan-exit-guard.js';
 import { logout, missingFirebaseConfig, subscribeToAuthChanges } from '../domains/auth/services/firebase-auth.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
-import { trackEvent } from '../utils/analytics.js';
 import { HomeScreen, AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen } from './ionic-screens.jsx';
 
 import '@ionic/react/css/core.css';
@@ -28,7 +33,7 @@ import './ionic-shell.css';
 setupIonicReact({ experimentalCloseWatcher: true });
 
 const pages = [
-  ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
+  ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
   ['/login', 'authEmailLoginBtn'], ['/join', 'joinTitle'],
   ['/verify', 'verifyPendingTitle'], ['/account-deletion-status', 'shellAccountDeletion'],
   ['/preference', 'shellPreferences'], ['/preference/1', 'shellPreferences'], ['/preference/2', 'shellBudget'], ['/plan', 'tabPlan'],
@@ -37,9 +42,8 @@ const pages = [
   ['/view', 'shellResult'],
 ];
 
-function SettingsControls({ theme, onThemeChange, lang, onLanguageChange }) {
+function SettingsControls({ theme, onThemeChange, lang }) {
   return <div className="ionic-settings" role="group" aria-label={lang === 'ko' ? '화면 설정' : 'Display settings'}>
-    <button type="button" onClick={onLanguageChange} aria-label={lang === 'ko' ? 'Switch to English' : '한국어로 변경'}>{lang === 'ko' ? 'English' : '한국어'}</button>
     <button type="button" onClick={onThemeChange} aria-label={t(theme === 'dark' ? 'lightMode' : 'darkMode')}>{t(theme === 'dark' ? 'lightMode' : 'darkMode')}</button>
   </div>;
 }
@@ -62,14 +66,15 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
 
   let screen;
   if (path === '/' || path === '/home') screen = <HomeScreen user={user} settings={settings} />;
+  else if (path === '/destination') screen = <DestinationScreen settings={settings} />;
   else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
   else if (path === '/courses') screen = <CoursesScreen settings={settings} />;
-  else if (path === '/login' || path === '/join' || path.startsWith('/verify')) screen = <AuthScreen kind={path === '/join' ? 'join' : path.startsWith('/verify') ? 'verify' : 'login'} search={search} />;
-  else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} />;
-  else if (path === '/plan') screen = <PlanScreen user={user} />;
+  else if (path === '/login' || path === '/join' || path.startsWith('/verify')) screen = <AuthScreen kind={path === '/join' ? 'join' : path.startsWith('/verify') ? 'verify' : 'login'} search={search} settings={settings} />;
+  else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} settings={settings} active={active} />;
+  else if (path === '/plan') screen = <PlanScreen user={user} settings={settings} />;
   else if (path === '/view' || /^\/(?:view|share)\/[a-zA-Z0-9]+$/.test(path)) screen = <ResultScreen path={path} active={active} user={user} authSettled={authSettled} settings={settings} />;
-  else if (path.startsWith('/profile')) screen = <ProfileScreen tab={path.split('/')[2] || 'personal'} />;
-  else if (path === '/account-deletion-status') screen = <AccountDeletionScreen />;
+  else if (path.startsWith('/profile')) screen = <ProfileScreen key={user?.uid || 'guest'} tab={path === '/profile/personal' && new URLSearchParams(search).get('tab') === 'trips' ? 'trips' : path.split('/')[2] || 'personal'} settings={settings} active={active} />;
+  else if (path === '/account-deletion-status') screen = <AccountDeletionScreen settings={settings} />;
 
   if (active && decision.action === 'wait') return <IonPage><IonContent className="ion-padding">{t('shellSignInRequired')}</IonContent></IonPage>;
   if (screen) return screen;
@@ -82,29 +87,29 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   </IonPage>;
 }
 
-function ShellRoutes({ user, authSettled, theme, lang, onThemeChange, onLanguageChange }) {
+function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
+  useEffect(installPageTransitions, []);
   const location = useLocation();
   const navigate = useNavigate();
+  usePlanExitGuard(location, user);
   useEffect(() => {
     const previous = window.navigate;
-    window.navigate = path => {
-      if (typeof path === 'string' && path.startsWith('/') && path !== window.location.pathname + window.location.search) navigate(path);
+    window.navigate = (path, options) => {
+      if (typeof path === 'string' && path.startsWith('/') && path !== window.location.pathname + window.location.search) navigate(path, options);
     };
     return () => { window.navigate = previous; };
   }, [navigate]);
   const showTabs = shouldShowTabBar({ path: location.pathname, user });
-  const selectedTab = activeTabId(location.pathname);
-  const icons = [calendarOutline, listOutline, personOutline];
-  const labels = [t('tabPlan'), t('tabTrips'), t('tabProfile')];
-  const settings = <SettingsControls theme={theme} onThemeChange={onThemeChange} lang={lang} onLanguageChange={onLanguageChange} />;
-  const resultPath = /^\/(?:view|share)(?:\/|$)/.test(location.pathname);
-  const isTopPage = location.pathname === '/' || location.pathname === '/home' || location.pathname === '/recommend' || location.pathname === '/courses';
+  const selectedTab = activeTabId(location.pathname + location.search);
+  const icons = [homeOutline, listOutline, personOutline];
+  const labels = [t('tabHome'), t('tabTrips'), t('tabProfile')];
+  const settings = <SettingsControls theme={theme} onThemeChange={onThemeChange} lang={lang}  />;
   return <IonTabs>
-    <IonRouterOutlet>
+    <IonRouterOutlet animated={false}>
       {pages.map(([path, titleKey]) => <Route key={path} path={path} element={<ShellPage titleKey={titleKey} routePath={path} user={user} authSettled={authSettled} settings={settings} />} />)}
       <Route path="*" element={<ShellPage titleKey="shellNotFound" routePath="*" user={user} authSettled={authSettled} settings={settings} />} />
     </IonRouterOutlet>
-    {!resultPath && !isTopPage && settings}
+
     {showTabs && <IonTabBar slot="bottom" aria-label={t('tabBarLabel')}>
       {TABS.map((tab, index) => <IonTabButton key={tab.id} tab={tab.id} href={tab.path} selected={selectedTab === tab.id}>
         <IonIcon icon={icons[index]} /><IonLabel>{labels[index]}</IonLabel>
@@ -124,9 +129,19 @@ function Shell() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.toggle('ion-palette-dark', theme === 'dark');
     document.body.classList.toggle('dark', theme === 'dark');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121211' : '#F4F4F1');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121211' : '#FFFFFF');
   }, [theme]);
-  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    const update = () => setLanguage(getLang());
+    window.addEventListener('i18n-changed', update);
+    return () => window.removeEventListener('i18n-changed', update);
+  }, [lang]);
+  useEffect(() => {
+    const error = () => showErrorToast(t('flowDraftFailed'));
+    window.addEventListener('planner-storage-error', error);
+    return () => window.removeEventListener('planner-storage-error', error);
+  }, []);
   useEffect(() => {
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
     const followSystem = event => {
@@ -141,21 +156,15 @@ function Shell() {
     setTheme(next);
     try { localStorage.setItem('theme', next); } catch { /* Keep the current session usable. */ }
   };
-  const onLanguageChange = () => {
-    const next = lang === 'ko' ? 'en' : 'ko';
-    setLang(next);
-    setLanguage(next);
-    trackEvent('change_language', { language: next });
-  };
   useEffect(() => {
-    if (missingFirebaseConfig.length) return undefined;
-    return subscribeToAuthChanges(user => setAuth({ user, settled: true }));
+    if (missingFirebaseConfig.length) { plannerDraftStore.setUser(null); offlineTrips.setUser(null); return undefined; }
+    return subscribeToAuthChanges(user => { plannerDraftStore.setUser(user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true }); });
   }, []);
   useEffect(() => {
     if (!auth.user) return;
     if (auth.user.providerData?.some(provider => provider.providerId === 'password') && !auth.user.emailVerified) void logout();
   }, [auth.user]);
-  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} lang={lang} onThemeChange={onThemeChange} onLanguageChange={onLanguageChange} /></IonReactRouter></IonApp>;
+  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
 }
 
 createRoot(document.getElementById('ionic-shell')).render(<Shell />);

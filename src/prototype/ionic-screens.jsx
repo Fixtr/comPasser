@@ -1,28 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IonButton, IonContent, IonModal, IonPage, IonProgressBar } from '@ionic/react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
+import { normalizeData } from '../domains/itinerary/services/itinerary-normalize.mjs';
+import { getLang } from '../utils/i18n.js';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { t } from '../utils/i18n.js';
-import '../domains/planner/ui/home-preview.js';
+import { TravelGlobe } from './travel-globe.jsx';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
 import { addCourseToDraft } from '../domains/planner/services/course-draft.mjs';
+import { destinations } from '../domains/planner/services/travel-destinations.mjs';
+import { CountryPicker } from './country-picker.jsx';
+import { DestinationScreen } from './destination-screen.jsx';
+import { useStageTransition } from './screen-transition.js';
 
 let generatedPlan = null;
 
-export function HomeScreen({ user, settings }) {
+export function HomeScreen({ settings }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const active = ['/', '/home'].includes(location.pathname);
   const [importStatus, setImportStatus] = useState('');
 
   useEffect(() => {
+    if (!active) return;
     const reviewId = new URLSearchParams(location.search).get('review');
     if (reviewId && /^[a-zA-Z0-9]+$/.test(reviewId)) {
       navigate(`/courses?review=${encodeURIComponent(reviewId)}`, { replace: true });
     }
-  }, [location.search, navigate]);
+  }, [active, location.search, navigate]);
 
   useEffect(() => {
+    if (!active) return;
     const id = new URLSearchParams(location.search).get('course');
     if (!id || !PUBLIC_ROUTE_ID.test(id)) return;
     let cancelled = false;
@@ -37,62 +47,89 @@ export function HomeScreen({ user, settings }) {
       } catch { if (!cancelled) setImportStatus('publicRouteImportFailed'); }
     })();
     return () => { cancelled = true; };
-  }, [location.search, navigate]);
+  }, [active, location.search, navigate]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
     {importStatus && <p role="status">{t(importStatus)}</p>}
     <div className="ionic-home-settings">{settings}</div>
     <div className="ionic-home">
       <div className="ionic-home-intro">
-        <span className="shell-kicker">COMPASSER</span>
-        <h1>{t('shellHomeTitle')}</h1>
-        <p>{t('shellHomeDescription')}</p>
-        <div className="ionic-home-actions">
-          <a href="/en/routes">{t('publicRouteDirectoryLink')}</a>
-          <IonButton className="ionic-home-new" expand="block" onClick={() => navigate(user ? '/preference/1' : '/login')}>{t(user ? 'shellNewTrip' : 'shellStart')}</IonButton>
-          {user && <IonButton className="ionic-home-trips" expand="block" fill="outline" onClick={() => navigate('/profile/trips')}>{t('myItineraries')}</IonButton>}
-        </div>
+        <span className="shell-kicker">ComPasser</span>
+        <h1>{t('flowHomeTitle')}</h1>
+        <p>{t('flowHomeDescription')}</p>
       </div>
-      <home-preview />
+      <TravelGlobe active={active} onChooseCity={country => {
+        plannerDraftStore.update({ country, destinationStage: 'city', step: '/destination' });
+        navigate('/destination');
+      }} />
+      <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
     </div>
   </IonContent></IonPage>;
 }
 
 export function RecommendScreen({ settings }) {
-  useEffect(() => {
-    void import('../domains/planner/ui/home-recommendations.js');
-  }, []);
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState(null);
+  const stageRef = useStageTransition(city?.id || country || 'country');
+  const recommendationCities = destinations;
+  const back = () => {
+    if (city) setCity(null);
+    else if (country) setCountry('');
+    else window.navigate('/home');
+  };
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
-      <IonButton fill="clear" onClick={() => window.navigate('/')}>← {t('shellBack')}</IonButton>
+      <button onClick={back}>← {t('shellBack')}</button>
       {settings}
     </div>
-    <div className="ionic-route-page">
-      <home-recommendations />
-    </div>
+    {city ? <DestinationScreen key={city.id} browseCity={city} embedded /> : <main ref={stageRef} className="flow-page">
+      {!city && <h1>{t(country ? 'flowCity' : 'flowCountry')}</h1>}
+      {!country && <CountryPicker kind="recommend" onSelect={setCountry} />}
+      {country && !city && <div className="flow-choices country-grid city-grid">{recommendationCities.map(city => city.country === country ? <button key={city.id} data-recommend-city={city.id} onClick={() => setCity(city)}>{t(city.key)}</button> : null)}</div>}
+    </main>}
   </IonContent></IonPage>;
 }
 
 export function CoursesScreen({ settings }) {
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState(null);
+  const [loadState, setLoadState] = useState('loading');
+  const stageRef = useStageTransition(city?.id || country || 'country');
+  const courseCities = destinations;
   useEffect(() => {
+    let active = true;
     void Promise.all([
       import('../domains/planner/ui/home-courses.js'),
       import('../domains/planner/ui/public-courses.js'),
-    ]);
+    ]).then(() => { if (active) setLoadState('ready'); })
+      .catch(() => { if (active) setLoadState('error'); });
+    return () => { active = false; };
   }, []);
+  const back = () => {
+    if (city) setCity(null);
+    else if (country) setCountry('');
+    else window.navigate('/home');
+  };
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
-      <IonButton fill="clear" onClick={() => window.navigate('/')}>← {t('shellBack')}</IonButton>
+      <button onClick={back}>← {t('shellBack')}</button>
       {settings}
     </div>
-    <div className="ionic-route-page">
-      <home-courses />
-      <public-courses />
-    </div>
+    <main ref={stageRef} className="flow-page">
+      <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'flowCountry')}</h1>
+      {!country && <CountryPicker kind="course" onSelect={setCountry} />}
+      {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => setCity(city)}>{t(city.key)}</button> : null)}</div>}
+      {city && <div key={city.id}>
+        <p>{t(`country${country}`)} · {t(city.key)}</p>
+        {loadState === 'loading' && <p role="status">{t('discoveryScreenLoading')}</p>}
+        {loadState === 'error' && <div role="alert"><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>}
+        {loadState === 'ready' && <><home-courses city={city.id} /><public-courses city={city.id} /></>}
+      </div>}
+    </main>
   </IonContent></IonPage>;
 }
 
-export function AuthScreen({ kind, search }) {
+export function AuthScreen({ kind, search, settings }) {
   const verify = useRef(null);
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +144,7 @@ export function AuthScreen({ kind, search }) {
     return () => { cancelled = true; };
   }, [kind, search]);
   return <IonPage><IonContent className="ion-padding shell-content">
+    <div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>ComPasser</button>{settings}</div>
     <div className="ionic-legacy-auth">
       {!!missingFirebaseConfig.length && <p role="alert">{t('configErrorBody').replace('{0}', missingFirebaseConfig.join(', '))}</p>}
       {kind === 'login' ? <login-view /> : kind === 'join' ? <join-view /> : <verify-view ref={verify} />}
@@ -114,38 +152,48 @@ export function AuthScreen({ kind, search }) {
   </IonContent></IonPage>;
 }
 
-export function PreferenceScreen({ step }) {
+export function PreferenceScreen({ step, settings, active }) {
   const view = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const editingDates = step === 1 && location.state?.returnTo === '/plan';
   useEffect(() => {
+    if (!active) return undefined;
+    plannerDraftStore.update({ step: `/preference/${step}` });
     let cancelled = false;
     if (step === 2 && !plannerDraftStore.read().date.length) {
       navigate('/preference/1', { replace: true });
       return undefined;
     }
     void import('../domains/planner/ui/preference-view.js').then(() => {
-      if (!cancelled) view.current?.setStep(step);
+      if (!cancelled) view.current?.setStep(step, { returnToPlan: editingDates });
     });
     return () => { cancelled = true; };
-  }, [step, navigate]);
-  return <IonPage><IonContent className="ion-padding shell-content"><preference-view ref={view} /></IonContent></IonPage>;
+  }, [step, navigate, active, editingDates]);
+  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => navigate(editingDates ? '/plan' : step === 1 ? '/destination' : '/preference/1')}>← {t('shellBack')}</button>{settings}</div><preference-view ref={view} /></IonContent></IonPage>;
 }
 
-export function PlanScreen({ user }) {
+export function PlanScreen({ user, settings }) {
   const form = useRef(null);
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const [phase, setPhase] = useState('form');
+  const phaseRef = useStageTransition(phase);
   const [error, setError] = useState('');
   const run = useRef(0);
 
   useEffect(() => {
     if (pathname !== '/plan') return undefined;
     setPhase('form');
+    plannerDraftStore.update({ step: search.includes('review=1') ? '/plan?review=1' : '/plan' });
     const element = form.current;
     let generate;
     let cancelled = false;
+    const discard = () => { run.current++; element?.discardDraft?.(); setPhase('form'); };
+    window.addEventListener('planner-draft-discarded', discard);
     const onGenerate = async event => {
+      if (element?.isGenerating) return;
+      element.isGenerating = true;
       const request = ++run.current;
       const userId = getCurrentUser()?.uid;
       setPhase('loading');
@@ -154,6 +202,7 @@ export function PlanScreen({ user }) {
         const result = await generate(event.detail);
         if (request !== run.current || getCurrentUser()?.uid !== userId) return;
         generatedPlan = { userId, plan: result };
+        plannerDraftStore.clear();
         navigate('/view');
       } catch (cause) {
         if (request === run.current) {
@@ -161,7 +210,7 @@ export function PlanScreen({ user }) {
           setPhase('error');
         }
       } finally {
-        window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
+        if (request === run.current) { element.isGenerating = false; window.dispatchEvent(new CustomEvent('itinerary-generation-complete')); }
       }
     };
     void Promise.all([
@@ -170,17 +219,19 @@ export function PlanScreen({ user }) {
     ]).then(([, service]) => {
       if (cancelled) return;
       generate = service.generateOptimizedItinerary;
+      element?.refreshFromStorage();
+      if (search.includes('review=1')) element?.showReview();
       element?.renderPreferenceBadges();
       element?.syncDateFloor();
       service.getGenerationCredits().then(balance => element?.setGenerationCredits(balance)).catch(() => element?.setGenerationCredits(null));
       element?.addEventListener('generate-itinerary', onGenerate);
     });
-    return () => { cancelled = true; run.current++; element?.removeEventListener('generate-itinerary', onGenerate); };
-  }, [navigate, pathname, user?.uid]);
+    return () => { cancelled = true; run.current++; window.removeEventListener('planner-draft-discarded', discard); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
+  }, [navigate, pathname, search, user?.uid]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
-    <div className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} /></div>
-    {phase !== 'form' && <div className="ionic-generation" role="status" aria-live="polite">
+    <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}>← {t('shellBack')}</button>{settings}</div><div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
+    {phase !== 'form' && <div ref={phaseRef} className="ionic-generation" role="status" aria-live="polite">
       {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2><p>{t('shellGeneratingDescription')}</p><IonProgressBar type="indeterminate" /></>
         : <><h2>{t('shellGenerationFailed')}</h2><p role="alert">{error}</p><IonButton onClick={() => setPhase('form')}>{t('shellReturnToForm')}</IonButton></>}
     </div>}
@@ -189,6 +240,10 @@ export function PlanScreen({ user }) {
 
 export function ResultScreen({ path, active, user, authSettled, settings }) {
   const itinerary = useRef(null);
+  const location = useLocation();
+  const [offline, setOffline]=useState(navigator.onLine===false);
+  const offlineMode = offline || new URLSearchParams(location.search).get('offline') === '1';
+  useEffect(() => { const update=()=>setOffline(navigator.onLine===false); window.addEventListener('online',update);window.addEventListener('offline',update);return()=>{window.removeEventListener('online',update);window.removeEventListener('offline',update);}; }, []);
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 900px)').matches);
   const [ready, setReady] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -201,17 +256,18 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     const update = () => setDesktop(media.matches);
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
-  }, []);
+  }, [offlineMode]);
 
   useEffect(() => {
+    if (offlineMode) return undefined;
     let cancelled = false;
     void Promise.all([import('../domains/map/ui/map-view.js'), import('../domains/itinerary/ui/itinerary-view.js')])
       .then(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [offlineMode]);
 
   useEffect(() => {
-    if (!active || !(desktop || ready) || !loaded || (!authSettled && !path.startsWith('/share/'))) return undefined;
+    if (offlineMode || !active || !(desktop || ready) || !loaded || (!authSettled && !path.startsWith('/share/'))) return undefined;
     const view = itinerary.current;
     if (!view) return;
     view.setSessionUser(user?.uid || null);
@@ -231,7 +287,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       setShowEdit(view.canEdit());
     }
     return () => { cancelled = true; view.cancelPendingLoad(); };
-  }, [ready, desktop, loaded, active, authSettled, path, user?.uid, navigate]);
+  }, [ready, desktop, loaded, active, authSettled, path, user?.uid, navigate, offlineMode]);
 
   const edit = () => {
     const view = itinerary.current;
@@ -246,8 +302,16 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       <IonButton className="ionic-result-back" size="small" onClick={() => navigate(window.history.state?.idx > 0 ? -1 : '/')}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
     </IonContent>;
-  const schedule = <><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} mobile-summary={desktop ? undefined : ''} /></>;
+  const schedule = <><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;
 
+  if (offlineMode) {
+    const id=path.match(/^\/view\/([a-zA-Z0-9]+)$/)?.[1];
+    const saved=offlineTrips.get(user?.uid,id);
+    return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={()=>navigate(window.history.state?.idx > 0 ? -1 : '/profile/trips')}>← {t('shellBack')}</button>{settings}</div><main className="flow-page">
+      <h1>{saved?.title || t('tabTrips')}</h1><p role="status">{t('offlineNotice')}</p>
+      {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{item.resolvedName || item.title}</h3><p>{item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
+    </main></IonContent></IonPage>;
+  }
   return <IonPage className="ionic-result-page">
     {desktop ? <div className="ionic-result-desktop">
       <aside className="ionic-desktop-schedule" aria-label={t('shellResult')}>{schedule}</aside>
@@ -263,22 +327,24 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   </IonPage>;
 }
 
-export function ProfileScreen({ tab }) {
+export function ProfileScreen({ tab, settings, active }) {
   const view = useRef(null);
+  const location = useLocation();
   useEffect(() => {
     let cancelled = false;
-    void import('../domains/profile/ui/profile-view.js').then(() => { if (!cancelled) view.current?.setTabFromPath(tab); });
+    if (!active) return undefined;
+    void import('../domains/profile/ui/profile-view.js').then(() => { if (!cancelled) { view.current?.setTabFromPath(tab); view.current?.loadUserData(); view.current?.fetchItineraries(); } });
     return () => { cancelled = true; };
-  }, [tab]);
-  return <IonPage><IonContent className="ion-padding shell-content"><profile-view ref={view} /></IonContent></IonPage>;
+  }, [tab, active, location.search]);
+  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>{t('profileGoHome')}</button>{settings}</div><profile-view ref={view} data-active={active ? '' : undefined} standalone-trips={tab === 'trips' && location.pathname === '/profile/trips' ? '' : undefined} /></IonContent></IonPage>;
 }
 
-export function AccountDeletionScreen() {
+export function AccountDeletionScreen({ settings }) {
   const view = useRef(null);
   useEffect(() => {
     let cancelled = false;
     void import('../domains/profile/ui/account-deletion-status-view.js').then(() => { if (!cancelled) void view.current?.refresh(); });
     return () => { cancelled = true; };
   }, []);
-  return <IonPage><IonContent className="ion-padding shell-content"><account-deletion-status-view ref={view} /></IonContent></IonPage>;
+  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>ComPasser</button>{settings}</div><account-deletion-status-view ref={view} /></IonContent></IonPage>;
 }

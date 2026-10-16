@@ -1,3 +1,4 @@
+import { nextVisitStart } from './itinerary-hours.mjs';
 import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes } from './itinerary-schedule-adjust.mjs';
 
 const minutes = value => {
@@ -48,7 +49,7 @@ export function hasFixedArrivalConflict(items, routes) {
 
 // Fit each fully measured block independently. Recheck routes after removing
 // an optional stop; old route indexes no longer describe the new neighbors.
-export function fitMeasuredSchedule(items, routes, endTime, startTime) {
+export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact = false, date = '', hoursByIndex = [] } = {}) {
   if (Array.isArray(items)) {
     const resolved = items.filter(item => item.type === 'AnchorSchedule' ||
       item.type === 'departure' || item.type === 'arrival' ||
@@ -74,7 +75,7 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
   const result = delayed.map(item => ({ ...item }));
   let adjusted = false;
   const stays = ends.map((end, i) => end - starts[i]);
-  const fixed = [0, ...items.flatMap((item, i) => i > 0 && i < items.length - 1 && item.type === 'AnchorSchedule' ? [i] : []), items.length - 1];
+  const fixed = [0, ...items.flatMap((item, i) => i > 0 && i < items.length - 1 && item.type === 'AnchorSchedule' && item.flexible !== true ? [i] : []), items.length - 1];
   for (let block = 1; block < fixed.length; block++) {
     const left = fixed[block - 1], right = fixed[block];
     const deadline = right === items.length - 1 ? ceiling : starts[right];
@@ -86,40 +87,44 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
     const conflict = right === items.length - 1
       ? getEndTimeOverflowMinutes(delayed, endTime) > 0
       : previousEnd + travel.get(right) > deadline;
-    if (!conflict) continue;
+    if (!conflict && !compact && !items.slice(left + 1, right).some(item => item.flexible === true)) continue;
+    const visitStart = (i, cursor) => {
+      // Preserve requested lower bounds and meal windows while removing AI padding.
+      const meal = items[i].type === 'dining' && items[i].placeIntent?.category !== 'cafe'
+        ? (starts[i] >= 1080 ? 1080 : compact && starts[i] >= 660 ? 720 : cursor) : cursor;
+      cursor = Math.max(cursor, minutes(items[i].visitNotBefore) ?? cursor, Math.min(starts[i], meal),
+        items[i].addedByUser === true ? starts[i] : cursor);
+      return nextVisitStart(items[i], date, hoursByIndex[i], cursor, stays[i], Math.max(deadline, cursor + stays[i])) ?? deadline + 1;
+    };
     const projectedEnd = () => {
       let cursor=ends[left];
       for(let i=left+1;i<=right;i++) {
-        cursor+=travel.get(i);
-        if(i<right) {
-          const dinnerStart = items[i].type === 'dining' && starts[i] >= 1080 ? 1080 : null;
-          cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor,dinnerStart ?? cursor)+stays[i];
-        }
+        cursor+=travel.get(i) + (items[i-1].gapFill ? 30 : 0);
+        if(i<right) cursor=visitStart(i, cursor)+stays[i];
       }
       return cursor;
     };
     let excess = Math.max(0, projectedEnd() - deadline);
     for (let i = right - 1; i > left && excess > 0; i--) {
+      if (items[i].type === 'AnchorSchedule' || items[i].addedByUser === true) continue;
       const reduction = Math.min(excess, Math.max(0, stays[i] - minimumStayMinutes(items[i])));
       stays[i] -= reduction;
       excess = Math.max(0, projectedEnd() - deadline);
     }
     if (excess > 0) {
       const removable = Array.from({ length: right - left - 1 }, (_, n) => right - 1 - n)
-        .find(i => items[i].placeIntent && items[i].addedByUser !== true);
+        .find(i => items[i].type !== 'AnchorSchedule' && items[i].placeIntent && items[i].addedByUser !== true);
       if (removable !== undefined) return {
         items: items.filter((_, i) => i !== removable).map((item, i) => i === 0 ? delayed[0] : item),
         adjusted: true
       };
       continue;
     }
-    adjusted = true;
     let cursor = ends[left];
     for (let i = left + 1; i <= right; i++) {
-      cursor += travel.get(i);
+      cursor += travel.get(i) + (items[i-1].gapFill ? 30 : 0);
       if (i === right && i !== items.length - 1) break; // fixed anchor may include waiting
-      if(i<right) cursor=Math.max(cursor,minutes(items[i].visitNotBefore) ?? cursor,
-        items[i].type === 'dining' && starts[i] >= 1080 ? 1080 : cursor);
+      if(i<right) cursor=visitStart(i, cursor);
       result[i].time = time(cursor);
       if (i < right) {
         cursor += stays[i];
@@ -128,5 +133,6 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime) {
       } else result[i].endTime = '';
     }
   }
+  adjusted = result.some((item, i) => item.time !== delayed[i].time || item.endTime !== delayed[i].endTime);
   return { items: result, adjusted };
 }

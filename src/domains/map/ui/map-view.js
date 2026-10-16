@@ -1,3 +1,4 @@
+import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
@@ -296,7 +297,7 @@ export class MapView extends HTMLElement {
       // Tag every item with its timeline position first: geocoding drops
       // failures, so array order alone would desync pins from the list below.
       const scheduleItems = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
-      const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems, day.date, itineraryPlan.excludedPlaceIds, itineraryPlan.budget);
+      const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems, day.date, itineraryPlan.excludedPlaceIds, itineraryPlan.budget, travelRegion(itineraryPlan.request).countryCode);
       if (!isCurrent()) return;
 
       // Report failures as well, even when no marker can be drawn. Persistence
@@ -339,7 +340,7 @@ export class MapView extends HTMLElement {
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
         this.setLoading(true, "Calculating routes...");
-        await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent);
+        await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent, day.timeZone || travelRegion(itineraryPlan.request).timeZone);
       } else {
         this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.', context);
       }
@@ -445,7 +446,7 @@ export class MapView extends HTMLElement {
     });
   }
 
-  async renderTransitSegments(geocodedItems, dayDate, context, isCurrent = () => true) {
+  async renderTransitSegments(geocodedItems, dayDate, context, isCurrent = () => true, timeZone = 'Asia/Seoul') {
     const { DirectionsRenderer } = await this.loader.importLibrary("routes");
     if (!isCurrent()) return;
     const { Polyline } = await this.loader.importLibrary("maps");
@@ -474,7 +475,7 @@ export class MapView extends HTMLElement {
       // Route for the scheduled departure (origin item's end time), not "now".
       const departureTime = buildTransitDepartureTime(
         dayDate,
-        geocodedItems[i].endTime || geocodedItems[i].time
+        geocodedItems[i].endTime || geocodedItems[i].time, new Date(), timeZone
       );
       // Same segment in the Google Maps UI, so users can verify the route.
       const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(latLngToString(origin))}&destination=${encodeURIComponent(latLngToString(destination))}&travelmode=transit`;
@@ -580,7 +581,7 @@ export class MapView extends HTMLElement {
             // 밀어내는 보정(applyTransitDelays)에 쓰인다. Directions API가
             // 항상 초 단위 value를 주므로 여기서만 분으로 환산해둔다.
             durationMinutes: typeof leg.duration.value === 'number'
-              ? Math.round(leg.duration.value / 60)
+              ? Math.ceil(leg.duration.value / 60)
               : null,
             distance: leg.distance.text,
             mode: hasTransitStep ? 'TRANSIT' : 'WALKING', /* Ubiquitous Language */
@@ -588,7 +589,8 @@ export class MapView extends HTMLElement {
             lineName: primaryLineName,
             transitDetailsExtended,
             steps,
-            directionsUrl
+            directionsUrl: directionsUrl.replace('travelmode=transit', `travelmode=${hasTransitStep ? 'transit' : 'walking'}`),
+            warnings: response.routes[0]?.warnings || []
           };
         }
         return routeResult;

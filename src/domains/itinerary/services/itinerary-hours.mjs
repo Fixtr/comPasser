@@ -19,12 +19,12 @@ const point = p => p && Number.isInteger(p.day) && p.day >= 0 && p.day <= 6
 
 // Korean travel dates and Places local wall-clock periods. No AI prose parsing.
 export function assessVisitHours(item, date, data, now = Date.now()) {
-  if (!data || data.utcOffsetMinutes !== 540) return 'unknown';
+  if (!data || !Number.isFinite(data.utcOffsetMinutes) || Math.abs(data.utcOffsetMinutes) > 840) return 'unknown';
   if (data.businessStatus === 'CLOSED_PERMANENTLY') return 'closed';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return 'unknown';
   const parsed = new Date(`${date}T00:00:00Z`);
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return 'unknown';
-  const today = new Date(now + 540 * 60000).toISOString().slice(0, 10);
+  const today = new Date(now + data.utcOffsetMinutes * 60000).toISOString().slice(0, 10);
   if (data.businessStatus === 'CLOSED_TEMPORARILY') return date <= today ? 'closed' : 'unknown';
   const start = clock(item.time), end = clock(item.endTime);
   if (start === null || end === null || start === end) return 'unknown';
@@ -54,10 +54,26 @@ export function assessVisitHours(item, date, data, now = Date.now()) {
   return 'conflict';
 }
 
+// Wait for live hours, including legacy identities that only exist in the current map result.
+export function loadScheduleHours(items, resolvedPlaces = [], lookup = lookupPlaceHours) {
+  return Promise.all(items.map((item, index) => ['departure', 'arrival'].includes(item.type) ? null
+    : lookup(hoursPlaceId({ ...item, resolvedPlace: resolvedPlaces.find(place => place.index === index)?.resolvedPlace || item.resolvedPlace }))));
+}
+
+export function nextVisitStart(item, date, data, start, stay, deadline, { requireKnown = false } = {}) {
+  const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+  for (let cursor = start; cursor + stay <= deadline && cursor + stay < 1440; cursor++) {
+    const status = assessVisitHours({ ...item, time: time(cursor), endTime: time(cursor + stay) }, date, data);
+    if (status === 'closed' || (requireKnown && status === 'unknown')) return null;
+    if (status !== 'conflict') return cursor;
+  }
+  return null;
+}
+
 // In-memory only: never persist live provider data into saved/shared schedules.
 export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now } = {}) {
   const cache = new Map();
-  return id => {
+  const lookup = id => {
     if (!id) return Promise.resolve(null);
     const existing = cache.get(id);
     if (existing && now() - existing.at < 300000) return existing.promise;
@@ -78,9 +94,16 @@ export function createHoursLookup(loadPlaces, { timeoutMs = 8000, now = Date.now
       } catch { return null; }
       finally { clearTimeout(timer); }
     })();
-    cache.set(id, { at: now(), promise });
+    const entry = { at: now(), promise, data: null };
+    cache.set(id, entry);
+    promise.then(data => { entry.data = data; });
     return promise;
   };
+  lookup.cached = id => {
+    const entry = cache.get(id);
+    return entry && now() - entry.at < 300000 ? entry.data : null;
+  };
+  return lookup;
 }
 
 // Search and timeline share this short-lived lookup so validating a candidate

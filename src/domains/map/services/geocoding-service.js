@@ -19,8 +19,9 @@ export class GeocodingService {
      *   다음 요청부터 바로 반영되어야 하는데, 생성 시점 값을 붙잡아 두면
      *   토글 후에도 옛 언어가 남기 때문이다.
      */
-    constructor(loader, { getLanguage, getHours = lookupPlaceHours } = {}) {
+    constructor(loader, { getLanguage, getHours = lookupPlaceHours, countryCode = 'KR' } = {}) {
         this.loader = loader;
+        this.countryCode = countryCode;
         this.Place = null;
         this.getLanguage = typeof getLanguage === 'function' ? getLanguage : () => 'ko';
         this.getHours = getHours;
@@ -63,7 +64,7 @@ export class GeocodingService {
      * @param {{lat:number,lng:number}} [biasCenter] Optional point to bias results toward
      * @returns {Promise<{latLng: object, displayName: string, formattedAddress: string}|null>}
      */
-    async resolvePlace(location, biasCenter = null, expectedName = '') {
+    async resolvePlace(location, biasCenter = null, expectedName = '', { aliases = [], countryCode = '' } = {}) {
         if (!location) return null;
 
         try {
@@ -74,16 +75,17 @@ export class GeocodingService {
                 // 지도가 돌려준 한글 이름이 맞붙어, 같은 곳인데도 거의 모든
                 // 항목에 "다른 곳을 찾았다" 경고가 붙었다.
                 language: this.resolveLanguage(),
-                // 지역은 KR 로 유지한다(PRD: 한국 여행 한정 서비스).
-                region: 'kr',
-                fields: ['id', 'location', 'displayName', 'formattedAddress']
+                // 선택한 여행 국가로 검색을 편향한다. 출발·도착의 도시 밖 장소는 허용한다.
+                region: this.countryCode.toLowerCase(),
+                fields: ['id', 'location', 'displayName', 'formattedAddress', ...(countryCode ? ['addressComponents'] : [])]
             };
             if (biasCenter) {
                 request.locationBias = biasCenter;
             }
             let { places = [] } = await this.Place.searchByText(request);
-            const select = candidates => candidates.find(place => place.location &&
-                (!expectedName || (matchesPlaceIdentity(expectedName, place.displayName) &&
+            const select = candidates => candidates.find(place => place.location && (!countryCode || normalizeSelectedPlace(place)) &&
+                (!countryCode || place.addressComponents?.some(component => component.types.includes('country') && component.shortText === countryCode)) &&
+                (!expectedName || ([expectedName, ...aliases].some(name => matchesPlaceIdentity(name, place.displayName)) &&
                     matchesPlaceArea(location, place.formattedAddress))));
             let place = select(places);
             // An AI-supplied street address can itself be wrong. Retry once by
@@ -101,6 +103,7 @@ export class GeocodingService {
                 };
             }
         } catch (err) {
+            if (countryCode) throw err;
             console.error(`Geocoding failed for: "${location}"`, err);
         }
         return null;
@@ -138,39 +141,48 @@ export class GeocodingService {
                         searchExcluded = new Set([...searchExcluded, saved.placeId]);
                     }
                     await this.init();
-                    const result = await this.Place.searchByText({
-                        // Search the activity, not the center's address: an address can override locationBias.
-                        // The trusted center and the 5 km post-filter still define the search area.
-                        textQuery: intent.purpose,
-                        language: this.resolveLanguage(), region: 'kr',
-                        includedType: intent.category, useStrictTypeFiltering: true,
-                        locationBias: { lat: biasCenter.lat, lng: biasCenter.lng },
-                        fields: ['id', 'displayName', 'formattedAddress', 'location', 'types', 'businessStatus', 'addressComponents'],
-                        maxResultCount: 10,
-                    });
                     const rejected = {};
-                    const places = Array.isArray(result.places) ? result.places : [];
                     let unknownPricePlace = null;
-                    for (const candidate of places) {
-                        const place = selectRecommendation([candidate], intent, center, searchExcluded, rejected);
-                        if (!place) continue;
-                        const details = date ? await this.getHours(place.placeId) : null;
-                        const status = date ? assessVisitHours(item, date, details) : 'unknown';
-                        if (['closed', 'conflict'].includes(status)) {
-                            rejected.hours = (rejected.hours || 0) + 1;
-                            continue;
+                    let count = 0;
+                    // A long AI phrase often yields no usable place. Retry once
+                    // with its type, keeping the same trusted center and checks.
+                    const fallback = {
+                        restaurant: '식당', cafe: '카페', park: '공원', museum: '박물관',
+                        tourist_attraction: '관광 명소', shopping_mall: '쇼핑몰'
+                    }[intent.category];
+                    for (const query of new Set([intent.purpose, fallback])) {
+                        const result = await this.Place.searchByText({
+                            textQuery: query,
+                            language: this.resolveLanguage(), region: this.countryCode.toLowerCase(),
+                            includedType: intent.category, useStrictTypeFiltering: true,
+                            locationBias: { lat: biasCenter.lat, lng: biasCenter.lng },
+                            fields: ['id', 'displayName', 'formattedAddress', 'location', 'types', 'businessStatus', 'addressComponents'],
+                            maxResultCount: 10,
+                        });
+                        const places = Array.isArray(result.places) ? result.places : [];
+                        count += places.length;
+                        for (const candidate of places) {
+                            const place = selectRecommendation([candidate], intent, center, searchExcluded, rejected, this.countryCode);
+                            if (!place) continue;
+                            const details = date ? await this.getHours(place.placeId) : null;
+                            const status = date ? assessVisitHours(item, date, details) : 'unknown';
+                            if (['closed', 'conflict'].includes(status)) {
+                                rejected.hours = (rejected.hours || 0) + 1;
+                                continue;
+                            }
+                            if (!priceFits(details)) {
+                                rejected.budget = (rejected.budget || 0) + 1;
+                                continue;
+                            }
+                            if (wantedPrices && !details?.priceLevel) {
+                                unknownPricePlace ||= place;
+                                continue;
+                            }
+                            return { place, rejected, count };
                         }
-                        if (!priceFits(details)) {
-                            rejected.budget = (rejected.budget || 0) + 1;
-                            continue;
-                        }
-                        if (wantedPrices && !details?.priceLevel) {
-                            unknownPricePlace ||= place;
-                            continue;
-                        }
-                        return { place, rejected, count: places.length };
+                        if (unknownPricePlace) break;
                     }
-                    return { place: unknownPricePlace, rejected, count: places.length };
+                    return { place: unknownPricePlace, rejected, count };
                 })(),
                 new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Place search timeout')), timeoutMs); }),
             ]);
@@ -203,7 +215,8 @@ export class GeocodingService {
      * @param {Array} scheduleItems List of items containing a location string
      * @returns {Promise<Array>} The same list but with .latLng objects attached
      */
-    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = [], budget = null) {
+    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = [], budget = null, countryCode = this.countryCode) {
+        if (countryCode !== this.countryCode) return new GeocodingService(this.loader, { getLanguage:this.getLanguage, getHours:this.getHours, countryCode }).geocodeSchedule(scheduleItems,date,excludedPlaceIds,budget);
         if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return [];
 
         const geocodeOne = async (item, biasCenter) => {

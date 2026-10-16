@@ -107,6 +107,18 @@ export const preferenceStyles = `
           margin-top: 1.5rem;
         }
 
+        .destination-summary {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          margin-bottom: 1.25rem;
+        }
+        .destination-summary[hidden] { display: none; }
+        .destination-summary p { margin: 0; color: var(--cp-muted); }
+        .destination-summary .prev-btn { flex: none; min-height: 44px; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+
         /* ====== 날짜 · 기간 칩 ====== */
         .date-chip-container {
           display: flex;

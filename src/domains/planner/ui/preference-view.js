@@ -1,3 +1,6 @@
+import { dateRange, travelRegion, localTravelDate } from '../../../../functions/travel-region.mjs';
+import { moveTripDates } from '../services/trip-stays.mjs';
+import { destinationById } from '../services/travel-destinations.mjs';
 /**
  * preference-view.js
  * 
@@ -28,11 +31,11 @@ export default class PreferenceView extends HTMLElement {
     this.render();
     this.setupEventListeners();
     
-    // 언어 변경 리스너
-    window.addEventListener('i18n-changed', () => {
-      this.updateTexts();
-    });
+    this._languageHandler = () => this.updateTexts();
+    window.addEventListener('i18n-changed', this._languageHandler);
   }
+
+  disconnectedCallback() { window.removeEventListener('i18n-changed', this._languageHandler); }
 
   restoreSelection() {
     const draft = plannerDraftStore.read();
@@ -60,6 +63,10 @@ export default class PreferenceView extends HTMLElement {
       </div>
 
       <div id="step1-container" class="step-container">
+        <div class="destination-summary" hidden>
+          <p><span data-i18n="flowDestination">${t('flowDestination')}</span> · <strong id="preference-destination"></strong></p>
+          <button type="button" id="change-destination" class="prev-btn" data-i18n="flowChangeDestination">${t('flowChangeDestination')}</button>
+        </div>
         <!-- Date Selection -->
         <div class="section-title">
           <span data-i18n="pref_date_title">${t('pref_date_title')}</span>
@@ -67,15 +74,15 @@ export default class PreferenceView extends HTMLElement {
         
         <div class="date-chip-container" id="date-chip-container">
           <!-- '이번 주말' 버튼 유지 (Combo Action) -->
-          <div class="date-chip" data-date-type="weekend">
+          <button type="button" class="date-chip" data-date-type="weekend">
             <span data-i18n="date_weekend">${t('date_weekend')}</span>
-          </div>
-          <div class="date-chip" data-date-type="today">
+          </button>
+          <button type="button" class="date-chip" data-date-type="today">
             <span data-i18n="date_today">${t('date_today')}</span>
-          </div>
-          <div class="date-chip" data-date-type="tomorrow">
+          </button>
+          <button type="button" class="date-chip" data-date-type="tomorrow">
             <span data-i18n="date_tomorrow">${t('date_tomorrow')}</span>
-          </div>
+          </button>
           <div class="date-chip custom-date-wrapper" data-date-type="custom">
             <span class="custom-date-text" id="custom-date-text" data-i18n="date_custom">${t('date_custom')}</span>
             <input type="date" id="custom-date-input" class="hidden-date-input">
@@ -87,18 +94,18 @@ export default class PreferenceView extends HTMLElement {
           <span data-i18n="pref_duration_title">${t('pref_duration_title')}</span>
         </div>
         <div class="date-chip-container" id="duration-chip-container">
-          <div class="date-chip" data-duration="1">
+          <button type="button" class="date-chip" data-duration="1">
             <span data-i18n="duration_1">${t('duration_1')}</span>
-          </div>
-          <div class="date-chip" data-duration="2">
+          </button>
+          <button type="button" class="date-chip" data-duration="2">
             <span data-i18n="duration_2">${t('duration_2')}</span>
-          </div>
-          <div class="date-chip" data-duration="3">
+          </button>
+          <button type="button" class="date-chip" data-duration="3">
             <span data-i18n="duration_3">${t('duration_3')}</span>
-          </div>
-          <div class="date-chip" data-duration="4">
+          </button>
+          <button type="button" class="date-chip" data-duration="4">
             <span data-i18n="duration_4">${t('duration_4')}</span>
-          </div>
+          </button>
         </div>
 
         <!-- Step 1 Submit -->
@@ -112,46 +119,46 @@ export default class PreferenceView extends HTMLElement {
         <!-- Theme Selection -->
         <div class="section-title" data-i18n="prefThemeSection">${t('prefThemeSection')}</div>
         <div class="card-grid" id="theme-grid">
-          <div class="preference-card" data-value="food">
+          <button type="button" class="preference-card" data-value="food">
             <span class="card-icon">${icons.dining}</span>
             <div class="card-title" data-i18n="themeFood">${t('themeFood')}</div>
             <div class="card-desc" data-i18n="themeFoodDesc">${t('themeFoodDesc')}</div>
-          </div>
-          <div class="preference-card" data-value="activity">
+          </button>
+          <button type="button" class="preference-card" data-value="activity">
             <span class="card-icon">${icons.activity}</span>
             <div class="card-title" data-i18n="themeActivity">${t('themeActivity')}</div>
             <div class="card-desc" data-i18n="themeActivityDesc">${t('themeActivityDesc')}</div>
-          </div>
-          <div class="preference-card" data-value="healing">
+          </button>
+          <button type="button" class="preference-card" data-value="healing">
             <span class="card-icon">${icons.healing}</span>
             <div class="card-title" data-i18n="themeHealing">${t('themeHealing')}</div>
             <div class="card-desc" data-i18n="themeHealingDesc">${t('themeHealingDesc')}</div>
-          </div>
-          <div class="preference-card" data-value="photo">
+          </button>
+          <button type="button" class="preference-card" data-value="photo">
             <span class="card-icon">${icons.camera}</span>
             <div class="card-title" data-i18n="themePhoto">${t('themePhoto')}</div>
             <div class="card-desc" data-i18n="themePhotoDesc">${t('themePhotoDesc')}</div>
-          </div>
+          </button>
         </div>
 
         <!-- Budget Selection -->
         <div class="section-title" data-i18n="prefBudgetSection">${t('prefBudgetSection')}</div>
         <div class="card-grid budget" id="budget-grid">
-          <div class="preference-card" data-value="flex">
+          <button type="button" class="preference-card" data-value="flex">
             <span class="card-icon"><span class="budget-meter" data-level="3" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title" data-i18n="budgetFlex">${t('budgetFlex')}</div>
             <div class="card-desc" data-i18n="budgetFlexDesc">${t('budgetFlexDesc')}</div>
-          </div>
-          <div class="preference-card" data-value="standard">
+          </button>
+          <button type="button" class="preference-card" data-value="standard">
             <span class="card-icon"><span class="budget-meter" data-level="2" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title" data-i18n="budgetStandard">${t('budgetStandard')}</div>
             <div class="card-desc" data-i18n="budgetStandardDesc">${t('budgetStandardDesc')}</div>
-          </div>
-          <div class="preference-card" data-value="budget">
+          </button>
+          <button type="button" class="preference-card" data-value="budget">
             <span class="card-icon"><span class="budget-meter" data-level="1" aria-hidden="true"><i></i><i></i><i></i></span></span>
             <div class="card-title" data-i18n="budgetSaver">${t('budgetSaver')}</div>
             <div class="card-desc" data-i18n="budgetSaverDesc">${t('budgetSaverDesc')}</div>
-          </div>
+          </button>
         </div>
 
         <!-- Submit -->
@@ -192,8 +199,17 @@ export default class PreferenceView extends HTMLElement {
     const step1Helper = this.shadowRoot.getElementById('step1-helper-text');
     const step2Helper = this.shadowRoot.getElementById('step2-helper-text');
 
+    durationChipContainer.hidden = !this.selectedDates?.length;
     // Date init
-    const todayStr = this.getLocalDateString(new Date());
+    const todayStr = localTravelDate(new Date(), travelRegion(plannerDraftStore.read()).timeZone);
+    const tomorrowStr = dateRange(todayStr, 2)[1];
+    const localToday = new Date(`${todayStr}T12:00:00Z`);
+    const weekday = localToday.getUTCDay();
+    const weekendStr = new Date(localToday.getTime() + (weekday === 6 ? 7 : 6 - weekday) * 86400000).toISOString().slice(0, 10);
+    const city = destinationById(plannerDraftStore.read().destination?.id);
+    this.shadowRoot.querySelector('.destination-summary').hidden = !city;
+    this.shadowRoot.getElementById('preference-destination').textContent = city ? t(city.key) : '';
+    this.shadowRoot.getElementById('change-destination').onclick = () => window.navigate('/destination');
     customDateInput.min = todayStr;
 
     const computeDateArray = () => {
@@ -202,22 +218,15 @@ export default class PreferenceView extends HTMLElement {
       if (!this.startDateValue || !this.duration) {
         this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
         
-        if (!restoring) plannerDraftStore.updatePreferences({ date: this.selectedDates });
+        if (!restoring) plannerDraftStore.save(moveTripDates(plannerDraftStore.read(), this.selectedDates));
         return;
       }
       
-      const parts = this.startDateValue.split('-');
-      const startDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
-
-      for (let i = 0; i < this.duration; i++) {
-        const nextDate = new Date(startDate.getTime());
-        nextDate.setDate(nextDate.getDate() + i);
-        this.selectedDates.push(this.getLocalDateString(nextDate));
-      }
+      this.selectedDates = dateRange(this.startDateValue, this.duration);
       
       this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
 
-      if (!restoring) plannerDraftStore.updatePreferences({ date: this.selectedDates });
+      if (!restoring) plannerDraftStore.save(moveTripDates(plannerDraftStore.read(), this.selectedDates));
     };
 
     const applyDateSelection = (type, customValue = null, isToggleClick = false) => {
@@ -225,6 +234,7 @@ export default class PreferenceView extends HTMLElement {
       
       if (isToggleClick && chip && chip.classList.contains('selected')) {
         chip.classList.remove('selected');
+        chip.setAttribute('aria-pressed', 'false');
         this.startDateType = null;
         this.startDateValue = null;
         customDateText.textContent = t('date_custom');
@@ -233,8 +243,9 @@ export default class PreferenceView extends HTMLElement {
         return;
       }
 
-      dateChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
+      dateChipContainer.querySelectorAll('.date-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
       if (chip) chip.classList.add('selected');
+      chip?.setAttribute('aria-pressed', 'true');
 
       this.startDateType = type;
 
@@ -243,25 +254,16 @@ export default class PreferenceView extends HTMLElement {
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
       } else if (type === 'tomorrow') {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        this.startDateValue = this.getLocalDateString(d);
+        this.startDateValue = tomorrowStr;
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
       } else if (type === 'weekend') {
-        const sat = new Date();
-        const currentDay = sat.getDay();
-        let addDays = 6 - currentDay;
-        if (currentDay === 6) addDays = 7; 
-        else if (currentDay === 0) addDays = 6; 
-
-        sat.setDate(sat.getDate() + addDays);
-        this.startDateValue = this.getLocalDateString(sat);
+        this.startDateValue = weekendStr;
         
         customDateText.textContent = t('date_custom');
         customDateText.setAttribute('data-i18n', 'date_custom');
         
-        durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
+        durationChipContainer.querySelectorAll('.date-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
         const targetDuration = durationChipContainer.querySelector(`[data-duration="2"]`);
         if (targetDuration) {
           targetDuration.classList.add('selected');
@@ -274,6 +276,8 @@ export default class PreferenceView extends HTMLElement {
         customDateText.removeAttribute('data-i18n');
       }
 
+      durationChipContainer.hidden = false;
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) durationChipContainer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180 });
       computeDateArray();
     };
 
@@ -287,13 +291,15 @@ export default class PreferenceView extends HTMLElement {
       
       if (chip.classList.contains('selected')) {
         chip.classList.remove('selected');
+        chip.setAttribute('aria-pressed', 'false');
         this.duration = null;
         computeDateArray();
         return;
       }
 
-      durationChipContainer.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
+      durationChipContainer.querySelectorAll('.date-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
       chip.classList.add('selected');
+      chip?.setAttribute('aria-pressed', 'true');
       
       this.duration = durValue;
       computeDateArray();
@@ -329,12 +335,13 @@ export default class PreferenceView extends HTMLElement {
 
       const isAlreadySelected = card.classList.contains('selected');
       
-      themeGrid.querySelectorAll('.preference-card').forEach(c => c.classList.remove('selected'));
+      themeGrid.querySelectorAll('.preference-card').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
       
       if (isAlreadySelected) {
         this.selectedTheme = null;
       } else {
         card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
         this.selectedTheme = card.dataset.value;
       }
       
@@ -348,12 +355,13 @@ export default class PreferenceView extends HTMLElement {
 
       const isAlreadySelected = card.classList.contains('selected');
 
-      budgetGrid.querySelectorAll('.preference-card').forEach(c => c.classList.remove('selected'));
+      budgetGrid.querySelectorAll('.preference-card').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
       
       if (isAlreadySelected) {
         this.selectedBudget = null;
       } else {
         card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
         this.selectedBudget = card.dataset.value;
       }
 
@@ -372,23 +380,14 @@ export default class PreferenceView extends HTMLElement {
         if (durChip) durChip.classList.add('selected');
       }
       
-      const sat = new Date();
-      const day = sat.getDay();
-      let addDays = 6 - day;
-      if (day === 6) addDays = 7;
-      else if (day === 0) addDays = 6;
-      sat.setDate(sat.getDate() + addDays);
-
       if (firstDate === todayStr) {
         applyDateSelection('today');
         isStandard = true;
       } else {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        if (firstDate === this.getLocalDateString(d)) {
+        if (firstDate === tomorrowStr) {
           applyDateSelection('tomorrow');
           isStandard = true;
-        } else if (firstDate === this.getLocalDateString(sat) && length === 2) {
+        } else if (firstDate === weekendStr && length === 2) {
           applyDateSelection('weekend');
           isStandard = true;
         }
@@ -416,11 +415,12 @@ export default class PreferenceView extends HTMLElement {
       if (!this.selectedDates || this.selectedDates.length === 0) return;
       
       // Save Step 1 state
-      plannerDraftStore.updatePreferences({ date: this.selectedDates });
+      plannerDraftStore.save(moveTripDates(plannerDraftStore.read(), this.selectedDates));
       
-      // Navigate to Step 2
+      const next = this.returnToPlan ? '/plan' : '/preference/2';
       if (window.navigate) {
-        window.navigate('/preference/2');
+        plannerDraftStore.update({ step: next });
+        window.navigate(next, this.returnToPlan ? { state: { returnTo: '/plan' } } : undefined);
       }
     });
 
@@ -434,7 +434,7 @@ export default class PreferenceView extends HTMLElement {
 
     // [Step 2] Submit Button
     submitBtn.addEventListener('click', () => {
-      if (!this.selectedTheme || !this.selectedBudget || !this.selectedDates) return;
+      if (!this.selectedDates?.length) return;
 
       const preference = {
         date: this.selectedDates,
@@ -443,7 +443,7 @@ export default class PreferenceView extends HTMLElement {
       };
 
       plannerDraftStore.updatePreferences(preference);
-      console.log('[Preference] Saved Final:', preference);
+      plannerDraftStore.update({ step: '/plan' });
 
       if (window.navigate) {
         window.navigate('/plan');
@@ -461,7 +461,7 @@ export default class PreferenceView extends HTMLElement {
       this.selectedTheme = null;
       this.selectedBudget = null;
       plannerDraftStore.updatePreferences(preference);
-      console.log('[Preference] Skipped theme/budget — continuing to plan.');
+      plannerDraftStore.update({ step: '/plan' });
 
       if (window.navigate) {
         window.navigate('/plan');
@@ -473,7 +473,7 @@ export default class PreferenceView extends HTMLElement {
     // Step 1 check
     if (this.selectedDates && this.selectedDates.length > 0) {
       nextStepBtn.disabled = false;
-      step1Helper.textContent = t('prefStep1Done');
+      step1Helper.textContent = t(this.returnToPlan ? 'prefApplyDatesHelper' : 'prefStep1Done');
     } else {
       nextStepBtn.disabled = true;
       step1Helper.textContent = t('prefStep1Helper');
@@ -489,12 +489,14 @@ export default class PreferenceView extends HTMLElement {
           .replace('{0}', themeLabels[this.selectedTheme])
           .replace('{1}', budgetLabels[this.selectedBudget]);
     } else {
-      submitBtn.disabled = true;
-      step2Helper.textContent = t('prefStep2Helper');
+      submitBtn.disabled = false;
+      step2Helper.textContent = [this.selectedTheme ? t('theme_'+this.selectedTheme) : '', this.selectedBudget ? t('budget_'+this.selectedBudget) : ''].filter(Boolean).join(' · ') || t('prefStep2Helper');
     }
   }
 
-  setStep(step) {
+  setStep(step, { returnToPlan = this.returnToPlan || false } = {}) {
+    this.returnToPlan = returnToPlan;
+    this.currentStep = step;
     const { date, theme, budget } = plannerDraftStore.read();
     if (JSON.stringify([date, theme, budget]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget])) {
       this.restoreSelection();
@@ -507,22 +509,32 @@ export default class PreferenceView extends HTMLElement {
     const progress = this.shadowRoot.getElementById('progress-bar');
     
     if (!step1 || !step2) return;
+    const nextButton = this.shadowRoot.getElementById('next-step-btn');
+    nextButton.dataset.i18n = returnToPlan ? 'prefApplyDates' : 'prefNextBtn';
+    nextButton.textContent = t(nextButton.dataset.i18n);
+    this._updateButtonState(nextButton, this.shadowRoot.getElementById('submit-btn'), this.shadowRoot.getElementById('step1-helper-text'), this.shadowRoot.getElementById('step2-helper-text'));
+    const city = destinationById(plannerDraftStore.read().destination?.id);
+    this.shadowRoot.querySelector('.destination-summary').hidden = !city;
+    this.shadowRoot.getElementById('preference-destination').textContent = city ? t(city.key) : '';
 
     if (step === 1) {
       step1.style.display = 'block';
       step2.style.display = 'none';
-      if (badge) badge.textContent = 'Step 1 / 2';
+      this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowTravelDate');
+      if (badge) badge.textContent = '4 / 7';
       if (progress) progress.style.width = '50%';
     } else {
       step1.style.display = 'none';
       step2.style.display = 'block';
-      if (badge) badge.textContent = 'Step 2 / 2';
+      this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowStyle');
+      if (badge) badge.textContent = '5 / 7';
       if (progress) progress.style.width = '100%';
     }
   }
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    this.setStep(this.currentStep || 1);
   }
 }
 

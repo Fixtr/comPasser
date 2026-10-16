@@ -1,3 +1,4 @@
+import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
@@ -62,11 +63,13 @@ export function normalizePlannerRequest(plannerRequest = {}) {
 
   const dailyData = Array.from({ length: dayCount }, (_, index) => {
     const dayNumber = index + 1;
+    const override = dates.length > 1 && Array.isArray(plannerRequest.dailyLocations)
+      ? plannerRequest.dailyLocations.find(day => Number(day.day) === dayNumber) : null;
     const existingDay = existingDailyData.find(day => Number(day.day) === dayNumber)
       || existingDailyData[index]
       || {};
     const dayTimes = dailyTimes.find(day => Number(day.day) === dayNumber)
-      || dailyTimes[index]
+      || (dailyTimes[index]?.day === undefined ? dailyTimes[index] : null)
       || {};
     const flatAnchors = anchors.filter(anchor => Number(anchor.day || 1) === dayNumber);
     const existingAnchors = Array.isArray(existingDay.anchors) ? existingDay.anchors : [];
@@ -74,15 +77,18 @@ export function normalizePlannerRequest(plannerRequest = {}) {
     return {
       ...existingDay,
       day: dayNumber,
+      timeZone: travelRegion(plannerRequest).timeZone,
       date: existingDay.date || dates[index] || dates[0] || '',
       // A cleared custom time is invalid input, not permission to restore a
       // different global time. Validation must see the value the user sees.
       startTime: dayTimes.startTime ?? existingDay.startTime ?? plannerRequest.startTime ?? '',
       endTime: dayTimes.endTime ?? existingDay.endTime ?? plannerRequest.endTime ?? '',
-      startLocation: overnightLocations && index > 0
-        ? overnightLocations[index - 1] || '' : existingDay.startLocation || plannerRequest.startLocation || '',
-      endLocation: overnightLocations && index < dayCount - 1
-        ? overnightLocations[index] || '' : existingDay.endLocation || plannerRequest.endLocation || '',
+      startLocation: getLocationName(override?.startLocation) ? override.startLocation : overnightLocations
+        ? (index > 0 ? overnightLocations[index - 1] || plannerRequest.destination?.name || '' : plannerRequest.startLocation ?? existingDay.startLocation ?? '')
+        : existingDay.startLocation || plannerRequest.startLocation || '',
+      endLocation: getLocationName(override?.endLocation) ? override.endLocation : overnightLocations
+        ? (index < dayCount - 1 ? overnightLocations[index] || plannerRequest.destination?.name || '' : plannerRequest.endLocation ?? existingDay.endLocation ?? '')
+        : existingDay.endLocation || plannerRequest.endLocation || '',
       anchors: existingAnchors.length > 0 ? existingAnchors : flatAnchors
     };
   });
@@ -140,6 +146,7 @@ function makeAnchorItem(anchor, isKo) {
     time: anchor.time || '',
     endTime: anchor.endTime || '',
     type: 'AnchorSchedule',
+    flexible: anchor.flexible === true,
     title: anchor.name || (isKo ? '필수 일정' : 'Anchor schedule'),
     description: anchor.flexible
       ? (isKo ? '선택한 필수 방문지입니다. 시간은 임시 배치되었습니다.' : 'A required visit with a provisional time.')

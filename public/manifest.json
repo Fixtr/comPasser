@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#F4F4F1",
-  "background_color": "#F4F4F1",
+  "theme_color": "#FFFFFF",
+  "background_color": "#FFFFFF",
   "categories": [
     "travel",
     "navigation",

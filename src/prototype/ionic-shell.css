@@ -6,28 +6,12 @@
 .shell-kicker { color: var(--cp-ink-2); font-size: .8rem; font-weight: 700; letter-spacing: .08em; }
 ion-tab-bar { --background: var(--cp-surface); --color: var(--cp-ink-2); --color-selected: var(--cp-ink); border-top: 1px solid var(--cp-rule-hard); }
 ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-height: 56px; }
-.ionic-settings { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 10000; display: flex; gap: 8px; }
+.ionic-settings { position: static; display: flex; gap: 8px; }
 .ionic-settings button { min-height: 44px; padding: 0 12px; border: 1px solid var(--cp-rule-hard); border-radius: 8px; background: var(--cp-surface); color: var(--cp-ink); font: inherit; font-weight: 600; }
 .ionic-settings button:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
 .ionic-home-settings { display: flex; justify-content: flex-end; max-width: 74rem; margin: 0 auto; }
-.ionic-home-settings .ionic-settings { position: static; }
-.ionic-page-nav { display: flex; justify-content: space-between; align-items: center; max-width: 74rem; margin: 0 auto 12px; }
-.ionic-page-nav .ionic-settings { position: static; }
+.ionic-page-nav { display: flex; justify-content: space-between; align-items: center; max-width: 700px; margin: 0 auto 12px; }
 .ionic-route-page { max-width: 74rem; margin: 0 auto 40px; }
-.ionic-home { max-width: 74rem; margin: max(6vh, 36px) auto; }
-.ionic-home h1 { font-size: clamp(2.1rem, 8vw, 3rem); }
-.ionic-home ion-button { min-height: 52px; margin-top: 18px; }
-.ionic-home-actions a { display: inline-block; margin-bottom: 8px; font-size: 14px; color: var(--cp-ink-2); text-decoration: underline; text-underline-offset: 3px; }
-@media (min-width: 900px) {
-  .ionic-home { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); align-items: start; gap: 3rem; }
-  .ionic-home-intro { position: sticky; top: 6rem; }
-  .ionic-home home-preview { grid-column: 2; }
-}
-@media (max-width: 899px) {
-  .ionic-home { margin-top: 2rem; }
-  .ionic-home-actions { display: flex; flex-direction: column; }
-  .ionic-home-trips { order: -1; }
-}
 .ionic-legacy-auth { max-width: 35rem; margin: 0 auto; }
 .ionic-legacy-auth [role="alert"] { color: var(--cp-danger); font-weight: 700; }
 .shell-content preference-view, .shell-content travel-form, .shell-content profile-view, .shell-content account-deletion-status-view { display: block; width: 100%; }
@@ -46,10 +30,88 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-result-sheet { --width: 100%; --height: 100%; --border-radius: 22px 22px 0 0; --background: var(--cp-surface); }
 .ionic-result-sheet ion-content { --background: var(--cp-surface); }
 .ionic-sheet-settings { display: flex; justify-content: flex-end; padding: 8px 12px; background: var(--cp-surface); }
-.ionic-sheet-settings .ionic-settings { position: static; }
 .ionic-result-sheet itinerary-view { display: block; min-height: 100%; }
 @media (max-width: 899px) {
   .ionic-result-sheet { --border-radius: 18px 18px 0 0; }
   .ionic-result-sheet::part(handle) { width: 48px; height: 6px; background: var(--cp-ink); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+:root { --ion-color-primary: var(--cp-ink); --ion-color-primary-contrast: var(--cp-surface); }
+.shell-content { --padding-top: max(16px, env(safe-area-inset-top)); }
+.ionic-home { display: block; max-width: 440px; margin: 12px auto 24px; }
+.ionic-home-intro { position: static; text-align: center; }
+.ionic-home h1 { font-size: clamp(26px, 7vw, 32px); max-width: 340px; margin: 12px auto 10px; word-break: keep-all; }
+.ionic-home p { font-size: 14px; margin: 8px auto; }
+.ionic-home-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 24px; }
+.ionic-settings button { position: relative; min-width: 70px; min-height: 32px; padding: 5px 8px; font-size: 11px; border-radius: 6px; }
+.ionic-settings button::after { content: ''; position: absolute; inset: -6px 0; }
+.ionic-page-nav { max-width: 700px; min-height: 44px; padding: 6px 0; }
+.ionic-home-settings { max-width: 440px; }
+button { font: inherit; cursor: pointer; }
+.flow-page { max-width: 700px; margin: 12px auto 36px; color: var(--cp-ink); }
+.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .globe-selection button, .globe-auto, .ionic-home-links button { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: 6px; min-height: 44px; padding: 8px 12px; }
+.flow-page gmp-place-autocomplete { display: block; margin-top: 8px; }
+.flow-page label { font-size: 14px; }
+.flow-choices { display: grid; gap: 10px; }
+.flow-choices button { text-align: left; }
+.country-picker { display: grid; gap: 24px; }
+.country-picker h2 { margin: 0 0 12px; font-size: 15px; color: var(--cp-ink-2); }
+.country-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.flow-page .country-card { display: flex; align-items: center; min-height: 64px; padding: 10px 12px; text-align: left; }
+.flow-page .city-grid button { min-height: 52px; padding: 8px 10px; text-align: center; }
+.country-card-title { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.country-card-title>span { font-size: 24px; flex-shrink: 0; }
+.country-card:hover { border-color: var(--cp-ink); }
+@media (min-width: 768px) { .country-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .country-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.flow-primary, .flow-page .flow-primary { display: block; width: 100%; margin-top: 18px; min-height: 44px; padding: 12px; border: 1px solid var(--cp-ink); border-radius: 7px; background: var(--cp-ink); color: var(--cp-surface); }
+.flow-place-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--cp-rule); }
+.flow-place-row details { flex: 1; min-width: 0; }
+.flow-place-row summary { cursor: pointer; min-height: 44px; font-size: 14px; }
+.flow-place-row small { display: block; color: var(--cp-muted); margin-top: 4px; }
+.flow-place-row button { width: 44px; flex: none; font-size: 20px; }
+.flow-place-row button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
+.flow-page .flow-place-chip { margin: 8px 6px 0 0; font-size: 12px; max-width: 100%; overflow-wrap: anywhere; }
+.ai-place-recommendations { margin: 20px 0; padding: 16px; border: 1px solid var(--cp-rule); border-radius: 7px; }
+.ai-place-recommendations h2 { margin: 0; font-size: 18px; }
+.ai-place-recommendations > p, .ai-place-weather { font-size: 13px; color: var(--cp-ink-2); line-height: 1.6; }
+.ai-place-interests { min-width: 0; margin: 0 0 16px; padding: 0; border: 0; }
+.ai-place-interests legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.ai-place-interest-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.flow-page .ai-place-interest-options button { min-height: 44px; padding: 8px 12px; border-radius: 999px; font-size: 13px; }
+.ai-place-interest-options button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
+.ai-place-interests small { display: block; margin-top: 8px; line-height: 1.5; }
+.ai-place-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 8px; }
+.ai-place-controls label { display: grid; gap: 6px; flex: 1 1 150px; }
+.ai-place-controls input { width: 100%; min-width: 0; font-size: 16px; }
+.ai-place-controls button { flex: 1 1 140px; }
+.ai-place-recommendations small { color: var(--cp-muted); font-size: 12px; }
+.ai-place-card { display: flex; align-items: start; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--cp-rule); }
+.ai-place-card > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ai-place-card h3 { margin: 0 0 6px; font-size: 16px; }
+.ai-place-card p { font-size: 14px; line-height: 1.6; }
+.ai-place-card button { width: 44px; flex: none; font-size: 20px; }
+.ai-place-card button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
+.ai-place-sources { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.ai-place-sources a { color: var(--cp-ink-2); }
+.ai-place-card .ai-place-attribution { font: 400 12px Roboto,sans-serif; margin: 6px 0 12px; letter-spacing: normal; white-space: nowrap; color: #5e5e5e; }
+:root[data-theme="dark"] .ai-place-card .ai-place-attribution { color: #fff; }
+.ai-search-suggestions { border: 0; width: 100%; height: 110px; background: #fff; color-scheme: light; }
+.catalogue-places > summary { min-height: 44px; padding: 12px 0; font-size: 15px; font-weight: 600; cursor: pointer; }
+.travel-globe { text-align: center; padding-top: 16px; }
+.travel-globe h2 { font-size: 22px; margin: 24px 0 8px; }
+.globe-stage { min-height: 270px; display: grid; place-items: center; position: relative; }
+.globe-stage svg { touch-action: none; max-width: 100%; height: auto; }
+.globe-ocean { fill: var(--cp-sunken); stroke: var(--cp-rule); }
+.globe-stage path { fill: var(--cp-surface); stroke: var(--cp-rule); stroke-width: .5; cursor: pointer; transition: fill 200ms ease-out; }
+:root[data-theme="dark"] .globe-stage path, :root[data-theme="dark"] .globe-ocean { stroke: var(--cp-muted); }
+.globe-stage path.globe-selected { fill: var(--cp-anchor); }
+.globe-auto { position: absolute; right: 0; bottom: 0; width: 44px; height: 44px; padding: 0; background: transparent; border: 0; border-radius: 0; font-size: 16px; cursor: pointer; }
+.globe-selection { display: flex; gap: 12px; justify-content: center; align-items: center; margin-top: 12px; animation: globe-enter 180ms ease-out; }
+.globe-selection button { min-height: 32px; padding: 5px 10px; font-size: 12px; position: relative; }
+.globe-selection button::after { content: ''; position: absolute; inset: -6px 0; }
+@keyframes globe-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.flow-page * { box-sizing: border-box; }
+.flow-page :is(button,input,select), .ionic-home :is(button,a), .ionic-page-nav button { outline-offset: 3px; }
+.flow-page :is(button,input,select):focus-visible, .ionic-home :is(button,a):focus-visible, .ionic-page-nav button:focus-visible { outline: 3px solid var(--cp-ink); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

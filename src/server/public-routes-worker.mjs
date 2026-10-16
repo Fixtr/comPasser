@@ -1,6 +1,5 @@
 import qrcode from 'qrcode-generator';
-import { cities } from '../domains/planner/services/discovery-catalogue.mjs';
-import { curatedRoute, PUBLIC_ROUTE_ID, publicRouteUrl } from '../domains/itinerary/services/public-route.mjs';
+import { courseCities, curatedRoute, PUBLIC_ROUTE_ID, publicRouteUrl } from '../domains/itinerary/services/public-route.mjs';
 import { renderPublicRoute, renderRouteDirectory, renderRouteError } from '../domains/itinerary/services/public-route-html.mjs';
 import { DEFAULT_PUBLIC_APP_URL } from '../domains/itinerary/services/share-url.mjs';
 import { escapeHtml } from '../utils/html-safety.mjs';
@@ -41,7 +40,7 @@ export default {
     const url = new URL(request.url);
     const origin = new URL(env.PUBLIC_APP_URL || DEFAULT_PUBLIC_APP_URL).origin;
     const project = env.FIREBASE_PROJECT_ID || (typeof __FIREBASE_PROJECT__ !== 'undefined' ? __FIREBASE_PROJECT__ : '');
-    const curated = cities.map(city => curatedRoute(`curated-${city.id}`));
+    const curated = courseCities.flatMap(city => ['', '-2', '-3'].map(suffix => curatedRoute(`curated-${city.id}${suffix}`)));
     const response = (body, status = 200, type = 'text/html; charset=utf-8', extras = {}) => new Response(request.method === 'HEAD' ? null : body,
       { status, headers: { ...securityHeaders, 'Content-Type': type, ...extras } });
     if (!['GET', 'HEAD'].includes(request.method)) return response('Method not allowed', 405, 'text/plain', { Allow: 'GET, HEAD' });

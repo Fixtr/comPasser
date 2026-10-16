@@ -1,3 +1,4 @@
+import { offlineTrips } from '../../itinerary/services/offline-trips.mjs';
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
 import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itinerary/services/firestore-service.js';
@@ -7,7 +8,7 @@ import { createEmptyProfile, createProfileService } from '../services/profile-se
 import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
-import { t, applyTranslations } from '../../../utils/i18n.js';
+import { t, getLang, setLang, applyTranslations } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { publishableStops } from '../../itinerary/services/public-course.mjs';
 import { getPublicCourse, publishCourse, unpublishCourse } from '../../itinerary/services/public-course-service.js';
@@ -41,6 +42,7 @@ class ProfileView extends HTMLElement {
 
     disconnectedCallback() {
         window.removeEventListener('i18n-changed', this._i18nHandler);
+        window.removeEventListener('offline', this._networkHandler); window.removeEventListener('online', this._networkHandler);
         clearTimeout(this._deletionTimer);
         this._deletionWatch = null;
         this._visibilityObserver?.disconnect();
@@ -51,10 +53,17 @@ class ProfileView extends HTMLElement {
         this.setupEventListeners();
         this.loadUserData();
         this.fetchItineraries();
+        this._networkHandler=()=>this.fetchItineraries();
+        window.addEventListener('offline',this._networkHandler); window.addEventListener('online',this._networkHandler);
 
         // 언어를 바꾸면 이 화면도 따라와야 한다. 마크업의 data-i18n 은
         // 첫 그림만 t() 로 채워지고, 이후 전환은 이 자리가 맡는다.
-        this._i18nHandler = () => { applyTranslations(this.shadowRoot); this.renderDeletionStatus(); this.renderGenerationCredits(); if (this.itineraries.length) this.renderItineraries(); };
+        this._i18nHandler = () => {
+            applyTranslations(this.shadowRoot);
+            this.shadowRoot.getElementById('profile-language').value = getLang();
+            const user = getCurrentUser(); if (user) this.updateBasicAuthUI(user);
+            this.renderDeletionStatus(); this.renderGenerationCredits(); if (this.itineraries.length) this.renderItineraries();
+        };
         window.addEventListener('i18n-changed', this._i18nHandler);
 
         const observer = new MutationObserver((mutations) => {
@@ -176,6 +185,8 @@ class ProfileView extends HTMLElement {
         const photoSmallEl = this.shadowRoot.getElementById('user-photo-small');
         const nameEl = this.shadowRoot.getElementById('user-name');
         const emailEl = this.shadowRoot.getElementById('user-email');
+        const method = this.shadowRoot.getElementById('profile-login-method');
+        if (method) method.textContent = user.providerData?.map(provider => provider.providerId === 'password' ? t('labelEmail') : provider.providerId === 'google.com' ? 'Google' : provider.providerId).join(' / ') || (user.email ? t('labelEmail') : '—');
         const headerNameEl = this.shadowRoot.getElementById('header-name');
 
         const initial = encodeURIComponent(user.displayName || 'User');
@@ -192,7 +203,7 @@ class ProfileView extends HTMLElement {
     }
 
     updateExtendedProfileUI() {
-        this.renderField('birthday', '생년월일', this.userData.birthday, 'date');
+        this.renderField('birthday', t('labelBirthday'), this.userData.birthday, 'date');
     }
 
     renderField(field, label, value, inputType) {
@@ -262,6 +273,7 @@ class ProfileView extends HTMLElement {
         const user = getCurrentUser();
         if (!user || this.isLoadingItineraries) return;
 
+        if (navigator.onLine === false) { this.itineraries=offlineTrips.list(user.uid); this.renderItineraries(); return; }
         this.isLoadingItineraries = true;
         const listContainer = this.shadowRoot.getElementById('itineraries-list');
         if (listContainer) {
@@ -270,9 +282,12 @@ class ProfileView extends HTMLElement {
         }
 
         try {
-            this.itineraries = await getUserItineraries(user.uid);
+            const items = await getUserItineraries(user.uid);
+            if (getCurrentUser()?.uid !== user.uid) return;
+            if (navigator.onLine === false) this.itineraries=offlineTrips.list(user.uid); else this.itineraries=items;
             this.renderItineraries();
         } catch (error) {
+            if (getCurrentUser()?.uid !== user.uid) return;
             console.error('Failed to fetch itineraries:', error);
             if (listContainer) {
                 listContainer.textContent = '';
@@ -289,18 +304,18 @@ class ProfileView extends HTMLElement {
 
         if (this.itineraries.length === 0) {
             listContainer.textContent = '';
-            listContainer.append(stateBlock('empty-state', t('noSavedItineraries')));
+            listContainer.append(stateBlock('empty-state', t(navigator.onLine === false ? 'offlineEmpty' : 'noSavedItineraries')));
             return;
         }
 
         listContainer.innerHTML = '';
         this.itineraries.forEach(item => {
-            const dateObj = item.createdAt?.toDate() || new Date();
-            const dateString = dateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+            const dateObj = item.createdAt?.toDate?.() || new Date(item.createdAtMillis || item.savedAt || Date.now());
+            const dateString = dateObj.toLocaleDateString(getLang() === 'en' ? 'en-US' : 'ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
             const anchorsCount = item.itineraryPlan?.days?.reduce((acc, day) => acc + (day.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0), 0) || 0;
             // 저장 시 기록해 둔 제목을 쓰고, 그전에 저장된 문서는 지금 계산해 채운다.
             const tripTitle = item.title || buildItineraryTitle(item.itineraryPlan);
-            const anchorSuffix = anchorsCount > 0 ? ` · 필수 ${anchorsCount}곳` : '';
+            const anchorSuffix = anchorsCount > 0 ? ` · ${t('flowPlaces')} ${anchorsCount}` : '';
 
             const card = document.createElement('div');
             card.className = 'trip-card';
@@ -315,7 +330,7 @@ class ProfileView extends HTMLElement {
                 </div>
                 <div class="trip-actions">
                     <button class="btn-view" data-id="${item.id}" data-i18n="viewBtn">${t('viewBtn')}</button>
-                    <button class="btn-public-course" type="button"></button>
+                    <button class="btn-public-course" type="button"></button><button class="btn-offline" type="button"></button><span class="offline-badge"></span>
                     <button class="btn-delete-trip" data-id="${item.id}" data-i18n="deleteBtn">${t('deleteBtn')}</button>
                 </div>
             `;
@@ -323,6 +338,17 @@ class ProfileView extends HTMLElement {
             const publicButton = card.querySelector('.btn-public-course');
             publicButton.textContent = t('publicCourseManage');
             publicButton.onclick = () => this.editPublicCourse(item, card);
+            const uid=getCurrentUser()?.uid;
+            const offlineButton=card.querySelector('.btn-offline');
+            const saved=offlineTrips.get(uid,item.id);
+            offlineButton.textContent=t(saved ? 'offlineRemove':'offlineSave');
+            card.querySelector('.offline-badge').textContent=saved?t('offlineSaved'):'';
+            offlineButton.onclick=()=> { try {
+              if(saved)offlineTrips.remove(uid,item.id);else offlineTrips.save(uid,item);
+              this.renderItineraries();
+            } catch { showErrorToast(t('offlineFailed')); } };
+            if(navigator.onLine===false) card.querySelectorAll('.btn-rename,.btn-delete-trip,.btn-public-course,.btn-offline').forEach(button=>button.disabled=true);
+
 
             card.querySelector('.btn-view').onclick = (e) => {
                 e.stopPropagation();
@@ -528,11 +554,12 @@ class ProfileView extends HTMLElement {
         if (!item.itineraryPlan || !item.id) return;
         if (window.navigate) {
             // [Routing] 동적 파라미터 경로(/view/:id)로 이동
-            window.navigate('/view/' + item.id);
+            window.navigate('/view/' + item.id + (navigator.onLine === false ? '?offline=1' : ''));
         }
     }
 
     async handleDeleteItinerary(id, cardEl) {
+        if (navigator.onLine === false) return;
         const userId = getCurrentUser()?.uid;
         const ok = await showConfirm({
             title: '일정 삭제',
@@ -543,6 +570,7 @@ class ProfileView extends HTMLElement {
         if (ok && userId && getCurrentUser()?.uid === userId) {
             try {
                 await deleteItinerary(id);
+                try { offlineTrips.remove(userId,id); } catch { showErrorToast(t('offlineFailed')); }
                 window.dispatchEvent(new CustomEvent('itinerary-deleted', { detail: { id, userId } }));
                 cardEl.style.opacity = '0.5';
                 cardEl.style.pointerEvents = 'none';
@@ -558,6 +586,8 @@ class ProfileView extends HTMLElement {
     }
 
     setupEventListeners() {
+        const language=this.shadowRoot.getElementById('profile-language');
+        language.value=getLang(); language.onchange=()=>setLang(language.value);
         const tabs = this.shadowRoot.querySelectorAll('.nav-item');
         const sections = this.shadowRoot.querySelectorAll('.content-section');
 
@@ -565,7 +595,7 @@ class ProfileView extends HTMLElement {
             tab.addEventListener('click', () => {
                 const target = tab.dataset.tab;
                 if (window.navigate) {
-                    window.navigate('/profile/' + target);
+                    window.navigate(target === 'trips' ? '/profile/personal?tab=trips' : '/profile/' + target);
                 } else {
                     this.setTabFromPath(target);
                 }
@@ -667,6 +697,7 @@ class ProfileView extends HTMLElement {
         if (tabId === 'my-trips') tabId = 'trips';
 
         this.activeTab = tabId;
+        this.shadowRoot.querySelector('.profile-wrapper')?.classList.toggle('standalone-trips',tabId==='trips' && this.hasAttribute?.('standalone-trips'));
         const tabs = this.shadowRoot.querySelectorAll('.nav-item');
         const sections = this.shadowRoot.querySelectorAll('.content-section');
 
@@ -697,6 +728,22 @@ class ProfileView extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 ${profileStyles}
+                .profile-wrapper { max-width: 700px; margin: 0 auto; display: block; }
+                .sidebar { display:flex; gap:4px; flex-wrap:wrap; padding:4px; background:var(--cp-sunken); border-radius:8px; }
+                .sidebar .nav-item { flex:1; min-width:0; font-size:12px; min-height:44px; }
+                .sidebar #btn-back-home { display:none; }
+                .standalone-trips .sidebar, .standalone-trips .header-banner { display:none; }
+                .main-content { padding:16px 0; min-width:0; }
+                .card { border-radius:10px; border-color:var(--cp-rule); }
+                .list-label { font-size:12px; }
+                #profile-language { font-size:12px; min-height:32px; padding:5px 8px; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); border-radius:6px; }
+                .trip-card { border-radius:10px; display:block; }
+                .trip-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+                .trip-actions button { min-height:44px; font-size:12px; border:1px solid var(--cp-rule); border-radius:6px; color:var(--cp-ink); background:var(--cp-surface); padding:8px 12px; }
+                .offline-badge { font-size:11px; color:var(--cp-muted); }
+                :is(button,select,input):focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
+                @media(pointer:coarse) { #profile-language { min-height:44px; } }
+
             </style>
 
             <div class="profile-wrapper">
@@ -782,12 +829,13 @@ class ProfileView extends HTMLElement {
                             <div class="card-header"><h2 data-i18n="sectionSecurity">${t('sectionSecurity')}</h2></div>
                             <div class="list-item">
                                 <div class="list-label" data-i18n="labelLoginMethod">${t('labelLoginMethod')}</div>
-                                <div class="list-value"><span data-i18n="loginMethodValue">${t('loginMethodValue')}</span></div>
+                                <div class="list-value"><span id="profile-login-method"></span></div>
                             </div>
                             <div class="list-item">
                                 <div class="list-label" data-i18n="labelPassword">${t('labelPassword')}</div>
                                 <div class="list-value"><span class="not-set" data-i18n="passwordExternal">${t('passwordExternal')}</span></div>
                             </div>
+                            <div class="list-item"><label class="list-label" for="profile-language" data-i18n="flowLanguage"></label><div class="list-value"><select id="profile-language"><option value="ko" data-i18n="flowKorean">${t('flowKorean')}</option><option value="en">English</option></select></div></div>
                         </div>
 
                         <div class="card danger-section">

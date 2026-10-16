@@ -58,6 +58,8 @@ export const travelFormStyles = `
           flex-wrap: wrap;
         }
 
+        .section-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+
         .optional-note {
           font-size: 0.85rem;
           font-weight: 400;
@@ -103,6 +105,20 @@ export const travelFormStyles = `
           #travel-form > .credit-balance,
           #travel-form > .submit-row { grid-column: 1 / -1; }
         }
+
+        .location-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .location-heading label { margin-bottom: 0; }
+        .location-heading h2 { margin: 0; }
+        .form-group > .location-heading { min-height: 44px; margin-bottom: 0.4rem; }
+        #discovery-dialog, #stay-dialog { width: min(960px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.5rem; border: var(--cp-hair) solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); }
+        #discovery-dialog::backdrop, #stay-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+        #stay-booking-link { color: var(--cp-ink); text-underline-offset: 3px; }
+        #stay-dialog .secondary-btn { min-height: 44px; }
+        .discovery-modes { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+        .discovery-modes [aria-pressed="true"] { outline: 2px solid var(--cp-ink); }
+        #destination-suggestions { display: grid; gap: 0.75rem; }
+        #destination-suggestions button { text-align: left; white-space: normal; }
+        #discovery-dialog [hidden], #stay-dialog [hidden] { display: none; }
 
         .form-group {
           margin-bottom: 0.9rem;
@@ -394,8 +410,8 @@ export const travelFormStyles = `
           border-left-color: var(--cp-anchor);
         }
 
-        .anchor-flexible-option { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
-        .anchor-flexible-option input { width: 20px; height: 20px; padding: 0; flex: none; }
+        .anchor-flexible-option, .overnight-option { display: flex; align-items: center; gap: 0.65rem; min-height: 44px; cursor: pointer; }
+        .anchor-flexible-option input, .overnight-option input { width: 20px; height: 20px; padding: 0; flex: none; }
         .anchor-flexible-hint { display: none; margin: 0 0 0.75rem; color: var(--cp-muted); font-size: 0.8rem; line-height: 1.5; }
         .anchor-item.is-flexible .anchor-flexible-hint { display: block; }
         .anchor-item.is-flexible .anchor-fields { display: block; }
@@ -445,6 +461,7 @@ export const travelFormStyles = `
 
         /* ====== Toggle Switch ====== */
         .toggle-container {
+          position: relative;
           display: inline-flex;
           align-items: center;
           gap: 0.7rem;
@@ -455,7 +472,16 @@ export const travelFormStyles = `
         }
 
         .toggle-container input {
-          display: none;
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          opacity: 0;
+          padding: 0;
+        }
+
+        .toggle-container input:focus-visible + .toggle-switch {
+          outline: 2px solid var(--cp-ink);
+          outline-offset: 3px;
         }
 
         .toggle-switch {
@@ -501,9 +527,55 @@ export const travelFormStyles = `
           color: var(--cp-ink);
         }
 
-        #daily-times-wrapper {
-          margin-top: 1rem;
+        .time-settings {
+          border-bottom: var(--cp-hair) solid var(--cp-rule);
+          padding-bottom: 0.75rem;
+          margin-bottom: 1.25rem;
         }
+
+        #daily-times-wrapper {
+          text-align: right;
+          margin-bottom: 0.5rem;
+        }
+
+        @container (max-width: 499px) {
+          #daily-times-wrapper { text-align: left; }
+        }
+
+        @container (min-width: 500px) {
+          .time-settings {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 1rem;
+          }
+
+          .time-settings #global-times-container { display: contents; }
+
+          #global-times-container > .form-group:first-child {
+            grid-column: 1;
+            grid-row: 1;
+          }
+
+          #daily-times-wrapper {
+            grid-column: 2;
+            grid-row: 1;
+            align-self: end;
+            margin-bottom: 0.9rem;
+          }
+
+          .global-time-input { grid-row: 2; }
+          #daily-times-accordion { grid-column: 1 / -1; }
+        }
+
+        :host([handoff-flow]) .time-settings {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          column-gap: 1rem;
+        }
+        :host([handoff-flow]) #global-times-container { display: contents; }
+        :host([handoff-flow]) .global-time-input { grid-row: 2; }
+        :host([handoff-flow]) #daily-times-wrapper { grid-column: 1 / -1; grid-row: 3; }
+        :host([handoff-flow]) #daily-times-accordion { grid-column: 1 / -1; grid-row: 4; }
 
         #daily-times-accordion {
           margin-top: 1rem;

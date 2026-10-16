@@ -1,16 +1,24 @@
+import { findFixedVisitIssue } from '../services/planner-preflight.mjs';
+import { dateRange, travelRegion, localTravelDate } from '../../../../functions/travel-region.mjs';
+import { stayIssue } from '../services/trip-stays.mjs';
+import { destinationById } from '../services/travel-destinations.mjs';
+import { normalizeSelectedPlace } from '../services/selected-place.mjs';
+import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
 import { icons } from '../../../ui/icons.js';
+import { animateScreen } from '../../../ui/screen-motion.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { bindPlaceSelection, restorePlaceInput } from '../services/selected-place.mjs';
 import { plannerDraftStore, toPlannerDraft } from '../services/planner-draft.mjs';
+import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
-import { findPastDate, todayString } from '../services/trip-date.mjs';
+import { todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
-import { getLocationName } from '../services/planner-constraints.mjs';
+import { getLocationName, normalizePlannerRequest } from '../services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
@@ -51,6 +59,7 @@ export default class TravelForm extends HTMLElement {
   }
 
   connectedCallback() {
+    if (this.hasAttribute('handoff-flow') && !Array.isArray(this.draft.stays)) this.draft = plannerDraftStore.update({ stays: this.draft.overnightLocations.map((location, i) => ({ location, checkin: this.draft.date[i], checkout: this.draft.date[i+1] })).filter(stay => getLocationName(stay.location)) });
     this.render();
     if (this.anchorCount === 0) {
       // 앵커 자동 생성 로직 제거 (Opt-in)
@@ -84,7 +93,7 @@ export default class TravelForm extends HTMLElement {
       const btn = this.shadowRoot.querySelector('.primary-btn');
       if (btn) {
         btn.disabled = false;
-        btn.textContent = t('generateBtn');
+        btn.textContent = t(this.hasAttribute('handoff-flow') ? 'flowReview' : 'generateBtn');
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
       }
@@ -107,7 +116,7 @@ export default class TravelForm extends HTMLElement {
     const dateInput = this.shadowRoot?.getElementById('schedule-date');
     // 여러 날 일정은 읽기 전용 텍스트로 바뀌므로 min 이 의미가 없다.
     if (!dateInput || dateInput.type !== 'date') return;
-    dateInput.min = todayString();
+    dateInput.min = localTravelDate(new Date(), travelRegion(this.draft).timeZone);
   }
 
   /** 기존 일정 수정도 같은 초안을 교체한다. 화면 재진입·새로고침에 남는다. */
@@ -120,6 +129,18 @@ export default class TravelForm extends HTMLElement {
   refreshFromStorage() {
     this.syncDateFloor();
     this.populateForm(plannerDraftStore.read(), { persist: false });
+  }
+
+  discardDraft() {
+    this.reviewing = false;
+    this.isSubmitting = false;
+    this.isGenerating = false;
+    this._resetSubmitButton(this.shadowRoot.querySelector('.primary-btn'));
+    const review = this.shadowRoot.getElementById('review-panel');
+    review.hidden = true;
+    review.replaceChildren();
+    this.shadowRoot.getElementById('travel-form').hidden = false;
+    this.refreshFromStorage();
   }
 
   /**
@@ -204,9 +225,19 @@ export default class TravelForm extends HTMLElement {
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    if (this.hasAttribute('handoff-flow')) {
+      const city = destinationById(this.draft.destination?.id);
+      const destination = this.shadowRoot.getElementById('trip-destination');
+      if (destination) destination.value = city ? `${t(`country${city.country}`)} / ${t(city.key)}` : this.draft.destination?.name || '';
+      const btn = this.shadowRoot.querySelector('.primary-btn');
+      if (btn) { btn.dataset.i18n='flowReview'; btn.textContent=t('flowReview'); }
+    }
+    if (this.reviewing) this.showReview();
     this.shadowRoot.querySelectorAll('[data-night]').forEach(label => {
-      label.textContent = t('overnightLocation').replace('{0}', label.dataset.night);
+      label.textContent = t(label.dataset.i18n).replace('{0}', label.dataset.night);
+      this.shadowRoot.getElementById(label.htmlFor)?.setAttribute('aria-label', label.textContent);
     });
+    this.updateDailyLocationSummary();
     this.renderGenerationCredits();
   }
 
@@ -226,23 +257,101 @@ export default class TravelForm extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         ${travelFormStyles}
+        [hidden] { display: none !important; }
+        :host([handoff-flow]) { max-width: 700px; margin: 0 auto; padding: 0; border: 0; background: transparent; }
+        :host([handoff-flow]) .form-section, #review-panel section { padding: 18px; border: 1px solid var(--cp-rule); border-radius: 10px; background: var(--cp-surface); margin-bottom: 16px; }
+        :host([handoff-flow]) #same-overnight-toggle, :host([handoff-flow]) .overnight-option:has(#same-overnight-toggle), :host([handoff-flow]) #overnight-locations, :host([handoff-flow]) #overnight-notice { display: none; }
+        :host(:not([handoff-flow])) #trip-stays, :host(:not([handoff-flow])) .handoff-field { display: none; }
+        .trip-stay { position: relative; margin: 12px 0; padding: 14px; border: 1px solid var(--cp-rule); border-radius: 8px; }
+        .trip-stay .location-heading { margin-bottom: 0.4rem; }
+        #review-panel { color: var(--cp-ink); }
+        #review-panel p { color: var(--cp-ink-2); overflow-wrap: anywhere; }
+        #review-panel button { min-height: 44px; font: inherit; padding: 8px 12px; border: 1px solid var(--cp-rule); border-radius: 6px; background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
+        #review-panel #final-generate { display: block; width: 100%; color: var(--cp-surface); background: var(--cp-ink); }
+        #review-issues { margin: 12px 0; border-left: 3px solid var(--cp-danger); padding: 12px; }
+        :host([handoff-flow]) .link-btn { white-space: normal; min-height: 44px; }
+        :host([handoff-flow]) input, :host([handoff-flow]) select { min-height: 44px; font-size: 16px; border-radius: 6px; }
+        :is(button,input,select):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: 3px; }
+
       </style>
 
+      <dialog id="discovery-dialog" aria-labelledby="discovery-title">
+        <div class="location-heading">
+          <h2 id="discovery-title" data-i18n="whereToGo">어디로 갈까?</h2>
+          <button type="button" id="close-discovery" class="link-btn" data-i18n="closeDiscovery">닫기</button>
+        </div>
+        <p class="subtitle" data-i18n="discoveryScope"></p>
+        <div class="discovery-modes">
+          <button type="button" data-discovery-mode="destination" class="secondary-btn" aria-pressed="false" data-i18n="chooseDestination"></button>
+          <button type="button" data-discovery-mode="stops" class="secondary-btn" aria-pressed="false" data-i18n="chooseStops"></button>
+        </div>
+        <div id="discovery-options" hidden>
+          <div class="row-2">
+            <div class="form-group" id="discovery-city-group"><label for="discovery-city" data-i18n="destinationCity"></label><select id="discovery-city"></select></div>
+            <div class="form-group"><label for="discovery-day" data-i18n="visitDay"></label><select id="discovery-day"></select></div>
+          </div>
+          <div id="route-discovery-controls" hidden>
+            <p class="subtitle" data-i18n="routeDiscoveryHelp"></p>
+            <button type="button" id="find-route-stops" class="secondary-btn" data-i18n="findRouteStops"></button>
+            <p id="route-discovery-status" role="status"></p>
+          </div>
+          <div id="destination-suggestions"></div>
+          <div id="discovery-places"></div>
+        </div>
+      </dialog>
+      <dialog id="stay-dialog" aria-labelledby="stay-title">
+        <div class="location-heading">
+          <h2 id="stay-title" data-i18n="findStay"></h2>
+          <button type="button" id="close-stay" class="link-btn" data-i18n="closeDiscovery"></button>
+        </div>
+        <p class="subtitle" data-i18n="staySearchHelp"></p>
+        <p id="stay-dates"></p>
+        <p id="stay-tonight" data-i18n="stayTonight" hidden></p>
+        <form id="stay-search-form">
+          <div class="form-group"><label for="stay-region" data-i18n="stayRegion"></label><input id="stay-region" type="text" maxlength="120" required></div>
+          <div class="form-group"><label for="stay-guests" data-i18n="stayGuests"></label><input id="stay-guests" type="number" min="1" max="8" step="1" value="2" required></div>
+          <button class="secondary-btn" type="submit" data-i18n="staySearch"></button>
+        </form>
+        <p><a id="stay-booking-link" target="_blank" rel="noopener noreferrer" data-i18n="stayOpenBooking" hidden></a></p>
+        <p class="subtitle" data-i18n="stayPriceNotice"></p>
+        <div class="form-group"><label for="stay-chosen" data-i18n="stayChosen"></label><gmp-place-autocomplete id="stay-chosen"></gmp-place-autocomplete></div>
+        <button id="apply-stay" type="button" class="secondary-btn" data-i18n="stayApply"></button>
+      </dialog>
+      <section id="review-panel" tabindex="-1" hidden></section>
       <form id="travel-form">
         
         <div class="form-section">
           <h2 class="section-head">
             <div class="section-head-main">
-              <span data-i18n="tripBasicsTitle">Trip Basics</span>
+              <span data-i18n="flowDetails"></span>
               <div class="preference-chips" id="preference-chips-container"></div>
             </div>
-            <button type="button" id="reselect-preference-btn" class="link-btn" data-i18n="reselectPreference">테마/예산 다시 선택하기</button>
+            <div class="section-head-actions">
+              <button type="button" id="reselect-date-btn" class="link-btn handoff-field" data-i18n="reselectTravelDates"></button>
+              <button type="button" id="reselect-preference-btn" class="link-btn" data-i18n="reselectPreference">테마/예산 다시 선택하기</button>
+            </div>
           </h2>
+          <div class="form-group handoff-field">
+            <div class="location-heading">
+              <label for="trip-destination" data-i18n="flowDestination"></label>
+              <button type="button" id="change-trip-destination" class="link-btn" data-i18n="flowChangeDestination"></button>
+            </div>
+            <input id="trip-destination" readonly aria-readonly="true">
+          </div>
+          <div class="time-settings">
+          <div id="daily-times-wrapper" style="display: none;">
+            <label class="toggle-container">
+              <input type="checkbox" id="daily-times-toggle" aria-controls="daily-times-accordion">
+              <span class="toggle-switch" aria-hidden="true"></span>
+              <span class="toggle-label" data-i18n="perDayTimeToggle">일자별로 시간 다르게 설정하기</span>
+            </label>
+          </div>
           <div class="row-3" id="global-times-container">
             <div class="form-group">
               <label for="schedule-date" data-i18n="scheduleDate">Date</label>
               <input type="date" id="schedule-date" required>
             </div>
+            <div class="form-group handoff-field"><label for="trip-end-date" data-i18n="flowEndDate"></label><input id="trip-end-date" type="text" readonly aria-readonly="true"></div>
             <div class="form-group global-time-input">
               <label for="start-time" data-i18n="startTime">Start Time</label>
               <input type="time" id="start-time" required>
@@ -253,30 +362,42 @@ export default class TravelForm extends HTMLElement {
             </div>
           </div>
           
-          <div id="daily-times-wrapper" style="display: none;">
-            <label class="toggle-container">
-              <input type="checkbox" id="daily-times-toggle">
-              <span class="toggle-switch"></span>
-              <span class="toggle-label" data-i18n="perDayTimeToggle">일자별로 시간 다르게 설정하기</span>
-            </label>
-            <div id="daily-times-accordion" style="display: none;">
-              <!-- 동적으로 데일리 타임 폼이 렌더링됨 -->
-            </div>
+          <div id="daily-times-accordion" style="display: none;"></div>
           </div>
           
           <div class="row-2">
             <div class="form-group">
+              <div class="location-heading">
               <label for="start-location" data-i18n="startLocation">Start Location (e.g., Hotel)</label>
+                <button type="button" id="where-to-go" class="link-btn" data-i18n="whereToGo">어디로 갈까?</button>
+              </div>
               <gmp-place-autocomplete id="start-location" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
             <div class="form-group">
-              <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
+              <div class="location-heading">
+                <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
+              </div>
               <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
             </div>
           </div>
           <div id="overnight-wrapper" hidden>
             <p class="subtitle" data-i18n="overnightLocationHelp">Choose where each night ends and the next day begins.</p>
+            <label class="overnight-option">
+              <input type="checkbox" id="same-overnight-toggle" aria-controls="overnight-locations">
+              <span data-i18n="sameOvernightLocation">Stay at the same place every night</span>
+            </label>
+            <p id="overnight-notice" class="subtitle" role="status" data-i18n="overnightLocationRequired" hidden></p>
             <div id="overnight-locations"></div>
+            <section id="trip-stays"><h3 data-i18n="flowStays"></h3><div id="trip-stay-list"></div><button type="button" id="add-trip-stay" class="secondary-btn" data-i18n="flowAddStay"></button><p id="trip-stay-status" role="status"></p></section>
+            <label class="overnight-option">
+              <input type="checkbox" id="daily-locations-toggle" aria-controls="daily-locations-panel">
+              <span data-i18n="dailyLocationsToggle"></span>
+            </label>
+            <div id="daily-locations-panel" hidden>
+              <p class="subtitle" data-i18n="dailyLocationsHelp"></p>
+              <div id="daily-locations"></div>
+              <p id="daily-locations-notice" class="subtitle" role="status" hidden></p>
+            </div>
           </div>
           <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
             <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
@@ -330,7 +451,7 @@ export default class TravelForm extends HTMLElement {
       // Bind to existing anchors if any
       const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
       anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
-      this.shadowRoot.querySelectorAll('.overnight-location').forEach(ac => this.setupAutocompleteListener(ac));
+      this.shadowRoot.querySelectorAll('.stay-location, .overnight-location, .daily-start-location, .daily-end-location').forEach(ac => this.setupAutocompleteListener(ac));
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
@@ -375,7 +496,7 @@ export default class TravelForm extends HTMLElement {
         <input type="text" class="anchor-name" data-i18n="anchorNamePlaceholder" placeholder="${t('anchorNamePlaceholder')}" aria-label="${t('anchorNameLabel')}">
       </div>
       ${daySelectorHTML}
-      <label class="anchor-flexible-option"><input type="checkbox" class="anchor-flexible"><span data-i18n="anchorFlexibleLabel">${t('anchorFlexibleLabel')}</span></label>
+      <label class="anchor-flexible-option"><input type="checkbox" class="anchor-flexible"><span data-i18n="flowAutomatic">${t('anchorFlexibleLabel')}</span></label>
       <p class="anchor-flexible-hint" data-i18n="anchorFlexibleHint">${t('anchorFlexibleHint')}</p>
       <div class="row-3 anchor-fields">
         <div class="form-group anchor-time-field">
@@ -411,7 +532,7 @@ export default class TravelForm extends HTMLElement {
     }
 
     const flexibleToggle = template.querySelector('.anchor-flexible');
-    flexibleToggle.checked = data?.flexible === true;
+    flexibleToggle.checked = data?.flexible === true || (!data && this.hasAttribute('handoff-flow'));
     const showFlexible = () => {
       template.classList.toggle('is-flexible', flexibleToggle.checked);
       template.querySelectorAll('.anchor-time, .anchor-end-time').forEach(input => {
@@ -491,6 +612,13 @@ export default class TravelForm extends HTMLElement {
       };
 
       setVal('schedule-date', requestData?.date);
+      if (this.hasAttribute('handoff-flow')) {
+        const dateInput = this.shadowRoot.getElementById('schedule-date');
+        dateInput.type = 'text'; dateInput.readOnly = true; dateInput.value = requestData.date[0] || '';
+        this.shadowRoot.querySelector('label[for="schedule-date"]').dataset.i18n = 'flowStartDate';
+        this.shadowRoot.getElementById('trip-end-date').value = requestData.date.at(-1) || '';
+        this.renderTripStays();
+      }
       this.syncDateFloor();
       setVal('start-time', requestData?.startTime);
       setVal('end-time', requestData?.endTime);
@@ -607,25 +735,145 @@ export default class TravelForm extends HTMLElement {
       }
       const overnightWrapper = this.shadowRoot.getElementById('overnight-wrapper');
       const overnightContainer = this.shadowRoot.getElementById('overnight-locations');
+      this.shadowRoot.getElementById('same-overnight-toggle').checked = this.draft.sameOvernightLocation;
       overnightWrapper.hidden = !isMultiDay;
       overnightContainer.replaceChildren();
       if (isMultiDay) {
         for (let index = 0; index < daysCount - 1; index++) {
           const row = document.createElement('div');
           row.className = 'form-group';
-          row.innerHTML = `<label data-i18n="overnightLocation" data-night="${index + 1}"></label>
-            <gmp-place-autocomplete class="overnight-location" data-i18n-placeholder="overnightLocationPlaceholder" placeholder="${t('overnightLocationPlaceholder')}"></gmp-place-autocomplete>`;
+          row.innerHTML = `<div class="location-heading"><label for="overnight-location-${index + 1}" data-i18n="overnightLocation" data-night="${index + 1}"></label>
+            <button type="button" class="link-btn" data-find-stay="${index}" data-i18n="findStay"></button></div>
+            <gmp-place-autocomplete id="overnight-location-${index + 1}" class="overnight-location" data-i18n-placeholder="overnightLocationPlaceholder" placeholder="${t('overnightLocationPlaceholder')}"></gmp-place-autocomplete>`;
           overnightContainer.appendChild(row);
           const autocomplete = row.querySelector('.overnight-location');
           restorePlaceInput(autocomplete, this.draft.overnightLocations[index] || '');
           if (this._placesReady) this.setupAutocompleteListener(autocomplete);
         }
       }
+      this.shadowRoot.querySelector('label[for="start-location"]').dataset.i18n = isMultiDay || this.hasAttribute('handoff-flow') ? 'tripStartLocation' : 'startLocation';
+      this.shadowRoot.querySelector('label[for="end-location"]').dataset.i18n = isMultiDay || this.hasAttribute('handoff-flow') ? 'tripEndLocation' : 'endLocation';
+      this.renderDailyLocations();
+      this.updateOvernightFields();
       this.renderPreferenceBadges();
       this.updateTexts(); // 번역 텍스트 업데이트
     } catch (error) {
       console.error("[Auto-fill Error] Failed to populate form:", error);
     }
+  }
+
+  renderDailyLocations() {
+    const container = this.shadowRoot.getElementById('daily-locations');
+    const enabled = Array.isArray(this.draft.dailyLocations);
+    this.shadowRoot.getElementById('daily-locations-toggle').checked = enabled;
+    this.shadowRoot.getElementById('daily-locations-panel').hidden = !enabled;
+    container.replaceChildren();
+    if (this.draft.date.length < 2) return;
+    this.draft.date.forEach((date, index) => {
+      const row = document.createElement('div');
+      row.className = 'daily-location-row';
+      row.dataset.day = index + 1;
+      row.innerHTML = `<h3></h3><p class="subtitle daily-location-default"></p><div class="row-2">
+        <div class="form-group"><label for="daily-start-location-${index + 1}" data-i18n="dailyDeparture"></label>
+          <gmp-place-autocomplete id="daily-start-location-${index + 1}" class="daily-start-location"></gmp-place-autocomplete></div>
+        <div class="form-group"><label for="daily-end-location-${index + 1}" data-i18n="dailyArrival"></label>
+          <gmp-place-autocomplete id="daily-end-location-${index + 1}" class="daily-end-location"></gmp-place-autocomplete></div>
+        </div>`;
+      row.querySelector('h3').textContent = `Day ${index + 1} · ${date}`;
+      container.appendChild(row);
+      for (const kind of ['start', 'end']) {
+        const input = row.querySelector(`.daily-${kind}-location`);
+        restorePlaceInput(input, this.draft.dailyLocations?.[index]?.[`${kind}Location`] || '');
+        if (this._placesReady) this.setupAutocompleteListener(input);
+      }
+    });
+  }
+
+  updateDailyLocationSummary() {
+    const panel = this.shadowRoot.getElementById('daily-locations-panel');
+    if (!panel || panel.hidden) return;
+    const request = this.getFormData();
+    const defaults = normalizePlannerRequest({ ...request, dailyLocations: null }).dailyData;
+    const days = normalizePlannerRequest(request).dailyData;
+    this.shadowRoot.querySelectorAll('.daily-location-row').forEach((row, index) => {
+      row.querySelector('.daily-location-default').textContent = t('dailyLocationDefault')
+        .replace('{0}', getLocationName(defaults[index].startLocation) || t('locationUnset'))
+        .replace('{1}', getLocationName(defaults[index].endLocation) || t('locationUnset'));
+      for (const kind of ['start', 'end']) {
+        const input = row.querySelector(`.daily-${kind}-location`);
+        input.setAttribute('placeholder', t('dailyLocationInherit'));
+        input.setAttribute('aria-label', `Day ${index + 1} ${t(kind === 'start' ? 'dailyDeparture' : 'dailyArrival')}`);
+      }
+    });
+    const transfers = [];
+    days.slice(0, -1).forEach((day, index) => {
+      const next = days[index + 1];
+      const from = getLocationName(day.endLocation), to = getLocationName(next.startLocation);
+      const same = day.endLocation?.placeId && next.startLocation?.placeId
+        ? day.endLocation.placeId === next.startLocation.placeId : from === to;
+      if (from && to && !same) transfers.push(`Day ${day.day} ${from} → Day ${next.day} ${to}`);
+    });
+    const notice = this.shadowRoot.getElementById('daily-locations-notice');
+    notice.hidden = transfers.length === 0;
+    notice.textContent = transfers.length ? `${t('dailyLocationTransfer')} ${transfers.join(' / ')}` : '';
+  }
+
+  renderTripStays() {
+    const list = this.shadowRoot.getElementById('trip-stay-list');
+    list.replaceChildren();
+    (this.draft.stays || []).forEach(stay => {
+      const row = document.createElement('div'); row.className = 'trip-stay';
+      row.innerHTML = `<div class="location-heading"><label data-i18n="flowStays"></label><button type="button" class="link-btn" data-i18n="deleteBtn"></button></div><gmp-place-autocomplete class="stay-location"></gmp-place-autocomplete><div class="row-2"><label>${t('flowCheckin')}<input type="date" class="stay-checkin"></label><label>${t('flowCheckout')}<input type="date" class="stay-checkout"></label></div>`;
+      const place = row.querySelector('.stay-location'); restorePlaceInput(place, stay.location); this.setupAutocompleteListener(place);
+      for (const field of ['checkin','checkout']) { const input = row.querySelector(`.stay-${field}`); input.value=stay[field]; input.min=this.draft.date[0] || ''; input.max=this.draft.date.at(-1) || ''; }
+      row.querySelector('button').onclick = () => { row.remove(); this.saveDraft(); };
+      list.append(row);
+    });
+    applyTranslations(list);
+  }
+
+  addTripStay() {
+    this.saveDraft();
+    const stays = structuredClone(this.draft.stays || []);
+    if (stays.length >= this.draft.date.length - 1) return;
+    let checkin = this.draft.date[0], checkout = this.draft.date.at(-1);
+    if (stays.length) {
+      const last = stays.findLast(stay => Date.parse(stay.checkout)-Date.parse(stay.checkin) > 86400000);
+      if (last) { checkout=last.checkout; checkin=new Date(Date.parse(checkout)-86400000).toISOString().slice(0,10); last.checkout=checkin; }
+      else { checkin=this.draft.date.slice(0,-1).find(date => !stays.some(stay => stay.checkin<=date && date<stay.checkout)); checkout=dateRange(checkin,2)[1]; }
+    }
+    if (!checkin || !checkout) return;
+    stays.push({ location:'', checkin, checkout });
+    this.draft=plannerDraftStore.save({ ...this.draft, stays }); this.renderTripStays(); this.saveDraft();
+  }
+
+  showReview() {
+    const enteringReview = !this.reviewing;
+    this.saveDraft(); this.reviewing=true;
+    const root=this.shadowRoot.getElementById('review-panel');
+    const draft=this.draft;
+    const line=value => escapeHtml(String(value || t('locationUnset')));
+    const section=(key,content,target='details') => `<section><h3>${t(key)}</h3>${content}<button type="button" data-review-edit="${target}">${t('flowEdit')}</button></section>`;
+    root.innerHTML=`<h2>${t('flowReviewTitle')}</h2>`
+      +section('flowTravelDate',`<p>${line(this.shadowRoot.getElementById('trip-destination').value)}</p><p>${line(draft.date[0])} → ${line(draft.date.at(-1))}</p>`)
+      +section('tripStartLocation',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p><p>${line(draft.startTime)} – ${line(draft.endTime)}</p>`)
+      +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
+      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):line(anchor.time)+' – '+line(anchor.endTime)}</p>`).join(''))
+      +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
+      +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
+      +`<div id="review-issues" role="alert" hidden></div><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
+    this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;
+    root.querySelectorAll('[data-review-edit]').forEach(button=>button.onclick=()=>{ this.hideReview();if(button.dataset.reviewEdit==='style')window.navigate('/preference/2', { state: { returnTo: '/plan' } }); });
+    root.querySelector('#final-generate').onclick=()=> { if(this.isSubmitting)return; const form=this.shadowRoot.getElementById('travel-form'); if(!form.reportValidity())return; form.dispatchEvent(new Event('submit',{cancelable:true})); };
+    this.draft = plannerDraftStore.update({step:'/plan?review=1'});
+    root.focus({preventScroll:true});root.scrollIntoView({block:'start',behavior:'auto'});
+    if (enteringReview) animateScreen(root, true);
+  }
+
+  hideReview() {
+    this.reviewing=false; this.shadowRoot.getElementById('review-panel').hidden=true; this.shadowRoot.getElementById('travel-form').hidden=false;
+    this.draft = plannerDraftStore.update({step:'/plan'});
+    animateScreen(this.shadowRoot.getElementById('travel-form'), true);
   }
 
   getFormData() {
@@ -634,10 +882,234 @@ export default class TravelForm extends HTMLElement {
 
   saveDraft() {
     this.draft = plannerDraftStore.save(this.getFormData());
+    if (this.hasAttribute('handoff-flow')) {
+      this.shadowRoot.getElementById('trip-stay-status').textContent = stayIssue(this.draft.stays || [], this.draft.date) >= 0 ? t('flowStayInvalid') : this.draft.overnightLocations.some(place => !getLocationName(place)) ? t('flowStayUnset') : '';
+      this.shadowRoot.getElementById('trip-end-date').value = this.draft.date.at(-1) || '';
+      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.draft.anchorSchedules.length ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
+    }
+    this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
+    this.updateDailyLocationSummary();
     this.renderPreferenceBadges();
   }
 
+  updateOvernightFields() {
+    const same = this.shadowRoot.getElementById('same-overnight-toggle').checked;
+    this.shadowRoot.querySelectorAll('#overnight-locations .form-group').forEach((row, index) => {
+      row.hidden = same && index > 0;
+      row.querySelector('label').dataset.i18n = same ? 'sharedOvernightLocation' : 'overnightLocation';
+    });
+    this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
+  }
+
   setupEventListeners() {
+    const stayDialog = this.shadowRoot.getElementById('stay-dialog');
+    const stayRegion = this.shadowRoot.getElementById('stay-region');
+    const stayChosen = this.shadowRoot.getElementById('stay-chosen');
+    const bookingLink = this.shadowRoot.getElementById('stay-booking-link');
+    let stayIndex = 0;
+    let checkin = '';
+    let checkout = '';
+    bindPlaceSelection(stayChosen, () => {});
+    this.shadowRoot.getElementById('close-stay').addEventListener('click', () => stayDialog.close());
+    this.shadowRoot.getElementById('overnight-locations').addEventListener('click', event => {
+      const button = event.target.closest('[data-find-stay]');
+      if (!button) return;
+      this.saveDraft();
+      stayIndex = Number(button.dataset.findStay);
+      checkin = this.draft.date[stayIndex];
+      checkout = this.draft.date[this.draft.sameOvernightLocation ? this.draft.date.length - 1 : stayIndex + 1];
+      const selected = this.draft.overnightLocations[stayIndex];
+      stayRegion.value = selected?.formattedAddress || getLocationName(selected);
+      restorePlaceInput(stayChosen, selected);
+      bookingLink.hidden = true;
+      bookingLink.removeAttribute('href');
+      this.shadowRoot.getElementById('stay-dates').textContent = `${t('stayDates')} · ${checkin} → ${checkout}`;
+      this.shadowRoot.getElementById('stay-tonight').hidden = checkin !== todayString();
+      stayDialog.showModal();
+      animateScreen(stayDialog, true);
+    });
+    this.shadowRoot.getElementById('stay-search-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const region = stayRegion.value.trim();
+      if (!region) { stayRegion.focus(); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(checkin) || !/^\d{4}-\d{2}-\d{2}$/.test(checkout) || checkout <= checkin || checkin < todayString()) {
+        showErrorToast(t('stayInvalidDates'));
+        return;
+      }
+      const url = new URL('https://www.booking.com/searchresults.html');
+      url.search = new URLSearchParams({ ss: region, checkin, checkout,
+        group_adults: this.shadowRoot.getElementById('stay-guests').value, no_rooms: '1', group_children: '0' });
+      bookingLink.href = url.href;
+      bookingLink.hidden = false;
+    });
+    this.shadowRoot.getElementById('stay-search-form').addEventListener('input', () => {
+      bookingLink.hidden = true;
+      bookingLink.removeAttribute('href');
+    });
+    this.shadowRoot.getElementById('apply-stay').addEventListener('click', async () => {
+      const version = stayChosen.placeSelectionVersion;
+      const night = stayIndex;
+      await stayChosen.placeSelectionPending;
+      if (!stayDialog.open || !this.isConnected || version !== stayChosen.placeSelectionVersion || night !== stayIndex) return;
+      const location = getAutocompleteValue(stayChosen);
+      if (!getLocationName(location) || stayChosen.placeSelectionError) {
+        showErrorToast(t('stayInputRequired'));
+        stayChosen.focus();
+        return;
+      }
+      const stays = Array.from(this.shadowRoot.querySelectorAll('.overnight-location'));
+      const targets = this.draft.sameOvernightLocation ? stays : [stays[stayIndex]];
+      targets.forEach(input => restorePlaceInput(input, location));
+      this.saveDraft();
+      stayDialog.close();
+    });
+    const discoveryDialog = this.shadowRoot.getElementById('discovery-dialog');
+    const citySelect = this.shadowRoot.getElementById('discovery-city');
+    const suggestions = this.shadowRoot.getElementById('destination-suggestions');
+    const placeContainer = this.shadowRoot.getElementById('discovery-places');
+    const routeControls = this.shadowRoot.getElementById('route-discovery-controls');
+    const routeStatus = this.shadowRoot.getElementById('route-discovery-status');
+    const routeButton = this.shadowRoot.getElementById('find-route-stops');
+    const cityGroup = this.shadowRoot.getElementById('discovery-city-group');
+    let routeVersion = 0;
+    let routeSuggestions = [];
+    const clearRouteResults = () => {
+      routeVersion++;
+      routeSuggestions = [];
+      routeStatus.textContent = '';
+      routeButton.disabled = false;
+      placeContainer.replaceChildren();
+    };
+    discoveryDialog.addEventListener('close', clearRouteResults);
+    this.shadowRoot.getElementById('discovery-day').addEventListener('change', () => {
+      if (!routeControls.hidden) clearRouteResults();
+    });
+    routeButton.addEventListener('click', async () => {
+      clearRouteResults();
+      const version = routeVersion;
+      const request = this.getFormData();
+      const signature = JSON.stringify(request);
+      const day = Number(this.shadowRoot.getElementById('discovery-day').value);
+      routeButton.disabled = true;
+      routeStatus.textContent = t('routeDiscoveryLoading');
+      try {
+        const {findRouteStops} = await import('../services/route-discovery.js');
+        const result = await findRouteStops(request, day);
+        if (!discoveryDialog.open || !this.isConnected || version !== routeVersion) return;
+        if (signature !== JSON.stringify(this.getFormData())) {
+          clearRouteResults();
+          routeStatus.textContent = t('routeDiscoveryChanged');
+          return;
+        }
+        routeStatus.textContent = t({ready:'routeDiscoveryReady', empty:'routeDiscoveryEmpty',
+          'missing-input':'routeDiscoveryMissing', unavailable:'routeDiscoveryUnavailable'}[result.status]);
+        routeSuggestions = result.suggestions;
+        routeSuggestions.forEach((suggestion, index) => {
+          const article = document.createElement('article');
+          article.className = 'form-group';
+          const title = document.createElement('h3');
+          title.textContent = suggestion.visit.name;
+          const details = document.createElement('p');
+          details.textContent = `${suggestion.from} → ${suggestion.to} · ${t('routeDiscoveryDetour').replace('{0}', suggestion.detourMinutes)} · ${suggestion.time}–${suggestion.endTime}`;
+          const address = document.createElement('p');
+          address.textContent = suggestion.visit.location.formattedAddress;
+          const hours = document.createElement('p');
+          hours.textContent = t(suggestion.hours === 'unknown' ? 'routeDiscoveryHoursUnknown' : 'routeDiscoveryHours');
+          const link = document.createElement('a');
+          const url = new URL('https://www.google.com/maps/search/');
+          url.search = new URLSearchParams({api:'1', query:suggestion.visit.name, query_place_id:suggestion.visit.location.placeId});
+          link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+          link.textContent = t('routeDiscoveryPlaceDetails');
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'secondary-btn';
+          button.dataset.routePick = index; button.textContent = t('routeDiscoveryAdd');
+          button.addEventListener('click', () => {
+            if (version !== routeVersion || signature !== JSON.stringify(this.getFormData())) {
+              clearRouteResults(); routeStatus.textContent = t('routeDiscoveryChanged'); return;
+            }
+            const visit = routeSuggestions[index].visit;
+            const anchors = [...request.anchorSchedules];
+            if (!anchors.some(anchor => anchor.location?.placeId === visit.location.placeId)) anchors.push(visit);
+            this.populateForm({...request, anchorSchedules:anchors});
+            discoveryDialog.close();
+          });
+          article.append(title, details, address, hours, link, button);
+          placeContainer.append(article);
+        });
+      } catch {
+        if (version === routeVersion && discoveryDialog.open) routeStatus.textContent = t('routeDiscoveryUnavailable');
+      } finally { if (version === routeVersion) routeButton.disabled = false; }
+    });
+    this.shadowRoot.getElementById('close-discovery').addEventListener('click', () => discoveryDialog.close());
+    this.shadowRoot.getElementById('where-to-go').addEventListener('click', async () => {
+      this.saveDraft();
+      const button = this.shadowRoot.getElementById('where-to-go');
+      button.disabled = true;
+      try {
+        await import('./home-recommendations.js');
+        citySelect.replaceChildren(new Option(t('chooseCity'), ''), ...cities.map(city => new Option(t(city.key), city.id)));
+        const days = this.shadowRoot.getElementById('discovery-day');
+        days.replaceChildren(...this.draft.date.map((date, index) => new Option(`Day ${index + 1} · ${date}`, String(index + 1))));
+        clearRouteResults();
+        routeControls.hidden = true;
+        cityGroup.hidden = false;
+        suggestions.replaceChildren();
+        this.shadowRoot.getElementById('discovery-options').hidden = true;
+        discoveryDialog.querySelectorAll('[data-discovery-mode]').forEach(button => button.setAttribute('aria-pressed', 'false'));
+        if (this.isConnected) { discoveryDialog.showModal(); animateScreen(discoveryDialog, true); }
+      } catch {
+        showErrorToast(t('discoveryLoadError'));
+      } finally { button.disabled = false; }
+    });
+    discoveryDialog.addEventListener('click', event => {
+      const mode = event.target.closest('[data-discovery-mode]');
+      const cityButton = event.target.closest('[data-destination-city]');
+      if (cityButton) {
+        citySelect.value = cityButton.dataset.destinationCity;
+        citySelect.dispatchEvent(new Event('change'));
+      }
+      if (!mode) return;
+      clearRouteResults();
+      routeControls.hidden = mode.dataset.discoveryMode !== 'stops';
+      cityGroup.hidden = mode.dataset.discoveryMode === 'stops';
+      discoveryDialog.querySelectorAll('[data-discovery-mode]').forEach(button => button.setAttribute('aria-pressed', String(button === mode)));
+      this.shadowRoot.getElementById('discovery-options').hidden = false;
+      placeContainer.replaceChildren();
+      suggestions.replaceChildren();
+      citySelect.value = '';
+      if (mode.dataset.discoveryMode === 'destination') {
+        cities.forEach(city => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'secondary-btn';
+          button.dataset.destinationCity = city.id;
+          button.textContent = `${t(city.key)} · ${t(city.pairReason)}`;
+          suggestions.append(button);
+        });
+      }
+    });
+    citySelect.addEventListener('change', () => {
+      const index = cities.findIndex(city => city.id === citySelect.value);
+      placeContainer.replaceChildren();
+      if (index < 0) return;
+      const recommendations = document.createElement('home-recommendations');
+      recommendations.setAttribute('planner-pick', '');
+      placeContainer.append(recommendations);
+      recommendations.showCity(index);
+      // Keep the destination selector authoritative within the planner dialog.
+      recommendations.shadowRoot.querySelector('.cities').style.display = 'none';
+      suggestions.replaceChildren();
+      recommendations.addEventListener('places-picked', event => {
+        const day = Number(this.shadowRoot.getElementById('discovery-day').value);
+        const draft = plannerDraftStore.read();
+        const anchors = [...draft.anchorSchedules];
+        event.detail.forEach(visit => {
+          if (!anchors.some(anchor => anchor.name === visit.name && getLocationName(anchor.location) === visit.location)) anchors.push({ ...visit, day });
+        });
+        this.populateForm({ ...draft, anchorSchedules: anchors });
+        discoveryDialog.close();
+      });
+    });
     this.shadowRoot.getElementById('remove-waypoint').addEventListener('click', () => {
       this.draft.selectedWaypoints = [];
       this.shadowRoot.getElementById('selected-waypoint').hidden = true;
@@ -649,13 +1121,21 @@ export default class TravelForm extends HTMLElement {
     });
 
     const preferenceBtn = this.shadowRoot.getElementById('reselect-preference-btn');
+    this.shadowRoot.getElementById('reselect-date-btn').onclick = () => {
+      this.saveDraft();
+      window.navigate('/preference/1', { state: { returnTo: '/plan' } });
+    };
     if (preferenceBtn) {
       preferenceBtn.addEventListener('click', () => {
-        window.navigate('/preference');
+        this.saveDraft();
+        window.navigate('/preference/2', { state: { returnTo: '/plan' } });
       });
     }
 
     const form = this.shadowRoot.getElementById('travel-form');
+    if (this.hasAttribute('handoff-flow')) form.noValidate = true;
+    this.shadowRoot.getElementById('change-trip-destination').onclick = () => { this.saveDraft(); window.navigate('/destination', { state: { returnTo: '/plan' } }); };
+    this.shadowRoot.getElementById('add-trip-stay').onclick = () => this.addTripStay();
 
     // 브라우저 기본 검사는 Shadow DOM 안에서 사실상 보이지 않는다.
     // `invalid` 는 거품처럼 위로 오르지 않으므로 폼에서 받으려면 캡처 단계여야 한다.
@@ -682,7 +1162,26 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('input', (e) => {
       // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
       if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
+      if (e.target.id !== 'same-overnight-toggle') this.saveDraft();
+    });
+
+    this.shadowRoot.getElementById('daily-locations-toggle').addEventListener('change', event => {
+      this.shadowRoot.getElementById('daily-locations-panel').hidden = !event.target.checked;
+      if (!event.target.checked) {
+        this.shadowRoot.querySelectorAll('.daily-start-location, .daily-end-location')
+          .forEach(input => restorePlaceInput(input, ''));
+      }
       this.saveDraft();
+      this.updateTexts();
+    });
+
+    this.shadowRoot.getElementById('same-overnight-toggle').addEventListener('change', () => {
+      const stays = Array.from(this.shadowRoot.querySelectorAll('.overnight-location'));
+      const location = getAutocompleteValue(stays[0]);
+      stays.slice(1).forEach(element => restorePlaceInput(element, location));
+      this.saveDraft();
+      this.updateOvernightFields();
+      this.updateTexts();
     });
     
     const dailyToggle = this.shadowRoot.getElementById('daily-times-toggle');
@@ -691,6 +1190,8 @@ export default class TravelForm extends HTMLElement {
     
     if (dailyToggle) {
       dailyToggle.addEventListener('change', (e) => {
+        const timeSettings = dailyToggle.closest('.time-settings');
+        timeSettings.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
         if (e.target.checked) {
           dailyAccordion.style.display = 'block';
           
@@ -713,6 +1214,13 @@ export default class TravelForm extends HTMLElement {
             const input = el.querySelector('input');
             if (input) input.required = true;
           });
+        }
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          const visibleTimes = e.target.checked ? [dailyAccordion] : Array.from(globalInputs);
+          visibleTimes.forEach(element => element.animate([
+            { opacity: 0, transform: 'translateY(-8px)' },
+            { opacity: 1, transform: 'translateY(0)' },
+          ], { duration: 240, easing: 'ease-out' }));
         }
         form.dispatchEvent(new Event('input', { bubbles: true }));
       });
@@ -746,6 +1254,7 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      if (this.hasAttribute('handoff-flow') && !this.reviewing) { this.saveDraft(); this.showReview(); return; }
       if (this.isSubmitting) {
         console.log('Already submitting, preventing duplicate request...');
         return;
@@ -762,6 +1271,7 @@ export default class TravelForm extends HTMLElement {
         btn.style.cursor = 'not-allowed';
       }
 
+      try {
       await Promise.all(Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete'))
         .map(element => element.placeSelectionPending));
       if (Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete')).some(element => element.placeSelectionError)) {
@@ -777,7 +1287,7 @@ export default class TravelForm extends HTMLElement {
       // --- Date Validation ---
       // 과거 날짜로 만들면 화면 날짜와 실제 계산되는 경로가 어긋난다
       // (transit-time.mjs 가 지난 출발 시각을 다음 주로 밀어 조회한다).
-      const pastDate = findPastDate(plannerRequest.date);
+      const pastDate = (Array.isArray(plannerRequest.date) ? plannerRequest.date : [plannerRequest.date]).find(date => date < localTravelDate(new Date(), travelRegion(plannerRequest).timeZone));
       if (pastDate) {
         showErrorToast(t('pastDateValidationError').replace('{0}', pastDate));
         this._resetSubmitButton(btn);
@@ -797,12 +1307,18 @@ export default class TravelForm extends HTMLElement {
         this.isSubmitting = false;
         return;
       }
-      const missingNight = Array.isArray(plannerRequest.date) && plannerRequest.date.length > 1
+      if (this.hasAttribute('handoff-flow')) {
+        if (stayIssue(plannerRequest.stays || [], plannerRequest.date) >= 0) { this._revealInvalidField(this.shadowRoot.getElementById('add-trip-stay'), t('flowStayInvalid')); this._resetSubmitButton(btn); this.isSubmitting = false; return; }
+        const placeControls = Array.from(this.shadowRoot.querySelectorAll('#start-location, #end-location, .stay-location, .anchor-location, .daily-start-location, .daily-end-location')).filter(el => getLocationName(getAutocompleteValue(el)) || ['start-location', 'end-location'].includes(el.id));
+        const invalidPlace = placeControls.find(el => !normalizeSelectedPlace(getAutocompleteValue(el)));
+        if (invalidPlace) { this._revealInvalidField(invalidPlace, t('flowPlaceFailed')); this._resetSubmitButton(btn); this.isSubmitting = false; return; }
+      }
+      const missingNight = !this.hasAttribute('handoff-flow') && Array.isArray(plannerRequest.date) && plannerRequest.date.length > 1
         ? plannerRequest.overnightLocations.findIndex(location => !getLocationName(location)) : -1;
       if (missingNight >= 0) {
-        const control = this.shadowRoot.querySelectorAll('.overnight-location')[missingNight];
+        const control = this.shadowRoot.querySelectorAll('.overnight-location')[plannerRequest.sameOvernightLocation ? 0 : missingNight];
         this._revealInvalidField(control, t('missingLocationError')
-          .replace('{0}', t('overnightLocation').replace('{0}', String(missingNight + 1))));
+          .replace('{0}', fieldLabelOf(control)));
         this._resetSubmitButton(btn);
         this.isSubmitting = false;
         return;
@@ -823,9 +1339,17 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
+      if (this.hasAttribute('handoff-flow')) {
+        const issue = await findFixedVisitIssue(plannerRequest, createFlexibleVisitChecks(Math.max(1, plannerRequest.anchorSchedules.length), plannerRequest));
+        if (issue) {
+          const row = anchorRows.find(row => row.name===issue.anchor.name && row.day===issue.day);
+          this._revealInvalidField(row?.el.querySelector('.anchor-time'), t({time:'plannerAnchorError',overlap:'flowOverlap',route:'flexibleVisitRouteError',travel:'flowTravelTime',hours:'flexibleVisitHoursError'}[issue.reason]));
+          this._resetSubmitButton(btn);this.isSubmitting=false;return;
+        }
+      }
       const flexibleCount = plannerRequest.anchorSchedules.filter(anchor => anchor.flexible).length;
       const placement = await scheduleFlexibleVisits(plannerRequest,
-        flexibleCount ? createFlexibleVisitChecks(flexibleCount) : {});
+        flexibleCount ? createFlexibleVisitChecks(flexibleCount, plannerRequest) : {});
       if (placement.issue) {
         const control = anchorRows.filter(row => !isAnchorBlank(row))[placement.issue.anchorIndex]?.el.querySelector('.anchor-name');
         const messageKey = { 'flexible-visit-route': 'flexibleVisitRouteError',
@@ -875,6 +1399,11 @@ export default class TravelForm extends HTMLElement {
         bubbles: true,
         composed: true // Allows event to pass through shadow DOM boundary
       }));
+      } catch (error) {
+        console.error('Planner validation failed:', error);
+        this._revealInvalidField(null, t('shellGenerationFailed'));
+        this._resetSubmitButton(btn); this.isSubmitting = false;
+      }
     });
   }
 
@@ -900,6 +1429,17 @@ export default class TravelForm extends HTMLElement {
    */
   _revealInvalidField(control, message) {
     if (message) showErrorToast(message);
+    if (this.reviewing) {
+      const issue = this.shadowRoot.getElementById('review-issues');
+      issue.hidden = false; issue.replaceChildren();
+      const text = document.createElement('p'); text.textContent = message; issue.append(text);
+      const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = t('flowEdit');
+      edit.onclick = () => { this.hideReview(); this._revealInvalidField(control); }; issue.append(edit);
+      const row = control?.closest('.anchor-item');
+      if (row) { const auto = document.createElement('button'); auto.type = 'button'; auto.textContent = t('flowAuto'); auto.onclick = () => { const toggle = row.querySelector('.anchor-flexible'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); this.saveDraft(); this.showReview(); }; issue.append(auto); }
+      issue.scrollIntoView({ block: 'center', behavior: 'auto' });
+      return;
+    }
     if (!control) return;
     // 표시는 늘 한 칸에만. 앞서 걸렸던 칸을 그대로 두면 "지금 막고 있는 것"이
     // 둘로 보인다 — 값이 코드로 바뀌어 input 이 안 뜬 경우에도 남는다.
@@ -918,7 +1458,7 @@ export default class TravelForm extends HTMLElement {
   _resetSubmitButton(btn) {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = t('generateBtn');
+      btn.textContent = t(this.hasAttribute('handoff-flow') ? 'flowReview' : 'generateBtn');
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
     }

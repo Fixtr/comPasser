@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // [Nested Routing] Extract tab parameter from /profile/:tab
             const tabMatch = path.match(/^\/profile\/([a-zA-Z0-9-]+)$/);
-            const subPath = tabMatch ? tabMatch[1] : 'personal';
+            const subPath = path === '/profile/personal' && new URLSearchParams(window.location.search).get('tab') === 'trips' ? 'trips' : tabMatch ? tabMatch[1] : 'personal';
 
             const profileView = document.querySelector('profile-view');
             if (profileView && typeof profileView.setTabFromPath === 'function') {

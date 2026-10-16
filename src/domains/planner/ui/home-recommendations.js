@@ -1,8 +1,9 @@
-import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
+import { t, tFor, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { icons } from '../../../ui/icons.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { countCourseMentions } from '../services/course-mentions.mjs';
+import { resolveDestinationPlace, destinationPlaceError } from '../services/destination-place.js';
 
 import { cities } from '../services/discovery-catalogue.mjs';
 export { cities };
@@ -35,10 +36,17 @@ const photos = {
 };
 
 class HomeRecommendations extends HTMLElement {
+  static get observedAttributes() { return ['city']; }
+  attributeChangedCallback() {
+    const index = cities.findIndex(city => city.id === this.getAttribute('city'));
+    if (index >= 0) this.showCity(index);
+    this.shadowRoot.querySelector('.cities').hidden = this.hasAttribute('city');
+  }
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this.selectedIds = [];
+    this.placeLookupVersion = 0;
     this.cityIndex = 0;
     this.filter = 'all';
     this.courseMentions = {};
@@ -50,7 +58,6 @@ class HomeRecommendations extends HTMLElement {
     this.popularityStatus = 'loading';
     this.updateTexts = () => {
       this.renderCards();
-      this.renderPair();
       this.renderCrowd();
       this.renderCourseStatus();
       this.renderPopularityStatus();
@@ -61,6 +68,7 @@ class HomeRecommendations extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; width: 100%; text-align: left; color: var(--cp-ink); font-family: var(--cp-font); }
+        :host([city]) .cities { display: none; }
         * { box-sizing: border-box; }
         section { padding-top: 24px; }
         .eyebrow { margin: 0 0 10px; font: 600 12px/1.5 var(--cp-mono); letter-spacing: .08em; color: var(--cp-muted); }
@@ -72,6 +80,10 @@ class HomeRecommendations extends HTMLElement {
         .photo img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: var(--cp-rule); }
         .photo figcaption { padding: 6px 24px 0; color: var(--cp-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
         .photo a { color: inherit; text-underline-offset: 2px; }
+        .place-details { margin: 14px 0; }
+        .place-details summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 13px; color: var(--cp-ink-2); }
+        .place-details .photo { margin: 12px 0; }
+        .place-details .photo figcaption { padding: 6px 0 0; }
         .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
         .number { font: 12px var(--cp-mono); color: var(--cp-muted); }
         .tag { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--cp-ink-2); }
@@ -93,9 +105,14 @@ class HomeRecommendations extends HTMLElement {
         button[aria-pressed="true"] { background: var(--cp-surface); color: var(--cp-ink); box-shadow: inset 0 0 0 2px var(--cp-ink); }
         button:disabled { opacity: .5; cursor: not-allowed; }
         button svg { flex: none; }
-        .selection { position: sticky; bottom: 0; background: var(--cp-surface); border-top: 1px solid var(--cp-rule); padding: 16px 0; margin-top: 24px; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-        .selection p { flex: 1; min-width: 180px; margin: 0; color: var(--cp-ink-2); font-size: 14px; }
-        .selection button { width: auto; min-width: 160px; justify-content: center; }
+        .selection { position: sticky; bottom: 16px; background: var(--cp-surface); border: 1px solid var(--cp-rule); padding: 20px 24px; margin-top: 24px; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+        .selection p { flex: 1; min-width: min(100%, 180px); margin: 0; color: var(--cp-ink-2); font-size: 14px; }
+        .selection button { width: auto; min-width: min(100%, 160px); justify-content: center; }
+        .selected-list:empty { display: none; }
+        @media (max-width: 600px) {
+          .selection { padding: 16px; gap: 12px; bottom: 12px; }
+          .selection button { width: 100%; }
+        }
         .cities { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
         .cities button { width: auto; min-width: 88px; justify-content: center; background: var(--cp-surface); color: var(--cp-ink); border-color: var(--cp-rule); }
         .cities button:hover { background: var(--cp-paper); }
@@ -103,18 +120,19 @@ class HomeRecommendations extends HTMLElement {
         .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
         .filters button { width: auto; min-width: 0; min-height: 44px; padding: 8px 12px; border-color: var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); }
         .filters button[aria-pressed="true"] { border-color: var(--cp-ink); background: var(--cp-ink); color: var(--cp-surface); box-shadow: none; }
-        .cards.is-filtered { grid-template-columns: minmax(0, 360px); }
+        .cards.is-filtered { grid-template-columns: repeat(2, minmax(0, 360px)); }
+        @media (max-width: 600px) {
+          .cards.is-filtered { gap: 10px; }
+          .cards.is-filtered article { padding: 12px; }
+          .cards.is-filtered .top { flex-wrap: wrap; }
+          .cards.is-filtered h3 { font-size: 18px; }
+          .cards.is-filtered button { padding: 8px; }
+        }
         button[data-save] { margin-top: 8px; background: var(--cp-surface); color: var(--cp-ink); justify-content: center; }
         .selected-list { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         .selected-list button { width: auto; min-height: 44px; padding: 8px 12px; background: var(--cp-surface); color: var(--cp-ink); }
         .guide { display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px; margin-top: 8px; font-size: 12px; color: var(--cp-ink-2); text-underline-offset: 3px; }
-        .pair { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 18px; padding: 20px 24px; border: 1px solid var(--cp-rule); background: var(--cp-surface); }
-        .pair-copy { flex: 1; min-width: min(100%, 240px); }
-        .pair h3 { margin-bottom: 8px; font-size: 19px; }
-        .pair p { margin: 0; color: var(--cp-ink-2); font-size: 13px; line-height: 1.6; }
-        .pair .pair-label { margin-bottom: 8px; color: var(--cp-muted); font: 600 11px/1.5 var(--cp-mono); letter-spacing: .05em; }
-        .pair button { width: auto; min-width: 180px; justify-content: center; }
-        :is(button, a):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
+        :is(button, a, summary):focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 4px; }
       </style>
       <section aria-labelledby="discover-title">
         <p class="eyebrow" id="discover-eyebrow"></p>
@@ -135,14 +153,14 @@ class HomeRecommendations extends HTMLElement {
         </details>
         <div class="crowd" role="status" aria-live="polite"></div>
         <div class="cards"></div>
-        <div class="pair"></div>
         <div class="selection">
           <div class="selected-list" data-i18n-aria="discoverSelectedPlacesLabel"></div>
           <p id="discover-selection" role="status" aria-live="polite"></p>
           <button type="button" id="discover-plan" disabled><span data-i18n="discoverPlan"></span>${icons.route}</button>
         </div>
       </section>`;
-    this.shadowRoot.addEventListener('click', event => {
+    this.shadowRoot.addEventListener('click', async event => {
+      if (this.resolvingPlaces) return;
       const saveButton = event.target.closest('button[data-save]');
       if (saveButton) { void this.toggleSaved(saveButton.dataset.save); return; }
       const cityButton = event.target.closest('button[data-city]');
@@ -162,14 +180,6 @@ class HomeRecommendations extends HTMLElement {
         this.renderSelection();
         return;
       }
-      if (event.target.closest('#discover-pair')) {
-        const pair = cities[this.cityIndex].pair;
-        this.selectedIds = pair.every(id => this.selectedIds.includes(id))
-          ? this.selectedIds.filter(id => !pair.includes(id))
-          : [...new Set([...this.selectedIds, ...pair])];
-        this.renderSelection();
-        return;
-      }
       const places = cities[this.cityIndex].places;
       const place = places.find(place => place.id === event.target.closest('button[data-place]')?.dataset.place);
       if (place) {
@@ -177,22 +187,55 @@ class HomeRecommendations extends HTMLElement {
         this.selectedIds = selected
           ? this.selectedIds.filter(id => id !== place.id)
           : [...this.selectedIds, place.id].slice(0, 3);
-        const [pairFirst, pairSecond] = cities[this.cityIndex].pair;
-        if (selected && place.id === pairFirst && places.find(item => item.id === pairSecond)?.pairOnly) {
-          this.selectedIds = this.selectedIds.filter(id => id !== pairSecond);
-        }
         this.renderSelection();
         return;
       }
-      if (event.target.closest('#discover-plan') && this.selectedIds.length && typeof window.navigate === 'function') {
+      if (event.target.closest('#discover-plan') && typeof window.navigate === 'function') {
         const selected = this.selectedIds.map(id => places.find(place => place.id === id));
+        if (this.hasAttribute('planner-pick')) {
+          if (!selected.length) return;
+          this.dispatchEvent(new CustomEvent('places-picked', { detail: selected.map(place => ({
+            name: t(`${place.key}Name`), location: t(`${place.key}Location`),
+            time: '', endTime: '', flexible: true, stayMinutes: Number.parseInt(place.stay, 10),
+          })) }));
+          return;
+        }
+        if (!selected.length) {
+          const city = cities[this.cityIndex];
+          plannerDraftStore.update({ step: '/preference/1', ...(this.hasAttribute('city') ? {
+            country: 'KOR', destinationStage: 'places',
+            destination: { id: city.id, country: 'KOR', name: `${tFor(city.key, 'en')}, ${tFor('countryKOR', 'en')}` },
+          } : {}) });
+          window.navigate('/login?next=%2Fpreference%2F1');
+          return;
+        }
+        const version = ++this.placeLookupVersion;
+        const pathname = window.location.pathname;
+        this.resolvingPlaces = true;
+        this.placeLookupError = '';
+        this.renderSelection();
+        let resolved;
+        try {
+          const city = { ...cities[this.cityIndex], country: 'KOR' };
+          resolved = await Promise.all(selected.map(place => resolveDestinationPlace(city, place)));
+          if (version !== this.placeLookupVersion || !this.isConnected || window.location.pathname !== pathname) return;
+          if (resolved.some(place => !place)) throw new Error('Unverified destination place');
+        } catch (error) {
+          if (version === this.placeLookupVersion && this.isConnected) this.placeLookupError = destinationPlaceError(error);
+          return;
+        } finally {
+          if (version === this.placeLookupVersion) {
+            this.resolvingPlaces = false;
+            if (this.isConnected) this.renderSelection();
+          }
+        }
         const draft = plannerDraftStore.read();
         const anchorSchedules = [...draft.anchorSchedules];
-        selected.forEach(place => {
+        selected.forEach((place, index) => {
           const name = t(`${place.key}Name`);
-          const location = t(`${place.key}Location`);
-          if (!anchorSchedules.some(anchor => anchor.name === name && anchor.location === location)) {
-            anchorSchedules.push({ day: 1, name, location, time: '', endTime: '',
+          const location = resolved[index];
+          if (!anchorSchedules.some(anchor => anchor.location?.placeId === location.placeId || (anchor.name === name && anchor.location === t(`${place.key}Location`)))) {
+            anchorSchedules.push({ day: 1, name, location, suggestionId: place.id, time: '', endTime: '',
               flexible: true, stayMinutes: Number.parseInt(place.stay, 10) });
           }
         });
@@ -206,6 +249,7 @@ class HomeRecommendations extends HTMLElement {
   renderCards() {
     const city = cities[this.cityIndex];
     const cards = this.shadowRoot.querySelector('.cards');
+    const expanded = new Set([...cards.querySelectorAll('details[open]')].map(details => details.dataset.placeDetails));
     cards.classList.toggle('is-filtered', !['all', 'popular'].includes(this.filter));
     const places = city.places.filter(place => !place.pairOnly && (['all', 'popular'].includes(this.filter) || place.kind === this.filter));
     if (this.filter === 'popular') places.sort((a, b) => (this.popularity[b.id]?.count || 0) - (this.popularity[a.id]?.count || 0));
@@ -218,25 +262,28 @@ class HomeRecommendations extends HTMLElement {
       }).format(new Date(statistic.updatedAt)) : '';
       return `
       <article aria-labelledby="${place.id}-name">
-        <figure class="photo">
-          <img src="/discovery/${place.id}.jpg" alt="" loading="lazy" width="960" height="600">
-          <figcaption><a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.file)}" target="_blank" rel="noopener noreferrer">${t('discoverPhotoCredit').replace('{0}', photo.author)}</a> · <a href="${photoLicenses[photo.license]}" target="_blank" rel="noopener noreferrer">${photo.license}</a></figcaption>
-        </figure>
         <div class="top"><p class="kind">${t(place.kind)}</p><span class="number" aria-hidden="true">0${index + 1} / ${city.id.toUpperCase()}</span></div>
         <p class="tag" data-i18n="${place.key}Tag"></p>
         <h3 id="${place.id}-name" data-i18n="${place.key}Name"></h3>
         <p class="area" data-i18n="${place.key}Area"></p>
         ${this.popularityStatus === 'ready' ? `<p class="evidence">${t('discoverSavedCount').replace('{0}', statistic?.count || 0)}${updated ? ` · ${t('discoverSavedUpdated').replace('{0}', updated)}` : ''}</p>` : ''}
         ${this.courseMentions[place.id] ? `<p class="evidence">${t('discoverCourseMentions').replace('{0}', this.courseMentions[place.id]).replace('{1}', this.courseSampleSize)}</p>` : ''}
+        <details class="place-details" data-place-details="${place.id}" ${expanded.has(place.id) ? 'open' : ''}>
+        <summary aria-label="${t('discoverDetails')}: ${t(`${place.key}Name`)}">${t('discoverDetails')}</summary>
+        ${photo ? `<figure class="photo">
+          <img src="/discovery/${place.id}.jpg" alt="" loading="lazy" width="960" height="600">
+          <figcaption><a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.file)}" target="_blank" rel="noopener noreferrer">${t('discoverPhotoCredit').replace('{0}', photo.author)}</a> · <a href="${photoLicenses[photo.license]}" target="_blank" rel="noopener noreferrer">${photo.license}</a></figcaption>
+        </figure>` : ''}
         <p class="description"><strong>${t('discoverReason')} · </strong>${t(`${place.key}Description`)}</p>
         <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
+        <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
+          <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
+        </a>
+        </details>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">
           <span id="${place.id}-start"></span>${icons.route}
         </button>
         <button type="button" data-save="${place.id}" aria-pressed="${saved}" ${this.savingId || this.popularityStatus !== 'ready' ? 'disabled' : ''}>${t(this.savingId === place.id ? 'discoverSaving' : saved ? 'discoverUnsave' : 'discoverSave')}</button>
-        <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
-          <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
-        </a>
       </article>`;
     }).join('');
   }
@@ -369,22 +416,12 @@ class HomeRecommendations extends HTMLElement {
     if (this.isConnected) this.renderCrowd();
   }
 
-  renderPair() {
-    const city = cities[this.cityIndex];
-    const [first, second] = city.pair.map(id => city.places.find(place => place.id === id));
-    this.shadowRoot.querySelector('.pair').innerHTML = `
-      <div class="pair-copy">
-        <p class="pair-label">${t('discoverPairLabel')}</p>
-        <h3>${t(`${first.key}Name`)} + ${t(`${second.key}Name`)}</h3>
-        <p>${t(city.pairReason)}</p>
-        <a class="guide" href="${second.guide}" target="_blank" rel="noopener noreferrer">${t('discoverGuide')}</a>
-      </div>
-      <button type="button" id="discover-pair" aria-pressed="false"></button>`;
-  }
-
   showCity(index) {
     if (index < 0 || index >= cities.length || index === this.cityIndex) return;
     this.cityIndex = index;
+    this.placeLookupVersion++;
+    this.resolvingPlaces = false;
+    this.placeLookupError = '';
     this.selectedIds = [];
     this.updateTexts();
   }
@@ -397,24 +434,20 @@ class HomeRecommendations extends HTMLElement {
     this.shadowRoot.querySelectorAll('button[data-place]').forEach(button => {
       const selected = this.selectedIds.includes(button.dataset.place);
       button.setAttribute('aria-pressed', String(selected));
-      button.disabled = !selected && this.selectedIds.length === 3;
+      button.disabled = this.resolvingPlaces || (!selected && this.selectedIds.length === 3);
       button.querySelector('span').textContent = t(selected ? 'discoverRequiredSelected' : 'discoverSelect');
     });
-    const pair = cities[this.cityIndex].pair;
-    const pairSelected = pair.every(id => this.selectedIds.includes(id));
-    const pairButton = this.shadowRoot.getElementById('discover-pair');
-    pairButton.setAttribute('aria-pressed', String(pairSelected));
-    pairButton.disabled = !pairSelected && new Set([...this.selectedIds, ...pair]).size > 3;
-    pairButton.textContent = t(pairSelected ? 'discoverPairRemove' : 'discoverPairSelect');
     const places = cities[this.cityIndex].places;
     this.shadowRoot.querySelector('.selected-list').innerHTML = this.selectedIds.map(id => {
       const name = t(`${places.find(place => place.id === id).key}Name`);
-      return `<button type="button" data-remove="${id}" aria-label="${t('discoverRemovePlace').replace('{0}', name)}">${name} <span aria-hidden="true">×</span></button>`;
+      return `<button type="button" data-remove="${id}" ${this.resolvingPlaces ? 'disabled' : ''} aria-label="${t('discoverRemovePlace').replace('{0}', name)}">${name} <span aria-hidden="true">×</span></button>`;
     }).join('');
-    this.shadowRoot.getElementById('discover-selection').textContent = this.selectedIds.length
+    this.shadowRoot.getElementById('discover-selection').textContent = this.resolvingPlaces ? t('recommendationPending') : this.placeLookupError || (this.selectedIds.length
       ? t('discoverSelectedCount').replace('{0}', String(this.selectedIds.length))
-      : t('discoverSelectHint');
-    this.shadowRoot.getElementById('discover-plan').disabled = this.selectedIds.length === 0;
+      : t('discoverSelectHint'));
+    const button = this.shadowRoot.getElementById('discover-plan');
+    button.disabled = this.resolvingPlaces || (this.hasAttribute('planner-pick') && this.selectedIds.length === 0);
+    button.querySelector('span').textContent = t(this.hasAttribute('planner-pick') ? 'addDiscoveries' : this.selectedIds.length ? 'discoverPlan' : 'flowSkipPlaces');
   }
 
   connectedCallback() {
@@ -438,6 +471,8 @@ class HomeRecommendations extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.placeLookupVersion++;
+    this.resolvingPlaces = false;
     this.unsubscribeSavedAuth?.();
     this.unsubscribeSavedAuth = null;
     this.savedSignalsVersion = (this.savedSignalsVersion || 0) + 1;

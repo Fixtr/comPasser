@@ -1,3 +1,5 @@
+import { dateRange } from '../../../../functions/travel-region.mjs';
+import { nightlyStays } from '../services/trip-stays.mjs';
 /**
  * travel-form.js 의 Shadow DOM에서 폼 입력값을 읽어 plannerRequest 형태로
  * 조립한다. nav-popup.js 와 같은 패턴 — 컴포넌트 인스턴스(this) 대신
@@ -47,11 +49,14 @@ export function getFormData(shadowRoot, draft = {}) {
   const dateInput = shadowRoot.getElementById('schedule-date');
   let finalDate = structuredClone(draftDates);
   if (dateInput && !dateInput.readOnly) {
-    finalDate = dateInput.value;
+    finalDate = Array.isArray(draft.stays) ? dateRange(dateInput.value, Math.max(draft.date?.length || 1, 1)) : dateInput.value;
   }
 
   const globalStartTime = shadowRoot.getElementById('start-time').value;
   const globalEndTime = shadowRoot.getElementById('end-time').value;
+  const nights = Array.isArray(finalDate) ? Math.max(finalDate.length - 1, 0) : 0;
+  const sameOvernightLocation = nights > 0 && shadowRoot.getElementById('same-overnight-toggle')?.checked === true;
+  const stays = Array.from(shadowRoot.querySelectorAll('.overnight-location')).map(getAutocompleteValue);
 
   // Check toggle state for daily times
   const toggle = shadowRoot.getElementById('daily-times-toggle');
@@ -77,14 +82,31 @@ export function getFormData(shadowRoot, draft = {}) {
     }));
   }
 
+  const tripStays = Array.isArray(draft.stays) ? Array.from(shadowRoot.querySelectorAll('.trip-stay')).map(row => ({
+    location: getAutocompleteValue(row.querySelector('.stay-location')),
+    checkin: row.querySelector('.stay-checkin').value, checkout: row.querySelector('.stay-checkout').value,
+  })) : null;
   return {
+    destination: draft.destination,
+    country: draft.country,
+    destinationStage: draft.destinationStage,
+    step: draft.step,
+    ...(tripStays ? { stays: tripStays } : {}),
     date: finalDate,
     startTime: globalStartTime,
     endTime: globalEndTime,
     dailyTimes: dailyTimes,
+    dailyLocations: nights > 0 && shadowRoot.getElementById('daily-locations-toggle')?.checked
+      ? Array.from(shadowRoot.querySelectorAll('.daily-location-row')).map(row => ({
+        day: Number(row.dataset.day),
+        startLocation: getAutocompleteValue(row.querySelector('.daily-start-location')),
+        endLocation: getAutocompleteValue(row.querySelector('.daily-end-location')),
+      })) : null,
     startLocation: getAutocompleteValue(shadowRoot.getElementById('start-location')),
     endLocation: getAutocompleteValue(shadowRoot.getElementById('end-location')),
-    overnightLocations: Array.from(shadowRoot.querySelectorAll('.overnight-location')).map(getAutocompleteValue),
+    sameOvernightLocation,
+    overnightLocations: tripStays ? nightlyStays(tripStays, finalDate) : Array.from({ length: nights }, (_, index) =>
+      structuredClone(stays[sameOvernightLocation ? 0 : index] || '')),
     selectedWaypoints: structuredClone(draft.selectedWaypoints || []),
     anchorSchedules: anchors,
     theme,
