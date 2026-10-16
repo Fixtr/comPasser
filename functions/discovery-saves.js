@@ -1,5 +1,6 @@
 const PLACE_IDS = new Set(['palace', 'forest', 'island', 'seochon', 'haeundae', 'dongbaek', 'gwangalli',
-    'yongduam', 'dongmun', 'iho', 'chinatown', 'jayu', 'songdo', 'seomun', 'gyesan', 'dongseongro', 'hanbat', 'expo', 'yuseong']);
+    'yongduam', 'dongmun', 'iho', 'chinatown', 'jayu', 'songdo', 'seomun', 'gyesan', 'dongseongro', 'hanbat', 'expo', 'yuseong',
+    'namsan', 'bukchon', 'gamcheon', 'jagalchi', 'taejongdae', 'seongsan', 'hamdeok', 'hallim', 'wolmido', 'songwol', 'sinpo', 'kimroad', 'apsan', 'suseong', 'science', 'ppuri', 'daecheong']);
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
 function createDiscoverySaves({ db, now = Date.now }) {

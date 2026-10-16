@@ -1,0 +1,28 @@
+// Reviewed names grouped by venue; the catalogue sync test protects identity boundaries.
+export const RECOMMENDATION_NAME_GROUPS = {
+  seoul: [["경복궁","Gyeongbokgung Palace"],["서울숲","Seoul Forest"],["선유도공원","Seonyudo Park"],["서촌 한옥마을","Seochon Hanok Village"],["남산서울타워","N Seoul Tower","N서울타워"],["북촌한옥마을","Bukchon Hanok Village"]],
+  busan: [["해운대해수욕장","Haeundae Beach"],["동백섬","Dongbaekseom Island"],["광안리해수욕장","Gwangalli Beach"],["감천문화마을","Gamcheon Culture Village"],["자갈치시장","Jagalchi Market"],["태종대","Taejongdae Park"]],
+  jeju: [["용두암","Yongduam Rock"],["동문재래시장","Dongmun Traditional Market"],["이호테우해변","Iho Tewoo Beach"],["성산일출봉","Seongsan Ilchulbong"],["함덕해수욕장","Hamdeok Beach"],["한림공원","Hallim Park"]],
+  incheon: [["인천 차이나타운","Incheon Chinatown"],["자유공원","Jayu Park"],["송도 센트럴파크","Songdo Central Park"],["월미도","Wolmido Island"],["송월동동화마을","Songwol-dong Fairy Tale Village"],["신포국제시장","Sinpo International Market"]],
+  daegu: [["서문시장","Seomun Market"],["계산성당","Gyesan Cathedral","주교좌 계산 대성당"],["동성로","Dongseong-ro Street"],["김광석다시그리기길","Kim Gwang-seok Road"],["앞산공원","Apsan Park"],["수성못","Suseongmot Lake"]],
+  daejeon: [["한밭수목원","Hanbat Arboretum"],["엑스포과학공원","Daejeon Expo Park","대전 엑스포 과학공원"],["유성 족욕체험장","Yuseong Foot Spa","유성온천 족욕체험장"],["국립중앙과학관","National Science Museum"],["뿌리공원","Ppuri Park"],["대청호오백리길","Daecheongho Obaengni-gil"]],
+  tokyo: [["센소지","Sensoji Temple","浅草寺","Sensō-ji"],["도쿄 타워","Tokyo Tower","東京タワー"],["메이지 신궁","Meiji Jingu Shrine","明治神宮","Meiji Jingu"]],
+  kyoto: [["기요미즈데라","Kiyomizu-dera Temple","清水寺","Kiyomizu-dera"],["후시미 이나리 신사","Fushimi Inari-taisha Shrine","伏見稲荷大社","Fushimi Inari Taisha"],["아라시야마","Arashiyama","嵐山"]],
+  paris: [["에펠탑","Eiffel Tower","Tour Eiffel"],["루브르 박물관","Louvre Museum","Musée du Louvre"],["개선문","Arc de Triomphe"]],
+  nice: [["프롬나드 데 장글레","Promenade des Anglais"],["캐슬 힐","Castle Hill","Colline du Château"],["니스 구시가지","Old Town of Nice","Vieux Nice","old nice"]],
+  taipei: [["중정기념당","National Chiang Kai-shek Memorial Hall","Chiang Kai-shek Memorial Hall"],["용산사","Longshan Temple"],["타이베이 101","Taipei 101"]],
+  bangkok: [["방콕 왕궁","The Grand Palace"],["왓 포","Wat Pho","Wat Phra Chetuphon Wimon Mangkhalaram Rajwaramahawihan"],["왓 아룬","Wat Arun"]],
+  hanoi: [["호안끼엠 호수","Hoan Kiem Lake","Hoàn Kiếm Lake"],["응옥선 사당","Ngoc Son Temple"],["하노이 문묘","Temple of Literature"]],
+  singapore: [["머라이언 파크","Merlion Park"],["가든스 바이 더 베이","Gardens by the Bay"],["싱가포르 보타닉 가든","Singapore Botanic Gardens"]],
+  rome: [["콜로세움","Colosseum"],["포로 로마노","Roman Forum"],["팔라티노 언덕","Palatine Hill"]],
+  barcelona: [["사그라다 파밀리아","Sagrada Família","Basilica of the Sagrada Familia"],["구엘 공원","Park Güell"],["카사 바트요","Casa Batlló"]],
+  london: [["웨스트민스터 사원","Westminster Abbey"],["런던 아이","London Eye"],["빅 벤","Big Ben"]],
+  newyork: [["메트로폴리탄 미술관","The Metropolitan Museum of Art"],["센트럴 파크","Central Park"],["타임스 스퀘어","Times Square"],["자유의 여신상","Statue of Liberty"],["브루클린 브리지","Brooklyn Bridge"],["엠파이어 스테이트 빌딩","Empire State Building"]],
+  losangeles: [["그리피스 천문대","Griffith Observatory"],["할리우드 명예의 거리","Hollywood Walk of Fame"],["게티 센터","The Getty Center","The Getty"],["산타모니카 피어","Santa Monica Pier"],["할리우드 사인","Hollywood Sign"],["월트 디즈니 콘서트 홀","Walt Disney Concert Hall"]],
+  sanfrancisco: [["금문교","Golden Gate Bridge"],["팰리스 오브 파인 아츠","Palace of Fine Arts"],["피셔맨스 워프","Fisherman's Wharf"],["페리 빌딩","Ferry Building"],["롬바드 스트리트","Lombard Street"],["골든 게이트 파크","Golden Gate Park"]],
+  lasvegas: [["벨라지오 분수","Fountains of Bellagio"],["하이 롤러","High Roller"],["베네시안 그랜드 캐널","Grand Canal Shoppes at The Venetian","Grand Canal Shoppes at The Venetian Resort Las Vegas"],["프리몬트 스트리트","Fremont Street Experience"],["웰컴 투 라스베이거스 사인","Welcome to Fabulous Las Vegas Sign"],["스피어","Sphere"]],
+  chicago: [["클라우드 게이트","Cloud Gate"],["시카고 미술관","Art Institute of Chicago","The Art Institute of Chicago"],["시카고 리버워크","Chicago Riverwalk"],["네이비 피어","Navy Pier"],["스카이덱 시카고","Skydeck Chicago"],["버킹엄 분수","Buckingham Fountain","Clarence F. Buckingham Memorial Fountain"]],
+  washingtondc: [["링컨 기념관","Lincoln Memorial"],["워싱턴 기념탑","Washington Monument"],["제2차 세계대전 기념비","World War II Memorial"],["미국 국회의사당","United States Capitol"],["국립항공우주박물관","National Air and Space Museum","Smithsonian's National Air and Space Museum"],["제퍼슨 기념관","Thomas Jefferson Memorial"]],
+  honolulu: [["와이키키 해변","Waikiki Beach","Waikīkī Beach"],["다이아몬드 헤드","Diamond Head State Monument"],["이올라니 궁전","Iolani Palace"],["진주만 국립기념관","Pearl Harbor National Memorial"],["알라모아나 비치 파크","Ala Moana Beach Park","Ala Moana Regional Park"],["카피올라니 공원","Kapiolani Park","Kapiʻolani Regional Park"]],
+};
+export const DEFAULT_RECOMMENDATION_NAMES = Object.fromEntries(Object.entries(RECOMMENDATION_NAME_GROUPS).map(([city, groups]) => [city, groups.flat()]));

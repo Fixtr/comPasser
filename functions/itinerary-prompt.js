@@ -1,3 +1,4 @@
+const { travelRegion } = require('./travel-region.mjs');
 /**
  * Server-side itinerary prompt & schema construction.
  *
@@ -203,6 +204,8 @@ function sanitizePlannerRequest(raw) {
   });
 
   return {
+    countryCode: travelRegion(input).countryCode,
+    timeZone: travelRegion(input).timeZone,
     dates: dates.length > 0 ? dates : dailyData.map(day => day.date).filter(Boolean),
     dailyData,
     theme: THEME_INSTRUCTIONS[input.theme] ? input.theme : null,
@@ -238,6 +241,7 @@ ${daily}
 ${buildStyleBlock(constraints)}
 
 PRIORITY: fixed appointments and day bounds > realistic stay lengths and free travel gaps > meals > theme and budget.
+Trip country: ${constraints.countryCode}. All dates and clock times are local to ${constraints.timeZone}. Use local venues and currency for this country.
 The app inserts departure, arrival and AnchorSchedule items with the user's exact identity and times. Generate ONLY optional visits between them. Never emit, copy or paraphrase a fixed stop as a recommendation. If no optional visit fits, return scheduleItems: [] for that day. Include every requested day/date even when its array is empty.
 On a day with fixed appointments, prefer a theme-defining visit over an extra cafe or snack when only one optional visit is likely to fit. Put it in the longer feasible free block near a fixed location.
 
@@ -247,7 +251,7 @@ PLACE SEARCH:
 - Pick placeIntent.nearLocation EXACTLY from that day's Allowed nearLocation values; copy it into location. Never use a previous recommendation or an invented area as the next search center.
 - category must be one of restaurant, cafe, park, museum, tourist_attraction, shopping_mall. Title and description describe the visit purpose. Never invent venue names, addresses, Place IDs, ratings, opening hours, ticket availability or reservations.
 - Prefer visits around the fixed location preceding or following their time slot. Do not claim a specific detour or walking distance before actual routing.
-${dailyData.length > 1 ? '- Plan all days as one continuous trip: the end of Day 1 and start of Day 2 are the same overnight place, and likewise for each later boundary. Do not invent another lodging location or a cross-day transfer. Give different parts of the trip distinct activities. Avoid repeating the same attraction, area or visit purpose on different days, except ordinary meals.\n' : ''}
+${dailyData.length > 1 ? '- Plan all days as one continuous trip: use each day’s exact departure and destination listed above. They normally connect through an overnight place, but explicit day overrides may differ. Do not replace these endpoints or invent lodging or cross-day transfers; transfers outside the daily time windows are not part of the generated visits. Give different parts of the trip distinct activities. Avoid repeating the same attraction, area or visit purpose on different days, except ordinary meals.\n' : ''}
 
 TIME AND TRANSPORT:
 - The app supports public transit and walking for every budget. Budget changes food/activity spending preferences only. Do not assume taxis or rental cars.

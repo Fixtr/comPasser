@@ -15,6 +15,7 @@ const cors = require("cors")({ origin: true });
 const { findPlannerRequestIssue } = require('./planner-request-validation.mjs');
 const { getSeoulCrowd } = require('./seoul-crowd');
 const { createDiscoverySaves } = require('./discovery-saves');
+const { createPlaceRecommendations, createRecommendationLimiter, validateRecommendationInput } = require('./place-recommendations');
 
 const {
     ITINERARY_SCHEMA,
@@ -206,6 +207,26 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
 // =====================================================================
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const GOOGLE_MAPS_SERVER_KEY = defineSecret('GOOGLE_MAPS_SERVER_KEY');
+const recommendPlaces = createPlaceRecommendations({axios,
+    getKeys: () => ({gemini:GEMINI_API_KEY.value(),maps:GOOGLE_MAPS_SERVER_KEY.value()}),
+    reserveRequest:createRecommendationLimiter({db:admin.firestore()}),
+});
+exports.recommendPlaces = onCall({secrets:[GEMINI_API_KEY,GOOGLE_MAPS_SERVER_KEY],timeoutSeconds:180,maxInstances:3}, async request => {
+    try {
+        validateRecommendationInput(request.data);
+        if (request.auth) {
+            await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
+            const user = await admin.auth().getUser(request.auth.uid);
+            assertCurrentIdentity(request,user);
+        }
+        return await recommendPlaces(request);
+    }
+    catch (error) {
+        if (['unauthenticated','invalid-argument','failed-precondition','resource-exhausted','unavailable','not-found'].includes(error.code)) throw new HttpsError(error.code,error.message,error.details);
+        throw new HttpsError('unavailable','recommendation-unavailable');
+    }
+});
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-3.5-flash"];
