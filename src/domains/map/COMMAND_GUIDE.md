@@ -31,7 +31,7 @@
 
 - **신규 추천 계약**: `placeIntent`가 있는 일반 항목은 `recommendation-place.mjs`의 목적/유형 계약을 사용한다. 실제 검색은 `GeocodingService.resolveRecommendation()`에서만 한다. 사용자 고정 장소를 기준으로 국가·유형·5km 직선거리·폐업·중복 ID를 검사하고, 미확인 항목을 주소 검색으로 대체하지 않는다. `placeIntent` 없는 구버전 항목에만 위의 이름 일치 규칙을 적용한다.
 - **확정 정보 전달**: 신규 추천의 `places-resolved` 결과는 `verifiedPlace` JSON 사본 또는 명시적 `null`을 포함한다. 전부 미확인이어도 결과를 보내 이전 확정 정보를 지운다. UI는 현재 요청인지 확인하고 state에서만 저장 필드를 갱신한다. AI 생성 경계에서 확정 정보 주장을 제거하되 저장본 재열기는 정상 사본을 보존한다.
-- **제한**: 검색당 최대 6초, 하루 추천 검색 총 30초의 대기 예산. 유형별 후보는 최대 10개이며 거리순 첫 유효 후보를 선택한다. 거리 조건은 실제 이동시간/영업 여부 검증이 아니다.
+- **제한**: 검색당 최대 6초, 하루 추천 검색 총 30초의 대기 예산. 첫 검색어에서 유효 후보가 없으면 동일 유형의 일반 검색어로 한 번만 재시도한다. 유형별 후보는 최대 10개이며 유효한 후보를 선택한다. 거리 조건은 실제 이동시간/영업 여부 검증이 아니다.
 - **마커 렌더링 색상 규칙**: 
   - `AnchorSchedule` 일 경우 보라색 핀으로 렌더링.
   - 리스트의 첫 번째 장소일 경우 초록색 핀으로 렌더링.
@@ -39,3 +39,12 @@
 - **TransitInfo 전달**: 라우팅 결과물(거리, 소요시간)은 전역 이벤트 버스(`transit-info-ready`)를 통해 다른 컴포넌트(예: Timeline)로 전달될 수 있지만, Map 도메인이 소비자의 형태를 알아서는 안 됩니다.
 - **비동기 결과 식별**: `render-map-route`의 `detail`은 `{ plan, context }`입니다. `plan`에는 선택한 하루의 스냅샷이 들어가고, 지도는 `context`를 해석하거나 변경하지 않고 결과에 그대로 돌려줍니다. 결과는 `transit-info-ready: { context, routes }`, `places-resolved: { context, places }`, `transit-unavailable: { context, reason }`입니다.
 - **이전 요청 무효화**: 새 요청, `cancel-map-route`, `clearMap()`, 컴포넌트 해제는 이전 렌더링을 무효화합니다. SDK 로딩·지오코딩·각 경로 응답 뒤에는 최신 요청인지 확인한 다음 마커/경로선/로딩 상태/결과 이벤트를 변경합니다. 이미 시작한 외부 API 호출은 끝날 수 있지만, 오래된 결과를 화면에 반영해서는 안 됩니다.
+
+- `RoutingService.getTransitRoute()` compares provider walking directions on coordinate legs within 1 km. Select an available walk of at most 20 minutes only when no slower than transit; do not estimate a walk when the provider cannot route it. Preflight and result rendering use the same selected coordinates. Keep walking warnings and the correct walking verification link visible. Round measured seconds up to whole minutes.
+- Generic recommendations exclude names explicitly indicating airport-terminal, airside or duty-free interiors because access is unverified. This is a bounded name filter, not a universal access check; user-selected fixed stops remain authoritative. Reserve selected must-visit IDs from every other day as well as resolved recommendation IDs.
+
+## Travel regions
+
+- Curated destination lookup may supply explicitly reviewed `searchAliases` and a required country code to `resolvePlace`. Match only the catalogue name or those exact aliases; require a valid Place ID/coordinate snapshot and the returned country component. Other named schedule searches retain their strict identity checks. Provider errors propagate for this scoped lookup so daily quota exhaustion is shown separately from an unmatched place.
+
+Travel country comes from the planner request (KR/JP/FR). Pass it to Places search and recommendation country checks, and use Asia/Seoul, Asia/Tokyo or Europe/Paris when creating transit departure instants. Do not reject an airport just for lying outside the selected city. Paris DST is resolved with Intl; nonexistent local times fail canonical validation. Older requests keep the Korea default.

@@ -29,3 +29,9 @@
 - `test/emulator/*.test.mjs` verifies real Firestore rules, Admin SDK transactions, Auth cleanup, and callable HTTP protocol against a strictly local demo project. See `docs/history/ACCOUNT_DELETION_SERVER_2026-09-11.md` for the command and deployment prerequisites.
 - `test/browser/account-deletion-smoke.js` verifies re-login, explicit confirmation, lost responses, pending status across reload, and completion-driven logout with fake external services.
 - Run `npm test` and `npm run build`. Never test account deletion against a real account as part of refactoring verification.
+
+## Ionic navigation and local preferences
+
+- Bottom-tab `/profile/trips` is a standalone saved list. The profile menu uses `/profile/personal?tab=trips` to retain all three profile menus and the selected profile bottom tab; result back navigation returns to its origin.
+- Language lives inside the security card after login method/password, uses existing i18n persistence, and never changes typed input or selected identities. Listing/date labels follow the current locale. Account data and credits continue to use the existing profile/auth services.
+- Own itinerary cards offer explicit offline save/remove. Offline lists use only owner-scoped saved snapshots and disable mutation/publication controls. Ignore stale remote listing responses after an account change.

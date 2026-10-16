@@ -19,7 +19,9 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 | --- | --- |
 | `npm test` | 빠른 단위·계약 검사. 서버 콜백과 클라이언트 오류 처리 격리 검사 포함 |
 | `npm run build` | 실제 Vite 빌드 가능 여부 |
-| `npm run test:browser` | 브라우저 시나리오 전체. 현재 등록된 17개 검사 실행 (`test/browser/smoke.spec.mjs`) |
+| `npm run test:browser` | 브라우저 시나리오 전체. 현재 등록된 24개 검사 실행 (`test/browser/smoke.spec.mjs`) |
+| `npm run test:ionic` | 실제 Ionic 화면, 라우팅, 생성 흐름, 모바일 320px·번역·테마 검사 |
+| `npm run test:ionic:pwa` | 격리 빌드·서비스 워커·네트워크 단절·앱 재실행·본인 일정 오프라인 열람 |
 | `npm run test:emulator` | 실제 Auth·Firestore 에뮬레이터, 서버 탈퇴 처리·HTTP 호출·보안 규칙 |
 | `npm run check` | 위 네 단계를 순서대로 실행. 하나라도 실패하면 즉시 실패로 종료 |
 
@@ -31,6 +33,7 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 - 검사 서버는 `.env`와 기존 `VITE_` 환경 설정을 읽지 않는다. 카카오 테스트용 더미 키만 넣고 인증·AI·DB·지도·공유 전달 등 외부 경계를 대체한다. 외부 HTTP는 가로채며 WebSocket과 서비스 워커도 차단한다. 개인 브라우저 프로필은 사용하지 않는다.
 - 고정된 검사 날짜(2026-09-13), 한국어와 서울 시간대를 사용한다. 날짜 입력의 과거 판정은 안정화하되 로딩·애니메이션 타이머는 정상적으로 흐르게 한다.
 - 기존 MCP용 콜백 파일을 CLI가 그대로 실행한다. 수동 도구에서 계속 쓸 수 있지만 자동 실행에는 Codex나 MCP 연결이 필요 없다. 새 콜백은 `test/browser/smoke.spec.mjs`에도 등록한다.
+- Ionic 검사는 4184, PWA 검사는 4185를 사용한다. PWA 빌드는 `.env`를 읽지 않고 가상 Firebase 설정으로 구성하며, 외부 요청을 차단한다. 결과는 각각 `test-results/ionic/`, `test-results/pwa/`에 저장한다. PWA 검사는 `dist/`를 검사 빌드로 갱신하므로 배포용 빌드는 이후 `npm run build`로 다시 만든다.
 - 서버 검사는 `demo-hackerton-deletion`만 사용한다. Auth 19099, Firestore 18080(보조 WebSocket 18150), 허브 14400, 로깅 14500 포트를 사용하며 모두 loopback에 바인딩한다. 기존 `firebase.json`과 운영 배포 설정은 바꾸지 않는다.
 - 에뮬레이터 테스트는 SDK를 초기화하기 전에 명시적인 가상 프로젝트와 로컬 호스트 설정을 확인한다. 검사 명령이 시작·종료를 관리하며 실패해도 종료 코드가 전달된다. 계정/일정 생성·삭제는 가상 프로젝트에서만 발생한다.
 
