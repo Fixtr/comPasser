@@ -184,8 +184,8 @@ ComPasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 ### 1. 웹 개발 모드 (Vite)
 1. 저장소를 클론하고 패키지를 설치합니다.
    ```bash
-   git clone https://github.com/Fixtr/hackerton.git
-   cd hackerton
+   git clone https://github.com/Fixtr/comPasser.git
+   cd comPasser
    npm install
    ```
 2. `.env` 파일을 생성하고 API 키를 입력합니다. (`VITE_MAPS_API_KEY`, `GEMINI_API_KEY`)
