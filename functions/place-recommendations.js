@@ -322,6 +322,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const keys = getKeys();
     if (!keys.gemini || !keys.maps) throw fail('failed-precondition','recommendation-config');
     await reserveRequest(request.rawRequest?.ip);
+    const startedAt = now();
     let firstSearch = null;
     try {
       const city = RECOMMENDATION_CITIES[input.cityId];
@@ -403,6 +404,9 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
         error.details = {...error.details,evidence:evidence.length,candidates:candidates.length,rejected};
         throw error;
       }
+      // Counts only, like the failure log, so the success rate can be measured from production logs.
+      console.info('[recommendPlaces] succeeded',{cityId:input.cityId,interest:input.interest,places:places.length,
+        grounded:places.filter(place => place.reasonKind === 'grounded').length,candidates:candidates.length,rejected,retried:Boolean(firstSearch),ms:now()-startedAt});
       return {cityId:input.cityId,country:input.country,date:input.date,lang:input.lang,interest:input.interest,weather:forecast,places,
         searchSuggestions:metadata.searchEntryPoint.renderedContent,generatedAt:now().toISOString()};
     } catch (error) {

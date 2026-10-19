@@ -187,6 +187,12 @@ test('a failure without chunks logs cited indexes, the search entry, and the fir
  assert.deepEqual([entry.indices,entry.searchEntry],[[0],true]);
  assert.deepEqual(entry.firstSearch,{chunks:null,supports:1,queries:null,indices:[0],searchEntry:true});
 });
+test('a success logs result counts and duration without request data',async t=>{
+ const logged=t.mock.method(console,'info',()=>{});
+ await fixture().run();
+ const entry=logged.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] succeeded').arguments[1];
+ assert.deepEqual(entry,{cityId:'seoul',interest:'any',places:1,grounded:1,candidates:1,rejected:{},retried:false,ms:0});
+});
 test('Places facts replace undated event text, and grounded venues are listed before them',async()=>{
  const festival='국립중앙박물관에서 가을 축제가 열리는 중입니다.',grounded='경복궁은 조선의 법궁으로 근정전과 경회루를 볼 수 있습니다.';
  const museum={...venue(),primaryTypeDisplayName:{text:'박물관'},addressComponents:[...venue().addressComponents,{types:['sublocality_level_1'],longText:'용산구'}]};
