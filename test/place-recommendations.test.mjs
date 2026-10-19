@@ -140,6 +140,14 @@ test('an English venue name in a Korean request is looked up in English, and a f
  await assert.rejects(twice.run(),e=>e.details.rejected?.['places-none']===1&&e.details.rejected?.duplicate===1);
  assert.equal(twice.calls.filter(c=>c.url?.includes('places.googleapis.com')).length,1);
 });
+test('the search prompt states the output language before and after the instructions',async()=>{
+ for(const [lang,rule] of [['ko','한국어로만 작성'],['en','in English.']]){
+  const app=fixture();await app.run({...input,lang}).catch(()=>{});
+  const text=app.calls.find(c=>c.body?.tools).body.contents[0].parts[0].text;
+  assert.ok(text.startsWith(lang==='ko'?'Write every sentence of the answer in Korean':'Write every sentence of the answer in English'));
+  assert.ok(text.trimEnd().split(rule).length>=3,lang);
+ }
+});
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
  assert.equal(result.places.length,1);assert.deepEqual(result.weather,{status:'forecast',description:'비',minC:12,maxC:19,rainPercent:80});
