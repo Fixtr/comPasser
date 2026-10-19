@@ -218,7 +218,7 @@ ComPasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 
 1.  **Vite 설정**: `vite.config.js`의 `base`가 `/` (절대 경로)로 설정되어야 합니다.
 2.  **라우팅 규정**: `public/_redirects` 파일에 `/* /index.html 200` 규칙이 포함되어 있어, 모든 서브 경로 접속 시에도 `index.html`이 정상적으로 로드됩니다.
-3.  **자동 배포**: GitHub의 `main` 브랜치에 코드를 Push 하면 Cloudflare Pages에서 자동으로 빌드 및 배포가 진행됩니다.
+3.  **자동 배포**: GitHub의 `main` 브랜치에 코드를 Push 하면 GitHub Actions(`checks.yml`)가 검사 후 빌드하고 wrangler로 Cloudflare Pages에 배포합니다. 웹만 자동이며 Firebase 함수는 수동 배포입니다([배포 가이드](docs/DEPLOY.md)).
 
 배포 전에는 기본 테스트·빌드·브라우저·서버 에뮬레이터 검사를 모두 통과해야 합니다.
 
@@ -226,7 +226,7 @@ ComPasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 npm run check
 ```
 
-최초 검사 환경 설치, 부분 실행, 실패 기록 확인은 [검사 실행 안내](docs/TESTING.md)를 참고하세요. GitHub 자동 검사 설정도 포함되어 있으며, 원격에 반영되면 PR과 `main` 푸시에서 실행됩니다. 이 검사는 배포를 수행하거나 기존 Cloudflare 자동 배포를 차단하지 않습니다.
+최초 검사 환경 설치, 부분 실행, 실패 기록 확인은 [검사 실행 안내](docs/TESTING.md)를 참고하세요. GitHub 자동 검사 설정도 포함되어 있으며, 원격에 반영되면 PR과 `main` 푸시에서 실행됩니다. `main` 푸시에서는 세 검사가 모두 통과해야 `deploy` 작업이 검증된 커밋을 빌드해 Cloudflare Pages에 업로드합니다. PR에서는 배포하지 않습니다.
 
 ---
 
