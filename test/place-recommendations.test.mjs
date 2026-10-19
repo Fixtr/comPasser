@@ -187,6 +187,13 @@ test('a failure without chunks logs cited indexes, the search entry, and the fir
  assert.deepEqual([entry.indices,entry.searchEntry],[[0],true]);
  assert.deepEqual(entry.firstSearch,{chunks:null,supports:1,queries:null,indices:[0],searchEntry:true});
 });
+test('an ambiguous venue logs how many listings matched, how far apart, and their types',async t=>{
+ const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});
+ const twin={...venue('국립중앙박물관','museum2'),location:{latitude:37.5248,longitude:126.9803},primaryType:'museum'};
+ await assert.rejects(fixture({places:[venue(),twin,venue()]}).run(),e=>e.details.rejected['places-ambiguous']===1);
+ const entry=warned.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] ambiguous').arguments[1];
+ assert.deepEqual(entry,{venue:'국립중앙박물관',matches:2,spreadMeters:111,types:['unknown','museum'],cityId:'seoul'});
+});
 test('a success logs result counts and duration without request data',async t=>{
  const logged=t.mock.method(console,'info',()=>{});
  await fixture().run();

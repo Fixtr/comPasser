@@ -302,6 +302,15 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     });
     // Never resolve an ambiguous chain/branch name by taking whichever result the provider ranks first.
     const matchCount = new Set(matches.map(place => place.id)).size;
+    if (matchCount > 1) {
+      // Shows whether "ambiguous" means duplicate listings of one venue or truly separate places.
+      const unique = [...new Map(matches.map(place => [place.id,place])).values()];
+      const meters = (a,b) => Math.round(Math.hypot((a.location.latitude-b.location.latitude)*111320,
+        (a.location.longitude-b.location.longitude)*111320*Math.cos(lat*Math.PI/180)));
+      console.warn('[recommendPlaces] ambiguous',{venue:String(candidate.name).slice(0,120),matches:unique.length,
+        spreadMeters:Math.max(...unique.flatMap(a => unique.map(b => meters(a,b)))),
+        types:unique.map(place => String(place.primaryType || 'unknown').slice(0,40)),cityId:input.cityId});
+    }
     if (matchCount !== 1) return reject(matchCount ? 'places-ambiguous' : 'places-none');
     const found = matches[0];
     if (['CLOSED_PERMANENTLY','CLOSED_TEMPORARILY','FUTURE_OPENING'].includes(found.businessStatus)) return reject('closed-status');
