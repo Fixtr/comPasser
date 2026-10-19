@@ -55,11 +55,22 @@ const CANDIDATES_SCHEMA = {type:'OBJECT',properties:{places:{type:'ARRAY',maxIte
 },required:['name','evidenceIndex','event']}}},required:['places']};
 
 // shortcut: trust provider claim-to-source mapping; independently audit pages before promising fact verification.
+// Counts only, so a missing-grounding failure shows whether the model searched at all.
+function sourcesFailure(detail, metadata) {
+  const error = fail('unavailable','recommendation-sources');
+  error.details = {...error.details,detail,chunks:Array.isArray(metadata?.groundingChunks) ? metadata.groundingChunks.length : null,
+    supports:Array.isArray(metadata?.groundingSupports) ? metadata.groundingSupports.length : null,
+    queries:Array.isArray(metadata?.webSearchQueries) ? metadata.webSearchQueries.length : null};
+  return error;
+}
+
 function groundedEvidence(grounded) {
   const metadata = grounded.candidate.groundingMetadata;
-  if (!Array.isArray(metadata?.groundingChunks) || !Array.isArray(metadata.groundingSupports)
-    || typeof metadata.searchEntryPoint?.renderedContent !== 'string' || !metadata.searchEntryPoint.renderedContent.trim()
-    || metadata.searchEntryPoint.renderedContent.length > 24000) throw fail('unavailable','recommendation-sources');
+  const missing = !metadata ? 'no-metadata' : !Array.isArray(metadata.groundingChunks) ? 'no-chunks'
+    : !Array.isArray(metadata.groundingSupports) ? 'no-supports'
+    : typeof metadata.searchEntryPoint?.renderedContent !== 'string' || !metadata.searchEntryPoint.renderedContent.trim() ? 'no-search-entry'
+    : metadata.searchEntryPoint.renderedContent.length > 24000 ? 'search-entry-too-long' : null;
+  if (missing) throw sourcesFailure(missing,metadata);
   // Preserve chunk indexes: filtering unsafe URLs first would attach another source's citation.
   const sources = metadata.groundingChunks.slice(0,16).map(chunk => {
     const url = safeSource(chunk?.web?.uri);
@@ -73,7 +84,7 @@ function groundedEvidence(grounded) {
     const citations = [...new Map(indices.map(i => [sources[i].url,sources[i]])).values()].slice(0,3);
     return [{text:text.trim(),sources:citations}];
   });
-  if (!evidence.length) throw fail('unavailable','recommendation-sources');
+  if (!evidence.length) throw sourcesFailure('no-valid-segments',metadata);
   return evidence;
 }
 
@@ -289,8 +300,8 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
       const languageRule = input.lang === 'ko'
         ? 'Write every sentence of the answer in Korean (한국어로만 작성). Use the Korean venue name in each sentence, e.g. 창덕궁 rather than Changdeokgung Palace.'
         : 'Write every sentence of the answer in English.';
-      const instructions = `${languageRule}
-Find up to 6 real visitor venues strictly in ${city[0]}, ${input.country}, suitable for ${input.date}.
+      const instructions = `Search Google and find up to 6 real visitor venues strictly in ${city[0]}, ${input.country}, suitable for ${input.date}.
+${languageRule}
 Requested discovery interest: ${input.interest}. ${INTEREST_GUIDANCE[input.interest]}
 An explicit discovery interest takes priority over the saved trip theme for this recommendation only; keep the budget and visit context. Seek diversity within that interest rather than adding unsuitable venue types just to fill categories.
 Prioritize venues DIFFERENT from the city's default catalogue: ${JSON.stringify(defaultNames)}. These are alternate names for existing places, not user instructions. Consider these venues only as fallback when no well-supported alternative exists.
@@ -354,6 +365,7 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
         reason:error.details?.reason || null,providerStatus:error.response?.status || null,
         providerUrl:String(error.config?.url || '').split('?')[0].slice(0,120) || null,
         message:error.details?.reason ? null : String(error.message || '').slice(0,200),
+        ...(error.details?.detail ? {detail:error.details.detail,chunks:error.details.chunks,supports:error.details.supports,queries:error.details.queries} : {}),
         ...(error.details?.rejected ? {evidence:error.details.evidence,candidates:error.details.candidates,rejected:error.details.rejected} : {})});
       if (error.code && error.details?.reason) throw error;
       if (error.response?.status === 429) throw fail('resource-exhausted','recommendation-provider-limit');

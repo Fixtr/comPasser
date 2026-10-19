@@ -140,13 +140,18 @@ test('an English venue name in a Korean request is looked up in English, and a f
  await assert.rejects(twice.run(),e=>e.details.rejected?.['places-none']===1&&e.details.rejected?.duplicate===1);
  assert.equal(twice.calls.filter(c=>c.url?.includes('places.googleapis.com')).length,1);
 });
-test('the search prompt states the output language before and after the instructions',async()=>{
+test('the search prompt leads with the search task and states the output language twice',async()=>{
  for(const [lang,rule] of [['ko','한국어로만 작성'],['en','in English.']]){
   const app=fixture();await app.run({...input,lang}).catch(()=>{});
   const text=app.calls.find(c=>c.body?.tools).body.contents[0].parts[0].text;
-  assert.ok(text.startsWith(lang==='ko'?'Write every sentence of the answer in Korean':'Write every sentence of the answer in English'));
-  assert.ok(text.trimEnd().split(rule).length>=3,lang);
+  assert.ok(text.startsWith('Search Google and find up to 6 real visitor venues'));
+  assert.ok(text.split('\n')[1].includes(rule),lang);
+  assert.ok(text.split(rule).length>=3,lang);
  }
+});
+test('missing grounding reports what was absent',async()=>{
+ await assert.rejects(fixture({grounding:false}).run(),e=>e.details.reason==='recommendation-sources'&&e.details.detail==='no-metadata');
+ await assert.rejects(fixture({supports:[]}).run(),e=>e.details.detail==='no-valid-segments'&&e.details.supports===0&&e.details.chunks===1);
 });
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
