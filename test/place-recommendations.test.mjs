@@ -82,6 +82,14 @@ test('grounded markdown bullets and bold are removed from the displayed reason',
  assert.equal(displayReason('## 경복궁은 조선의 법궁입니다.'),'경복궁은 조선의 법궁입니다.');
  assert.equal(displayReason(reason),reason);
 });
+// Policy 2026-10-19: an undated-event venue is shown with Places facts only; its event text never appears.
+function assertPlaceInfo(result,hidden){
+ assert.equal(result.places.length,1);
+ const [item]=result.places;
+ assert.equal(item.reasonKind,'place-info');
+ assert.deepEqual(item.sources,[{url:'https://maps.google.com/?cid=museum',title:'Google Maps'}]);
+ for(const text of hidden)assert.ok(!item.reason.includes(text)&&!text.includes(item.reason),item.reason);
+}
 test('permanent museum wording, translated candidate names and empty event objects still resolve the venue',async()=>{
  const permanent='국립중앙박물관은 상설 전시와 다양한 전시실에서 한국의 문화유산을 소개합니다.';
  assert.equal((await fixture({statements:[permanent]}).run()).places.length,1);
@@ -92,7 +100,7 @@ test('permanent museum wording, translated candidate names and empty event objec
  assert.equal(result.places[0].place.displayName,'경복궁');
  assert.match(translated.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^경복궁, /);
  assert.equal((await fixture({candidates:[{...candidate(),event:{name:'',startDate:'',endDate:''}}]}).run()).places.length,1);
- await assert.rejects(fixture({statements:['국립중앙박물관에서 가을 기획전이 열리고 있습니다.']}).run(),e=>e.details.rejected?.event===1);
+ assertPlaceInfo(await fixture({statements:['국립중앙박물관에서 가을 기획전이 열리고 있습니다.']}).run(),['기획전']);
 });
 test('parenthesized branches and unreviewed translations cannot resolve to an unqualified venue',async()=>{
  for(const name of ['Local Gallery (Gangnam)','경복궁 (별관)','경복궁 (Unreviewed Translation)']){
@@ -109,7 +117,8 @@ test('an undated exhibition statement falls back to another grounded statement a
  const result=await fixture({statements:[current,timeless]}).run();
  assert.equal(result.places.length,1);assert.equal(result.places[0].reason,timeless);
  for(const other of ['리움미술관은 현대미술을 소장합니다.','국립중앙박물관은 오늘 영업 중입니다.','국립중앙박물관에서 2026-10-01부터 특별전이 열립니다.']){
-  await assert.rejects(fixture({statements:[current,other]}).run(),e=>e.details.rejected?.event===1);
+  const shown=await fixture({statements:[current,other]}).run();
+  assertPlaceInfo(shown,[current,other]);
  }
 });
 test('stacked Korean particles and a shorter statement name still identify the same venue',async()=>{
@@ -158,6 +167,20 @@ test('the search prompt leads with the search task and states the output languag
 test('missing grounding reports what was absent',async()=>{
  await assert.rejects(fixture({grounding:false}).run(),e=>e.details.reason==='recommendation-sources'&&e.details.detail==='no-metadata');
  await assert.rejects(fixture({supports:[]}).run(),e=>e.details.detail==='no-valid-segments'&&e.details.supports===0&&e.details.chunks===1);
+});
+test('Places facts replace undated event text, and grounded venues are listed before them',async()=>{
+ const festival='국립중앙박물관에서 가을 축제가 열리는 중입니다.',grounded='경복궁은 조선의 법궁으로 근정전과 경회루를 볼 수 있습니다.';
+ const museum={...venue(),primaryTypeDisplayName:{text:'박물관'},addressComponents:[...venue().addressComponents,{types:['sublocality_level_1'],longText:'용산구'}]};
+ const app=fixture({statements:[festival,grounded],candidates:[candidate('국립중앙박물관',0),candidate('경복궁',1)],
+  places:body=>body.textQuery.startsWith('경복궁')?[venue('경복궁','palace')]:[museum]});
+ const result=await app.run();
+ assert.deepEqual(result.places.map(p=>p.place.displayName),['경복궁','국립중앙박물관']);
+ assert.equal(result.places[0].reason,grounded);assert.equal(result.places[0].reasonKind,'grounded');
+ assert.equal(result.places[1].reason,'박물관 · 용산구');assert.equal(result.places[1].reasonKind,'place-info');
+ const english=await fixture({statements:['국립중앙박물관 hosts a pop-up event worth visiting.']}).run({...input,lang:'en'});
+ assert.equal(english.places[0].reason,'Attraction');
+ // Other failures are still rejected: a statement that never names the venue is not shown as Places facts.
+ await assert.rejects(fixture({statements:['리움미술관은 현대미술을 소장합니다.']}).run(),e=>e.details.rejected?.mention===1);
 });
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
@@ -308,14 +331,12 @@ test('event dates and venue must share the cited statement and include the visit
   assert.equal(result.places[0].reason,statement);assert.deepEqual(result.places[0].sources,[source]);
  }
  for(const date of ['2026-10-14','2026-10-21']){
-  const app=fixture({statements:[statement],candidates:[{...candidate(),event}]});
-  await assert.rejects(app.run({...input,date}),e=>e.details.reason==='recommendation-no-places');
-  assert.equal(app.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
+  assertPlaceInfo(await fixture({statements:[statement],candidates:[{...candidate(),event}]}).run({...input,date}),[statement]);
  }
  const oneDay={...event,startDate:'2026-10-15',endDate:'2026-10-15'};
  assert.equal((await fixture({statements:['국립중앙박물관의 가을 문화전은 2026-10-15 하루 열립니다.'],candidates:[{...candidate(),event:oneDay}]}).run()).places.length,1);
 });
-test('undated, inferred, conflicting, reversed and impossible event periods cannot become recommendations',async()=>{
+test('undated, inferred, conflicting, reversed and impossible event periods are never shown as the reason',async()=>{
  const event={name:'가을 문화전',startDate:'2026-10-15',endDate:'2026-10-20'};
  const statement='국립중앙박물관에서 가을 문화전이 2026-10-15부터 2026-10-20까지 열립니다.';
  const cases=[
@@ -331,9 +352,7 @@ test('undated, inferred, conflicting, reversed and impossible event periods cann
   {event:{...event,name:'다른 문화전'},statements:[statement]},
  ];
  for(const data of cases){
-  const app=fixture({statements:data.statements,candidates:[{...candidate(),event:data.event}]});
-  await assert.rejects(app.run(),e=>e.details.reason==='recommendation-no-places');
-  assert.equal(app.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
+  assertPlaceInfo(await fixture({statements:data.statements,candidates:[{...candidate(),event:data.event}]}).run(),data.statements);
  }
 });
 test('an unverified event is removed while a separately supported timeless venue still succeeds',async()=>{

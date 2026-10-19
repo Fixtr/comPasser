@@ -156,10 +156,25 @@ function placeGroup(place) {
   return 'other';
 }
 
+// Places facts only (type · district), used when every statement about a venue cites an undated event.
+const GROUP_LABELS = {
+  ko:{culture:'문화 시설',nature:'공원·자연',food:'음식점·카페',shopping:'쇼핑',other:'명소'},
+  en:{culture:'Cultural venue',nature:'Park and nature',food:'Restaurant or cafe',shopping:'Shopping',other:'Attraction'},
+};
+function placeInfoReason(place, group, lang, sameLanguage) {
+  const labels = GROUP_LABELS[lang === 'ko' ? 'ko' : 'en'];
+  const typeName = sameLanguage && typeof place.primaryTypeDisplayName?.text === 'string' && place.primaryTypeDisplayName.text.trim()
+    ? place.primaryTypeDisplayName.text.trim().slice(0,60) : labels[group];
+  const area = sameLanguage ? (place.addressComponents || []).find(component => component.types?.some(type =>
+    ['sublocality_level_1','administrative_area_level_2','locality'].includes(type)))?.longText : null;
+  return [typeName,typeof area === 'string' ? area.slice(0,60) : null].filter(Boolean).join(' · ');
+}
+
 function selectVariedPlaces(verified) {
   const selected = [], counts = new Map();
   while (verified.length && selected.length < 4) {
-    verified.sort((a,b) => Number(a.isDefault)-Number(b.isDefault)
+    // Grounded reasons first; Places-fact cards only fill remaining slots.
+    verified.sort((a,b) => Number(a.placeInfo)-Number(b.placeInfo) || Number(a.isDefault)-Number(b.isDefault)
       || (counts.get(a.group) || 0)-(counts.get(b.group) || 0) || a.order-b.order);
     const next = verified.shift();
     selected.push(next.recommendation);
@@ -252,8 +267,11 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     // Galleries are often described by a current, undated exhibition. Keep the venue when another
     // grounded statement describes it without a time-limited or dynamic claim.
     const chosen = issue ? evidence.find((item,index) => index !== candidate.evidenceIndex && !statementIssue(item.text,null)) : supported;
-    if (!chosen) return reject(issue.gate,issue.detail);
-    const {text:reason,sources:citations} = chosen;
+    // Product decision (2026-10-19): a venue whose statements only describe an undated event is still
+    // recommended once Places verifies it, but the unverified event text is replaced by Places facts.
+    const placeInfoOnly = !chosen && issue.gate === 'event';
+    if (!chosen && !placeInfoOnly) return reject(issue.gate,issue.detail);
+    const {text:reason,sources:citations} = chosen || {text:null,sources:null};
     // A Korean request can still yield an English name (Changdeokgung Palace); Places then returns the
     // Korean display name and the exact-name check fails. Look a Latin-script name up in English.
     const latinName = /^[\p{Script=Latin}\p{N}\s'’&.,:\-]+$/u.test(variants[0]);
@@ -263,7 +281,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const response = await axios.post('https://places.googleapis.com/v1/places:searchText',{
       textQuery:`${variants[0]}, ${name}`,languageCode:placesLanguage,regionCode:TRAVEL_REGIONS[input.country].countryCode,pageSize:3,
       locationRestriction:{rectangle:{low:{latitude:lat-deltaLat,longitude:lng-deltaLng},high:{latitude:lat+deltaLat,longitude:lng+deltaLng}}},
-    },{headers:{'X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents,places.businessStatus,places.googleMapsUri,places.attributions,places.primaryType,places.types,places.currentOpeningHours,places.regularOpeningHours'},timeout:12000});
+    },{headers:{'X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.id,places.displayName,places.primaryTypeDisplayName,places.formattedAddress,places.location,places.addressComponents,places.businessStatus,places.googleMapsUri,places.attributions,places.primaryType,places.types,places.currentOpeningHours,places.regularOpeningHours'},timeout:12000});
     const matches = (Array.isArray(response.data?.places) ? response.data.places : []).filter(place => {
       const components = Array.isArray(place?.addressComponents) ? place.addressComponents : [];
       const country = components.find(c => c.types?.includes('country'))?.shortText;
@@ -283,8 +301,12 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const today = localTravelDate(now(),travelRegion({destination:{id:input.cityId,country:input.country}}).timeZone);
     const hours = recommendationHours(found,input.date,today);
     if (hours.status === 'closed') return reject('closed-hours');
-    return {group:placeGroup(found),recommendation:{place:{placeId:found.id,displayName:found.displayName.text,formattedAddress:found.formattedAddress,lat:found.location.latitude,lng:found.location.longitude},
-      reason:displayReason(reason) || reason,sources:citations,hours,mapsUrl:safeSource(found.googleMapsUri),
+    const group = placeGroup(found), mapsUrl = safeSource(found.googleMapsUri);
+    if (placeInfoOnly && !mapsUrl) return reject(issue.gate,issue.detail);
+    if (placeInfoOnly) console.warn('[recommendPlaces] place-info',{detail:issue.detail ? String(issue.detail).slice(0,60) : null,venue:found.displayName.text.slice(0,120),cityId:input.cityId});
+    return {group,placeInfo:placeInfoOnly,recommendation:{place:{placeId:found.id,displayName:found.displayName.text,formattedAddress:found.formattedAddress,lat:found.location.latitude,lng:found.location.longitude},
+      reason:placeInfoOnly ? placeInfoReason(found,group,input.lang,placesLanguage === input.lang) : displayReason(reason) || reason,
+      sources:placeInfoOnly ? [{url:mapsUrl,title:'Google Maps'}] : citations,reasonKind:placeInfoOnly ? 'place-info' : 'grounded',hours,mapsUrl,
       attributions:(found.attributions || []).slice(0,5).map(a => ({name:String(a.provider || '').slice(0,120),url:safeSource(a.providerUri)}))}};
   }
 

@@ -67,7 +67,7 @@ export function AIPlaceRecommendations({city, draft, onAdd, onRemove}) {
           return <article className="ai-place-card" key={item.place.placeId}>
             <div><h3>{item.place.displayName}</h3><small>{item.place.formattedAddress}</small><p className="ai-place-attribution" translate="no">Google Maps</p><p>{item.reason}</p>
               <p className="ai-place-hours">{t(`aiPlacesHours_${item.hours?.status || 'unknown'}`).replace('{0}',date)}{item.hours?.intervals?.length > 0 && <> · {item.hours.intervals.join(', ')}</>}</p>
-              <div className="ai-place-sources">{item.sources.map(source=><a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>)}
+              <div className="ai-place-sources">{item.sources.filter(source=>source.url !== item.mapsUrl).map(source=><a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>)}
                 {item.mapsUrl && <a href={item.mapsUrl} target="_blank" rel="noopener noreferrer">{t('aiPlacesMap')}</a>}</div>
               {item.attributions?.map((attribution,index)=>attribution.url?<a key={index} href={attribution.url} target="_blank" rel="noopener noreferrer">{attribution.name}</a>:<small key={index}>{attribution.name}</small>)}
             </div>
