@@ -55,12 +55,19 @@ const CANDIDATES_SCHEMA = {type:'OBJECT',properties:{places:{type:'ARRAY',maxIte
 },required:['name','evidenceIndex','event']}}},required:['places']};
 
 // shortcut: trust provider claim-to-source mapping; independently audit pages before promising fact verification.
-// Counts only, so a missing-grounding failure shows whether the model searched at all.
+// Counts and cited chunk indexes only, so a missing-grounding failure shows whether the model searched at all.
+function groundingCounts(metadata) {
+  const count = value => Array.isArray(value) ? value.length : null;
+  const indices = Array.isArray(metadata?.groundingSupports)
+    ? [...new Set(metadata.groundingSupports.flatMap(support => Array.isArray(support?.groundingChunkIndices) ? support.groundingChunkIndices : []))]
+      .filter(Number.isInteger).slice(0,20) : null;
+  return {chunks:count(metadata?.groundingChunks),supports:count(metadata?.groundingSupports),queries:count(metadata?.webSearchQueries),
+    indices,searchEntry:typeof metadata?.searchEntryPoint?.renderedContent === 'string'};
+}
+
 function sourcesFailure(detail, metadata) {
   const error = fail('unavailable','recommendation-sources');
-  error.details = {...error.details,detail,chunks:Array.isArray(metadata?.groundingChunks) ? metadata.groundingChunks.length : null,
-    supports:Array.isArray(metadata?.groundingSupports) ? metadata.groundingSupports.length : null,
-    queries:Array.isArray(metadata?.webSearchQueries) ? metadata.webSearchQueries.length : null};
+  error.details = {...error.details,detail,...groundingCounts(metadata)};
   return error;
 }
 
@@ -315,6 +322,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const keys = getKeys();
     if (!keys.gemini || !keys.maps) throw fail('failed-precondition','recommendation-config');
     await reserveRequest(request.rawRequest?.ip);
+    let firstSearch = null;
     try {
       const city = RECOMMENDATION_CITIES[input.cityId];
       const defaultNames = DEFAULT_RECOMMENDATION_NAMES[input.cityId];
@@ -351,7 +359,8 @@ Preferences: ${JSON.stringify({theme:input.theme,budget:input.budget})}. Answer 
       // that searched, so one retry costs its tokens; a second miss still fails as recommendation-sources.
       const searchMeta = grounded.candidate.groundingMetadata;
       if (!searchMeta?.webSearchQueries?.length && !searchMeta?.groundingChunks?.length) {
-        console.warn('[recommendPlaces] search-retry',{cityId:input.cityId});
+        firstSearch = groundingCounts(searchMeta);
+        console.warn('[recommendPlaces] search-retry',{cityId:input.cityId,...firstSearch});
         grounded = await gemini(keys.gemini,searchBody);
       }
       const metadata = grounded.candidate.groundingMetadata;
@@ -402,7 +411,9 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
         reason:error.details?.reason || null,providerStatus:error.response?.status || null,
         providerUrl:String(error.config?.url || '').split('?')[0].slice(0,120) || null,
         message:error.details?.reason ? null : String(error.message || '').slice(0,200),
-        ...(error.details?.detail ? {detail:error.details.detail,chunks:error.details.chunks,supports:error.details.supports,queries:error.details.queries} : {}),
+        ...(error.details?.detail ? {detail:error.details.detail,chunks:error.details.chunks,supports:error.details.supports,queries:error.details.queries,
+          indices:error.details.indices,searchEntry:error.details.searchEntry} : {}),
+        ...(firstSearch ? {firstSearch} : {}),
         ...(error.details?.rejected ? {evidence:error.details.evidence,candidates:error.details.candidates,rejected:error.details.rejected} : {})});
       if (error.code && error.details?.reason) throw error;
       if (error.response?.status === 429) throw fail('resource-exhausted','recommendation-provider-limit');

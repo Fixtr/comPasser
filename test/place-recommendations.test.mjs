@@ -180,6 +180,13 @@ test('missing grounding reports what was absent',async()=>{
  await assert.rejects(fixture({grounding:false}).run(),e=>e.details.reason==='recommendation-sources'&&e.details.detail==='no-metadata');
  await assert.rejects(fixture({supports:[]}).run(),e=>e.details.detail==='no-valid-segments'&&e.details.supports===0&&e.details.chunks===1);
 });
+test('a failure without chunks logs cited indexes, the search entry, and the first attempt',async t=>{
+ const logged=t.mock.method(console,'error',()=>{});t.mock.method(console,'warn',()=>{});
+ await assert.rejects(fixture({chunks:null}).run(),e=>e.details.detail==='no-chunks'&&e.details.supports===1&&e.details.searchEntry===true);
+ const entry=logged.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] failed').arguments[1];
+ assert.deepEqual([entry.indices,entry.searchEntry],[[0],true]);
+ assert.deepEqual(entry.firstSearch,{chunks:null,supports:1,queries:null,indices:[0],searchEntry:true});
+});
 test('Places facts replace undated event text, and grounded venues are listed before them',async()=>{
  const festival='국립중앙박물관에서 가을 축제가 열리는 중입니다.',grounded='경복궁은 조선의 법궁으로 근정전과 경회루를 볼 수 있습니다.';
  const museum={...venue(),primaryTypeDisplayName:{text:'박물관'},addressComponents:[...venue().addressComponents,{types:['sublocality_level_1'],longText:'용산구'}]};
