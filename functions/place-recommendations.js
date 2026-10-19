@@ -238,10 +238,14 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const chosen = issue ? evidence.find((item,index) => index !== candidate.evidenceIndex && !statementIssue(item.text,null)) : supported;
     if (!chosen) return reject(issue.gate,issue.detail);
     const {text:reason,sources:citations} = chosen;
+    // A Korean request can still yield an English name (Changdeokgung Palace); Places then returns the
+    // Korean display name and the exact-name check fails. Look a Latin-script name up in English.
+    const latinName = /^[\p{Script=Latin}\p{N}\s'’&.,:\-]+$/u.test(variants[0]);
+    const placesLanguage = input.country === 'KOR' ? (input.lang === 'ko' && latinName ? 'en' : input.lang) : 'en';
     const [name,lat,lng,radius] = city, deltaLat = radius/111, deltaLng = radius/(111*Math.cos(lat*Math.PI/180));
     const expectedNames = RECOMMENDATION_NAME_GROUPS[input.cityId].find(group => group.some(alias => variants.some(variant => normalized(alias) === normalized(variant)))) || variants;
     const response = await axios.post('https://places.googleapis.com/v1/places:searchText',{
-      textQuery:`${variants[0]}, ${name}`,languageCode:input.country === 'KOR' ? input.lang : 'en',regionCode:TRAVEL_REGIONS[input.country].countryCode,pageSize:3,
+      textQuery:`${variants[0]}, ${name}`,languageCode:placesLanguage,regionCode:TRAVEL_REGIONS[input.country].countryCode,pageSize:3,
       locationRestriction:{rectangle:{low:{latitude:lat-deltaLat,longitude:lng-deltaLng},high:{latitude:lat+deltaLat,longitude:lng+deltaLng}}},
     },{headers:{'X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents,places.businessStatus,places.googleMapsUri,places.attributions,places.primaryType,places.types,places.currentOpeningHours,places.regularOpeningHours'},timeout:12000});
     const matches = (Array.isArray(response.data?.places) ? response.data.places : []).filter(place => {
@@ -306,20 +310,24 @@ For any time-limited event, exhibition, performance, festival or pop-up, extract
       let candidates;
       try { candidates = JSON.parse(formatted.text).places; } catch { throw fail('unavailable','recommendation-response'); }
       if (!Array.isArray(candidates) || candidates.length > 6) throw fail('unavailable','recommendation-response');
-      const verified = [], ids = new Set(), names = new Set(), rejected = {};
+      const verified = [], ids = new Set(), names = new Set(), placeFailures = new Set(), rejected = {};
       // Gate counts only (no request data) so an empty result can be diagnosed from the client error.
       const reject = (gate, venue, detail) => { rejected[gate] = (rejected[gate] || 0)+1; console.warn('[recommendPlaces] rejected',{gate,detail:detail ? String(detail).slice(0,60) : null,venue:String(venue || '').slice(0,120),cityId:input.cityId}); return null; };
       for (const candidate of candidates) {
         const nameKeys = typeof candidate?.name === 'string' ? nameVariants(candidate.name,input.cityId).map(normalized) : [];
         if (nameKeys.some(key => excludedNames.has(key))) { reject('excluded',candidate.name); continue; }
-        if (nameKeys.some(key => names.has(key))) { reject('duplicate',candidate.name); continue; }
-        let result;
-        try { result = await resolve(input,city,candidate,keys.maps,evidence,(gate,detail) => reject(gate,candidate?.name,detail)); }
+        // A name that Places already could not resolve fails again regardless of the statement; skip the paid lookup.
+        if (nameKeys.some(key => names.has(key) || placeFailures.has(key))) { reject('duplicate',candidate.name); continue; }
+        let result, lastGate = null;
+        try { result = await resolve(input,city,candidate,keys.maps,evidence,(gate,detail) => { lastGate = gate; return reject(gate,candidate?.name,detail); }); }
         catch (error) {
           if (verified.length < 4) throw error;
           break; // An optional diversity lookup must not discard four already verified recommendations.
         }
-        if (!result) continue;
+        if (!result) {
+          if (/^(places|closed)-/.test(lastGate || '')) nameKeys.forEach(key => placeFailures.add(key));
+          continue;
+        }
         nameKeys.forEach(key => names.add(key));
         const {place} = result.recommendation;
         if (excludedIds.has(place.placeId) || excludedNames.has(normalized(place.displayName))) continue;

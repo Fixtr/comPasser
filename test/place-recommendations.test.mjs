@@ -126,6 +126,20 @@ test('stacked Korean particles and a shorter statement name still identify the s
   assert.equal(other.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
  }
 });
+test('an English venue name in a Korean request is looked up in English, and a failed name is not looked up twice',async()=>{
+ const name='Changdeokgung Palace',statement='Changdeokgung Palace is a UNESCO-listed Joseon palace with a rear garden.';
+ const app=fixture({statements:[statement],candidates:[candidate(name)],places:body=>body.languageCode==='en'?[venue(name,'palace')]:[venue('창덕궁','palace')]});
+ const result=await app.run();
+ assert.equal(result.places[0].place.placeId,'palace');
+ assert.equal(app.calls.find(c=>c.url?.includes('places.googleapis.com')).body.languageCode,'en');
+ assert.equal((await fixture({}).run()).places.length,1);
+ const korean=fixture();await korean.run();
+ assert.equal(korean.calls.find(c=>c.url?.includes('places.googleapis.com')).body.languageCode,'ko');
+ const twice=fixture({statements:['국립중앙박물관은 문화유산을 소개합니다.','국립중앙박물관은 한국 역사를 보여 줍니다.'],
+  candidates:[candidate('국립중앙박물관',0),candidate('국립중앙박물관',1)],places:[]});
+ await assert.rejects(twice.run(),e=>e.details.rejected?.['places-none']===1&&e.details.rejected?.duplicate===1);
+ assert.equal(twice.calls.filter(c=>c.url?.includes('places.googleapis.com')).length,1);
+});
 test('weather and grounded evidence yield a canonical place, sources and required Search widget',async()=>{
  const app=fixture(),result=await app.run();
  assert.equal(result.places.length,1);assert.deepEqual(result.weather,{status:'forecast',description:'비',minC:12,maxC:19,rainPercent:80});
