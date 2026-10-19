@@ -28,7 +28,7 @@ function fixture({candidates=[candidate()],places=[venue()],weatherFail=false,gr
  },post:async(url,body,options)=>{
   calls.push({url,body,options});if(providerError)throw providerError;
   if(url.includes('places.googleapis.com'))return {data:{places:typeof places === 'function' ? places(body) : places}};
-  if(body.tools)return {data:{candidates:[{content:{parts:[{text:groundedText??statements.join('\n')}]},...(grounding?{groundingMetadata:{groundingChunks:chunks,groundingSupports:supports??statements.map(text=>({segment:{text},groundingChunkIndices:[0]})),searchEntryPoint:{renderedContent:'<a href="https://www.google.com/search?q=Seoul">Seoul</a>'}}}:{})}]}};
+  if(body.tools)return {data:{candidates:[{content:{parts:[{text:groundedText??statements.join('\n')}]},...((typeof grounding==='function'?grounding(calls.filter(c=>c.body?.tools).length):grounding)?{groundingMetadata:{groundingChunks:chunks,groundingSupports:supports??statements.map(text=>({segment:{text},groundingChunkIndices:[0]})),searchEntryPoint:{renderedContent:'<a href="https://www.google.com/search?q=Seoul">Seoul</a>'}}}:{})}]}};
   return {data:{candidates:[{content:{parts:[{text:formattedText??JSON.stringify({places:candidates})}]}}]}};
  }};
  const run=createPlaceRecommendations({axios,getKeys:()=>keys,reserveRequest:async ip=>calls.push({reserve:ip}),now});
@@ -163,6 +163,18 @@ test('the search prompt leads with the search task and states the output languag
   assert.ok(text.split('\n')[1].includes(rule),lang);
   assert.ok(text.split(rule).length>=3,lang);
  }
+});
+test('an answer without any Google search is retried once; a searched answer is not',async()=>{
+ const searchCalls=app=>app.calls.filter(c=>c.body?.tools).length;
+ const retried=fixture({grounding:n=>n>1});
+ assert.equal((await retried.run()).places[0].place.displayName,'국립중앙박물관');
+ assert.equal(searchCalls(retried),2);
+ const missed=fixture({grounding:false});
+ await assert.rejects(missed.run(),e=>e.details.detail==='no-metadata');
+ assert.equal(searchCalls(missed),2);
+ const searched=fixture({supports:[]});
+ await assert.rejects(searched.run(),e=>e.details.detail==='no-valid-segments');
+ assert.equal(searchCalls(searched),1);
 });
 test('missing grounding reports what was absent',async()=>{
  await assert.rejects(fixture({grounding:false}).run(),e=>e.details.reason==='recommendation-sources'&&e.details.detail==='no-metadata');
