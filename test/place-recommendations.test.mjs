@@ -120,11 +120,17 @@ test('stacked Korean particles and a shorter statement name still identify the s
  const result=await app.run();
  assert.equal(result.places[0].place.displayName,full);assert.equal(result.places[0].reason,statement);
  assert.match(app.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,/^서울시립미술관 서소문본관, /);
+ // A statement about another venue is verified as that venue, never attached to the formatter's name.
  for(const [mentionedName,text] of [['국립중앙박물관','국립중앙박물관은 한국의 문화유산을 소개합니다.'],['미술관','미술관은 근현대 미술을 소개합니다.']]){
   const other=fixture({statements:[text],candidates:[{...candidate(full),mentionedName}],places:[venue(full)]});
-  await assert.rejects(other.run(),e=>e.details.rejected?.mention===1);
-  assert.equal(other.calls.some(c=>c.url?.includes('places.googleapis.com')),false);
+  await assert.rejects(other.run(),e=>e.details.rejected?.['places-none']===1);
+  assert.match(other.calls.find(c=>c.url?.includes('places.googleapis.com')).body.textQuery,new RegExp(`^${mentionedName}, `));
  }
+ const korean=fixture({statements:['낙산공원은 한양도성을 따라 걷기 좋은 언덕 공원입니다.'],candidates:[{...candidate('Naksan Park'),mentionedName:'낙산공원'}],
+  places:body=>body.languageCode==='ko'?[venue('낙산공원','naksan')]:[venue('Naksan Park','naksan')]});
+ const park=await korean.run();
+ assert.equal(park.places[0].place.displayName,'낙산공원');
+ assert.equal(korean.calls.find(c=>c.url?.includes('places.googleapis.com')).body.languageCode,'ko');
 });
 test('an English venue name in a Korean request is looked up in English, and a failed name is not looked up twice',async()=>{
  const name='Changdeokgung Palace',statement='Changdeokgung Palace is a UNESCO-listed Joseon palace with a rear garden.';
