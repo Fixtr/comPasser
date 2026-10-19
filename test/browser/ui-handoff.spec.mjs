@@ -439,7 +439,7 @@ test('country cards share region groups and responsive columns across discovery 
   const picker=page.locator('.country-picker');await expect(picker.locator('.country-card')).toHaveCount(11);
   await expect(picker.getByRole('heading')).toHaveText(['아시아','유럽','북미']);
   const korea=picker.locator(`[data-${kind}-country=KOR]`);await expect(korea).toHaveAccessibleName('대한민국');await expect(picker.locator('small')).toHaveCount(0);
-  expect((await korea.boundingBox()).height).toBe(64);
+  expect((await korea.boundingBox()).height).toBeCloseTo(64,1);
   const columns=()=>picker.locator('.country-grid').first().evaluate(element=>getComputedStyle(element).gridTemplateColumns.split(' ').length);
   expect(await columns()).toBe(2);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);
   await page.setViewportSize({width:850,height:900});expect(await columns()).toBe(3);

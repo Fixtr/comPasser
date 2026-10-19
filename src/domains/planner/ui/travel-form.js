@@ -270,6 +270,8 @@ export default class TravelForm extends HTMLElement {
         #review-panel #final-generate { display: block; width: 100%; color: var(--cp-surface); background: var(--cp-ink); }
         #review-issues { margin: 12px 0; border-left: 3px solid var(--cp-danger); padding: 12px; }
         :host([handoff-flow]) .link-btn { white-space: normal; min-height: 44px; }
+        /* With wider fonts the start label wrapped beside "Where should I go?" and sat higher than the end label; let the button wrap instead. */
+        :host([handoff-flow]) .location-heading label { flex-shrink: 0; }
         :host([handoff-flow]) input, :host([handoff-flow]) select { min-height: 44px; font-size: 16px; border-radius: 6px; }
         :is(button,input,select):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: 3px; }
 
