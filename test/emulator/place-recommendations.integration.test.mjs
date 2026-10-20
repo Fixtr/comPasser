@@ -43,7 +43,8 @@ test('AI discovery integrates client contracts, callable CORS/errors, grounded v
         googleMapsUri: 'https://maps.google.com/?cid=fixture', attributions: [],
       }] } };
     }
-    assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent');
+    // Grounded search runs on flash; the formatting call stays on flash-lite.
+    assert.equal(url, `https://generativelanguage.googleapis.com/v1beta/models/${body.tools ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite'}:generateContent`);
     assert.equal(options.headers['x-goog-api-key'], 'fixture-ai-only');
     if (body.tools) return { data: { candidates: [{ content: { parts: [{ text: statements.join('\n') }] }, groundingMetadata: {
       groundingChunks: [{ web: { uri: evidenceUrl, title: 'Official guide' } }],
