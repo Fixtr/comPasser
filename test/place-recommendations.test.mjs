@@ -169,6 +169,9 @@ test('an answer without any Google search is retried once; a searched answer is 
  const retried=fixture({grounding:n=>n>1});
  assert.equal((await retried.run()).places[0].place.displayName,'국립중앙박물관');
  assert.equal(searchCalls(retried),2);
+ const model=call=>call.url.match(/models\/([^:]+):/)?.[1];
+ assert.deepEqual(retried.calls.filter(c=>c.url?.includes('generativelanguage')).map(model),['gemini-2.5-flash','gemini-2.5-flash','gemini-2.5-flash-lite']);
+ assert.equal(retried.calls.find(c=>c.body?.tools).body.generationConfig.thinkingConfig.thinkingBudget,0);
  const missed=fixture({grounding:false});
  await assert.rejects(missed.run(),e=>e.details.detail==='no-metadata');
  assert.equal(searchCalls(missed),2);
