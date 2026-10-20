@@ -137,6 +137,16 @@ function relatedMention(mentioned, name, cityId) {
   return RECOMMENDATION_NAME_GROUPS[cityId].some(group => [a,b].every(value => group.some(alias => normalized(alias) === value)));
 }
 
+// Places may add or drop leading words (대한불교조계종 봉은사, 대학로 마로니에 공원 → 마로니에 공원).
+// Accept that only on a word boundary, so 봉은사역 never matches 봉은사, and only for names of three or more letters.
+function sameVenueName(placeName, expected) {
+  if (normalized(placeName) === normalized(expected)) return true;
+  const [shorter,longer] = normalized(placeName).length <= normalized(expected).length ? [placeName,expected] : [expected,placeName];
+  if ([...shorter.normalize('NFC').replace(/[^\p{L}\p{N}]/gu,'')].length < 3) return false;
+  const words = longer.trim().split(/\s+/);
+  return words.slice(1).some((_,index) => normalized(words.slice(index+1).join('')) === normalized(shorter));
+}
+
 const PLACE_GROUPS = {
   culture: ['museum','art_museum','history_museum','art_gallery','cultural_center','cultural_landmark','historical_place','historical_landmark','performing_arts_theater','concert_hall','library','planetarium'],
   nature: ['park','city_park','state_park','national_park','botanical_garden','garden','beach','hiking_area','wildlife_refuge'],
@@ -294,7 +304,7 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
       const country = components.find(c => c.types?.includes('country'))?.shortText;
       return country === TRAVEL_REGIONS[input.country].countryCode && matchesCity(components,input.cityId,city)
         && typeof place.displayName?.text === 'string' && place.displayName.text.length <= 120
-        && expectedNames.some(alias => normalized(place.displayName.text) === normalized(alias))
+        && expectedNames.some(alias => sameVenueName(place.displayName.text,alias))
         && typeof place.id === 'string' && place.id.trim() && place.id.length <= 512
         && typeof place.formattedAddress === 'string' && place.formattedAddress.trim() && place.formattedAddress.length <= 1000
         && Number.isFinite(place.location?.latitude) && Number.isFinite(place.location?.longitude)

@@ -194,6 +194,17 @@ test('an ambiguous venue logs how many listings matched, how far apart, and thei
  const entry=warned.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] ambiguous').arguments[1];
  assert.deepEqual(entry,{venue:'국립중앙박물관',matches:2,spreadMeters:111,types:['unknown','museum'],cityId:'seoul'});
 });
+test('Places names that add or drop leading words match on a word boundary only',async t=>{
+ t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});t.mock.method(console,'info',()=>{});
+ for(const name of ['대한민국 국립중앙박물관','국립중앙 박물관'])
+  assert.equal((await fixture({places:[venue(name)]}).run()).places[0].place.displayName,name);
+ const park='대학로 마로니에 공원은 공연과 산책을 함께 즐길 수 있는 야외 공간입니다.';
+ assert.equal((await fixture({statements:[park],candidates:[candidate('대학로 마로니에 공원')],places:[venue('마로니에공원')]}).run()).places[0].place.displayName,'마로니에공원');
+ for(const name of ['국립중앙박물관역','국립중앙박물관 본관'])
+  await assert.rejects(fixture({places:[venue(name)]}).run(),e=>e.details.rejected['places-none']===1,name);
+ const hill='남산은 서울 도심을 내려다볼 수 있는 산책 명소입니다.';
+ await assert.rejects(fixture({statements:[hill],candidates:[candidate('남산')],places:[venue('서울 남산')]}).run(),e=>e.details.rejected['places-none']===1);
+});
 test('a success logs result counts and duration without request data',async t=>{
  const logged=t.mock.method(console,'info',()=>{});
  await fixture().run();
