@@ -11,6 +11,7 @@ Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
 - `npm run build`: produce the production bundle in `dist/`.
 - `npm run preview`: serve the production build locally.
 - `npm test`: run Node.js unit and contract tests.
+- `npm run lint`: run Oxlint with the anti-slop rules over `src`, `functions`, `scripts`, and `test`.
 - `npm run test:browser:install`: install the test browser before first use.
 - `npm run test:browser`: run Playwright smoke scenarios.
 - `npm run test:emulator`: run Firebase Auth/Firestore integration and security-rule tests.
@@ -18,7 +19,7 @@ Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
 - `npm run cap:sync`: build and synchronize the native projects.
 
 ## Coding Style & Naming Conventions
-Follow surrounding code: two-space indentation, semicolons, and predominantly single-quoted JavaScript strings. Use kebab-case filenames, camelCase functions and variables, and PascalCase component classes. Keep business logic in services and rendering in UI modules. Reuse `src/utils/i18n.js` for translated text and existing design tokens for styling. No formatter or linter script is configured; avoid unrelated formatting changes.
+Follow surrounding code: two-space indentation, semicolons, and predominantly single-quoted JavaScript strings. Use kebab-case filenames, camelCase functions and variables, and PascalCase component classes. Keep business logic in services and rendering in UI modules. Reuse `src/utils/i18n.js` for translated text and existing design tokens for styling. Lint with Oxlint (`npm run lint`, config in `.oxlintrc.json`), including the vendored anti-slop rules in `tools/oxlint/anti-slop/`. No formatter is configured; avoid unrelated formatting changes.
 
 ## UI Screen Transitions
 
