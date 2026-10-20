@@ -173,6 +173,28 @@ function placeGroup(place) {
   return 'other';
 }
 
+const TRANSIT_TYPES = ['bus_stop','bus_station','subway_station','train_station','light_rail_station','transit_station','parking'];
+const WIDE_VENUE_TYPES = [...PLACE_GROUPS.nature,'mountain_peak','nature_preserve','island'];
+const placeTypes = place => [place.primaryType,...(Array.isArray(place.types) ? place.types : [])].filter(type => typeof type === 'string');
+const metersApart = (a,b) => Math.round(Math.hypot((a.location.latitude-b.location.latitude)*111320,
+  (a.location.longitude-b.location.longitude)*111320*Math.cos(a.location.latitude*Math.PI/180)));
+const listingSpread = places => Math.max(...places.flatMap(a => places.map(b => metersApart(a,b))));
+
+// Google often lists one mountain, island, street or park several times under the same exact name
+// (인왕산, 노들섬 and its bus stop). Treat those as one venue: drop transit listings, then accept listings
+// within 1,000 m for parks and nature or 300 m otherwise. Shops and restaurants stay ambiguous because
+// unsuffixed chain branches can sit close together, and so do listings with no type at all.
+// Returns the chosen listing (the first one Google typed), or null.
+function mergeDuplicateListings(places) {
+  const venues = places.filter(place => !placeTypes(place).some(type => TRANSIT_TYPES.includes(type)));
+  if (venues.length === 1) return venues[0];
+  const chosen = venues.find(place => place.primaryType);
+  if (!chosen || venues.some(place => ['food','shopping'].includes(placeGroup(place))
+    || placeTypes(place).some(type => type === 'store' || type.endsWith('_store')))) return null;
+  const limit = venues.every(place => placeTypes(place).some(type => WIDE_VENUE_TYPES.includes(type))) ? 1000 : 300;
+  return listingSpread(venues) <= limit ? chosen : null;
+}
+
 // Places facts only (type · district), used when every statement about a venue cites an undated event.
 const GROUP_LABELS = {
   ko:{culture:'문화 시설',nature:'공원·자연',food:'음식점·카페',shopping:'쇼핑',other:'명소'},
@@ -310,19 +332,18 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
         && Number.isFinite(place.location?.latitude) && Number.isFinite(place.location?.longitude)
         && Math.abs(place.location.latitude-lat) <= deltaLat && Math.abs(place.location.longitude-lng) <= deltaLng;
     });
-    // Never resolve an ambiguous chain/branch name by taking whichever result the provider ranks first.
-    const matchCount = new Set(matches.map(place => place.id)).size;
-    if (matchCount > 1) {
-      // Shows whether "ambiguous" means duplicate listings of one venue or truly separate places.
-      const unique = [...new Map(matches.map(place => [place.id,place])).values()];
-      const meters = (a,b) => Math.round(Math.hypot((a.location.latitude-b.location.latitude)*111320,
-        (a.location.longitude-b.location.longitude)*111320*Math.cos(lat*Math.PI/180)));
-      console.warn('[recommendPlaces] ambiguous',{venue:String(candidate.name).slice(0,120),matches:unique.length,
-        spreadMeters:Math.max(...unique.flatMap(a => unique.map(b => meters(a,b)))),
-        types:unique.map(place => String(place.primaryType || 'unknown').slice(0,40)),cityId:input.cityId});
+    // Never resolve an ambiguous chain/branch name by taking whichever result the provider ranks first;
+    // only duplicate listings of one venue are merged.
+    const unique = [...new Map(matches.map(place => [place.id,place])).values()];
+    if (!unique.length) return reject('places-none');
+    const merged = unique.length > 1 ? mergeDuplicateListings(unique) : null;
+    if (unique.length > 1) {
+      console.warn(merged ? '[recommendPlaces] merged-duplicates' : '[recommendPlaces] ambiguous',{venue:String(candidate.name).slice(0,120),
+        matches:unique.length,spreadMeters:listingSpread(unique),types:unique.map(place => String(place.primaryType || 'unknown').slice(0,40)),
+        ...(merged ? {chosen:String(merged.primaryType || 'unknown').slice(0,40)} : {}),cityId:input.cityId});
+      if (!merged) return reject('places-ambiguous');
     }
-    if (matchCount !== 1) return reject(matchCount ? 'places-ambiguous' : 'places-none');
-    const found = matches[0];
+    const found = merged || unique[0];
     if (['CLOSED_PERMANENTLY','CLOSED_TEMPORARILY','FUTURE_OPENING'].includes(found.businessStatus)) return reject('closed-status');
     const today = localTravelDate(now(),travelRegion({destination:{id:input.cityId,country:input.country}}).timeZone);
     const hours = recommendationHours(found,input.date,today);

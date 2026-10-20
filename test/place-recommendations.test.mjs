@@ -192,10 +192,29 @@ test('a failure without chunks logs cited indexes, the search entry, and the fir
 });
 test('an ambiguous venue logs how many listings matched, how far apart, and their types',async t=>{
  const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});
- const twin={...venue('국립중앙박물관','museum2'),location:{latitude:37.5248,longitude:126.9803},primaryType:'museum'};
+ const twin={...venue('국립중앙박물관','museum2'),location:{latitude:37.5268,longitude:126.9803},primaryType:'museum'};
  await assert.rejects(fixture({places:[venue(),twin,venue()]}).run(),e=>e.details.rejected['places-ambiguous']===1);
  const entry=warned.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] ambiguous').arguments[1];
- assert.deepEqual(entry,{venue:'국립중앙박물관',matches:2,spreadMeters:111,types:['unknown','museum'],cityId:'seoul'});
+ assert.deepEqual(entry,{venue:'국립중앙박물관',matches:2,spreadMeters:334,types:['unknown','museum'],cityId:'seoul'});
+});
+test('duplicate listings of one park, mountain, island or street merge; shops and distant listings stay ambiguous',async t=>{
+ const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});t.mock.method(console,'info',()=>{});
+ const at=(id,north,primaryType,types=primaryType?[primaryType]:[])=>({...venue('국립중앙박물관',id),location:{latitude:37.5238+north,longitude:126.9803},primaryType,types});
+ for(const [places,chosen] of [
+  [[at('peak',0,'mountain_peak'),at('preserve',0.00114,'nature_preserve')],'peak'],
+  [[at('stop',0,'bus_stop'),at('island',0.0009,'island'),at('park',0.00155,'park')],'island'],
+  [[at('street',0,undefined),at('attraction',0.0014,'tourist_attraction')],'attraction'],
+  [[at('north',0,'park'),at('south',0.0084,'park')],'north'],
+ ]) assert.equal((await fixture({places}).run()).places[0].place.placeId,chosen);
+ assert.equal(warned.mock.calls.filter(call=>call.arguments[0]==='[recommendPlaces] merged-duplicates').length,4);
+ for(const places of [
+  [at('gallery',0,'art_museum'),at('old',0.00335,undefined)],
+  [at('a',0,'restaurant'),at('b',0.0003,'restaurant')],
+  [at('a',0,'cafe'),at('b',0.0003,undefined,['store'])],
+  [at('a',0,'park'),at('b',0.0095,'park')],
+ ]) await assert.rejects(fixture({places}).run(),e=>e.details.rejected['places-ambiguous']===1);
+ const busOnly=await fixture({places:[at('stop',0,'bus_stop')]}).run();
+ assert.equal(busOnly.places[0].place.placeId,'stop');
 });
 test('Places names that add or drop leading words match on a word boundary only',async t=>{
  t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});t.mock.method(console,'info',()=>{});
