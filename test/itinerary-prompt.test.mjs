@@ -16,6 +16,16 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     ['attraction', 'dining', 'leisure']);
 });
 
+test('place-search examples and budget words follow the request language', () => {
+  const constraints = sanitizePlannerRequest({ date: ['2026-10-06'], budget: 'standard',
+    dailyData: [{ day: 1, date: '2026-10-06', startTime: '11:00', endTime: '14:00', startLocation: '서울역', endLocation: '서울숲', anchors: [] }] });
+  const ko = buildPrompt(constraints, 'ko'), en = buildPrompt(constraints, 'en');
+  assert.match(ko, /placeIntent\.purpose in Korean/);assert.match(ko, /\(저렴한, 중간 가격대 or 고급\)/);
+  assert.doesNotMatch(ko, /inexpensive, moderate or premium|English equivalents/);
+  assert.match(en, /placeIntent\.purpose in English/);assert.match(en, /\(inexpensive, moderate or premium\)/);
+  assert.doesNotMatch(en, /"한식 식당"/);
+});
+
 test('each day exposes exact permitted center names, with addresses kept as context', () => {
   const constraints = sanitizePlannerRequest({ date: ['2026-10-06'], dailyData: [{
     day: 1, date: '2026-10-06', startTime: '09:00', endTime: '18:00',

@@ -227,6 +227,9 @@ test('generation search purposes carry the selected budget without contradictory
     '저렴한 한식 맛집','저렴한 카페','공원 산책'
   ]);
   assert.equal(days[0].scheduleItems[0].placeIntent.purpose,'프리미엄 한식 맛집');
+  const moderate=prepareGeneratedPlaces([{scheduleItems:['moderate korean restaurant','moderately priced 카페'].map(purpose=>
+    ({...recommendation,placeIntent:{purpose,category:'restaurant',nearLocation:'서울역'}}))}],'standard');
+  assert.deepEqual(moderate[0].scheduleItems.map(item=>item.placeIntent.purpose),['중간 가격대 korean restaurant','중간 가격대 카페']);
 });
 
 test('verified identity and coordinates survive state persistence; failure clears stale identity even if names unchanged', () => {

@@ -77,7 +77,7 @@ export function prepareGeneratedPlaces(days, budget = null) {
     clean.placeIntent = normalizePlaceIntent(item.placeIntent);
     const priceWord = { budget: '저렴한', standard: '중간 가격대', flex: '고급' }[budget];
     if (priceWord && ['restaurant', 'cafe'].includes(clean.placeIntent?.category)) {
-      const purpose = clean.placeIntent.purpose.replace(/저렴한|중간 가격대|중저가|고급|프리미엄|파인다이닝|budget-friendly|moderately priced|mid-range|inexpensive|affordable|premium|luxury|fine dining/gi, '').trim();
+      const purpose = clean.placeIntent.purpose.replace(/저렴한|중간 가격대|중저가|고급|프리미엄|파인다이닝|budget-friendly|moderately priced|moderate(?:ly)?|mid-range|inexpensive|affordable|premium|luxury|fine dining/gi, '').trim();
       clean.placeIntent = { ...clean.placeIntent, purpose: `${priceWord} ${purpose || (clean.placeIntent.category === 'cafe' ? '카페' : '식당')}`.slice(0, 200) };
     }
     return { ...clean, ...recommendationFields(clean, null), placeStatus: clean.placeIntent ? 'pending' : 'unresolved' };

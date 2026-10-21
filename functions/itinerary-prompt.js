@@ -246,8 +246,8 @@ The app inserts departure, arrival and AnchorSchedule items with the user's exac
 On a day with fixed appointments, prefer a theme-defining visit over an extra cafe or snack when only one optional visit is likely to fit. Put it in the longer feasible free block near a fixed location.
 
 PLACE SEARCH:
-- Google Places selects the actual venue. Each item needs a nonempty placeIntent.purpose: a short searchable phrase such as "한식 식당", "카페", "공원 산책", "미술관" (or English equivalents). Avoid long wishes, transport narration, business names, district names and street addresses in purpose.
-- When a budget is selected, make each restaurant/cafe purpose include both the cuisine or visit kind and its budget style (inexpensive, moderate or premium). Avoid generic purposes such as "카페" or "점심 식사". A search phrase is a preference, not proof of a venue's price.
+- Google Places selects the actual venue. Each item needs a nonempty placeIntent.purpose in ${language}: a short searchable phrase such as ${lang === "ko" ? '"한식 식당", "카페", "공원 산책", "미술관"' : '"Korean restaurant", "cafe", "park walk", "art museum"'}. Avoid long wishes, transport narration, business names, district names and street addresses in purpose.
+- When a budget is selected, make each restaurant/cafe purpose include both the cuisine or visit kind and its budget style (${lang === "ko" ? "저렴한, 중간 가격대 or 고급" : "inexpensive, moderate or premium"}). Avoid generic purposes such as "카페" or "점심 식사". A search phrase is a preference, not proof of a venue's price.
 - Pick placeIntent.nearLocation EXACTLY from that day's Allowed nearLocation values; copy it into location. Never use a previous recommendation or an invented area as the next search center.
 - category must be one of restaurant, cafe, park, museum, tourist_attraction, shopping_mall. Title and description describe the visit purpose. Never invent venue names, addresses, Place IDs, ratings, opening hours, ticket availability or reservations.
 - Prefer visits around the fixed location preceding or following their time slot. Do not claim a specific detour or walking distance before actual routing.
