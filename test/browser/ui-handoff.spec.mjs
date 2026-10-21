@@ -652,6 +652,18 @@ test('profile trips keep profile navigation; language is inside security; home i
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);await page.screenshot({path:testInfo.outputPath('home-en-dark-320.png'),fullPage:true});
 });
 
+test('profile security offers logout to a signed-in user, then hides it after signing out',async({page})=>{
+ await page.goto('/profile/security');
+ const logout=page.locator('profile-view[data-active] #security.active #btn-logout');
+ await expect(logout).toBeVisible();await expect(logout).toHaveText('로그아웃');
+ await logout.click();await expect(page).toHaveURL(/\/home$/);
+ // The auth mock never re-notifies, so wait until profile is really inactive before returning to it.
+ await expect(page.locator('profile-view[data-active]')).toHaveCount(0);
+ await page.evaluate(()=>window.navigate('/profile/security'));
+ await expect(page.locator('profile-view[data-active] #security.active')).toBeVisible();
+ await expect(page.locator('profile-view[data-active] #btn-logout')).toBeHidden();
+});
+
 test('public course cards use three columns with separate contained action buttons', async ({page}) => {
  await page.route('**/src/domains/itinerary/services/public-course-service.js',route=>route.fulfill({contentType:'text/javascript',body:`export async function listPublicCourses(){return {courses:[1,2,3].map(n=>({id:'course'+n,title:'서울 산책 '+n,review:n===2?'다양한 장소를 둘러보고 즐기는 서울의 산책 코스입니다.':'' ,stops:[{name:'서울숲',location:'Seoul',stayMinutes:60}]})),hasMore:false}}export async function getPublicCourse(){return null}`}));
  await page.goto('/courses');await page.locator('[data-course-country=KOR]').click();await page.locator('[data-course-city=seoul]').click();

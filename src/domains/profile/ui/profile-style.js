@@ -545,6 +545,9 @@ export const profileStyles = `
                     cursor: pointer;
                 }
 
+                .btn-logout { margin: 1.5rem; min-height: 44px; }
+                .btn-logout[hidden] { display: none; }
+
                 .btn-modal-confirm {
                     background: var(--cp-danger);
                     color: var(--cp-surface);
