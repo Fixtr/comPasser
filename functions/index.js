@@ -1,12 +1,11 @@
 const functions = require("firebase-functions");
-const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { deletePublicationReviews } = require('./course-review-cleanup');
 const { error: logError } = require('firebase-functions/logger');
 const { createAccountDeletion } = require('./account-deletion');
 const { createGenerationCredits } = require('./generation-credits');
-const { createAdMobRewardVerifier } = require('./admob-reward');
 const { randomUUID } = require('node:crypto');
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -36,10 +35,6 @@ function assertCurrentIdentity(request, user) {
         throw new HttpsError('unauthenticated', '다시 로그인해 주세요.');
     }
 }
-const adMobVerifier = createAdMobRewardVerifier({
-    axios,
-    allowedAdUnits: new Set((process.env.ADMOB_REWARDED_AD_UNITS || '').split(',').map(value => value.trim()).filter(Boolean))
-});
 const deletionHandler = handler => async request => {
     try { return await handler(request); }
     catch (error) {
@@ -82,20 +77,8 @@ exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, a
     return generationCredits.balance(request.auth.uid, user.metadata.creationTime, isGenerationAdmin(user));
 });
 
-exports.adMobRewardCallback = onRequest({ timeoutSeconds: 30, maxInstances: 5 }, async (req, res) => {
-    if (req.method !== 'GET') return res.sendStatus(405);
-    try {
-        const reward = await adMobVerifier.verifyCallback(req.originalUrl);
-        if (!reward) return res.sendStatus(403);
-        await accountDeletion.assertNotDeleting(reward.uid);
-        const user = await admin.auth().getUser(reward.uid);
-        await generationCredits.grantAdReward(reward.uid, user.metadata.creationTime, reward.transactionId);
-        return res.sendStatus(200); // Duplicate signed callbacks are acknowledged but never granted twice.
-    } catch (error) {
-        console.error('AdMob reward callback failed', { code: error.code || 'unknown' });
-        return res.sendStatus(503);
-    }
-});
+// adMobRewardCallback is paused (2026-10-21): ADMOB_REWARDED_AD_UNITS was never configured, so every callback failed.
+// admob-reward.js and grantAdReward stay; restore the export and its verifier from git history when ad units exist.
 
 exports.verifySocialToken = functions.https.onRequest((req, res) => {
     // CORS 및 Preflight(OPTIONS) 요청 허용을 위해 전체 로직을 cors로 래핑
