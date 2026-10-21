@@ -141,6 +141,13 @@ function relatedMention(mentioned, name, cityId) {
 // Accept that only on a word boundary, so 봉은사역 never matches 봉은사, and only for names of three or more letters.
 function sameVenueName(placeName, expected) {
   if (normalized(placeName) === normalized(expected)) return true;
+  // Places may drop the final 관 of a branch hall (국립현대미술관 서울관 → 국립현대미술관 서울); only a
+  // multi-word name's last word loses it, so a one-word venue (국립중앙박물관) never shortens.
+  const withoutHall = name => {
+    const words = name.trim().split(/\s+/), last = words.at(-1).normalize('NFC').replace(/관$/u,'');
+    return words.length > 1 && [...last].length >= 2 ? normalized([...words.slice(0,-1),last].join('')) : null;
+  };
+  if (withoutHall(placeName) && withoutHall(placeName) === withoutHall(expected)) return true;
   const [shorter,longer] = normalized(placeName).length <= normalized(expected).length ? [placeName,expected] : [expected,placeName];
   if ([...shorter.normalize('NFC').replace(/[^\p{L}\p{N}]/gu,'')].length < 3) return false;
   const words = longer.trim().split(/\s+/);

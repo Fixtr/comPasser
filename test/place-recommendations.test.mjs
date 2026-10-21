@@ -227,6 +227,13 @@ test('Places names that add or drop leading words match on a word boundary only'
  const hill='남산은 서울 도심을 내려다볼 수 있는 산책 명소입니다.';
  await assert.rejects(fixture({statements:[hill],candidates:[candidate('남산')],places:[venue('서울 남산')]}).run(),e=>e.details.rejected['places-none']===1);
 });
+test('a branch hall matches its Places name without the final 관, and only that branch',async t=>{
+ t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});t.mock.method(console,'info',()=>{});
+ const hall='국립현대미술관 서울관은 한국 현대미술을 폭넓게 소개하는 미술관입니다.',mmca=candidate('국립현대미술관 서울관');
+ assert.equal((await fixture({statements:[hall],candidates:[mmca],places:[venue('국립현대미술관 서울')]}).run()).places[0].place.displayName,'국립현대미술관 서울');
+ await assert.rejects(fixture({statements:[hall],candidates:[mmca],places:[venue('국립현대미술관 덕수궁')]}).run(),e=>e.details.rejected['places-none']===1);
+ await assert.rejects(fixture({places:[venue('국립중앙박물')]}).run(),e=>e.details.rejected['places-none']===1);
+});
 test('places-none logs up to three Places names and why each was not the venue',async t=>{
  const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});
  const far={...venue('국립중앙박물관','far'),location:{latitude:38.5,longitude:126.9803}};
