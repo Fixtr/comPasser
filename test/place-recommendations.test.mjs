@@ -103,6 +103,16 @@ test('permanent museum wording, translated candidate names and empty event objec
  assert.equal((await fixture({candidates:[{...candidate(),event:{name:'',startDate:'',endDate:''}}]}).run()).places.length,1);
  assertPlaceInfo(await fixture({statements:['국립중앙박물관에서 가을 기획전이 열리고 있습니다.']}).run(),['기획전']);
 });
+test('an event the statement never names does not demote a timeless statement',async t=>{
+ t.mock.method(console,'warn',()=>{});
+ const tagged=event=>fixture({candidates:[{...candidate(),event}]}).run();
+ const result=await tagged({name:'가을 특별전',startDate:'2026-10-01',endDate:'2026-10-31'});
+ assert.deepEqual([result.places[0].reasonKind,result.places[0].reason],['grounded',reason]);
+ const named='국립중앙박물관에서 반가사유상을 볼 수 있습니다.';
+ assertPlaceInfo(await fixture({statements:[named],candidates:[{...candidate(),event:{name:'반가사유상',startDate:'2026-10-01',endDate:'2026-10-31'}}]}).run(),['반가사유상']);
+ const {event:_omitted,...untagged}=candidate();
+ assertPlaceInfo(await fixture({candidates:[untagged]}).run(),[reason]);
+});
 test('parenthesized branches and unreviewed translations cannot resolve to an unqualified venue',async()=>{
  for(const name of ['Local Gallery (Gangnam)','경복궁 (별관)','경복궁 (Unreviewed Translation)']){
   const primary=name.split(' (')[0];

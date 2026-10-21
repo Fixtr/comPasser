@@ -319,7 +319,10 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
       if (dynamic) return {gate:'dynamic',detail:dynamic[0]};
       const dates = [...new Set(text.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
       const claim = text.match(EVENT_CLAIM)?.[0];
-      if (event === null && !claim && !dates.length) return null;
+      // The formatter sometimes tags a timeless statement with an event the statement never names; with no
+      // event wording, dates or event name in the text, the statement still describes the venue itself.
+      const unnamedEvent = typeof event?.name === 'string' && event.name.trim() && !text.includes(event.name);
+      if ((event === null || unnamedEvent) && !claim && !dates.length) return null;
       if (!event || typeof event.name !== 'string' || !event.name.trim() || event.name.length > 120 || !text.includes(event.name)
         || typeof event.startDate !== 'string' || typeof event.endDate !== 'string'
         || !dateRange(event.startDate,1).length || !dateRange(event.endDate,1).length
