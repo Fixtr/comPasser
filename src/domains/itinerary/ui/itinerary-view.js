@@ -21,7 +21,6 @@ import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itiner
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
 import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
-import { loadAdSense, ADSENSE_CLIENT } from '../../../utils/external-scripts.js';
 import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
@@ -348,11 +347,6 @@ export default class ItineraryView extends HTMLElement {
     window.removeEventListener('transit-unavailable', this._transitUnavailableHandler);
     window.removeEventListener('places-resolved', this._placesResolvedHandler);
     window.removeEventListener('itinerary-deleted', this._deletedHandler);
-    // 3. 컴포넌트 클린업: 유저가 다른 페이지로 이동 시 Light DOM 기반의 광고 컨테이너 제거
-    const adWrapper = this.querySelector('.adsense-wrapper');
-    if (adWrapper) {
-      adWrapper.remove();
-    }
   }
 
   updateTexts() {
@@ -1570,7 +1564,6 @@ export default class ItineraryView extends HTMLElement {
 
     // Render initial
     this.requestMapRoute();
-    this.renderAds();
     } catch (error) {
       console.error('renderCurrentState error:', error);
     }
@@ -1718,43 +1711,6 @@ export default class ItineraryView extends HTMLElement {
       typeof stop.location === 'string' && stop.location ? stop.location : stop.title,
       safeHttpUrl(stop.googleMapsUrl), directions, this.shadowRoot,
     );
-  }
-
-  /**
-   * 광고 자리를 만들고, 그때 애드센스를 불러온다.
-   *
-   * 예전에는 index.html 이 애드센스를 미리 받아 두고 여기서는 push 만 했다.
-   * 광고 자리는 이 화면에만 있는데 랜딩·로그인·폼에서도 매번 받아 온 셈이다.
-   */
-  async renderAds() {
-      // 1. Shadow DOM 우회 및 광고 컨테이너 삽입 (Light DOM 영역)
-      // 기존 광고가 있다면 제거 후 새로 생성 (SPA 라우팅 대응)
-      const existingAd = this.querySelector('.adsense-wrapper');
-      if (existingAd) existingAd.remove();
-
-      const adWrapper = document.createElement('div');
-      adWrapper.className = 'adsense-wrapper';
-      adWrapper.style.cssText = 'margin-top: 40px; text-align: center; width: 100%;';
-      // 계정 번호는 external-scripts.js 한 곳에서만 나온다.
-      adWrapper.innerHTML = `
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="${ADSENSE_CLIENT}"
-             data-ad-slot="3531494624"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-      `;
-      // shadowRoot가 아닌 컴포넌트 최상위에 붙이기 (Light DOM)
-      this.appendChild(adWrapper);
-
-      // 2. 이제서야 SDK 를 받는다. 못 받아도 일정 화면은 그대로 살아 있다.
-      if (!await loadAdSense()) return;
-
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.error('AdSense 렌더링 에러:', e);
-      }
   }
 }
 

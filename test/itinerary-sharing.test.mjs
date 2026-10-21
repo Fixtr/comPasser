@@ -87,7 +87,6 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   const view = new View();
   // 타임라인 마크업/광고 렌더링은 이 회귀 테스트의 대상이 아니다.
   view.renderActiveDay = plan => calls.renders.push(plan);
-  view.renderAds = () => {};
   view.showToast = (...args) => calls.toasts.push(args);
   view.setupSaveListener();
   view.setupShareListener();

@@ -9,7 +9,7 @@
  *  - **지도**: `<map-view>` 와 `<travel-form>` 이 index.html 마크업에 있어
  *    모든 경로에서 붙는다. 붙자마자 라이브러리 여섯 벌(marker·geocoding·
  *    routes·maps·core·places)을 받아 왔다. 화면에 보일 때 받으면 된다.
- *  - **광고**: 광고 자리(`<ins class="adsbygoogle">`)는 결과 화면에만 있다.
+ *  - **광고**: 애드센스 계정이 비활성화돼 2026-10-21 광고 코드를 지웠다.
  *  - **GA**: 랜딩의 page_view 를 세는 것이 일이라 첫 화면에 있어야 한다.
  *    async 라 파싱을 막지도 않는다. 그래서 남긴다.
  *  - **gapi(apis.google.com)**: Firebase Auth 가 끌어온다. 라우터가 로그인
@@ -105,23 +105,9 @@ test('자동완성도 붙자마자 불러오지 않는다', () => {
     '붙자마자 부르면 랜딩에서도 Maps 의 places 를 받는다 — 폼이 보일 때 받으면 된다');
 });
 
-test('광고는 광고 자리가 생길 때 불러온다', () => {
-  // 호출부(this.renderAds())가 아니라 선언부를 집는다.
-  const body = methodBody(itinerary, 'async renderAds()');
-  assert.match(body, /loadAdSense\s*\(/, '광고 자리를 만들면서 SDK 를 불러오지 않는다');
-  assert.match(itinerary, /from\s+['"][^'"]*external-scripts\.js['"]/, '공용 로더를 쓰지 않는다');
-});
-
-test('광고 계정 번호를 아는 곳은 한 곳이다', () => {
-  // 카카오 앱 키가 두 곳에서 나와 서로 다른 앱으로 붙던 적이 있다.
-  const files = ['index.html', 'src/utils/external-scripts.js',
-    'src/domains/itinerary/ui/itinerary-view.js'];
-  const hits = files.filter(f => /ca-pub-\d+/.test(read(f)));
-  assert.deepEqual(hits, ['src/utils/external-scripts.js'],
-    '계정 번호는 external-scripts.js 한 곳에서만 나온다. 지금 나오는 곳:\n' + hits.join('\n'));
-});
-
-test('애드센스 로더가 있다', () => {
-  assert.match(externals, /export\s+(async\s+)?function\s+loadAdSense/,
-    'loadAdSense 를 내보내지 않는다');
+test('비활성화된 애드센스를 다시 불러오지 않는다', () => {
+  for (const [file, source] of [['index.html', html], ['src/utils/external-scripts.js', externals],
+    ['src/domains/itinerary/ui/itinerary-view.js', itinerary]]) {
+    assert.ok(!/ca-pub-\d+|adsbygoogle|googlesyndication|loadAdSense/.test(source), `${file} 에 애드센스 코드가 남아 있다`);
+  }
 });

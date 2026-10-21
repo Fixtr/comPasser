@@ -54,7 +54,6 @@ function viewHarness({ user = null } = {}) {
   view.refreshTransitNotice = () => {};
   view.refreshCostSummary = () => {};
   view.refreshFallbackWarning = () => false;
-  view.renderAds = () => {};
   view.applyResolvedPlaces = () => {};
   view.renderTransitInfo = () => {};
   view.buildInsertSlot = () => element();
