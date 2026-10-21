@@ -652,6 +652,22 @@ test('profile trips keep profile navigation; language is inside security; home i
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);await page.screenshot({path:testInfo.outputPath('home-en-dark-320.png'),fullPage:true});
 });
 
+test('typed but unselected departure or arrival blocks generation until a search result is chosen',async({page})=>{
+ await page.addInitScript(()=>{window.generationCalls=0});
+ const form=await openExitTestForm(page);
+ await selectPlace(form.locator('#start-location'),'Paris Airport');await selectPlace(form.locator('.anchor-location').first(),'Louvre');
+ // Typing fires only input, never gmp-select: the text stays unverified, like "인천국제공항" resolving to a seaport.
+ await form.locator('#end-location').evaluate(element=>{element.value='Airport Terminal 1';element.dispatchEvent(new Event('input',{bubbles:true}))});
+ await form.locator('button[type=submit].primary-btn').click();
+ if(await form.locator('#final-generate').isVisible())await form.locator('#final-generate').click();
+ await expect(page.getByText('장소를 확인하지 못했습니다. 검색에서 다시 선택해 주세요.').first()).toBeVisible();
+ expect(await page.evaluate(()=>window.generationCalls)).toBe(0);await expect(page).toHaveURL(/plan$/);
+ if(await form.locator('#review-issues').isVisible())await form.locator('#review-issues button').first().click();
+ await selectPlace(form.locator('#end-location'),'Paris Airport');
+ await form.locator('button[type=submit].primary-btn').click();await form.locator('#final-generate').click();
+ await expect(page).toHaveURL(/view$/);expect(await page.evaluate(()=>window.generationCalls)).toBe(1);
+});
+
 test('profile security offers logout to a signed-in user, then hides it after signing out',async({page})=>{
  await page.goto('/profile/security');
  const logout=page.locator('profile-view[data-active] #security.active #btn-logout');
