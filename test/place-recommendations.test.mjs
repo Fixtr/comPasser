@@ -227,6 +227,14 @@ test('Places names that add or drop leading words match on a word boundary only'
  const hill='남산은 서울 도심을 내려다볼 수 있는 산책 명소입니다.';
  await assert.rejects(fixture({statements:[hill],candidates:[candidate('남산')],places:[venue('서울 남산')]}).run(),e=>e.details.rejected['places-none']===1);
 });
+test('places-none logs up to three Places names and why each was not the venue',async t=>{
+ const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});
+ const far={...venue('국립중앙박물관','far'),location:{latitude:38.5,longitude:126.9803}};
+ const abroad={...venue('국립중앙박물관','abroad'),addressComponents:[{types:['country'],shortText:'JP'}]};
+ await assert.rejects(fixture({places:[venue('호림박물관 신사분관','branch'),far,abroad,venue('extra','extra')]}).run(),e=>e.details.rejected['places-none']===1);
+ const entry=warned.mock.calls.find(call=>call.arguments[0]==='[recommendPlaces] places-none').arguments[1];
+ assert.deepEqual(entry,{venue:'국립중앙박물관',results:[{name:'호림박물관 신사분관',issue:'name'},{name:'국립중앙박물관',issue:'bounds'},{name:'국립중앙박물관',issue:'country'}],cityId:'seoul'});
+});
 test('a success logs result counts and duration without request data',async t=>{
  const logged=t.mock.method(console,'info',()=>{});
  await fixture().run();

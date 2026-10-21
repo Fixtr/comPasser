@@ -321,21 +321,30 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
       textQuery:`${variants[0]}, ${name}`,languageCode:placesLanguage,regionCode:TRAVEL_REGIONS[input.country].countryCode,pageSize:3,
       locationRestriction:{rectangle:{low:{latitude:lat-deltaLat,longitude:lng-deltaLng},high:{latitude:lat+deltaLat,longitude:lng+deltaLng}}},
     },{headers:{'X-Goog-Api-Key':key,'X-Goog-FieldMask':'places.id,places.displayName,places.primaryTypeDisplayName,places.formattedAddress,places.location,places.addressComponents,places.businessStatus,places.googleMapsUri,places.attributions,places.primaryType,places.types,places.currentOpeningHours,places.regularOpeningHours'},timeout:12000});
-    const matches = (Array.isArray(response.data?.places) ? response.data.places : []).filter(place => {
+    // Returns why a Places result is not this venue, or null when it is; places-none logs these reasons.
+    const placeIssue = place => {
       const components = Array.isArray(place?.addressComponents) ? place.addressComponents : [];
       const country = components.find(c => c.types?.includes('country'))?.shortText;
-      return country === TRAVEL_REGIONS[input.country].countryCode && matchesCity(components,input.cityId,city)
-        && typeof place.displayName?.text === 'string' && place.displayName.text.length <= 120
-        && expectedNames.some(alias => sameVenueName(place.displayName.text,alias))
-        && typeof place.id === 'string' && place.id.trim() && place.id.length <= 512
-        && typeof place.formattedAddress === 'string' && place.formattedAddress.trim() && place.formattedAddress.length <= 1000
-        && Number.isFinite(place.location?.latitude) && Number.isFinite(place.location?.longitude)
-        && Math.abs(place.location.latitude-lat) <= deltaLat && Math.abs(place.location.longitude-lng) <= deltaLng;
-    });
+      if (country !== TRAVEL_REGIONS[input.country].countryCode) return 'country';
+      if (!matchesCity(components,input.cityId,city)) return 'city';
+      if (typeof place.displayName?.text !== 'string' || place.displayName.text.length > 120
+        || !expectedNames.some(alias => sameVenueName(place.displayName.text,alias))) return 'name';
+      if (typeof place.id !== 'string' || !place.id.trim() || place.id.length > 512
+        || typeof place.formattedAddress !== 'string' || !place.formattedAddress.trim() || place.formattedAddress.length > 1000
+        || !Number.isFinite(place.location?.latitude) || !Number.isFinite(place.location?.longitude)) return 'invalid';
+      if (Math.abs(place.location.latitude-lat) > deltaLat || Math.abs(place.location.longitude-lng) > deltaLng) return 'bounds';
+      return null;
+    };
+    const results = Array.isArray(response.data?.places) ? response.data.places : [];
+    const matches = results.filter(place => !placeIssue(place));
     // Never resolve an ambiguous chain/branch name by taking whichever result the provider ranks first;
     // only duplicate listings of one venue are merged.
     const unique = [...new Map(matches.map(place => [place.id,place])).values()];
-    if (!unique.length) return reject('places-none');
+    if (!unique.length) {
+      console.warn('[recommendPlaces] places-none',{venue:String(candidate.name).slice(0,120),
+        results:results.slice(0,3).map(place => ({name:String(place?.displayName?.text || '').slice(0,120),issue:placeIssue(place)})),cityId:input.cityId});
+      return reject('places-none');
+    }
     const merged = unique.length > 1 ? mergeDuplicateListings(unique) : null;
     if (unique.length > 1) {
       console.warn(merged ? '[recommendPlaces] merged-duplicates' : '[recommendPlaces] ambiguous',{venue:String(candidate.name).slice(0,120),
