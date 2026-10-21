@@ -133,7 +133,7 @@ test('model fallback and quota error mapping remain unchanged', async () => {
   await assert.rejects(app.run(valid()), { code: 'resource-exhausted' });
   assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'refund']);
   assert.deepEqual(app.modelUrls.map(url => url.match(/\/models\/(.*):generateContent$/)?.[1]),
-    ['gemini-2.5-flash-lite', 'gemini-3.5-flash']);
+    ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite']);
 });
 
 test('empty credits stop generation before paid AI call', async () => {
