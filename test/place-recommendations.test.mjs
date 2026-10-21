@@ -249,6 +249,13 @@ test('a branch hall matches its Places name without the final 관, and only that
  await assert.rejects(fixture({statements:[hall],candidates:[mmca],places:[venue('국립현대미술관 덕수궁')]}).run(),e=>e.details.rejected['places-none']===1);
  await assert.rejects(fixture({places:[venue('국립중앙박물')]}).run(),e=>e.details.rejected['places-none']===1);
 });
+test('a legal-entity mark and middle dot in a Places name count as word boundaries',async t=>{
+ t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});t.mock.method(console,'info',()=>{});
+ const whanki='환기미술관은 김환기의 작품 세계를 조용히 감상할 수 있는 미술관입니다.';
+ assert.equal((await fixture({statements:[whanki],candidates:[candidate('환기미술관')],places:[venue('(재)환기재단·환기미술관')]}).run()).places[0].place.displayName,'(재)환기재단·환기미술관');
+ const gallery='아트레온 갤러리는 신촌에서 현대미술 전시를 볼 수 있는 공간입니다.';
+ await assert.rejects(fixture({statements:[gallery],candidates:[candidate('아트레온 갤러리')],places:[venue('(주)아트레온')]}).run(),e=>e.details.rejected['places-none']===1);
+});
 test('places-none logs up to three Places names and why each was not the venue',async t=>{
  const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'error',()=>{});
  const far={...venue('국립중앙박물관','far'),location:{latitude:38.5,longitude:126.9803}};

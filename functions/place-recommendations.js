@@ -147,7 +147,10 @@ function relatedMention(mentioned, name, cityId) {
 
 // Places may add or drop leading words (대한불교조계종 봉은사, 대학로 마로니에 공원 → 마로니에 공원).
 // Accept that only on a word boundary, so 봉은사역 never matches 봉은사, and only for names of three or more letters.
-function sameVenueName(placeName, expected) {
+function sameVenueName(rawPlaceName, rawExpected) {
+  // Registered names may lead with a legal-entity mark and join words with a middle dot ((재)환기재단·환기미술관).
+  const [placeName,expected] = [rawPlaceName,rawExpected].map(name => name.normalize('NFC')
+    .replace(/^\s*(?:[(（](?:재|주|사|유)[)）]|㈜)\s*/u,'').replace(/[·ㆍ]/gu,' '));
   if (normalized(placeName) === normalized(expected)) return true;
   // Places may drop the final 관 of a branch hall (국립현대미술관 서울관 → 국립현대미술관 서울); only a
   // multi-word name's last word loses it, so a one-word venue (국립중앙박물관) never shortens.
