@@ -20,13 +20,14 @@ const venue=(name='국립중앙박물관',id='museum')=>({id,displayName:{text:n
 const reason='국립중앙박물관은 한국의 역사와 문화유산을 살펴볼 수 있는 실내 공간입니다.';
 const candidate=(name='국립중앙박물관',evidenceIndex=0)=>({name,evidenceIndex,event:null});
 function fixture({candidates=[candidate()],places=[venue()],weatherFail=false,grounding=true,providerError,formattedText,
- weatherDays,statements=[reason],chunks=[{web:{uri:source.url,title:source.title}}],supports,groundedText,keys={gemini:'fixture-ai',maps:'fixture-maps'}}={}){
+ weatherDays,statements=[reason],chunks=[{web:{uri:source.url,title:source.title}}],supports,groundedText,failModel,keys={gemini:'fixture-ai',maps:'fixture-maps'}}={}){
  const calls=[];
  const axios={get:async(url,options)=>{
   calls.push({url,options});if(weatherFail)throw Error('Weather failed');
   return {data:{forecastDays:weatherDays??[{displayDate:{year:2026,month:10,day:15},minTemperature:{degrees:12},maxTemperature:{degrees:19},daytimeForecast:{weatherCondition:{description:{text:'비'}},precipitation:{probability:{percent:80}}}}]}};
  },post:async(url,body,options)=>{
   calls.push({url,body,options});if(providerError)throw providerError;
+  if(failModel&&url.includes(`models/${failModel}:`))throw Object.assign(Error('model unavailable'),{response:{status:404}});
   if(url.includes('places.googleapis.com'))return {data:{places:typeof places === 'function' ? places(body) : places}};
   if(body.tools)return {data:{candidates:[{content:{parts:[{text:groundedText??statements.join('\n')}]},...((typeof grounding==='function'?grounding(calls.filter(c=>c.body?.tools).length):grounding)?{groundingMetadata:{groundingChunks:chunks,groundingSupports:supports??statements.map(text=>({segment:{text},groundingChunkIndices:[0]})),searchEntryPoint:{renderedContent:'<a href="https://www.google.com/search?q=Seoul">Seoul</a>'}}}:{})}]}};
   return {data:{candidates:[{content:{parts:[{text:formattedText??JSON.stringify({places:candidates})}]}}]}};
@@ -170,14 +171,28 @@ test('an answer without any Google search is retried once; a searched answer is 
  assert.equal((await retried.run()).places[0].place.displayName,'국립중앙박물관');
  assert.equal(searchCalls(retried),2);
  const model=call=>call.url.match(/models\/([^:]+):/)?.[1];
- assert.deepEqual(retried.calls.filter(c=>c.url?.includes('generativelanguage')).map(model),['gemini-2.5-flash','gemini-2.5-flash','gemini-2.5-flash-lite']);
- assert.equal(retried.calls.find(c=>c.body?.tools).body.generationConfig.thinkingConfig.thinkingBudget,0);
+ assert.deepEqual(retried.calls.filter(c=>c.url?.includes('generativelanguage')).map(model),['gemini-2.5-flash','gemini-3.5-flash-lite','gemini-2.5-flash-lite']);
+ const [first,retry]=retried.calls.filter(c=>c.body?.tools).map(c=>c.body.generationConfig.thinkingConfig);
+ assert.deepEqual([first,retry],[{thinkingBudget:0},{thinkingLevel:'minimal'}]);
  const missed=fixture({grounding:false});
  await assert.rejects(missed.run(),e=>e.details.detail==='no-metadata');
  assert.equal(searchCalls(missed),2);
  const searched=fixture({supports:[]});
  await assert.rejects(searched.run(),e=>e.details.detail==='no-valid-segments');
  assert.equal(searchCalls(searched),1);
+});
+test('a failing 2.5 model falls back to gemini-3.5-flash-lite for that call only',async t=>{
+ const warned=t.mock.method(console,'warn',()=>{});t.mock.method(console,'info',()=>{});
+ const used=app=>app.calls.filter(c=>c.url?.includes('generativelanguage')).map(c=>c.url.match(/models\/([^:]+):/)[1]);
+ for(const [failModel,expected] of [['gemini-2.5-flash',['gemini-2.5-flash','gemini-3.5-flash-lite','gemini-2.5-flash-lite']],
+  ['gemini-2.5-flash-lite',['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3.5-flash-lite']]]){
+  const app=fixture({failModel});
+  assert.equal((await app.run()).places[0].place.displayName,'국립중앙박물관',failModel);
+  assert.deepEqual(used(app),expected,failModel);
+ }
+ assert.deepEqual(warned.mock.calls.filter(c=>c.arguments[0]==='[recommendPlaces] backup-model').map(c=>c.arguments[1]),
+  [{model:'gemini-2.5-flash',reason:null,status:404},{model:'gemini-2.5-flash-lite',reason:null,status:404}]);
+ await assert.rejects(fixture({failModel:'gemini-3.5-flash-lite',grounding:false}).run(),e=>e.details.reason==='recommendation-unavailable');
 });
 test('missing grounding reports what was absent',async()=>{
  await assert.rejects(fixture({grounding:false}).run(),e=>e.details.reason==='recommendation-sources'&&e.details.detail==='no-metadata');

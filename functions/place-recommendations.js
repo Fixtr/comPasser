@@ -54,6 +54,14 @@ const CANDIDATES_SCHEMA = {type:'OBJECT',properties:{places:{type:'ARRAY',maxIte
   event:{type:'OBJECT',nullable:true,properties:{name:{type:'STRING'},startDate:{type:'STRING'},endDate:{type:'STRING'}},required:['name','startDate','endDate']},
 },required:['name','evidenceIndex','event']}}},required:['places']};
 
+const BACKUP_MODEL = 'gemini-3.5-flash-lite';
+// Gemini 3 rejects thinkingBudget with HTTP 400; it takes thinkingLevel instead.
+function bodyFor(model, body) {
+  if (!model.startsWith('gemini-3')) return body;
+  const {thinkingConfig: _,...config} = body.generationConfig || {};
+  return {...body,generationConfig:{...config,thinkingConfig:{thinkingLevel:'minimal'}}};
+}
+
 // shortcut: trust provider claim-to-source mapping; independently audit pages before promising fact verification.
 // Counts and cited chunk indexes only, so a missing-grounding failure shows whether the model searched at all.
 function groundingCounts(metadata) {
@@ -242,8 +250,19 @@ function matchesCity(components, cityId, city) {
 }
 
 function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () => new Date()}) {
+  // A 2.5 error, timeout or withdrawal falls back to the backup instead of failing the recommendation.
   async function gemini(key,body,model = 'gemini-2.5-flash-lite') {
-    const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,body,
+    try {
+      return await callModel(key,body,model);
+    } catch (error) {
+      if (model === BACKUP_MODEL) throw error;
+      console.warn('[recommendPlaces] backup-model',{model,reason:error.details?.reason || null,status:error.response?.status || null});
+      return callModel(key,body,BACKUP_MODEL);
+    }
+  }
+
+  async function callModel(key,body,model) {
+    const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,bodyFor(model,body),
       {headers:{'x-goog-api-key':key},timeout:45000});
     const candidate = response.data?.candidates?.[0];
     if (!candidate || candidate.finishReason === 'MAX_TOKENS') throw fail('unavailable','recommendation-response');
@@ -414,12 +433,13 @@ Preferences: ${JSON.stringify({theme:input.theme,budget:input.budget})}. Answer 
       // grounded search uses flash. Thinking stays off: its tokens would count against maxOutputTokens.
       const searchBody = {contents:[{role:'user',parts:[{text:instructions}]}],tools:[{google_search:{}}],generationConfig:{maxOutputTokens:4096,thinkingConfig:{thinkingBudget:0}}};
       let grounded = await gemini(keys.gemini,searchBody,'gemini-2.5-flash');
-      // Gemini 2.5 bills only prompts that searched, so one retry costs its tokens; a second miss still fails as recommendation-sources.
+      // The retry goes to the backup: it searched in 10 of 10 local runs on 2026-10-21. A second miss still
+      // fails as recommendation-sources.
       const searchMeta = grounded.candidate.groundingMetadata;
       if (!searchMeta?.webSearchQueries?.length && !searchMeta?.groundingChunks?.length) {
         firstSearch = groundingCounts(searchMeta);
         console.warn('[recommendPlaces] search-retry',{cityId:input.cityId,...firstSearch});
-        grounded = await gemini(keys.gemini,searchBody,'gemini-2.5-flash');
+        grounded = await gemini(keys.gemini,searchBody,BACKUP_MODEL);
       }
       const metadata = grounded.candidate.groundingMetadata;
       const evidence = groundedEvidence(grounded);
