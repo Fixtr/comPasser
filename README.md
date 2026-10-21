@@ -171,13 +171,13 @@ ComPasser는 빠른 MVP 구현에 그치지 않고, AI 보조 코딩(Vibe Coding
 - **컨텍스트 트리거 (Context Triggers)**: 각 도메인 폴더 최상단에 `COMMAND_GUIDE.md`를 배치하여, AI 및 협업 개발자가 해당 도메인의 비즈니스 규칙을 즉각적으로 파악할 수 있도록 설계했습니다.
 
 ## 🛠️ Tech Stack
-- **Frontend**: Vite, Vanilla JS (ES6 Modules), HTML5/CSS3
+- **Frontend**: Vite, React 19 + Ionic 9 셸(`ionic-shell.html` + `src/prototype/ionic-shell.jsx`), 도메인 UI는 셸 안에 마운트되는 Web Components(ES Modules). 레거시 바닐라 셸(`index.html` + `src/app/main.js`)은 `npm run dev:legacy`·`build:legacy`와 `npm run test:browser` 스모크 검사에서만 씁니다.
 - **Mobile Foundation**: Capacitor (@capacitor/ios, @capacitor/android)
 - **API / Cloud**: 
   - Google Maps JavaScript API (Maps, Geocoding, Directions) — 동선 시각화 및 타임라인 탭 동기화
-  - Google Gemini API (gemini-2.0-flash) — 멀티 데이 AI 일정 생성
+  - Google Gemini API (gemini-2.5-flash-lite, 실패 시 gemini-3.5-flash-lite) — Cloud Functions에서 멀티 데이 AI 일정 생성
 - **네비게이션 딥링크**: 네이버 지도 / 카카오맵 / Google Maps URL Scheme — 실시간 길찾기 액션
-- **Deployment**: GitHub Pages (Web), Native Build (iOS/Android)
+- **Deployment**: Cloudflare Pages (Web), Native Build (iOS/Android)
 
 ## 🚀 Getting Started (로컬 실행 방법)
 

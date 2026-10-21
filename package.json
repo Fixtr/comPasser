@@ -1,7 +1,7 @@
 {
   "name": "hackerton",
   "version": "1.0.0",
-  "description": "ComPasser — 고정 일정(Anchor) 중심 AI 여행 동선 최적화 플래너 (Vanilla JS + Vite + Firebase)",
+  "description": "ComPasser — 고정 일정(Anchor) 중심 AI 여행 동선 최적화 플래너 (Ionic React 셸 + Web Components + Vite + Firebase)",
   "scripts": {
     "dev": "vite",
     "dev:ionic": "vite",

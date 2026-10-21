@@ -21,14 +21,14 @@
   - User Preference Flow (Theme, Budget).
   - PWA & Capacitor support for native mobile apps (iOS/Android).
   - Serverless architecture leveraging Firebase (Firestore/Auth).
-  - Dual Shell: Vanilla JS Web Components core + Ionic React mobile distribution shell (`ionic-shell.jsx`).
+  - Single app shell: the Ionic React shell (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`) is the entry for web, PWA and Capacitor; domain UIs are Web Components mounted inside it. The legacy vanilla shell (`index.html` + `src/app/main.js`) remains only for `dev:legacy`/`build:legacy` (`vite.legacy.config.js`) and the `npm run test:browser` smoke suite.
 
 ### 1.3. 🚫 Non-Goals (Strictly Excluded to prevent Scope Creep)
 - **NO Custom Payment Infrastructure:** Absolutely no PG integrations beyond simple affiliate redirect linking.
 - **NO Social Network Features:** No user-to-user following, social feeds, or in-app messaging.
-- **NO Heavy Full-Stack Frameworks:** Avoid heavy SSR frameworks (e.g., Next.js). Vanilla Web Components core with a lightweight Ionic React mobile distribution shell.
+- **NO Heavy Full-Stack Frameworks:** Avoid heavy SSR frameworks (e.g., Next.js). A lightweight client-side Ionic React shell hosts the Web Components domain UIs.
 - **NO Real-time Collaborative Editing:** Itinerary sharing is read-only for guests.
-- **NO Server-side Rendering (SSR):** Architecture remains 100% Client-Side Rendered (CSR) + Firebase.
+- **NO Server-side Rendering (SSR) framework:** The app UI stays Client-Side Rendered (CSR) + Firebase. Only the public English route pages (`/en/routes`, `sitemap.xml`, `robots.txt`) are rendered by a small Cloudflare Pages Worker (`src/server/public-routes-worker.mjs`) from public Firestore data.
 
 ---
 
@@ -151,7 +151,7 @@ ComPasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 - **개인 보관용 데이터 (`itineraries`)**: 사용자가 개인 계정에 직접 보관한 일정은 철저하게 `read, write: if request.auth != null && request.auth.uid == resource.data.userId` 규칙으로 보호.
 
 ## 6. Technical Stack
-- **Frontend Core**: Vite, Vanilla JS (ES Modules) + Web Components
+- **Frontend Core**: Vite, React 19 + Ionic 9 shell, Web Components (ES Modules) for domain UIs
 - **Mobile & App Shell**: Ionic React Shell (`ionic-shell.jsx`, `ionic-screens.jsx`), Capacitor (iOS/Android)
 - **Design System**: `--cp-*` CSS 토큰 (순수 hex 기반, `oklch`/`color-mix`/`rgba` 금지, 1px 실선, 0/9999px radius, 0 shadow, 0 gradient)
 - **APIs**: Google Maps JS API, Google Gemini API

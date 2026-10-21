@@ -47,12 +47,21 @@
 
 ## Generation Lifecycle
 
-- `app/generation-controller.mjs` owns the active generation attempt, success/failure transitions, and result/navigation guards. `app/main.js` wires the form event, auth/route context, result application, and completion notification into it.
+- The active `/plan` is `PlanScreen` in `src/prototype/ionic-screens.jsx`. It lazy-loads `travel-form.js` and `services/gemini-optimizer.js`, then handles the form's `generate-itinerary` event by calling `generateOptimizedItinerary`.
+- Each attempt takes a new `run` number. Leaving `/plan`, a query change on `/plan` (such as `?review=1`), discarding the draft (`planner-draft-discarded`) or a different signed-in user makes the attempt stale, and a stale attempt never applies its result. This does not cancel the server request.
+- Phases are form, loading (`IonProgressBar`) and error (message plus a return-to-form button). On success it keeps the plan in memory for the same user (used once by `/view`, not persisted), clears the draft and navigates to `/view` at once; there is no result button. Only the current attempt releases the form via `itinerary-generation-complete`.
+- Ionic coverage is `test/browser/ionic-shell.spec.mjs` (`npm run test:ionic`), success to `/view` only; the stale and error paths have no test yet.
+- Keep generation request/response constraints and fallback behavior in the existing planner services (`gemini-optimizer.js`, `gemini-fallback.mjs`), shared by both shells.
+
+### Legacy vanilla shell
+
+`src/app/generation-controller.mjs` and `ui/generation-progress.js` are imported only by `src/app/main.js` (loaded by `index.html`). The legacy shell is still served by `npm run dev:legacy`, built by `npm run build:legacy`, and exercised by the `npm run test:browser` smoke suite that `npm run check` runs, so keep these rules:
+- `src/app/generation-controller.mjs` owns the active generation attempt, success/failure transitions, and result/navigation guards. `src/app/main.js` wires the form event, auth/route context, result application, and completion notification into it.
 - Call `syncContext()` on route/auth reevaluation. Leaving `/plan` or changing accounts invalidates the local attempt immediately; returning to `/plan` does not revive it. This does not cancel the server request.
 - Only the current attempt may apply its result, change the progress screen, or release the form's submit button via `itinerary-generation-complete`. A superseded request's completion must not stop a newer request's timers.
-- `enterPlan()` restores the form when idle but preserves the current loading/success/failure screen on same-account, same-route reevaluation. Successful generation still waits for the user to choose the result button before navigating.
+- `enterPlan()` restores the form when idle but preserves the current loading/success/failure screen on same-account, same-route reevaluation. Successful generation waits for the user to choose the result button before navigating.
 - `ui/generation-progress.js` owns loading/result/error markup updates and advertisement/message animation resources. Every stop clears intervals, delayed transitions, and animation frames; version checks also ignore callbacks already queued before cancellation.
-- Keep generation request/response constraints and fallback behavior in the existing planner services. Lifecycle and presentation changes are covered by `generation-controller.test.mjs` and `generation-progress.test.mjs`.
+- Lifecycle and presentation changes are covered by `generation-controller.test.mjs` and `generation-progress.test.mjs`.
 
 - Optional `dailyLocations` holds explicit per-day departure/arrival overrides. Blank fields inherit trip endpoints or nightly stays; never infer overrides from legacy `dailyData`. Normalize before flexible-visit placement, validation, generation and boundary enforcement. Turning off clears overrides; a day trip clears them, and duration changes trim removed days. The form shows default places and warns when consecutive day boundaries need a separate transfer (not included in daily route calculations).
 
