@@ -14,6 +14,9 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     assert.match(prompt, /free block of 2 hours or more should hold at least one optional visit/);
     assert.match(prompt, /a day of 3 hours or less usually 1-2\. The gaps above still separate every pair of visits/);
     assert.match(prompt, /move lunch before or after a fixed appointment rather than skip it/);
+    // Both models put a 19:00 dinner before a 21:00 Incheon arrival; measured transit was about 130 minutes.
+    assert.match(prompt, /at least 150 minutes unallocated before an airport end time/);
+    assert.match(prompt, /A restaurant visit before 11:00 must be an explicit breakfast or brunch/);
     assert.doesNotMatch(prompt, /ALL transportation|occasional taxi|tips in localTip|estimate the real travel time|MUST include ScheduleItems with type/);
   }
   assert.deepEqual(ITINERARY_SCHEMA.properties.days.items.properties.scheduleItems.items.properties.type.enum,

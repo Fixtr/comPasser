@@ -310,6 +310,13 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
         || end - start >= minimumStayMinutes(item);
     });
 
+    // A visit cannot share time with the user's fixed appointment. Flexible
+    // required visits only have provisional times and are placed later.
+    const timed = item => minutes(item.time) < minutes(item.endTime) && minutes(item.endTime) !== Number.MAX_SAFE_INTEGER;
+    const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
+    scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
+      || !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time)));
+
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,
     // that is not a visit we can honestly present as possible.

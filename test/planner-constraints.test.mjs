@@ -74,6 +74,19 @@ test('short generated visits are omitted without changing fixed appointments', (
   assert.deepEqual(enforcePlannerConstraints(result, request), result);
 });
 
+test('a generated visit overlapping a timed appointment is omitted; touching or flexible ones remain', () => {
+  const request = { date: ['2026-10-06'], startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '서울역',
+    anchorSchedules: [{ day: 1, name: '롯데월드타워 약속', time: '11:40', endTime: '12:40', location: '롯데월드타워' },
+      { day: 1, name: '창덕궁', time: '15:00', endTime: '16:00', location: '창덕궁', flexible: true }] };
+  const visit = (title, time, endTime) => ({ title, type: 'dining', time, endTime, location: '롯데월드타워',
+    placeIntent: { purpose: title, category: 'cafe', nearLocation: '롯데월드타워' } });
+  const generated = [{ day: 1, scheduleItems: [visit('겹치는 카페', '11:35', '12:40'), visit('붙은 카페', '12:40', '13:10'),
+    visit('임시 시간 옆 카페', '15:30', '16:30')] }];
+  const result = enforcePlannerConstraints(generated, request);
+  assert.deepEqual(result[0].scheduleItems.map(item => item.title),
+    ['출발 · 서울역', '롯데월드타워 약속', '붙은 카페', '창덕궁', '임시 시간 옆 카페', '도착 · 서울역']);
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [
@@ -185,7 +198,7 @@ test('near-location intents remain visits, not departure/arrival or anchor ident
   const visit=(purpose,nearLocation,time,endTime)=>({type:'dining',title:purpose,location:nearLocation,time,endTime,
     placeIntent:{purpose,nearLocation,category:'restaurant'}});
   const [day]=enforcePlannerConstraints([{scheduleItems:[visit('아침','서울역','09:30','10:30'),
-    visit('점심','박물관','13:00','14:00'),visit('저녁','서울역','16:00','17:00')]}],request);
+    visit('점심','박물관','14:00','15:00'),visit('저녁','서울역','16:00','17:00')]}],request);
   assert.equal(day.scheduleItems.filter(i=>i.type==='dining').length,3);
   assert.equal(day.scheduleItems.filter(i=>i.type==='AnchorSchedule').length,1);
   assert.equal(day.scheduleItems[0].type,'departure');
