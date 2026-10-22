@@ -87,6 +87,17 @@ test('a generated visit overlapping a timed appointment is omitted; touching or 
     ['출발 · 서울역', '롯데월드타워 약속', '붙은 카페', '창덕궁', '임시 시간 옆 카페', '도착 · 서울역']);
 });
 
+test('an airport day keeps 150 minutes free before arrival; other destinations keep late visits', () => {
+  const visit = (title, time, endTime) => ({ title, type: 'dining', time, endTime, location: '경복궁',
+    placeIntent: { purpose: title, category: 'restaurant', nearLocation: '경복궁' } });
+  const generated = () => [{ day: 1, scheduleItems: [visit('점심', '12:00', '13:00'), visit('이른 저녁', '17:30', '18:30'), visit('늦은 저녁', '19:30', '20:30')] }];
+  const titles = endLocation => enforcePlannerConstraints(generated(), { date: ['2026-10-06'], startTime: '09:00', endTime: '21:00',
+    startLocation: '서울역', endLocation, anchorSchedules: [] })[0].scheduleItems.map(item => item.title);
+  assert.deepEqual(titles('인천국제공항 제1여객터미널'), ['출발 · 서울역', '점심', '이른 저녁', '도착 · 인천국제공항 제1여객터미널']);
+  assert.deepEqual(titles('Aéroport de Paris-Charles de Gaulle').length, 4);
+  assert.deepEqual(titles('서울역'), ['출발 · 서울역', '점심', '이른 저녁', '늦은 저녁', '도착 · 서울역']);
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [

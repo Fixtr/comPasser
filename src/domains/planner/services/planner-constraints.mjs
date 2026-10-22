@@ -314,8 +314,14 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     // required visits only have provisional times and are placed later.
     const timed = item => minutes(item.time) < minutes(item.endTime) && minutes(item.endTime) !== Number.MAX_SAFE_INTEGER;
     const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
+    // gemini-2.5-flash-lite ignored the prompt's airport gap and ended dinner 30 minutes before a 21:00
+    // Incheon arrival; measured transit was about 130 minutes. Same 150 minutes as the prompt.
+    // shortcut: airports are recognised by name only; use Places types if endpoints ever store them.
+    const latestVisitEnd = /공항|airport|空港|a[ée]roport/i.test(getLocationName(constraints.endLocation))
+      ? endTimeMinutes - 150 : Number.MAX_SAFE_INTEGER;
     scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
-      || !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time)));
+      || (minutes(item.endTime) <= latestVisitEnd
+        && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));
 
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,
