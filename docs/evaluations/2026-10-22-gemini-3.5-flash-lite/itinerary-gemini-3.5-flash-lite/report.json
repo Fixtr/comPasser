@@ -1,0 +1,717 @@
+{
+  "evaluatedAt": "2026-10-22T04:24:26.985Z",
+  "evaluatorHash": "77aaa5ff82b6be8221f1b660b33ca84dac76a907da50ab721c6ad157f16795c2",
+  "results": [
+    {
+      "case": "day-anchor",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 2434,
+      "usage": {
+        "promptTokenCount": 1384,
+        "candidatesTokenCount": 515,
+        "totalTokenCount": 1899,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1384
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 2,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "국립중앙박물관 관람"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 1
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    },
+    {
+      "case": "day-airport",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 1381,
+      "usage": {
+        "promptTokenCount": 1385,
+        "candidatesTokenCount": 265,
+        "totalTokenCount": 1650,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1385
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 1,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "경복궁 관람"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 0
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 1
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 4,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 3
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 1
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    },
+    {
+      "case": "day-short",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 1558,
+      "usage": {
+        "promptTokenCount": 1375,
+        "candidatesTokenCount": 266,
+        "totalTokenCount": 1641,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1375
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 1,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 0
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 1
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 1
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    },
+    {
+      "case": "day-tight-anchors",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 2292,
+      "usage": {
+        "promptTokenCount": 1425,
+        "candidatesTokenCount": 713,
+        "totalTokenCount": 2138,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1425
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "국립중앙박물관 관람",
+              "롯데월드타워 약속"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 7,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 6
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    },
+    {
+      "case": "four-day-food",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 6740,
+      "usage": {
+        "promptTokenCount": 1671,
+        "candidatesTokenCount": 2779,
+        "totalTokenCount": 4450,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1671
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 2,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 3,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 4,
+            "itemCount": 3,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 2
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 2,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 3,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 4,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "not-applicable",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 3
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    },
+    {
+      "case": "four-day-anchors",
+      "model": "gemini-3.5-flash-lite",
+      "milliseconds": 5002,
+      "usage": {
+        "promptTokenCount": 1814,
+        "candidatesTokenCount": 1876,
+        "totalTokenCount": 3690,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1814
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "raw": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 2,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "경복궁 관람"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 1
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 2,
+            "itemCount": 2,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "국립중앙박물관 관람"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 1
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 3,
+            "itemCount": 2,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "서울숲 산책"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 1
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 4,
+            "itemCount": 2,
+            "invalidTimes": [],
+            "anchorContract": "fail",
+            "missingAnchors": [
+              "남산서울타워 관람"
+            ],
+            "anchorArrival": "fail",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 1
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "normalized": {
+        "structure": "pass",
+        "days": [
+          {
+            "day": 1,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 2,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 3,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          },
+          {
+            "day": 4,
+            "itemCount": 5,
+            "invalidTimes": [],
+            "anchorContract": "pass",
+            "missingAnchors": [],
+            "anchorArrival": "unknown",
+            "endArrival": "unknown",
+            "endOverflowMinutes": 0,
+            "routes": {
+              "measured": 0,
+              "expected": 4
+            },
+            "places": {
+              "verified": 0,
+              "unresolved": 0,
+              "pending": 2
+            },
+            "invalidIntents": 0,
+            "invalidCenters": 0,
+            "shortStays": []
+          }
+        ]
+      },
+      "measured": null
+    }
+  ]
+}

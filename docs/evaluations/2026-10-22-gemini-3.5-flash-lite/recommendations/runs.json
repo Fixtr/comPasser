@@ -1,0 +1,1261 @@
+{
+  "revision": "fe8e27dc8c8d0009a90d9fa9539275403b6687ab",
+  "placeRecommendationsBlob": "b84051b712b1494780d474dfae5d3dfbff846325",
+  "date": "2026-11-07",
+  "evaluatorHash": "5d71fcb13347c80ea78998ade559a81c3158d15c1fdd67bf4c5439fceeefc992",
+  "records": [
+    {
+      "run": 1,
+      "capturedAt": "2026-10-22T04:24:27.046Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 5400,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 527,
+            "totalTokenCount": 2450,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "toolUsePromptTokenCount": 995,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 995
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 2026년 11월 7일 행사",
+            "서울 11월 가볼만한 곳",
+            "서울 11월 실내 관광지",
+            "서울 문화 예술 공간",
+            "서울 자연 경관",
+            "서울 쇼핑 명소"
+          ],
+          "chunks": 6,
+          "supports": 8,
+          "searchEntry": true,
+          "text": "2026년 11월 7일에 방문하기 좋은 서울의 장소들을 추천해 드립니다.\n\n*   **남산한국숲정원**: 남산에 위치한 남산한국숲정원은 한국의 전통과 자연을 느낄 수 있는 공간입니다. 2026년 11월 7일부터 11월 8일까지 도슨트와 함께하는 '한국숲정원 가을 투어' 프로그램이 진행됩니다.\n*   **서울시립미술관 서소문본관**: 서울시립미술관 서소문본관에서는 한국 현대미술의 선구자인 천경자 작가의 탄생 100주년을 기념하는 '격변의 시대, 여성 삶 예술' 전시가 2026년 11월 17일까지 열립니다.\n*   **천주교 프란치스코 교육회관**: 천주교 프란치스코 교육회관에서는 히사이시 조의 음악을 촛불과 함께 감상할 수 있는 '캔들라이트: 히사이시 조 최고의 작품' 콘서트가 2026년 11월 27일까지 진행됩니다.\n*   **서울예술인지원센터 5층 프로젝트룸**: 서울예술인지원센터 5층 프로젝트룸에서는 XR 무브먼트 퍼포먼스 <HOME> 공연이 2026년 11월 7일에 개최됩니다. 이 공연은 현대무용과 시각예술이 만나 집을 둘러싼 다양한 감각과 감정을 표현합니다.\n*   **강동구청 열린뜰 광장**: 강동구청 열린뜰 광장에서는 2026년 11월 7일 오후 1시부터 '제9회 강동구 청소년 축제'가 열려 청소년들의 공연과 다양한 체험 프로그램을 즐길 수 있습니다.\n*   **동대문 종합시장**: 동대문 종합시장은 원단, 부자재, 패션용품 등 다양한 제품을 취급하는 아시아 최대 규모의 섬유·패션 전문 시장입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1816,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 807,
+            "candidatesTokenCount": 550,
+            "totalTokenCount": 1357,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 807
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 8,
+          "candidates": [
+            "남산한국숲정원",
+            "서울시립미술관 서소문본관",
+            "천주교 프란치스코 교육회관",
+            "서울예술인지원센터 5층 프로젝트룸",
+            "강동구청 열린뜰 광장",
+            "동대문 종합시장"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 6,
+      "evidence": 8,
+      "candidates": 6,
+      "failure": null
+    },
+    {
+      "run": 1,
+      "capturedAt": "2026-10-22T04:24:34.287Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3163,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 276,
+            "totalTokenCount": 1204,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "Seoul cultural venues places to visit November",
+            "서울 추천 명소 2026"
+          ],
+          "chunks": 4,
+          "supports": 5,
+          "searchEntry": true,
+          "text": "국립중앙박물관은 한국의 역사와 문화를 대표하는 국립 박물관으로 방대한 문화재 소장품과 다채로운 전시 공간을 자랑합니다.\n리움미술관은 고대 한국 미술부터 현대 미술까지 아우르는 세계적인 수준의 소장품과 독창적인 건축 미학을 선보이는 예술 공간입니다.\n국립현대미술관 서울은 도심 속 개방형 구조를 통해 동시대 현대미술의 다양한 흐름과 실험적인 예술 세계를 선보입니다.\nDDP(동대문디자인플라자)는 유려한 곡선 형태의 독창적인 건축미를 바탕으로 세계적인 디자인 트렌드와 다채로운 문화 행사를 만날 수 있는 복합 문화 공간입니다.\n하이커 그라운드는 K-팝 콘텐츠와 최첨단 미디어 기술이 결합되어 방문객이 직접 한류 문화를 오감으로 체험할 수 있는 몰입형 문화 공간입니다.\n덕수궁은 조선시대 전통 궁궐의 고즈넉한 정취와 근대식 건물이 조화를 이루는 독보적인 역사적 명소입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1405,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 544,
+            "candidatesTokenCount": 180,
+            "totalTokenCount": 724,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 544
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 5,
+          "candidates": [
+            "국립중앙박물관",
+            "리움미술관",
+            "국립현대미술관 서울",
+            "하이커 그라운드",
+            "덕수궁"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 2,
+      "evidence": 5,
+      "candidates": 5,
+      "failure": null
+    },
+    {
+      "run": 1,
+      "capturedAt": "2026-10-22T04:24:38.863Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 6711,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 743,
+            "totalTokenCount": 2749,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "toolUsePromptTokenCount": 1064,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1064
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 문화 명소 2026년 11월 7일",
+            "서울 박물관 미술관 2026년 11월 7일",
+            "국립중앙박물관 상설전시",
+            "국립한글박물관 상설전시",
+            "리움미술관 상설전시",
+            "예술의전당 상설 전시",
+            "동대문디자인플라자 DDP 건축 디자인",
+            "서울역사박물관 상설전시"
+          ],
+          "chunks": 30,
+          "supports": 11,
+          "searchEntry": true,
+          "text": "2026년 11월 7일에 방문하기 좋은 서울의 문화 명소 6곳을 추천해 드립니다.\n\n*   **국립중앙박물관**은 선사시대부터 근현대까지 한국의 역사와 문화를 아우르는 다양한 유물을 소장하고 있으며, 특히 '사유의 방'에서는 국보 반가사유상 두 점을 만날 수 있습니다. 국립중앙박물관은 2027년 5월 30일까지 고대 그리스·로마 문화를 주제로 한 상설 전시 '그리스가 로마에게, 로마가 그리스에게'를 진행합니다.\n\n*   **국립한글박물관**은 한글의 창제 원리부터 현대 생활 속 한글의 모습까지, 한글의 역사와 가치를 다양한 유물과 전시를 통해 선보입니다.\n\n*   **서울역사박물관**은 조선시대부터 현재에 이르기까지 서울의 역사와 문화를 보여주는 상설 전시를 통해 서울의 변화상을 조명합니다. 서울역사박물관은 2026년 11월 3일부터 12월 4일까지 딜쿠샤와 연계한 온라인 교육 프로그램인 '<딜쿠샤에서 온 편지 2026>'를 운영합니다.\n\n*   **리움미술관**은 선사시대부터 조선시대까지 한국 전통미술을 아우르는 고미술 소장품과 현대미술 작품을 함께 선보이는 사립 미술관입니다. 리움미술관은 2026년 1월 1일부터 고미술 상설 전시를 진행하며, 이는 M1에서 도자기, 서화, 금속 공예 등을 층별 주제로 전시합니다.\n\n*   **동대문디자인플라자(DDP)**는 세계적인 건축가 자하 하디드가 설계한 비정형 건축물로, 그 자체로 독특한 디자인을 자랑하며 다양한 디자인 관련 전시와 행사를 개최하는 복합문화공간입니다. 동대문디자인플라자 뮤지엄에서는 2026년 9월 19일부터 2027년 2월 21일까지 '현대카드 컬처프로젝트 31 웨인 티보 전'이 열립니다.\n\n*   **예술의전당**은 오페라하우스, 음악당, 미술관 등 다양한 문화 시설을 갖춘 복합문화예술공간으로, 여러 장르의 공연과 전시를 상시 개최합니다. 예술의전당 한가람디자인미술관에서는 2026년 9월 22일부터 2027년 1월 20일까지 '스페인 미술 500년: 빛과 어둠의 연대기' 전시가 진행됩니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1176,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 614,
+            "candidatesTokenCount": 297,
+            "totalTokenCount": 911,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 614
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 5,
+          "candidates": [
+            "국립중앙박물관",
+            "국립중앙박물관",
+            "국립한글박물관",
+            "서울역사박물관",
+            "서울역사박물관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 8,
+      "evidence": 5,
+      "candidates": 5,
+      "failure": null
+    },
+    {
+      "run": 1,
+      "capturedAt": "2026-10-22T04:24:46.795Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 2562,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 251,
+            "totalTokenCount": 1193,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "Seoul cultural venues museums galleries"
+          ],
+          "chunks": 2,
+          "supports": 3,
+          "searchEntry": true,
+          "text": "국립중앙박물관은 선사시대부터 조선시대까지 방대한 한국 역사 유물을 소장하고 있으며, 체계적인 상설 전시와 거대한 규모의 문화 공간을 자랑합니다.\n\n리움미술관은 고미술부터 현대미술까지 아우르는 세계적인 수준의 소장품과 함께, 독창적인 건축 디자인이 돋보이는 한남동의 대표적인 사립 미술관입니다.\n\n국립현대미술관 서울은 개방형 구조의 현대적 건축물 속에서 한국과 세계의 동시대 미술 흐름을 보여주는 다양한 다원예술 및 전시를 선보입니다.\n\n아르코미술관은 한국 현대건축의 거장 김수근이 설계한 붉은 벽렌즈 건물로, 동시대 시각예술의 실험적 담론을 이끄는 대학로의 대표 미술 전시 공간입니다.\n\n서울도서관은 옛 서울시청사의 역사적 건축 골격을 유지하면서 시민들을 위한 방대한 인문·사회과학 장서와 문화 정보를 제공하는 도심 속 문화 공간입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1010,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 481,
+            "candidatesTokenCount": 165,
+            "totalTokenCount": 646,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 481
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 3,
+          "candidates": [
+            "국립중앙박물관",
+            "국립현대미술관 서울",
+            "아르코미술관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 1,
+      "evidence": 3,
+      "candidates": 3,
+      "failure": null
+    },
+    {
+      "run": 2,
+      "capturedAt": "2026-10-22T04:24:50.373Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 7515,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 734,
+            "totalTokenCount": 2782,
+            "cachedContentTokenCount": 57,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "cacheTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 57
+              }
+            ],
+            "toolUsePromptTokenCount": 1120,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1120
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 2026년 11월 7일 가볼만한 곳",
+            "서울 2026년 11월 가을 추천 장소",
+            "서울 국립중앙박물관 2026년 11월 전시",
+            "서울 예술의전당 2026년 11월 공연",
+            "서울 롯데월드타워 2026년 11월",
+            "서울 동대문디자인플라자 2026년 11월 행사",
+            "서울 코엑스 2026년 11월 행사",
+            "서울 현대카드 디자인 라이브러리",
+            "서울 D Museum 2026년 11월 전시",
+            "서울 아모레퍼시픽 미술관 2026년 11월 전시"
+          ],
+          "chunks": 12,
+          "supports": 8,
+          "searchEntry": true,
+          "text": "2026년 11월 7일에 방문하기 좋은 서울의 장소 6곳을 추천합니다.\n\n1.  국립중앙박물관은 선사 시대부터 근현대까지의 한국 역사를 살펴볼 수 있는 국내 최대 규모의 박물관입니다. 2026년 11월 27일부터 2027년 4월 18일까지 스위스 취리히 미술관 소장품 특별전인 《모던 아트의 탄생 – 스위스 쿤스트하우스 취리히 소장품 특별전》이 개최됩니다.\n2.  예술의전당은 다양한 공연과 전시를 즐길 수 있는 복합문화공간입니다. 2026년 11월 4일 예술의전당 콘서트홀에서는 오페라 가수 100인 앙상블의 '가을을 노래하라!' 공연이 열릴 예정입니다.\n3.  코엑스에서는 2026년 11월 4일부터 7일까지 '2026 푸드위크 코리아(제21회 서울국제식품산업전)'가 개최되어 다양한 식품 기업과 지역 농가, 푸드테크 기업의 협업 사례를 만나볼 수 있습니다.\n4.  동대문디자인플라자(DDP)는 독특한 건축 디자인과 다양한 문화 행사를 즐길 수 있는 곳입니다. DDP 외벽에서는 2026년 11월 30일까지 그룹 아이브의 컴백을 기념하는 특별 영상이 상영되며, 11월 1일까지는 컴백 홍보 부스도 운영됩니다.\n5.  롯데월드타워 SKY31 컨벤션에서는 2026년 11월 9일 '2026 콘솔게임 개발자 컨퍼런스'가 개최되어 글로벌 흥행작 개발진의 노하우와 콘솔 플랫폼 진출 실무 정보를 공유합니다.\n6.  아모레퍼시픽미술관은 한국의 전통미술과 현대미술, 해외미술을 아우르는 전시를 선보이는 곳입니다. 아모레퍼시픽미술관에서는 2026년 9월 1일부터 2027년 2월 28일까지 개념미술의 선구자 솔 르윗의 국내 첫 대규모 개인전인 《Sol LeWitt: Open Structure》가 개최됩니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1315,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 777,
+            "candidatesTokenCount": 292,
+            "totalTokenCount": 1071,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 777
+              }
+            ],
+            "thoughtsTokenCount": 2,
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 8,
+          "candidates": [
+            "코엑스",
+            "롯데월드타워 SKY31 컨벤션",
+            "아모레퍼시픽미술관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 10,
+      "evidence": 8,
+      "candidates": 3,
+      "failure": null
+    },
+    {
+      "run": 2,
+      "capturedAt": "2026-10-22T04:24:59.212Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3497,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 344,
+            "totalTokenCount": 1272,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "Seoul November 2026 exhibitions events venues",
+            "서울 핫플레이스 추천 박물관 미술관 공원",
+            "서울 문화 공간 추천 2026"
+          ],
+          "chunks": 9,
+          "supports": 5,
+          "searchEntry": true,
+          "text": "리움미술관은 한국의 전통 고미술품과 세계적인 현대미술 작품을 조화롭게 선보이며 마리오 보타, 장 누벨, 렘 콜하스가 설계한 독창적인 건축 미학을 자랑하는 세계적인 수준의 사립 미술관입니다.\n\n국립중앙박물관은 선사시대부터 조선시대까지 방대한 문화유산을 품고 있으며 평화로운 거울못과 경건한 사유의 방을 통해 한국 역사의 깊은 숨결을 전하는 아시아 최대 규모의 박물관입니다.\n\n서울공예박물관은 장인의 손길이 담긴 전통 공예부터 현대 공예까지 한국 공예의 과거와 미래를 아우르며 시민과 소통하는 도심 속 공공 문화 플랫폼입니다.\n\n코엑스는 대규모 전시홀과 컨벤션 시설을 갖추고 국제적인 무역 박람회와 다채로운 문화 행사를 개최하여 서울의 비즈니스와 트렌드를 이끄는 대표적인 복합 공간입니다.\n\n서울시립 서서울미술관은 주변의 도심 녹지와 유기적으로 연결되는 유리벽 구조를 갖추고 디지털 감성을 기반으로 한 뉴미디어 아트 중심의 예술 경험을 선사하는 서울 서남권의 핵심 문화 거점입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1252,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 629,
+            "candidatesTokenCount": 255,
+            "totalTokenCount": 884,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 629
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 5,
+          "candidates": [
+            "리움미술관",
+            "국립중앙박물관",
+            "서울공예박물관",
+            "코엑스",
+            "서울시립 서서울미술관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 3,
+      "evidence": 5,
+      "candidates": 5,
+      "failure": null
+    },
+    {
+      "run": 2,
+      "capturedAt": "2026-10-22T04:25:03.971Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 6657,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 667,
+            "totalTokenCount": 2673,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "toolUsePromptTokenCount": 1064,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1064
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 2026년 11월 7일 문화 행사",
+            "서울 박물관",
+            "서울 미술관",
+            "서울 문화 유적지",
+            "국립중앙박물관 상설전시",
+            "리움미술관 상설전시",
+            "호암미술관 상설전시",
+            "예술의전당 상설전시",
+            "DDP 전시",
+            "대한민국역사박물관 상설전시",
+            "백제 한성 박물관 상설전시"
+          ],
+          "chunks": 18,
+          "supports": 12,
+          "searchEntry": true,
+          "text": "2026년 11월 7일 서울에서 방문하기 좋은 문화 관련 장소는 다음과 같습니다.\n\n국립중앙박물관은 선사시대부터 근현대까지 한국의 역사와 문화를 아우르는 유물들을 상설 전시하고 있습니다. 특히 상설전시관 2층 '사유의 방'에서는 국보 반가사유상 두 점을 만날 수 있으며, 2027년 5월 30일까지 고대 그리스·로마실 상설전시를 통해 세계 문화도 향유할 수 있습니다.\n\n리움미술관은 한국 전통 미술과 현대 미술을 아우르는 상설전을 선보이며, 고미술 소장품으로는 도자기, 서화, 금속 공예, 나전칠기 등을 층별 주제로 전시하고 있습니다. 2026년 1월 1일부터 무료로 관람 가능한 고미술 상설전이 진행 중입니다.\n\n대한민국역사박물관은 1894년부터 현재까지 한국 근현대사의 여정을 조명하는 상설 전시를 통해 자유, 평등, 독립, 평화, 민주, 번영의 역사를 다룹니다.\n\n서울시립미술관 서소문본관은 현대미술을 중심으로 다양한 전시와 문화 프로그램을 제공하며, 10,245점의 소장품을 보유하고 있습니다.\n\nDDP(동대문디자인플라자)는 서울 동대문에 위치한 복합 문화 공간으로, 디자인과 문화를 연결하는 다양한 전시와 행사를 통해 신제품과 트렌드를 소개하고 창의적인 가치를 나눕니다. 2026년 10월 14일부터 10월 18일까지 DDP디자인페어가 개최되었습니다. 2026년 10월 15일부터 10월 25일까지 삼성전자 특별전 <Design is an Act of Love(디자인은 사랑의 표현)>이 진행되었습니다.\n\n호암미술관은 삼성그룹 창업주인 호암 이병철 선생이 수집한 한국 미술품 1,200여 점을 기반으로 1982년에 개관하였으며, 전통 한옥 형태의 본관 건물과 한국식 전통 정원 '희원'을 자랑합니다. 2026년 9월 1일부터 12월 27일까지 이우환 <실렌티움(묵시암)> 전시가 진행됩니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1244,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 874,
+            "candidatesTokenCount": 269,
+            "totalTokenCount": 1145,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 874
+              }
+            ],
+            "thoughtsTokenCount": 2,
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 11,
+          "candidates": [
+            "국립중앙박물관",
+            "리움미술관",
+            "대한민국역사박물관",
+            "서울시립미술관",
+            "동대문디자인플라자",
+            "호암미술관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 11,
+      "evidence": 11,
+      "candidates": 6,
+      "failure": null
+    },
+    {
+      "run": 2,
+      "capturedAt": "2026-10-22T04:25:11.981Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 4449,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 518,
+            "totalTokenCount": 1460,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "리움미술관 전시 2026",
+            "Seoul museums galleries cultural sites 2026 exhibitions",
+            "국립현대미술관 서울 전시 2026년 11월",
+            "서울시립미술관 전시 2026년 11월"
+          ],
+          "chunks": 8,
+          "supports": 7,
+          "searchEntry": true,
+          "text": "국립현대미술관 서울은 도심 속 개방된 공간과 독창적인 건축 미학을 바탕으로 국내외 동시대 현대미술의 최전선과 다양한 장르의 실험적인 작품을 선보이는 핵심 문화 예술 기관입니다. 이곳에서는 2026-08-27부터 2027-02-09까지 설치미술가 서도호의 대규모 개인전이 개최됩니다.\n\n리움미술관은 마리오 보타, 장 누벨, 렘 콜하스 등 세계적인 거장들이 건축한 예술적 건물 안에 국보급 고미술 문화재와 세계 현대미술의 거장들의 작품을 조화롭게 담아내는 국내 대표 사립 미술관입니다. 이곳에서는 2026-09-05부터 2026-12-27까지 구정아 작가의 대규모 개인전 《구정아: 우스모스》가 진행됩니다.\n\n서울시립미술관 서소문본관은 과거 대법원 건물의 역사적 외관을 살린 유서 깊은 도심 속 미술관으로, 한국 근현대미술의 흐름을 조명하고 동시대 미디어아트와 국제적 기획전을 폭넓게 아우릅니다. 이곳에서는 2026-10-21부터 2027-02-21까지 미디어아트 선구자인 린 허쉬만 리슨의 아시아 최초 미술관 개인전 《린 허쉬만 리슨: 나의 [나]들》이 개최됩니다.\n\n대한민국역사박물관은 경복궁 옆 광화문광장 인근에 위치하여 개항기부터 오늘날에 이르기까지 대한민국의 파란만장한 역사적 순간과 발전상을 방대한 사료와 전시로 기록하고 전달합니다. 이곳에서는 2026-10-02부터 국립한글박물관과 공동 주관으로 한글의 지난 100년 역사를 조명하는 《FROM 1926 TO INFINITY》 전시가 개최되고 있습니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1878,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 770,
+            "candidatesTokenCount": 508,
+            "totalTokenCount": 1278,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 770
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 7,
+          "candidates": [
+            "국립현대미술관 서울",
+            "국립현대미술관 서울",
+            "리움미술관",
+            "리움미술관",
+            "서울시립미술관 서소문본관",
+            "서울시립미술관 서소문본관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 4,
+      "evidence": 7,
+      "candidates": 6,
+      "failure": null
+    },
+    {
+      "run": 3,
+      "capturedAt": "2026-10-22T04:25:18.314Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 8464,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 882,
+            "totalTokenCount": 2990,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "toolUsePromptTokenCount": 1180,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1180
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 가볼 만한 곳 2026년 11월 7일",
+            "서울 문화 예술 공간 2026년 11월 7일",
+            "서울 자연 경관 2026년 11월 7일",
+            "서울 쇼핑 명소 2026년 11월 7일",
+            "서울 맛집 카페 2026년 11월 7일",
+            "창덕궁 2026년 11월 7일 행사",
+            "국립중앙박물관 2026년 11월 7일 전시",
+            "롯데월드 어드벤처 2026년 11월 7일 행사",
+            "코엑스 2026년 11월 7일 행사",
+            "DDP 2026년 11월 7일 행사",
+            "남산골한옥마을 2026년 11월 7일 행사",
+            "서울식물원 2026년 11월 7일 행사"
+          ],
+          "chunks": 18,
+          "supports": 11,
+          "searchEntry": true,
+          "text": "2026년 11월 7일 서울에서 방문할 만한 6곳의 장소입니다.\n\n1.  **코엑스**: 코엑스는 다양한 전시회와 컨벤션이 열리는 복합 문화 공간입니다. 2026년 11월 4일부터 7일까지 코엑스에서는 '2026 푸드위크 코리아'가 개최되어 K-푸드와 푸드테크의 다양한 상생 협력 모델을 선보일 예정입니다.\n2.  **남산공원**: 남산공원은 서울의 중심에 위치하여 자연 속에서 산책과 휴식을 즐길 수 있는 곳입니다. 2026년 11월 1일부터 30일까지 '2026년 남산둘레길 가을소풍'이 열리며, 특히 11월 7일부터 8일에는 자연·역사 투어, 새 가족 탐사, 뜨개질 체험 등 다채로운 프로그램이 진행됩니다.\n3.  **롯데월드 어드벤처**: 롯데월드 어드벤처는 실내 테마파크와 야외 매직 아일랜드로 구성된 대규모 레크리에이션 복합 시설입니다. 2026년 9월 19일부터 11월 15일까지 이토 준지 컬렉션과 협업한 가을 시즌 축제 '기묘한 세계의 초대'가 진행되며, 매일 오후 8시 20분에는 신규 퍼레이드 '다크 판타지 페스티벌'을 감상할 수 있습니다.\n4.  **국립중앙박물관**: 국립중앙박물관은 한국의 역사와 예술을 아우르는 다양한 유물을 소장하고 전시하는 대한민국 최대 규모의 박물관입니다. 2026년 11월 27일부터는 특별전 '전쟁, 예술 그리고 삶'이 시작되어 스위스 취리히 미술관의 작품 90여 점을 선보일 예정입니다.\n5.  **서울식물원**: 서울식물원은 식물 문화센터와 다양한 식물 전시를 통해 도시민에게 식물과 자연을 경험할 수 있는 기회를 제공합니다. 2026년 6월 23일부터 2027년 5월 16일까지 '다정한 균형: 서로를 비추는' 기획 전시가 식물문화센터 프로젝트홀2, 주재원, 온실, 마곡문화관에서 진행됩니다.\n6.  **롯데콘서트홀**: 롯데콘서트홀은 클래식, 재즈 등 다양한 장르의 공연이 펼쳐지는 전문 공연장입니다. 2026년 11월 7일 토요일 오후 7시에는 '정동환의 어쿠스틱 룸' 공연이 예정되어 있습니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1416,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 827,
+            "candidatesTokenCount": 370,
+            "totalTokenCount": 1199,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 827
+              }
+            ],
+            "thoughtsTokenCount": 2,
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 9,
+          "candidates": [
+            "코엑스",
+            "코엑스",
+            "남산공원",
+            "남산공원",
+            "롯데월드 어드벤처",
+            "롯데월드 어드벤처"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 12,
+      "evidence": 9,
+      "candidates": 6,
+      "failure": null
+    },
+    {
+      "run": 3,
+      "capturedAt": "2026-10-22T04:25:28.206Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3506,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 423,
+            "totalTokenCount": 1351,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 문화비축기지 전시 2026",
+            "국립현대미술관 서울 전시 2026",
+            "DDP 서울 전시 2026 11월"
+          ],
+          "chunks": 5,
+          "supports": 6,
+          "searchEntry": true,
+          "text": "국립현대미술관 서울은 도심 속 개방형 구조를 통해 한국 현대미술의 동시대적 흐름과 다양한 장르의 실험적인 작품들을 선보이는 대표적인 미술 기관입니다. 국립현대미술관 서울에서 진행되는 《서도호》전은 집과 이동, 기억과 정체성을 화두로 독창적인 예술 세계를 구축한 대가의 작품들을 조명하며, 2026-08-27부터 2027-02-09까지 개최됩니다.\n\n동대문디자인플라자(DDP)는 세계 최대 규모의 삼차원 비정형 건축물로 우수한 디자인 자원을 바탕으로 전시와 패션쇼 등 다채로운 문화 예술 프로그램이 끊임없이 펼쳐지는 혁신적인 복합 문화 공간입니다. 동대문디자인플라자(DDP)에서 열리는 협력전시 <하이테크로 그려본 전통장신구의 내일>은 첨단 기술과 전통 공예의 만남을 탐구하는 자리로, 2026-10-31부터 2026-11-11까지 진행됩니다.\n\n문화비축기지는 과거 석유비축기지였던 산업화 시대의 거대한 유산을 친환경적이고 창의적인 생태문화공원으로 탈바꿈시켜 시민들에게 여유로운 휴식과 다채로운 문화 경험을 선사합니다. 문화비축기지에서는 에르미타주 박물관의 공식 디지털 콘텐츠를 활용해 세계적 명작과 건축미를 선보이는 특별전 《찬란한 에르미타주》가 2026-04-30부터 2026-07-30까지 운영됩니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1641,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 745,
+            "candidatesTokenCount": 273,
+            "totalTokenCount": 1018,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 745
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 6,
+          "candidates": [
+            "국립현대미술관 서울",
+            "동대문디자인플라자",
+            "문화비축기지"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 3,
+      "evidence": 6,
+      "candidates": 3,
+      "failure": null
+    },
+    {
+      "run": 3,
+      "capturedAt": "2026-10-22T04:25:33.363Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 6460,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 570,
+            "totalTokenCount": 2528,
+            "cachedContentTokenCount": 136,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "cacheTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 136
+              }
+            ],
+            "toolUsePromptTokenCount": 1016,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1016
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 문화 명소",
+            "서울 박물관",
+            "서울 미술관",
+            "국립중앙박물관",
+            "리움미술관",
+            "예술의전당",
+            "동대문디자인플라자 DDP",
+            "간송미술관",
+            "백인제가옥"
+          ],
+          "chunks": 18,
+          "supports": 12,
+          "searchEntry": true,
+          "text": "서울에는 2026년 11월 7일에 방문하기 좋은 다양한 문화 장소가 있습니다.\n\n국립중앙박물관은 선사시대부터 근현대까지 한국의 역사와 문화를 아우르는 약 40만 점의 유물을 소장하고 있는 한국 최대의 박물관입니다. 특히 국보인 반가사유상과 대동여지도 등 꼭 봐야 할 유물들이 전시되어 있습니다.\n\n리움미술관은 한국의 전통미술과 현대미술, 국제미술이 공존하는 사립 미술관으로, 삼성그룹 창립자의 소장품에서 시작되었습니다. 고미술 상설전시 M1에서는 도자기, 고서화, 불교미술, 금속공예를 무료로 감상할 수 있습니다.\n\n간송미술관은 1938년 한국 최초의 사립 미술관인 보화각으로 개관했으며, 간송 전형필 선생이 한국 문화유산을 지키고자 설립했습니다. 이곳은 석조, 금속, 도예, 회화, 고서 등 6세기부터 20세기 초반에 이르는 한국의 고미술품과 서책을 소장하고 있습니다.\n\n백인제 가옥은 북촌 가회동에 위치한 근대 한옥으로, 일제강점기에 지어졌으며 근대 한옥의 양식을 잘 보존하고 있습니다. 자유 관람은 예약 없이 가능하지만, 사랑채와 별채 등 일부 시설 내부는 전시 해설 예약자에 한해 입장이 가능합니다.\n\n예술의전당은 오페라하우스, 음악당, 한가람미술관, 서울서예박물관 등으로 구성된 대한민국 최대 규모의 종합 예술 시설입니다. 이곳에서는 연극, 오페라, 발레, 무용, 콘서트, 미술 전시 등 다양한 문화예술 행사가 연중 펼쳐집니다.\n\n동대문디자인플라자(DDP)는 세계적인 건축가 자하 하디드가 설계한 세계 최대의 3차원 비정형 건축물로, 디자인을 주제로 한 복합문화공간입니다. 이곳에서는 서울패션위크, 디자인 전시, 신제품 런칭쇼, 플리마켓, 공연 등 창의적인 콘텐츠를 선보입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1325,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 779,
+            "candidatesTokenCount": 250,
+            "totalTokenCount": 1031,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 779
+              }
+            ],
+            "thoughtsTokenCount": 2,
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 10,
+          "candidates": [
+            "국립중앙박물관",
+            "리움미술관",
+            "간송미술관",
+            "백인제가옥",
+            "예술의전당"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 9,
+      "evidence": 10,
+      "candidates": 5,
+      "failure": null
+    },
+    {
+      "run": 3,
+      "capturedAt": "2026-10-22T04:25:41.155Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3318,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 436,
+            "totalTokenCount": 1378,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "국립현대미술관 서울 전시 2026 11월",
+            "Seoul museums art galleries cultural sites 2026 exhibitions november",
+            "리움미술관 전시 2026 11월",
+            "서울시립미술관 전시 2026 11월"
+          ],
+          "chunks": 5,
+          "supports": 6,
+          "searchEntry": true,
+          "text": "국립현대미술관 서울은 도심 속 개방된 공간과 전통 한옥 양식이 어우러진 건축적 미감 속에서 다양한 동시대 현대미술과 미디어아트 소장품을 선보이는 복합문화공간입니다. 이 미술관에서는 2026년 7월 24일부터 2026년 12월 6일까지 한국 현대미술의 동시대적 담론을 조명하는 《대한민국예술원 미술전》 형태의 《Korea Artist Prize 2026》 전시를 개최합니다.\n\n리움미술관은 세계적인 건축가들이 설계한 현대적인 건물과 전통 고미술을 담은 건축물이 조화를 이루며 고미술부터 최첨단 동시대 미술까지 아우르는 방대한 소장품을 자랑합니다. 이 미술관에서는 2026년 9월 5일부터 2026년 12월 27일까지 미세한 개입부터 대규모 장소특정적 설치까지 작가의 세계관을 집약한 《구정아: 우스모스》 전시를 개최합니다.\n\n서울시립미술관 서소문본관은 과거 대법원 건물의 역사적 파사드를 보존한 유서 깊은 건축물에서 한국 근현대 미술의 흐름을 보여주는 다채로운 소장품과 기획전을 운영합니다. 이 미술관에서는 2026년 10월 21일부터 2027년 2월 21일까지 원로 여성 미디어아티스트의 60여 년 활동 궤적을 조명하는 아시아 최초 미술관 개인전 《린 허쉬만 리슨: 나의 [나]들》 전시를 개최합니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1230,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 742,
+            "candidatesTokenCount": 171,
+            "totalTokenCount": 913,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 742
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 6,
+          "candidates": [
+            "국립현대미술관 서울",
+            "리움미술관",
+            "서울시립미술관 서소문본관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 4,
+      "evidence": 6,
+      "candidates": 3,
+      "failure": null
+    },
+    {
+      "run": 4,
+      "capturedAt": "2026-10-22T04:25:45.705Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 7118,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 499,
+            "totalTokenCount": 2499,
+            "cachedContentTokenCount": 104,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "cacheTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 104
+              }
+            ],
+            "toolUsePromptTokenCount": 1072,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1072
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 가볼만한 곳 2026년 11월 7일",
+            "서울 실내 데이트 장소 추천",
+            "서울 야외 활동 추천",
+            "서울 문화 예술 공간",
+            "서울 쇼핑 명소",
+            "서울 자연 경관",
+            "서울 맛집 추천",
+            "창덕궁",
+            "국립중앙박물관",
+            "동대문디자인플라자 DDP",
+            "쌈지길",
+            "광장시장",
+            "남산골한옥마을",
+            "하늘공원",
+            "코엑스 아쿠아리움",
+            "롯데월드",
+            "예술의전당"
+          ],
+          "chunks": 28,
+          "supports": 6,
+          "searchEntry": true,
+          "text": "서울 방문객을 위한 2026년 11월 7일에 적합한 6곳의 장소 추천입니다.\n\n*   국립중앙박물관은 한국의 역사와 문화를 한눈에 볼 수 있는 한국 최대의 국립 박물관으로, 선사시대부터 근대에 이르는 약 40만 점의 유물을 소장하고 있습니다.\n*   창덕궁은 조선 시대에 가장 오랜 기간 왕의 주 거처로 사용된 궁궐이며, 특히 후원은 한국의 정원을 대표하는 세계문화유산입니다.\n*   남산골한옥마을은 남산 북측에 위치하며, 서울 시내에 흩어져 있던 조선시대 한옥 다섯 채를 이전 및 복원하여 전통문화 예술 공간으로 조성한 곳입니다.\n*   씨라이프 코엑스 아쿠아리움은 183개의 전시 수조와 90개의 사육 수조를 갖춘 대형 수족관으로, '환상적인 물의 여행'을 테마로 650여 종 4만여 마리의 수중 생물을 만날 수 있습니다.\n*   쌈지길은 전통과 현대 공예품들이 입점한 복합문화공간으로, 인사동의 고유한 색깔을 바탕으로 다양한 공방과 상점을 구경하며 한국 전통문화의 멋을 느낄 수 있습니다.\n*   서울식물원은 번화한 서울 한복판에서 자연을 만끽할 수 있는 도심 속 안식처로, 다양한 식물 컬렉션을 자랑하는 온실과 야외 주제정원을 갖추고 있습니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 972,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 485,
+            "candidatesTokenCount": 113,
+            "totalTokenCount": 598,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 485
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 3,
+          "candidates": [
+            "국립중앙박물관",
+            "창덕궁",
+            "남산골한옥마을"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 17,
+      "evidence": 3,
+      "candidates": 3,
+      "failure": null
+    },
+    {
+      "run": 4,
+      "capturedAt": "2026-10-22T04:25:53.809Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "any",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3348,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 928,
+            "candidatesTokenCount": 308,
+            "totalTokenCount": 1236,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 928
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "Seoul exhibition November 2026 museum gallery",
+            "Seoul attractions places to visit cultural spots"
+          ],
+          "chunks": 5,
+          "supports": 6,
+          "searchEntry": true,
+          "text": "국립중앙박물관은 구석기 시대부터 조선 시대까지 방대한 한국 역사와 문화유산을 소장하고 있는 대한민국 대표 국립 박물관입니다. 리움미술관은 고유한 전통 미술과 전 세계의 현대 미술 명작을 조화롭게 아우르는 건축적 미학이 돋보이는 세계적인 수준의 사립 미술관입니다. 덕수궁은 전통적인 궁궐 전각과 근대 고유의 서양식 건축물이 우아하게 공존하는 역사적인 공간입니다. 아모레퍼시픽미술관은 독창적인 현대 미술 기획전과 폭넓은 고미술 소장품을 통해 깊이 있는 문화적 경험을 선사하는 현대적 복합 문화 공간입니다. 국립현대미술관 서울은 전통 한옥의 마당 개념을 현대 건축에 녹여내어 도심 속에서 다양한 동시대 시각 예술을 즐길 수 있는 개방형 미술관입니다. 동대문디자인플라자(DDP)는 유기적인 곡선미를 자랑하는 세계 최대 규모의 3차원 비정형 건축물로 다양한 디자인 전시와 행사가 열리는 문화 발신지입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1846,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 618,
+            "candidatesTokenCount": 321,
+            "totalTokenCount": 939,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 618
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 6,
+          "candidates": [
+            "국립중앙박물관",
+            "리움미술관",
+            "덕수궁",
+            "아모레퍼시픽미술관",
+            "국립현대미술관 서울",
+            "동대문디자인플라자(DDP)"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 2,
+      "evidence": 6,
+      "candidates": 6,
+      "failure": null
+    },
+    {
+      "run": 4,
+      "capturedAt": "2026-10-22T04:25:59.008Z",
+      "searchModel": "gemini-2.5-flash",
+      "formatModel": "gemini-2.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-2.5-flash",
+          "milliseconds": 5823,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 586,
+            "totalTokenCount": 2570,
+            "cachedContentTokenCount": 100,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "cacheTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 100
+              }
+            ],
+            "toolUsePromptTokenCount": 1042,
+            "toolUsePromptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1042
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 문화 명소",
+            "국립중앙박물관 상설전시",
+            "국립현대미술관 서울관 상설전시",
+            "리움미술관 상설전시",
+            "호림박물관 상설전시",
+            "간송미술관 상설전시",
+            "서울공예박물관 상설전시",
+            "서울역사박물관 상설전시"
+          ],
+          "chunks": 22,
+          "supports": 6,
+          "searchEntry": true,
+          "text": "다음은 2026년 11월 7일에 방문하기 좋은 서울의 문화 명소입니다.\n\n*   **국립중앙박물관**은 선사시대부터 근현대에 이르는 한국의 역사와 문화를 아우르는 유물들을 소장하고 있으며, 특히 국보 반가사유상 두 점을 만날 수 있는 '사유의 방' 상설전시를 2031년 12월 31일까지 진행합니다.\n*   **리움미술관**은 선사시대부터 조선시대까지 한국 전통 미술의 아름다움을 보여주는 도자기, 서화, 금속 공예 등의 고미술 소장품을 상설전시 M1에서 선보입니다.\n*   **서울공예박물관**은 한국 최초의 공예 전문 박물관으로, 공예의 과거, 현재, 미래를 연결하는 다양한 공예품을 전시하고 있으며, 2026년 1월 9일부터 '자수, 염원을 그리다'라는 상설전을 통해 한국 자수의 아름다움을 새롭게 선보입니다.\n*   **서울역사박물관**은 조선 건국 이후부터 개항기, 일제강점기, 근현대에 이르기까지 서울의 역사와 문화를 다양한 유물과 자료를 통해 보여주는 상설 전시를 운영하고 있습니다.\n*   **국립현대미술관 서울관**은 2013년 개관 이래 처음으로 선보이는 상설전 《한국현대미술 하이라이트》를 2025년 5월 1일부터 2026년 5월 3일까지 개최하여 1960년대부터 2010년대에 이르는 한국 현대미술 대표작 90여 점을 소개합니다.\n*   **호림박물관 신사분관**은 고미술품을 비롯하여 다양한 장르의 기획전을 선보이는 곳으로, 2026년 9월 1일부터 12월 12일까지 '시時간間' 특별전을 통해 옛 사람들이 시간과 세계를 이해했던 방식을 조명하는 90여 점의 유물을 전시합니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-2.5-flash-lite",
+          "milliseconds": 1133,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 620,
+            "candidatesTokenCount": 252,
+            "totalTokenCount": 872,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 620
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 4,
+          "candidates": [
+            "국립중앙박물관",
+            "리움미술관",
+            "서울공예박물관",
+            "서울역사박물관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 8,
+      "evidence": 4,
+      "candidates": 4,
+      "failure": null
+    },
+    {
+      "run": 4,
+      "capturedAt": "2026-10-22T04:26:05.972Z",
+      "searchModel": "gemini-3.5-flash-lite",
+      "formatModel": "gemini-3.5-flash-lite",
+      "interest": "culture",
+      "calls": [
+        {
+          "search": true,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 3482,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 942,
+            "candidatesTokenCount": 344,
+            "totalTokenCount": 1286,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 942
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "queries": [
+            "서울 박물관 미술관 전시 2026년 11월",
+            "국립중앙박물관 전시 2026년 11월"
+          ],
+          "chunks": 2,
+          "supports": 2,
+          "searchEntry": true,
+          "text": "국립중앙박물관은 선사 시대부터 근현대까지 방대한 한국 역사와 문화를 아우르는 유물을 소장·전시하는 국내 최대 규모의 대표 박물관입니다.\n\n리움미술관은 고유의 고미술 상설 전시와 세계적인 현대미술 작품을 조화롭게 선보이며, 마리오 보타, 장 누벨, 렘 콜하스가 설계한 독창적인 건축물 자체로도 예술적 가치가 높은 문화 공간입니다.\n\n서울시립미술관 서소문본관은 과거 대법원 건물을 리모델링하여 개관한 도심 속 대표 미술관으로, 한국 근현대미술의 흐름을 보여주는 다채로운 소장품 전시와 현대미술 기획전을 개최합니다.\n\n대한민국역사박물관은 광화문에 위치하여 개항기부터 현대에 이르기까지 대한민국 성장과 발전의 역사를 다양한 시청각 자료와 유물로 생생하게 증언하는 전문 박물관입니다.\n\n아모레퍼시픽미술관은 세계적인 건축가 데이비드 치퍼필드가 설계한 용산 본사 빌딩 내에 자리 잡아 고미술과 동시대 현대미술을 아우르는 깊이 있는 컬렉션을 선보입니다.\n\n국립현대미술관 서울은 전통 가옥의 마당 개념을 차용한 개방적이고 현대적인 건축 설계 속에서 국내외 최정상급 현대미술 전시를 펼쳐 보이는 도심 속 문화 예술 중심지입니다."
+        },
+        {
+          "search": false,
+          "model": "gemini-3.5-flash-lite",
+          "milliseconds": 1340,
+          "status": 200,
+          "usage": {
+            "promptTokenCount": 442,
+            "candidatesTokenCount": 122,
+            "totalTokenCount": 564,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 442
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "finishReason": "STOP",
+          "evidence": 2,
+          "candidates": [
+            "국립중앙박물관",
+            "서울시립미술관 서소문본관"
+          ]
+        }
+      ],
+      "reachedPlaces": true,
+      "searched": true,
+      "searchQueries": 2,
+      "evidence": 2,
+      "candidates": 2,
+      "failure": null
+    }
+  ]
+}
