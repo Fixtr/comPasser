@@ -53,6 +53,22 @@ test('overnight places survive draft storage and form reading', () => {
   assert.deepEqual(getFormData(form(draft),draft).overnightLocations,[hotel]);
 });
 
+test('a flight departure survives the draft and is read only while the destination is an airport', () => {
+  const flight = { departureTime: '21:00', kind: 'domestic' };
+  const draft = toPlannerDraft({ ...edited(), endLocation: '김포국제공항', flight });
+  assert.deepEqual(draft.flight, flight);
+  assert.equal(toPlannerDraft({ ...edited(), flight: { departureTime: '9pm', kind: 'domestic' } }).flight, null);
+  assert.equal(toPlannerDraft({ ...edited(), flight: { departureTime: '21:00', kind: 'charter' } }).flight, null);
+  const airportForm = form(draft);
+  airportForm.getElementById = id => ({ 'flight-departure-time': { value: '21:00' }, 'flight-kind': { value: 'domestic' } })[id]
+    ?? form(draft).getElementById(id);
+  assert.deepEqual(getFormData(airportForm, draft).flight, flight);
+  const stationForm = form({ ...draft, endLocation: '서울역' });
+  const stationLookup = stationForm.getElementById;
+  stationForm.getElementById = id => id === 'flight-departure-time' ? { value: '21:00' } : stationLookup(id);
+  assert.equal(getFormData(stationForm, draft).flight, null);
+});
+
 test('legacy repeated endpoints require lodging; first departure and final destination survive editing', () => {
   const source = { dailyData: Array.from({ length: 4 }, (_, index) => ({
     day: index + 1, date: `2026-10-0${index + 1}`, startTime: '09:00', endTime: '18:00',

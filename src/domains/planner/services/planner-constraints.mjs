@@ -1,6 +1,7 @@
 import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
+import { isAirportName } from './flight-arrival.mjs';
 
 function selectedFields(location) {
   const selectedPlace = normalizeSelectedPlace(location);
@@ -316,8 +317,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
     // gemini-2.5-flash-lite ignored the prompt's airport gap and ended dinner 30 minutes before a 21:00
     // Incheon arrival; measured transit was about 130 minutes. Same 150 minutes as the prompt.
-    // shortcut: airports are recognised by name only; use Places types if endpoints ever store them.
-    const latestVisitEnd = /공항|airport|空港|a[ée]roport/i.test(getLocationName(constraints.endLocation))
+    const latestVisitEnd = isAirportName(getLocationName(constraints.endLocation))
       ? endTimeMinutes - 150 : Number.MAX_SAFE_INTEGER;
     scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
       || (minutes(item.endTime) <= latestVisitEnd

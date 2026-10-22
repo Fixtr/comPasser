@@ -18,11 +18,13 @@
     "location": "필수 일정 장소"
   }],
   "theme": "healing",
-  "budget": "standard"
+  "budget": "standard",
+  "flight": { "departureTime": "21:00", "kind": "international" }
 }
 ```
 
 `startLocation`, `endLocation`, and anchor `location` accept either a plain string or a structured Google Place object. The form contract remains flat for edit/save compatibility.
+`flight` is optional and kept only while the final destination name is an airport. The form sets the last day's `endTime` to the airport arrival (`international` 3 hours, `domestic` 90 minutes before departure); the server ignores `flight` and uses `endTime`.
 `selectedWaypoints` is retained for drafts created by the earlier home-card flow. Current home picks are added to `anchorSchedules` on day 1 with blank `time` and `endTime`; the user sets both in the form before generation. Existing departure and destination fields are unchanged.
 
 ## Canonical Daily Constraint

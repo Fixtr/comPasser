@@ -1126,3 +1126,27 @@ for (const acceptExit of [true,false]) {
   }
  });
 }
+
+test('an airport destination turns a flight departure into the last day airport arrival',async({page})=>{
+ const airport={placeId:'Paris Airport',displayName:'Paris Airport',formattedAddress:'Paris, France',lat:49,lng:2.5};
+ const open=async date=>{await page.goto('/destination');await page.evaluate(async([date,airport])=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:airport,startTime:'09:00',endTime:'21:00',anchorSchedules:[]});},[date,airport]);
+  await page.goto('/plan');return page.locator('travel-form:visible');};
+ let form=await open(['2030-10-17']);
+ await expect(form.locator('#flight-fields')).toBeVisible();
+ await form.locator('#flight-departure-time').fill('21:00');await expect(form.locator('#end-time')).toHaveValue('18:00');
+ await expect(form.locator('#flight-note')).toContainText('18:00');
+ await form.locator('#flight-kind').selectOption('domestic');await expect(form.locator('#end-time')).toHaveValue('19:30');
+ await form.locator('#flight-departure-time').fill('01:00');await expect(form.locator('#end-time')).toHaveValue('19:30');
+ await expect(form.locator('#flight-note')).toContainText('직접 입력');
+ await form.locator('#flight-departure-time').fill('21:00');
+ await form.evaluate(async element=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');element.populateForm(plannerDraftStore.read());});
+ await expect(form.locator('#flight-departure-time')).toHaveValue('21:00');await expect(form.locator('#flight-kind')).toHaveValue('domestic');
+ expect(await form.evaluate(element=>element.getFormData().flight)).toEqual({departureTime:'21:00',kind:'domestic'});
+ await selectPlace(form.locator('#end-location'),'Paris Station');await expect(form.locator('#flight-fields')).toBeHidden();
+ expect(await form.evaluate(element=>element.getFormData().flight)).toBeNull();
+
+ form=await open(['2030-10-17','2030-10-18']);
+ await form.locator('#flight-departure-time').fill('21:00');
+ await expect(form.locator('#daily-times-toggle')).toBeChecked();
+ expect(await form.evaluate(element=>element.getFormData().dailyTimes.map(day=>[day.startTime,day.endTime]))).toEqual([['09:00','21:00'],['09:00','18:00']]);
+});

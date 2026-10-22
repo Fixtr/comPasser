@@ -2,6 +2,7 @@ import { TRAVEL_REGIONS } from '../../../../functions/travel-region.mjs';
 import { getLocationName } from './planner-constraints.mjs';
 import { nightlyStays } from './trip-stays.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
+import { FLIGHT_BUFFER_MINUTES } from './flight-arrival.mjs';
 const preserveLocation = value => normalizeSelectedPlace(value) || getLocationName(value);
 
 /** Editable, flat input only. Derived dailyData must not override later edits. */
@@ -27,6 +28,9 @@ export function toPlannerDraft(request = {}) {
     })) } : {}),
     theme: input.theme ?? null,
     budget: input.budget ?? null,
+    // Optional departure on an airport destination; the form turns it into the end time.
+    flight: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(input.flight?.departureTime || '') && Object.hasOwn(FLIGHT_BUFFER_MINUTES, input.flight?.kind || '')
+      ? { departureTime: input.flight.departureTime, kind: input.flight.kind } : null,
     startTime: input.startTime ?? first.startTime ?? '',
     endTime: input.endTime ?? first.endTime ?? '',
     startLocation: preserveLocation(input.startLocation ?? first.startLocation),
