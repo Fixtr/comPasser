@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { airportArrivalTime, isAirportName } from '../src/domains/planner/services/flight-arrival.mjs';
+import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../src/domains/planner/services/flight-arrival.mjs';
+
+test('the trip starts 1 hour after an international and 30 minutes after a domestic landing', () => {
+  assert.equal(tripStartAfterLanding('10:00', 'international'), '11:00');
+  assert.equal(tripStartAfterLanding('10:00', 'domestic'), '10:30');
+  assert.equal(tripStartAfterLanding('23:30', 'international'), null);
+  assert.equal(tripStartAfterLanding('10:00', 'charter'), null);
+});
 
 test('the airport arrival is 3 hours before an international and 90 minutes before a domestic flight', () => {
   assert.equal(airportArrivalTime('21:00', 'international'), '18:00');

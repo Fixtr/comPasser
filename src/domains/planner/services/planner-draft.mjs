@@ -4,6 +4,12 @@ import { nightlyStays } from './trip-stays.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { FLIGHT_BUFFER_MINUTES } from './flight-arrival.mjs';
 const preserveLocation = value => normalizeSelectedPlace(value) || getLocationName(value);
+// An entry the user is still filling in keeps its place; invalid values are reset, not kept.
+const flightEntry = value => value && typeof value === 'object' ? {
+  airport: preserveLocation(value.airport),
+  time: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.time || '') ? value.time : '',
+  kind: Object.hasOwn(FLIGHT_BUFFER_MINUTES, value.kind || '') ? value.kind : 'international',
+} : null;
 
 /** Editable, flat input only. Derived dailyData must not override later edits. */
 export function toPlannerDraft(request = {}) {
@@ -28,9 +34,8 @@ export function toPlannerDraft(request = {}) {
     })) } : {}),
     theme: input.theme ?? null,
     budget: input.budget ?? null,
-    // Optional departure on an airport destination; the form turns it into the end time.
-    flight: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(input.flight?.departureTime || '') && Object.hasOwn(FLIGHT_BUFFER_MINUTES, input.flight?.kind || '')
-      ? { departureTime: input.flight.departureTime, kind: input.flight.kind } : null,
+    // Optional flights; the form copies their airports and times into the first and last day.
+    flights: { arrival: flightEntry(input.flights?.arrival), departure: flightEntry(input.flights?.departure) },
     startTime: input.startTime ?? first.startTime ?? '',
     endTime: input.endTime ?? first.endTime ?? '',
     startLocation: preserveLocation(input.startLocation ?? first.startLocation),

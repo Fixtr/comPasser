@@ -19,12 +19,15 @@
   }],
   "theme": "healing",
   "budget": "standard",
-  "flight": { "departureTime": "21:00", "kind": "international" }
+  "flights": {
+    "arrival": { "airport": "인천국제공항", "time": "10:00", "kind": "international" },
+    "departure": null
+  }
 }
 ```
 
 `startLocation`, `endLocation`, and anchor `location` accept either a plain string or a structured Google Place object. The form contract remains flat for edit/save compatibility.
-`flight` is optional and kept only while the final destination name is an airport. The form sets the last day's `endTime` to the airport arrival (`international` 3 hours, `domestic` 90 minutes before departure); the server ignores `flight` and uses `endTime`.
+`flights` is optional. An arriving flight sets day 1 `startLocation` to its airport and the start time to landing + 60 minutes (`international`) or + 30 minutes (`domestic`). A departing flight sets the last day `endLocation` to its airport and the end time to 3 hours or 90 minutes before departure. The form locks those locations while a flight exists; times stay editable. The server ignores `flights` and uses the resulting locations and times.
 `selectedWaypoints` is retained for drafts created by the earlier home-card flow. Current home picks are added to `anchorSchedules` on day 1 with blank `time` and `endTime`; the user sets both in the form before generation. Existing departure and destination fields are unchanged.
 
 ## Canonical Daily Constraint

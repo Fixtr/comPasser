@@ -7,8 +7,7 @@ import { nightlyStays } from '../services/trip-stays.mjs';
  * "폼 → 데이터" 책임을 나눈다.
  */
 
-import { placeInputText, readPlaceInput } from '../services/selected-place.mjs';
-import { isAirportName } from '../services/flight-arrival.mjs';
+import { readPlaceInput } from '../services/selected-place.mjs';
 
 export function getAutocompleteValue(element) {
   if (!element) return '';
@@ -83,8 +82,11 @@ export function getFormData(shadowRoot, draft = {}) {
     }));
   }
 
-  const endLocation = getAutocompleteValue(shadowRoot.getElementById('end-location'));
-  const departureTime = shadowRoot.getElementById('flight-departure-time')?.value || '';
+  const flight = kind => {
+    const entry = shadowRoot.getElementById(`${kind}-flight`);
+    return entry && !entry.hidden ? { airport: getAutocompleteValue(entry.querySelector('.flight-airport')),
+      time: entry.querySelector('.flight-time').value, kind: entry.querySelector('.flight-kind').value } : null;
+  };
   const tripStays = Array.isArray(draft.stays) ? Array.from(shadowRoot.querySelectorAll('.trip-stay')).map(row => ({
     location: getAutocompleteValue(row.querySelector('.stay-location')),
     checkin: row.querySelector('.stay-checkin').value, checkout: row.querySelector('.stay-checkout').value,
@@ -106,9 +108,8 @@ export function getFormData(shadowRoot, draft = {}) {
         endLocation: getAutocompleteValue(row.querySelector('.daily-end-location')),
       })) : null,
     startLocation: getAutocompleteValue(shadowRoot.getElementById('start-location')),
-    endLocation,
-    flight: departureTime && isAirportName(placeInputText(endLocation))
-      ? { departureTime, kind: shadowRoot.getElementById('flight-kind')?.value || 'international' } : null,
+    endLocation: getAutocompleteValue(shadowRoot.getElementById('end-location')),
+    flights: { arrival: flight('arrival'), departure: flight('departure') },
     sameOvernightLocation,
     overnightLocations: tripStays ? nightlyStays(tripStays, finalDate) : Array.from({ length: nights }, (_, index) =>
       structuredClone(stays[sameOvernightLocation ? 0 : index] || '')),

@@ -19,7 +19,7 @@ import { todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
 import { getLocationName, normalizePlannerRequest } from '../services/planner-constraints.mjs';
-import { airportArrivalTime, isAirportName } from '../services/flight-arrival.mjs';
+import { airportArrivalTime, tripStartAfterLanding } from '../services/flight-arrival.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
@@ -375,29 +375,15 @@ export default class TravelForm extends HTMLElement {
                 <button type="button" id="where-to-go" class="link-btn" data-i18n="whereToGo">어디로 갈까?</button>
               </div>
               <gmp-place-autocomplete id="start-location" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
+              <p id="start-location-lock" class="subtitle" data-i18n="flightLocksStart" hidden></p>
             </div>
             <div class="form-group">
               <div class="location-heading">
                 <label for="end-location" data-i18n="endLocation">End Location (e.g., Hotel/Airport)</label>
               </div>
               <gmp-place-autocomplete id="end-location" data-i18n-placeholder="endLocationPlaceholder" placeholder="${t('endLocationPlaceholder')}"></gmp-place-autocomplete>
+              <p id="end-location-lock" class="subtitle" data-i18n="flightLocksEnd" hidden></p>
             </div>
-          </div>
-          <div id="flight-fields" hidden>
-            <div class="row-2">
-              <div class="form-group">
-                <label for="flight-departure-time" data-i18n="flightDepartureTime">Flight departure (optional)</label>
-                <input type="time" id="flight-departure-time">
-              </div>
-              <div class="form-group">
-                <label for="flight-kind" data-i18n="flightKind">Flight</label>
-                <select id="flight-kind">
-                  <option value="international" data-i18n="flightInternational">International (3 h before)</option>
-                  <option value="domestic" data-i18n="flightDomestic">Domestic (1 h 30 min before)</option>
-                </select>
-              </div>
-            </div>
-            <p id="flight-note" class="subtitle" role="status"></p>
           </div>
           <div id="overnight-wrapper" hidden>
             <p class="subtitle" data-i18n="overnightLocationHelp">Choose where each night ends and the next day begins.</p>
@@ -421,6 +407,63 @@ export default class TravelForm extends HTMLElement {
           <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
             <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
           </p>
+        </div>
+
+        <div class="form-section" id="flights-section">
+          <h2><span data-i18n="flightsTitle">Flights</span> <span class="optional-note">(Optional)</span></h2>
+          <p class="subtitle" data-i18n="flightsSubtitle"></p>
+          <div class="flight-entry" id="arrival-flight" hidden>
+            <div class="location-heading">
+              <strong data-i18n="arrivalFlight"></strong>
+              <button type="button" class="link-btn flight-remove" data-i18n="removeFlight">Remove</button>
+            </div>
+            <div class="form-group">
+              <label for="arrival-flight-airport" data-i18n="flightAirport">Airport</label>
+              <gmp-place-autocomplete id="arrival-flight-airport" class="flight-airport" data-i18n-placeholder="flightAirportPlaceholder" placeholder="Search for an airport"></gmp-place-autocomplete>
+            </div>
+            <div class="row-2">
+              <div class="form-group">
+                <label for="arrival-flight-time" data-i18n="landingTime">Time</label>
+                <input type="time" id="arrival-flight-time" class="flight-time">
+              </div>
+              <div class="form-group">
+                <label for="arrival-flight-kind" data-i18n="flightKind">Flight</label>
+                <select id="arrival-flight-kind" class="flight-kind">
+                  <option value="international" data-i18n="flightInternational">International</option>
+                  <option value="domestic" data-i18n="flightDomestic">Domestic</option>
+                </select>
+              </div>
+            </div>
+            <p class="subtitle flight-note" role="status"></p>
+          </div>
+          <div class="flight-entry" id="departure-flight" hidden>
+            <div class="location-heading">
+              <strong data-i18n="departureFlight"></strong>
+              <button type="button" class="link-btn flight-remove" data-i18n="removeFlight">Remove</button>
+            </div>
+            <div class="form-group">
+              <label for="departure-flight-airport" data-i18n="flightAirport">Airport</label>
+              <gmp-place-autocomplete id="departure-flight-airport" class="flight-airport" data-i18n-placeholder="flightAirportPlaceholder" placeholder="Search for an airport"></gmp-place-autocomplete>
+            </div>
+            <div class="row-2">
+              <div class="form-group">
+                <label for="departure-flight-time" data-i18n="takeoffTime">Time</label>
+                <input type="time" id="departure-flight-time" class="flight-time">
+              </div>
+              <div class="form-group">
+                <label for="departure-flight-kind" data-i18n="flightKind">Flight</label>
+                <select id="departure-flight-kind" class="flight-kind">
+                  <option value="international" data-i18n="flightInternational">International</option>
+                  <option value="domestic" data-i18n="flightDomestic">Domestic</option>
+                </select>
+              </div>
+            </div>
+            <p class="subtitle flight-note" role="status"></p>
+          </div>
+          <div class="flight-actions">
+            <button type="button" id="add-arrival-flight" class="secondary-btn" data-i18n="addArrivalFlight">+ Arriving flight</button>
+            <button type="button" id="add-departure-flight" class="secondary-btn" data-i18n="addDepartureFlight">+ Departing flight</button>
+          </div>
         </div>
 
         <div class="form-section">
@@ -470,7 +513,7 @@ export default class TravelForm extends HTMLElement {
       // Bind to existing anchors if any
       const anchorAutocompletes = this.shadowRoot.querySelectorAll('.anchor-location');
       anchorAutocompletes.forEach(ac => this.setupAutocompleteListener(ac));
-      this.shadowRoot.querySelectorAll('.stay-location, .overnight-location, .daily-start-location, .daily-end-location').forEach(ac => this.setupAutocompleteListener(ac));
+      this.shadowRoot.querySelectorAll('.stay-location, .overnight-location, .daily-start-location, .daily-end-location, .flight-airport').forEach(ac => this.setupAutocompleteListener(ac));
 
     } catch (e) {
       console.error("Failed to load Places API:", e);
@@ -647,10 +690,16 @@ export default class TravelForm extends HTMLElement {
       const endAC = this.shadowRoot.getElementById('end-location');
       restorePlaceInput(startAC, requestData?.startLocation || '');
       restorePlaceInput(endAC, requestData?.endLocation || '');
-      this.shadowRoot.getElementById('flight-departure-time').value = requestData?.flight?.departureTime || '';
-      this.shadowRoot.getElementById('flight-kind').value = requestData?.flight?.kind || 'international';
-      this.shadowRoot.getElementById('flight-note').textContent = '';
-      this.updateFlightFields();
+      for (const kind of ['arrival', 'departure']) {
+        const entry = this.shadowRoot.getElementById(`${kind}-flight`);
+        const flight = requestData?.flights?.[kind];
+        entry.hidden = !flight;
+        restorePlaceInput(entry.querySelector('.flight-airport'), flight?.airport || '');
+        entry.querySelector('.flight-time').value = flight?.time || '';
+        entry.querySelector('.flight-kind').value = flight?.kind || 'international';
+        entry.querySelector('.flight-note').textContent = '';
+      }
+      this.syncFlights();
       const waypoint = requestData.selectedWaypoints?.[0];
       this.shadowRoot.getElementById('selected-waypoint').hidden = !waypoint;
       this.shadowRoot.getElementById('selected-waypoint-name').textContent = waypoint?.name || '';
@@ -903,25 +952,45 @@ export default class TravelForm extends HTMLElement {
     return getFormData(this.shadowRoot, this.draft);
   }
 
-  // An airport destination may carry a flight; its departure sets the last day's airport arrival.
-  updateFlightFields(target = null) {
+  // A flight decides the first day's start or the last day's end: lock that location and fill its time.
+  syncFlights(target = null) {
     const root = this.shadowRoot;
-    const fields = root.getElementById('flight-fields');
-    fields.hidden = !isAirportName(getLocationName(getAutocompleteValue(root.getElementById('end-location'))));
-    if (fields.hidden || !['flight-departure-time', 'flight-kind'].includes(target?.id)) return;
-    const note = root.getElementById('flight-note');
-    const departure = root.getElementById('flight-departure-time').value;
-    const toggle = root.getElementById('daily-times-toggle');
-    const rows = Array.from(root.querySelectorAll('.daily-time-row'));
-    const lastRow = rows.length > 1 ? rows.at(-1) : null;
-    const startTime = lastRow && toggle.checked ? lastRow.querySelector('.daily-start-time').value : root.getElementById('start-time').value;
-    const arrival = airportArrivalTime(departure, root.getElementById('flight-kind').value);
-    if (!arrival || (startTime && arrival <= startTime)) {
-      note.textContent = departure ? t('flightArrivalManual') : '';
-      return;
+    for (const [kind, locationId, day, edge] of [['arrival', 'start-location', 0, 'start'], ['departure', 'end-location', -1, 'end']]) {
+      const entry = root.getElementById(`${kind}-flight`);
+      const location = root.getElementById(locationId);
+      location.closest('.form-group').inert = !entry.hidden;
+      root.getElementById(`${locationId}-lock`).hidden = entry.hidden;
+      root.getElementById(`add-${kind}-flight`).hidden = !entry.hidden;
+      if (entry.hidden || !entry.contains(target)) continue;
+      const airport = getAutocompleteValue(entry.querySelector('.flight-airport'));
+      if (airport) restorePlaceInput(location, airport);
+      const flightTime = entry.querySelector('.flight-time').value;
+      const flightKind = entry.querySelector('.flight-kind').value;
+      const time = kind === 'arrival' ? tripStartAfterLanding(flightTime, flightKind) : airportArrivalTime(flightTime, flightKind);
+      const other = this.dayTimeInput(day, edge === 'start' ? 'end' : 'start').value;
+      const note = entry.querySelector('.flight-note');
+      if (!time || (other && (edge === 'start' ? time >= other : time <= other))) {
+        note.textContent = flightTime ? t(kind === 'arrival' ? 'flightStartManual' : 'flightArrivalManual') : '';
+        continue;
+      }
+      this.setDayTime(day, edge, time);
+      note.textContent = t(kind === 'arrival' ? 'flightStartSet' : 'flightArrivalSet').replace('{0}', time);
     }
-    if (lastRow && !toggle.checked) {
-      // Only the last day ends at the airport; the other days keep the shared times.
+  }
+
+  dayTimeInput(day, edge) {
+    const root = this.shadowRoot;
+    const rows = Array.from(root.querySelectorAll('.daily-time-row'));
+    return rows.length > 1 && root.getElementById('daily-times-toggle').checked
+      ? rows.at(day).querySelector(`.daily-${edge}-time`) : root.getElementById(`${edge}-time`);
+  }
+
+  // Only the first or last day changes, so shared multi-day times are split into per-day rows first.
+  setDayTime(day, edge, value) {
+    const root = this.shadowRoot;
+    const rows = Array.from(root.querySelectorAll('.daily-time-row'));
+    const toggle = root.getElementById('daily-times-toggle');
+    if (rows.length > 1 && !toggle.checked) {
       rows.forEach(row => {
         row.querySelector('.daily-start-time').value = root.getElementById('start-time').value;
         row.querySelector('.daily-end-time').value = root.getElementById('end-time').value;
@@ -929,8 +998,7 @@ export default class TravelForm extends HTMLElement {
       toggle.checked = true;
       toggle.dispatchEvent(new Event('change'));
     }
-    (lastRow ? lastRow.querySelector('.daily-end-time') : root.getElementById('end-time')).value = arrival;
-    note.textContent = t('flightArrivalSet').replace('{0}', arrival);
+    this.dayTimeInput(day, edge).value = value;
   }
 
   saveDraft() {
@@ -1189,6 +1257,23 @@ export default class TravelForm extends HTMLElement {
     if (this.hasAttribute('handoff-flow')) form.noValidate = true;
     this.shadowRoot.getElementById('change-trip-destination').onclick = () => { this.saveDraft(); window.navigate('/destination', { state: { returnTo: '/plan' } }); };
     this.shadowRoot.getElementById('add-trip-stay').onclick = () => this.addTripStay();
+    for (const kind of ['arrival', 'departure']) {
+      const entry = this.shadowRoot.getElementById(`${kind}-flight`);
+      this.shadowRoot.getElementById(`add-${kind}-flight`).onclick = () => {
+        entry.hidden = false;
+        this.syncFlights();
+        this.saveDraft();
+        entry.querySelector('.flight-airport input')?.focus();
+      };
+      entry.querySelector('.flight-remove').onclick = () => {
+        entry.hidden = true;
+        restorePlaceInput(entry.querySelector('.flight-airport'), '');
+        entry.querySelector('.flight-time').value = '';
+        entry.querySelector('.flight-note').textContent = '';
+        this.syncFlights();
+        this.saveDraft();
+      };
+    }
 
     // 브라우저 기본 검사는 Shadow DOM 안에서 사실상 보이지 않는다.
     // `invalid` 는 거품처럼 위로 오르지 않으므로 폼에서 받으려면 캡처 단계여야 한다.
@@ -1215,7 +1300,7 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('input', (e) => {
       // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
       if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
-      this.updateFlightFields(e.target);
+      this.syncFlights(e.target);
       if (e.target.id !== 'same-overnight-toggle') this.saveDraft();
     });
 
@@ -1349,6 +1434,21 @@ export default class TravelForm extends HTMLElement {
         return;
       }
 
+      // A shown flight needs its airport and time; the airport also fills the locked first or last location.
+      let flightIssue = null;
+      for (const kind of ['arrival', 'departure']) {
+        const entry = this.shadowRoot.getElementById(`${kind}-flight`);
+        if (entry.hidden || flightIssue) continue;
+        const airport = getAutocompleteValue(entry.querySelector('.flight-airport'));
+        if (!getLocationName(airport) || (this.hasAttribute('handoff-flow') && !normalizeSelectedPlace(airport))) flightIssue = entry.querySelector('.flight-airport');
+        else if (!entry.querySelector('.flight-time').value) flightIssue = entry.querySelector('.flight-time');
+      }
+      if (flightIssue) {
+        this._revealInvalidField(flightIssue, t('incompleteFlightError'));
+        this._resetSubmitButton(btn);
+        this.isSubmitting = false;
+        return;
+      }
       // 출발·도착 장소. 이 칸들은 커스텀 엘리먼트라 브라우저 기본 검사가
       // 못 본다 — required 를 붙여도 소용없다. 여기서 막지 않으면 빈 채로
       // 흘러가, AI 는 출발지를 "Unknown" 으로 듣고 경계 보정은 통째로 꺼진다.

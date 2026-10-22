@@ -1127,26 +1127,41 @@ for (const acceptExit of [true,false]) {
  });
 }
 
-test('an airport destination turns a flight departure into the last day airport arrival',async({page})=>{
- const airport={placeId:'Paris Airport',displayName:'Paris Airport',formattedAddress:'Paris, France',lat:49,lng:2.5};
- const open=async date=>{await page.goto('/destination');await page.evaluate(async([date,airport])=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:airport,startTime:'09:00',endTime:'21:00',anchorSchedules:[]});},[date,airport]);
+test('flights fill and lock the first departure and last arrival; removing a flight unlocks it',async({page})=>{
+ const open=async date=>{await page.goto('/destination');await page.evaluate(async date=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:'Paris Station',startTime:'09:00',endTime:'21:00',anchorSchedules:[]});},date);
   await page.goto('/plan');return page.locator('travel-form:visible');};
+ const locked=(form,id)=>form.locator(`#${id}`).evaluate(element=>element.closest('.form-group').inert);
  let form=await open(['2030-10-17']);
- await expect(form.locator('#flight-fields')).toBeVisible();
- await form.locator('#flight-departure-time').fill('21:00');await expect(form.locator('#end-time')).toHaveValue('18:00');
- await expect(form.locator('#flight-note')).toContainText('18:00');
- await form.locator('#flight-kind').selectOption('domestic');await expect(form.locator('#end-time')).toHaveValue('19:30');
- await form.locator('#flight-departure-time').fill('01:00');await expect(form.locator('#end-time')).toHaveValue('19:30');
- await expect(form.locator('#flight-note')).toContainText('직접 입력');
- await form.locator('#flight-departure-time').fill('21:00');
+ await expect(form.locator('#arrival-flight')).toBeHidden();expect(await locked(form,'start-location')).toBe(false);
+ await form.locator('#add-arrival-flight').click();await selectPlace(form.locator('#arrival-flight-airport'),'Paris Airport');
+ await form.locator('#arrival-flight-time').fill('10:00');await expect(form.locator('#start-time')).toHaveValue('11:00');
+ await expect(form.locator('#add-arrival-flight')).toBeHidden();
+ await expect(form.locator('#arrival-flight .flight-note')).toContainText('11:00');
+ expect(await form.locator('#start-location').evaluate(element=>element.selectedPlace?.placeId)).toBe('Paris Airport');
+ expect(await locked(form,'start-location')).toBe(true);await expect(form.locator('#start-location-lock')).toBeVisible();
+ await form.locator('#add-departure-flight').click();await selectPlace(form.locator('#departure-flight-airport'),'Paris Airport');
+ await form.locator('#departure-flight-time').fill('21:00');await expect(form.locator('#end-time')).toHaveValue('18:00');
+ await form.locator('#departure-flight-kind').selectOption('domestic');await expect(form.locator('#end-time')).toHaveValue('19:30');
+ await form.locator('#departure-flight-time').fill('01:00');await expect(form.locator('#end-time')).toHaveValue('19:30');
+ await expect(form.locator('#departure-flight .flight-note')).toContainText('직접 입력');
+ await form.locator('#departure-flight-time').fill('21:00');
+ const flights=()=>form.evaluate(element=>{const {arrival,departure}=element.getFormData().flights;return [arrival&&[arrival.airport?.placeId,arrival.time,arrival.kind],departure&&[departure.airport?.placeId,departure.time,departure.kind]];});
+ expect(await flights()).toEqual([['Paris Airport','10:00','international'],['Paris Airport','21:00','domestic']]);
  await form.evaluate(async element=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');element.populateForm(plannerDraftStore.read());});
- await expect(form.locator('#flight-departure-time')).toHaveValue('21:00');await expect(form.locator('#flight-kind')).toHaveValue('domestic');
- expect(await form.evaluate(element=>element.getFormData().flight)).toEqual({departureTime:'21:00',kind:'domestic'});
- await selectPlace(form.locator('#end-location'),'Paris Station');await expect(form.locator('#flight-fields')).toBeHidden();
- expect(await form.evaluate(element=>element.getFormData().flight)).toBeNull();
+ await expect(form.locator('#departure-flight-time')).toHaveValue('21:00');await expect(form.locator('#departure-flight-kind')).toHaveValue('domestic');
+ expect(await locked(form,'end-location')).toBe(true);
+ await form.locator('#arrival-flight .flight-remove').click();await expect(form.locator('#arrival-flight')).toBeHidden();
+ expect(await locked(form,'start-location')).toBe(false);expect((await flights())[0]).toBeNull();
+ await expect(form.locator('#add-arrival-flight')).toBeVisible();
 
  form=await open(['2030-10-17','2030-10-18']);
- await form.locator('#flight-departure-time').fill('21:00');
- await expect(form.locator('#daily-times-toggle')).toBeChecked();
- expect(await form.evaluate(element=>element.getFormData().dailyTimes.map(day=>[day.startTime,day.endTime]))).toEqual([['09:00','21:00'],['09:00','18:00']]);
+ await form.locator('#add-departure-flight').click();await selectPlace(form.locator('#departure-flight-airport'),'Paris Airport');
+ await form.locator('#departure-flight-time').fill('21:00');await expect(form.locator('#daily-times-toggle')).toBeChecked();
+ await form.locator('#add-arrival-flight').click();await selectPlace(form.locator('#arrival-flight-airport'),'Paris Airport');
+ await form.locator('#arrival-flight-time').fill('10:00');
+ expect(await form.evaluate(element=>element.getFormData().dailyTimes.map(day=>[day.startTime,day.endTime]))).toEqual([['11:00','21:00'],['09:00','18:00']]);
+
+ form=await open(['2030-10-17']);await form.locator('#add-arrival-flight').click();
+ await form.locator('button[type=submit].primary-btn').click();await form.locator('#final-generate').click();
+ await expect(form.locator('#review-issues')).toContainText('항공편의 공항과 시각');expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
 });

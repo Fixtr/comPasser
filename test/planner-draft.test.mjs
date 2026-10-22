@@ -53,20 +53,22 @@ test('overnight places survive draft storage and form reading', () => {
   assert.deepEqual(getFormData(form(draft),draft).overnightLocations,[hotel]);
 });
 
-test('a flight departure survives the draft and is read only while the destination is an airport', () => {
-  const flight = { departureTime: '21:00', kind: 'domestic' };
-  const draft = toPlannerDraft({ ...edited(), endLocation: '김포국제공항', flight });
-  assert.deepEqual(draft.flight, flight);
-  assert.equal(toPlannerDraft({ ...edited(), flight: { departureTime: '9pm', kind: 'domestic' } }).flight, null);
-  assert.equal(toPlannerDraft({ ...edited(), flight: { departureTime: '21:00', kind: 'charter' } }).flight, null);
-  const airportForm = form(draft);
-  airportForm.getElementById = id => ({ 'flight-departure-time': { value: '21:00' }, 'flight-kind': { value: 'domestic' } })[id]
-    ?? form(draft).getElementById(id);
-  assert.deepEqual(getFormData(airportForm, draft).flight, flight);
-  const stationForm = form({ ...draft, endLocation: '서울역' });
-  const stationLookup = stationForm.getElementById;
-  stationForm.getElementById = id => id === 'flight-departure-time' ? { value: '21:00' } : stationLookup(id);
-  assert.equal(getFormData(stationForm, draft).flight, null);
+test('arriving and departing flights survive the draft and are read from shown flight entries only', () => {
+  const arrival = { airport: '인천국제공항', time: '10:00', kind: 'international' };
+  const draft = toPlannerDraft({ ...edited(), flights: { arrival, departure: null } });
+  assert.deepEqual(draft.flights, { arrival, departure: null });
+  assert.deepEqual(toPlannerDraft(edited()).flights, { arrival: null, departure: null });
+  // An entry being filled in keeps its place; a bad time or kind is reset rather than kept.
+  assert.deepEqual(toPlannerDraft({ ...edited(), flights: { departure: { time: '9pm', kind: 'charter' } } }).flights.departure,
+    { airport: '', time: '', kind: 'international' });
+  const entry = (hidden, values) => ({ hidden, querySelector: selector => ({ value: values[selector] }) });
+  const flightForm = form(draft);
+  const lookup = flightForm.getElementById;
+  flightForm.getElementById = id => ({
+    'arrival-flight': entry(false, { '.flight-airport': '인천국제공항', '.flight-time': '10:00', '.flight-kind': 'international' }),
+    'departure-flight': entry(true, { '.flight-airport': '김포국제공항', '.flight-time': '21:00', '.flight-kind': 'domestic' }),
+  })[id] ?? lookup(id);
+  assert.deepEqual(getFormData(flightForm, draft).flights, { arrival, departure: null });
 });
 
 test('legacy repeated endpoints require lodging; first departure and final destination survive editing', () => {

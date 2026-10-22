@@ -405,6 +405,16 @@ export const travelFormStyles = `
           transition: border-color 0.12s linear;
         }
 
+        .flight-entry {
+          background: var(--cp-sunken);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: var(--cp-radius);
+          padding: 1.15rem 1.25rem;
+          margin-bottom: 0.75rem;
+        }
+        .flight-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .form-group[inert] gmp-place-autocomplete { opacity: 0.6; }
+
         .anchor-item:hover {
           border-color: var(--cp-ink);
           border-left-color: var(--cp-anchor);
