@@ -30,6 +30,8 @@ test('본인 오프라인 일정은 앱 재실행 후 주소와 시각을 열람
   await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort('blockedbyclient'));
   await page.goto('/');
   await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  // Seed from a same-origin page without the app: a still-starting Firebase/shell treats a signed-out start as truth and erases the fixtures.
+  await page.goto('/manifest.json');
   await page.evaluate(async()=>{
     const uid='offline-owner';
     const request=indexedDB.open('firebaseLocalStorageDb',1);
