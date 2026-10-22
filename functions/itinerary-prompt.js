@@ -258,10 +258,12 @@ TIME AND TRANSPORT:
 - Google route results are the sole source of transport facts. Do not write or estimate transport modes, lines, transfers, fares or journey durations. Keep transitInfo empty.
 - Use chronological same-day HH:mm start/end times inside the requested day. Never overlap a fixed appointment. duration and endTime - time describe ONLY the visit; travel occupies separate unallocated gaps, never an item.
 - Leave conservative gaps before/after visits for later route verification. Leave at least 60 minutes unallocated before an airport end time, 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
+- Use the day's free time. After those gaps, every free block of 2 hours or more should hold at least one optional visit, so a full 9-hour day usually has 3-5 optional visits. Return fewer only when fixed appointments, gaps and minimum stays leave no room; never leave most of a long day empty.
 - Never create a visit whose only purpose is departure, arrival, transfer, travel preparation or movement inside a venue.
 
 MEALS AND ACTIVITIES:
 - Prefer lunch at 12:00-12:30 and dinner at 18:00-18:30 when those windows fit the day and fixed appointments. Only include a meal if its full 60-minute stay fits alongside travel gaps. If it cannot fit, omit it rather than shorten it or extend the day. A day ending at 18:00 must not contain dinner starting at 18:00.
+- When the day covers 11:30-14:00 and a 60-minute lunch still fits around fixed appointments and gaps, include it: move lunch before or after a fixed appointment rather than skip it. Never start lunch before 11:00.
 - Restaurant meals need at least 60 minutes (food theme preferably 60-90). Cafes and other optional visits need at least 20 minutes. Fixed user appointments are not changed by these minimums.
 - At most one breakfast/brunch/lunch and one dinner per day, plus at most two cafe/snack stops. Food theme may have up to four full meals, at least three hours apart, only when the time allows. Short days need not meet theme stop-count preferences.
 - Night-exclusive activities start at 18:00 or later. Do not recommend ticketed special events or limited-date programs unless supplied as a fixed appointment; the app already inserts those appointments.
