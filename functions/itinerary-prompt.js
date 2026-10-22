@@ -258,7 +258,7 @@ TIME AND TRANSPORT:
 - Google route results are the sole source of transport facts. Do not write or estimate transport modes, lines, transfers, fares or journey durations. Keep transitInfo empty.
 - Use chronological same-day HH:mm start/end times inside the requested day. Never overlap a fixed appointment. duration and endTime - time describe ONLY the visit; travel occupies separate unallocated gaps, never an item.
 - Leave conservative gaps before/after visits for later route verification. Leave at least 60 minutes unallocated before an airport end time, 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
-- Use the day's free time. After those gaps, every free block of 2 hours or more should hold at least one optional visit, so a full 9-hour day usually has 3-5 optional visits. Return fewer only when fixed appointments, gaps and minimum stays leave no room; never leave most of a long day empty.
+- Use the day's free time. After those gaps, every free block of 2 hours or more should hold at least one optional visit, so a full 9-hour day usually has 3-5 optional visits and a day of 3 hours or less usually 1-2. The gaps above still separate every pair of visits; never place visits back to back. Return fewer only when fixed appointments, gaps and minimum stays leave no room; never leave most of a long day empty.
 - Never create a visit whose only purpose is departure, arrival, transfer, travel preparation or movement inside a venue.
 
 MEALS AND ACTIVITIES:

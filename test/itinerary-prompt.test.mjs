@@ -12,6 +12,7 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     assert.match(prompt, /Only include a meal if its full 60-minute stay fits/);
     // gemini-3.5-flash-lite left 09:00-21:00 with one cafe when only the "fewer visits" rules were stated.
     assert.match(prompt, /free block of 2 hours or more should hold at least one optional visit/);
+    assert.match(prompt, /a day of 3 hours or less usually 1-2\. The gaps above still separate every pair of visits/);
     assert.match(prompt, /move lunch before or after a fixed appointment rather than skip it/);
     assert.doesNotMatch(prompt, /ALL transportation|occasional taxi|tips in localTip|estimate the real travel time|MUST include ScheduleItems with type/);
   }
