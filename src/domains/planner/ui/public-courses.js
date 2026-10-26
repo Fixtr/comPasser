@@ -5,7 +5,7 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { COURSE_CITIES, filterCourses } from '../../itinerary/services/course-community.mjs';
 import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
-import { addCourseToDraft } from '../services/course-draft.mjs';
+import { addCourseToDraft, cityDestination } from '../services/course-draft.mjs';
 import { destinations } from '../services/travel-destinations.mjs';
 
 class PublicCourses extends HTMLElement {
@@ -32,7 +32,9 @@ class PublicCourses extends HTMLElement {
       if (!button) return;
       const course = this.courses.find(item => item.id === button.dataset.course);
       if (!course) return;
-      plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), course));
+      // Traveler courses store no city; the city this list shows is theirs.
+      const city = destinations.find(item => item.id === (this.getAttribute('city') || this.filters.city));
+      plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), city ? { ...course, destination: cityDestination(city) } : course));
       trackEvent('public_course_copy', { courseId: course.id });
       window.navigate('/login?next=%2Fpreference%2F1');
     });

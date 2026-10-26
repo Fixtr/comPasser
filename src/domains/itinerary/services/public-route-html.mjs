@@ -1,5 +1,6 @@
 import { escapeHtml as e, safeHttpUrl } from '../../../utils/html-safety.mjs';
 import { publicRouteUrl } from './public-route.mjs';
+import { courseCity } from './course-community.mjs';
 
 const styles = `
   :root{color-scheme:light;--ink:#17201c;--paper:#f4f4f1}*{box-sizing:border-box}
@@ -51,7 +52,7 @@ export function renderPublicRoute(course, origin) {
     <h1>${e(title)}</h1>${creditHtml}<p>${e(course.review || '')}</p>${stopHtml}
     <section class="start"><label for="start-location">Start near your accommodation (optional)</label>
     <input id="start-location" maxlength="200" placeholder="Enter a hotel, station or address"></section>
-    <div class="actions"><a class="action" id="plan-route" href="/home?course=${e(course.id)}&amp;lang=en">Plan with these places</a>
+    <div class="actions"><a class="action" id="plan-route" href="/home?course=${e(course.id)}&amp;lang=en" data-city="${e(course.destination?.id || courseCity(course) || '')}">Plan with these places</a>
       ${course.curated ? '' : `<a href="/courses?review=${e(course.id)}&amp;lang=en">Traveler reviews</a>`}</div>
     <p class="muted">Places become required visits. Check travel times and opening hours in your generated itinerary.</p>
     <section class="share"><h2>Share this route</h2><p>Use this link in a video, travel post or accommodation guide.</p>

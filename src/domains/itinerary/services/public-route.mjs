@@ -4,6 +4,7 @@ import { tFor } from '../../../utils/i18n.js';
 import { safeHttpUrl } from '../../../utils/html-safety.mjs';
 import { DEFAULT_PUBLIC_APP_URL } from './share-url.mjs';
 import { todayString } from '../../planner/services/trip-date.mjs';
+import { cityDestination } from '../../planner/services/course-draft.mjs';
 
 export const courseCities = [...cities, ...destinations.filter(city => city.country !== 'KOR')];
 export const PUBLIC_ROUTE_ID = new RegExp(`^(?:[a-zA-Z0-9]+|curated-(?:${courseCities.map(city => city.id).join('|')})(?:-[23])?)$`);
@@ -28,17 +29,18 @@ export function curatedRoute(id) {
   const city = courseCities.find(item => item.id === match?.[1]);
   if (!city) return null;
   const variant = Number(match[2] || 1);
+  const destination = cityDestination({ country: 'KOR', ...city });
   const places = variant === 1 ? city.places.slice(0, 2)
     : [city.places[variant === 2 ? 0 : 1], city.places[2]];
   if (city.country && city.country !== 'KOR') return {
     id, title: `${tFor(city.key, 'en')}: a first visit`, curated: true,
-    destination: { id: city.id, country: city.country, name: `${tFor(city.key, 'en')}, ${tFor(`country${city.country}`, 'en')}` },
+    destination,
     review: tFor('courseInternationalIntro', 'en'),
     stops: places.map(place => typeof place === 'string'
       ? { name: place, location: `${place}, ${tFor(city.key, 'en')}`, stayMinutes: 60 }
       : { name: place.name, englishName: place.englishName, location: place.location, englishAddress: place.location, stayMinutes: place.stayMinutes, guideUrl: place.guide }),
   };
-  return { id, title: `${tFor(city.key, 'en')}: a first visit`, curated: true,
+  return { id, title: `${tFor(city.key, 'en')}: a first visit`, curated: true, destination,
     review: tFor(variant === 1 ? city.pairReason : 'courseInternationalIntro', 'en'), stops: (variant === 1 ? city.pair : additionalPairs[city.id][variant - 2]).map(placeId => {
       const place = city.places.find(item => item.id === placeId);
       return { name: tFor(`${place.key}Name`, 'ko'), englishName: tFor(`${place.key}Name`, 'en'),

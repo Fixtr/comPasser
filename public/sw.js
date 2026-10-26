@@ -7,7 +7,7 @@
  * 최소한 앱 껍데기와 저장된 화면은 뜨도록 한다.
  *
  * 전략
- *  - 내비게이션(HTML): 네트워크 우선, 실패하면 설치 시 저장한 index.html.
+ *  - 내비게이션(HTML): 네트워크 우선, 실패하면 설치 시 저장한 셸('/').
  *    새 HTML과 오래된 JS가 섞이지 않도록 탐색 응답으로 캐시를 덮지 않는다.
  *  - 빌드 산출물(/assets/*): 파일명에 콘텐츠 해시가 있어 내용이 바뀌면 이름도
  *    바뀐다. 따라서 캐시 우선이 안전하고 가장 빠르다.
@@ -19,7 +19,9 @@
 const VERSION = self.__BUILD_ID__ || 'v1';
 const SHELL_CACHE = `compasser-shell-${VERSION}`;
 const ASSET_CACHE = `compasser-assets-${VERSION}`;
-const SHELL_URL = '/index.html';
+// Not '/index.html': Pages answers it with 308 -> '/', and a redirected response
+// to a navigation is a network error, so offline reloads would fail.
+const SHELL_URL = '/';
 
 const PRECACHE_ASSETS = self.__PRECACHE_ASSETS__ || [];
 
@@ -29,7 +31,7 @@ self.addEventListener('install', (event) => {
     // 배포 빌드는 HTML과 모든 JS/CSS가 준비되어야 새 워커로 전환한다.
     const shell = [SHELL_URL, ...PRECACHE_ASSETS];
     await (PRECACHE_ASSETS.length ? Promise.all(shell.map(url => cache.add(url))) : Promise.allSettled(shell.map(url => cache.add(url))));
-    await Promise.allSettled(['/', '/manifest.json', '/favicon.svg'].map(url => cache.add(url)));
+    await Promise.allSettled(['/manifest.json', '/favicon.svg'].map(url => cache.add(url)));
   })());
 });
 

@@ -13,12 +13,12 @@ import { readFileSync } from 'node:fs';
 
 const SW_SOURCE = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
 
-function makeResponse(body, ok = true) {
-  return { body, ok, clone: () => makeResponse(body, ok) };
+function makeResponse(body, ok = true, redirected = false) {
+  return { body, ok, redirected, clone: () => makeResponse(body, ok, redirected) };
 }
 
 /** sw.js 를 가짜 환경에서 실행하고 조작용 핸들을 돌려준다. */
-function runServiceWorker({ networkFails = false, cached = {} } = {}) {
+function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = [] } = {}) {
   const listeners = {};
   const store = new Map(); // cacheName -> Map(url -> response)
   const fetchCalls = [];
@@ -29,7 +29,7 @@ function runServiceWorker({ networkFails = false, cached = {} } = {}) {
     return Promise.resolve({
       add: (url) => networkFails
         ? Promise.reject(new Error('offline'))
-        : (entries.set(url, makeResponse(`precached:${url}`)), Promise.resolve()),
+        : (entries.set(url, makeResponse(`precached:${url}`, true, redirectedUrls.includes(url))), Promise.resolve()),
       put: (req, res) => { entries.set(typeof req === 'string' ? req : req.url, res); return Promise.resolve(); },
       keys: () => Promise.resolve([...entries.keys()].map(url => ({ url }))),
       match: (req) => Promise.resolve(entries.get(typeof req === 'string' ? req : req.url))
@@ -97,7 +97,7 @@ test('install precaches the app shell', async () => {
 
   const shell = sw.store.get('compasser-shell-v1');
   assert.ok(shell, '셸 캐시가 만들어져야 한다');
-  assert.ok(shell.has('/index.html'), '오프라인에서 띄울 셸이 있어야 한다');
+  assert.ok(shell.has('/'), '오프라인에서 띄울 셸이 있어야 한다');
 });
 
 test('install still succeeds when some precache entries fail', async () => {
@@ -146,17 +146,30 @@ test('navigation prefers the network without replacing the installed shell', asy
 
   assert.match(res.body, /^network:/, '온라인이면 항상 최신 셸을 쓴다');
   const shell = sw.store.get('compasser-shell-v1');
-  assert.equal(shell.get('/index.html').body, 'precached:/index.html', '오프라인 셸은 설치 버전과 일치해야 한다');
+  assert.equal(shell.get('/').body, 'precached:/', '오프라인 셸은 설치 버전과 일치해야 한다');
 });
 
 test('navigation falls back to the cached shell when offline', async () => {
   const sw = runServiceWorker({
     networkFails: true,
-    cached: { 'compasser-shell-v1': { '/index.html': 'shell' } }
+    cached: { 'compasser-shell-v1': { '/': 'shell' } }
   });
   // SPA 라우팅이라 어떤 경로로 들어와도 같은 셸을 돌려주면 된다.
   const res = await sw.dispatchFetch(req('https://app.example/view/xyz', { mode: 'navigate' }));
   assert.equal(res.body, 'shell');
+});
+
+test('offline navigation never gets a redirected shell', async () => {
+  // Cloudflare Pages answers /index.html with 308 -> /. Browsers turn a redirected
+  // response to a navigation into a network error, so the shell must be cached unredirected.
+  const sw = runServiceWorker({ redirectedUrls: ['/index.html'] });
+  await sw.dispatchLifecycle('install');
+  const offline = runServiceWorker({ networkFails: true });
+  for (const [name, entries] of sw.store) offline.store.set(name, entries);
+
+  const res = await offline.dispatchFetch(req('https://app.example/recommend', { mode: 'navigate' }));
+  assert.match(res.body, /^precached:/);
+  assert.equal(res.redirected, false);
 });
 
 test('hashed build assets are served from cache first', async () => {

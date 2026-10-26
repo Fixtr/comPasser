@@ -1,10 +1,10 @@
 import { Capacitor } from '@capacitor/core';
-import { loginWithGoogle, loginWithEmail, loginWithCustomToken, app } from '../services/firebase-auth.js';
+import { loginWithGoogle, loginWithEmail, loginWithCustomToken, sendPasswordReset, app } from '../services/firebase-auth.js';
 import { availableSocialLogins } from '../services/available-logins.mjs';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { t, applyTranslations } from '../../../utils/i18n.js';
+import { t, applyTranslations, getLang } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
-import { showErrorToast } from '../../../utils/toast.js';
+import { showErrorToast, showSuccessToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { loadKakaoSdk } from '../../../utils/external-scripts.js';
 import { getSafeReturnPath } from '../../../app/route-decision.mjs';
@@ -123,7 +123,11 @@ export default class LoginView extends HTMLElement {
           <button id="email-login-btn" class="auth-btn login-btn" data-i18n="authEmailLoginBtn">${t('authEmailLoginBtn')}</button>
           
         </div>
-        <div id="error-msg"></div>
+        <div id="error-msg" role="alert"></div>
+      </div>
+
+      <div class="join-link">
+        <a href="#" id="forgot-password" data-i18n="loginForgotPassword">${t('loginForgotPassword')}</a>
       </div>
 
       <div class="divider" data-i18n="loginSocialDivider">${t('loginSocialDivider')}</div>
@@ -301,6 +305,36 @@ export default class LoginView extends HTMLElement {
       });
     }
 
+
+    let resetPending = false;
+    this.shadowRoot.getElementById('forgot-password').addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (resetPending) return;
+      const email = emailInput.value.trim();
+      const fail = (key) => { errorMsg.textContent = t(key); errorMsg.style.display = 'block'; };
+      errorMsg.style.display = 'none';
+      // type="email" 은 빈 값도 유효로 본다.
+      if (!email || !emailInput.checkValidity()) {
+        fail('resetEmailRequired');
+        emailInput.focus();
+        return;
+      }
+      resetPending = true;
+      try {
+        await sendPasswordReset(email, returnPath(), getLang());
+      } catch (err) {
+        // 없는 계정에도 보낸 것과 같은 답을 한다 — 가입 여부를 알려 주지 않는다.
+        if (err.code !== 'auth/user-not-found') {
+          console.error('Password reset email failed:', err.code);
+          fail(err.code === 'auth/invalid-email' ? 'resetEmailRequired'
+            : err.code === 'auth/too-many-requests' ? 'resetTooManyRequests' : 'resetSendFailed');
+          return;
+        }
+      } finally {
+        resetPending = false;
+      }
+      showSuccessToast(t('resetEmailSent').replace('{0}', email), { duration: 5000 });
+    });
 
     emailLoginBtn.addEventListener('click', async () => {
       if (checkInApp()) return;

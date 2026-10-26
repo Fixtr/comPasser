@@ -6,6 +6,11 @@
 - **Routing**: Routing based on authentication state is handled at the application entry point (`src/app/main.js`), which listens to `subscribeToAuthChanges` and toggles the visibility of the `login-view` and the main `app-content`.
 - **Environment Variables**: Make sure to populate the `.env` file with the relevant `VITE_FIREBASE_*` keys for authentication to work correctly.
 
+## Password Reset
+
+- Firebase's email action URL is project-wide and points at this app's `/verify` (checked 2026-10-27: `https://hackerton-48w.pages.dev/verify`), so verification **and** reset links land there. `verify-view.js` branches on `mode=resetPassword` (new password → `resetPassword`); every other mode still goes to `verifyEmailCode`. Moving the site to another domain means updating that URL in the Firebase console.
+- The login screen sends the reset mail to the typed address and answers the same way whether or not an account exists (`auth/user-not-found` is shown as sent). Email login and reset both use the JS SDK, so they work the same in the Capacitor WebView; the mailed link opens in the phone's browser.
+
 ## Account Deletion Preflight
 
 - `firebase-auth.js` composes `account-deletion-guard.mjs` with `getIdTokenResult(user, true)`. A refreshed token is not a fresh sign-in: check `authTime`, never `issuedAtTime` or a local "logged in" flag. The guard does not itself reauthenticate a user.

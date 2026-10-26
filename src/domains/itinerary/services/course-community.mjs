@@ -28,6 +28,9 @@ export function filterCourses(courses, { search = '', city = '', duration = '' }
   });
 }
 
+// Same alias match as the scoped list, so a review link lands on a city that shows the course.
+export const courseCity = course => Object.keys(COURSE_CITIES).find(city => filterCourses([course], { city }).length) || null;
+
 export function validateCourseReview(input, today) {
   const date = String(input.visitDate || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date))

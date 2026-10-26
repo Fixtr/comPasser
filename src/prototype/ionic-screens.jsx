@@ -9,8 +9,9 @@ import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/
 import { t } from '../utils/i18n.js';
 import { TravelGlobe } from './travel-globe.jsx';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
-import { addCourseToDraft } from '../domains/planner/services/course-draft.mjs';
+import { addCourseToDraft, cityDestination } from '../domains/planner/services/course-draft.mjs';
 import { destinations } from '../domains/planner/services/travel-destinations.mjs';
+import { courseCity } from '../domains/itinerary/services/course-community.mjs';
 import { CountryPicker } from './country-picker.jsx';
 import { DestinationScreen } from './destination-screen.jsx';
 import { useStageTransition } from './screen-transition.js';
@@ -42,7 +43,9 @@ export function HomeScreen({ settings }) {
         const course = curatedRoute(id) || await (await import('../domains/itinerary/services/public-course-service.js')).getPublicCourse(id);
         if (cancelled) return;
         if (!course) { setImportStatus('publicRouteGone'); return; }
-        plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), course, 'en'));
+        // Traveler courses store no city; take the catalogue city their stops match.
+        const city = !course.destination && destinations.find(item => item.id === courseCity(course));
+        plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), city ? { ...course, destination: cityDestination(city) } : course, 'en'));
         navigate('/login?next=%2Fpreference%2F1', { replace: true });
       } catch { if (!cancelled) setImportStatus('publicRouteImportFailed'); }
     })();
@@ -96,6 +99,8 @@ export function CoursesScreen({ settings }) {
   const [loadState, setLoadState] = useState('loading');
   const stageRef = useStageTransition(city?.id || country || 'country');
   const courseCities = destinations;
+  // Once the user picks or goes back, a late review-link lookup must not move them.
+  const picked = useRef(false);
   useEffect(() => {
     let active = true;
     void Promise.all([
@@ -103,9 +108,19 @@ export function CoursesScreen({ settings }) {
       import('../domains/planner/ui/public-courses.js'),
     ]).then(() => { if (active) setLoadState('ready'); })
       .catch(() => { if (active) setLoadState('error'); });
+    // Review links (route pages, post-login return) open the course's city; public-courses then opens its panel.
+    const reviewId = new URLSearchParams(window.location.search).get('review');
+    if (/^[a-zA-Z0-9]+$/.test(reviewId || '')) void import('../domains/itinerary/services/public-course-service.js')
+      .then(service => service.getPublicCourse(reviewId))
+      .then(course => {
+        const match = course && destinations.find(item => item.id === courseCity(course));
+        if (active && match && !picked.current && window.location.pathname === '/courses') { setCountry(match.country); setCity(match); }
+      })
+      .catch(error => console.error('Review course unavailable:', error));
     return () => { active = false; };
   }, []);
   const back = () => {
+    picked.current = true;
     if (city) setCity(null);
     else if (country) setCountry('');
     else window.navigate('/home');
@@ -117,8 +132,8 @@ export function CoursesScreen({ settings }) {
     </div>
     <main ref={stageRef} className="flow-page">
       <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'flowCountry')}</h1>
-      {!country && <CountryPicker kind="course" onSelect={setCountry} />}
-      {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => setCity(city)}>{t(city.key)}</button> : null)}</div>}
+      {!country && <CountryPicker kind="course" onSelect={next => { picked.current = true; setCountry(next); }} />}
+      {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => { picked.current = true; setCity(city); }}>{t(city.key)}</button> : null)}</div>}
       {city && <div key={city.id}>
         <p>{t(`country${country}`)} · {t(city.key)}</p>
         {loadState === 'loading' && <p role="status">{t('discoveryScreenLoading')}</p>}
@@ -318,7 +333,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       {map}
     </div> : <>
       {map}
-      <IonModal className="ionic-result-sheet" isOpen={active} canDismiss={false} animated={!reducedMotion}
+      <IonModal className="ionic-result-sheet" canDismiss={!active} isOpen={active} animated={!reducedMotion}
       breakpoints={[0.3, 0.62, 1]} initialBreakpoint={0.62} backdropBreakpoint={0.62}
       handle handleBehavior="cycle" expandToScroll={false} onDidPresent={() => setReady(true)} onDidDismiss={() => setReady(false)}>
         <IonContent className="ionic-result-sheet-content">{schedule}</IonContent>

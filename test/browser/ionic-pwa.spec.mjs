@@ -12,7 +12,7 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
     const cache = await caches.open(name);
     return (await cache.keys()).map(request => new URL(request.url).pathname);
   });
-  expect(cached).toContain('/index.html');
+  expect(cached).toContain('/');
   const assets = cached.filter(path => /^\/assets\/.*\.(?:js|css)$/.test(path));
   expect(assets.length).toBeGreaterThan(20);
 

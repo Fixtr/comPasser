@@ -15,6 +15,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendEmailVerification,
+    sendPasswordResetEmail,
+    confirmPasswordReset,
     deleteUser,
     getIdTokenResult,
     applyActionCode
@@ -217,6 +219,24 @@ export async function loginWithEmail(email, password) {
         throw error;
     }
 }
+
+/**
+ * 재설정 링크는 프로젝트의 메일 작업 URL(`/verify`)로 온다 — verify-view 가
+ * `mode=resetPassword` 를 받아 `resetPassword` 로 마무리한다.
+ */
+export function sendPasswordReset(email, returnTo = null, language = null) {
+    const auth = requireAuth();
+    // Otherwise the mail and its link's lang= follow the console template, not the app language.
+    if (language) auth.languageCode = language;
+    const settings = getEmailVerificationSettings({
+        returnTo,
+        origin: window.location.origin,
+        isNative: Capacitor.isNativePlatform(),
+    });
+    return settings ? sendPasswordResetEmail(auth, email, settings) : sendPasswordResetEmail(auth, email);
+}
+
+export const resetPassword = (actionCode, newPassword) => confirmPasswordReset(requireAuth(), actionCode, newPassword);
 
 export const requireRecentLoginForDeletion = createAccountDeletionGuard({
     getCurrentUser,

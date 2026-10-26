@@ -7,6 +7,7 @@ import { destinations, destinationById } from '../domains/planner/services/trave
 import { bindPlaceSelection, normalizeSelectedPlace } from '../domains/planner/services/selected-place.mjs';
 import { resolveDestinationPlace, destinationPlaceError } from '../domains/planner/services/destination-place.js';
 import { getMapsLoader } from '../domains/map/services/google-maps-loader.js';
+import { cityDestination, setDraftDestination } from '../domains/planner/services/course-draft.mjs';
 import { t, tFor, getLang } from '../utils/i18n.js';
 import { CountryPicker } from './country-picker.jsx';
 import { travelRegion } from '../../functions/travel-region.mjs';
@@ -16,7 +17,9 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const navigate = useNavigate();
   const location = useLocation();
   const editingPlan = !embedded && location.state?.returnTo === '/plan';
-  const [draft, setDraft] = useState(() => plannerDraftStore.read());
+  // A browsed city shows the draft as it would be for that city; it is stored only on an add or continuation.
+  const read = () => browseCity ? setDraftDestination(plannerDraftStore.read(), cityDestination(browseCity)) : plannerDraftStore.read();
+  const [draft, setDraft] = useState(read);
   const [country, setCountry] = useState(() => browseCity?.country || (draft.destinationStage === 'country' ? '' : draft.country || draft.destination?.country || ''));
   const [city, setCity] = useState(() => browseCity || (draft.destinationStage === 'city' || draft.destinationStage === 'country' ? null : destinationById(draft.destination?.id)));
   const [error, setError] = useState('');
@@ -24,16 +27,13 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const search = useRef(null);
   const version = useRef(0);
   const stageRef = useStageTransition(city?.id || country || 'country');
-  const save = changes => setDraft(plannerDraftStore.update({
-    ...(browseCity ? { country: browseCity.country, destinationStage: 'places', destination: { id: browseCity.id, country: browseCity.country, name: `${tFor(browseCity.key, 'en')}, ${tFor(`country${browseCity.country}`, 'en')}` } } : {}),
-    step: '/destination', ...changes,
-  }));
+  const save = changes => setDraft(plannerDraftStore.save({ ...read(), step: '/destination', ...changes }));
   const selected = draft.anchorSchedules;
   useEffect(() => {
     version.current++;
     setBusy(false);
     if (browseCity) {
-      if (location.pathname === '/recommend') setDraft(plannerDraftStore.read());
+      if (location.pathname === '/recommend') setDraft(read());
       return;
     }
     if (location.pathname !== '/destination') return;
@@ -58,7 +58,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const add = (place, suggestionId = '') => {
     const canonical = normalizeSelectedPlace(place);
     if (!canonical) { setError(t('flowPlaceFailed')); return; }
-    const anchors = plannerDraftStore.read().anchorSchedules;
+    const anchors = read().anchorSchedules;
     if (anchors.some(anchor => anchor.location?.placeId === canonical.placeId)) {
       if (suggestionId) save({ anchorSchedules: anchors.map(anchor => anchor.location?.placeId === canonical.placeId ? { ...anchor, suggestionId } : anchor) });
       return;
@@ -80,7 +80,8 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   };
   const chooseCountry = code => { setCountry(code); setCity(null); version.current++; setBusy(false); save({ country: code, destinationStage: 'city' }); };
   const chooseCity = next => {
-    save({ country: next.country, destinationStage: 'places', ...(next.id !== draft.destination?.id ? { destination: { id: next.id, country: next.country, name: `${tFor(next.key, 'en')}, ${tFor(`country${next.country}`, 'en')}` }, ...(!editingPlan ? { anchorSchedules: [], stays: [], dailyLocations: null } : {}) } : {}) });
+    const destination = cityDestination(next);
+    save(editingPlan ? { country: next.country, destinationStage: 'places', destination } : setDraftDestination(read(), destination));
     version.current++; setBusy(false); setCity(next); setError('');
   };
   const back = () => {
@@ -103,7 +104,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         <p>{t('flowSearchHelp')}</p>
         <button onClick={async () => { await search.current?.placeSelectionPending; add(search.current?.selectedPlace); }}>{t('flowAddPlace')}</button>
         {error && <p role="alert">{error}</p>}
-        <AIPlaceRecommendations key={city.id} city={city} draft={draft} onAdd={add} onRemove={placeId=>save({anchorSchedules:plannerDraftStore.read().anchorSchedules.filter(anchor=>anchor.location?.placeId !== placeId)})} />
+        <AIPlaceRecommendations key={city.id} city={city} draft={draft} onAdd={add} onRemove={placeId=>save({anchorSchedules:read().anchorSchedules.filter(anchor=>anchor.location?.placeId !== placeId)})} />
         <details className="catalogue-places" open><summary>{t('aiPlacesCatalogue').replace('{0}',t(city.key))}</summary>
         <div className="flow-place-list">{city.places.filter(place => !place.pairOnly).map(place => {
           const name = typeof place === 'string' ? place : place.name ? (getLang() === 'en' ? place.englishName : place.name) : t(`${place.key}Name`);

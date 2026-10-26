@@ -82,6 +82,15 @@ async (page) => {
         window.__smoke.loginAgeMs=0;
         window.__smoke.setUser({uid:'smokeOwner',displayName:'검증 계정',email,emailVerified:true,providerData:[{providerId:'password'}]});
       }
+      export async function sendPasswordReset(email,returnTo,language) {
+        window.__smoke.calls.push('send-reset:'+email+'|'+returnTo+'|'+language);
+        if(window.__smoke.resetDelay) await new Promise(resolve=>setTimeout(resolve,window.__smoke.resetDelay));
+        if(window.__smoke.resetError) throw Object.assign(new Error('TEST: reset failed'),{code:window.__smoke.resetError});
+      }
+      export async function resetPassword(code,password) {
+        window.__smoke.calls.push('confirm-reset:'+code+':'+password);
+        if(window.__smoke.resetError) throw Object.assign(new Error('TEST: reset failed'),{code:window.__smoke.resetError});
+      }
       export const loginWithGoogle=unsupported, loginWithCustomToken=unsupported,
         signUpWithEmail=unsupported, verifyEmailCode=unsupported;
     `,

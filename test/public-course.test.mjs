@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publishableStops } from '../src/domains/itinerary/services/public-course.mjs';
-import { filterCourses, validateCourseReview } from '../src/domains/itinerary/services/course-community.mjs';
+import { courseCity, filterCourses, validateCourseReview } from '../src/domains/itinerary/services/course-community.mjs';
 
 test('course discovery combines address search, city and visit-duration filters', () => {
   const routes = [
@@ -19,6 +19,15 @@ test('international course cities match local names and complete Latin city name
     assert.deepEqual(filterCourses(routes, { city }), [routes[index]]);
   }
   assert.deepEqual(filterCourses(routes, { city: 'unknown' }), []);
+});
+
+test('a review link resolves its public course to the catalogue city that lists it', () => {
+  const route = location => ({ title: 'Walk', stops: [{ name: 'Gate', location, stayMinutes: 60 }] });
+  for (const [location, city] of [['浅草寺, Tokyo', 'tokyo'], ['東京都', 'tokyo'], ['京都市', 'kyoto'], ['Seoul Museum', 'seoul']]) {
+    assert.equal(courseCity(route(location)), city);
+    assert.deepEqual(filterCourses([route(location)], { city }), [route(location)]);
+  }
+  assert.equal(courseCity(route('Venice, Italy')), null);
 });
 
 test('travel reviews reject future/impossible dates and invalid actual metrics', () => {
