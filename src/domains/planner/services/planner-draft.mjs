@@ -78,6 +78,22 @@ const parseObject = raw => {
  * currentFormData is the recovery copy. userPreference is a compatibility
  * projection for existing navigation guards, never a second source for submit.
  */
+// Untimed picks without a day inside the trip go to the day with the fewest anchors (earliest on ties).
+// Explicit days and timed anchors never move.
+export function spreadVisitDays(draft) {
+  const days = draft.date.length;
+  if (days < 2) return draft;
+  const placed = anchor => Number.isInteger(anchor.day) && anchor.day >= 1 && anchor.day <= days;
+  const load = Array(days).fill(0);
+  for (const anchor of draft.anchorSchedules) if (placed(anchor)) load[anchor.day - 1]++;
+  return { ...draft, anchorSchedules: draft.anchorSchedules.map(anchor => {
+    if (!anchor.flexible || placed(anchor)) return anchor;
+    const day = load.indexOf(Math.min(...load)) + 1;
+    load[day - 1]++;
+    return { ...anchor, day };
+  }) };
+}
+
 export function createPlannerDraftStore({ getStorage = () => null, getRecoveryStorage = () => null, onStorageError = () => {} } = {}) {
   let owner;
   const recoveryKey = 'compasser.planner.v1';

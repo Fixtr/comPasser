@@ -54,6 +54,7 @@
 
 ## Image Export
 
+- Boundary items with `stayUnsetLabel` (a night without a stay) render the label instead of the English destination name, omit reviews/directions and the resolved-place line, are skipped by the next-stop panel, and give the ticket FROM/TO. Saved and shared snapshots made before this keep their stored titles.
 - `ui/itinerary-image-export.js` owns the temporary ticket DOM, light-theme capture, native share/download fallback, and cleanup. It takes a state snapshot's plan and selected day plus language/labels; it does not read the active view or mutate itinerary state.
 - `itinerary-view.js` only supplies the snapshot and handles button state and result/error messages. Cancellation is a separate result: it must not start a download or announce a successful share.
 - Export labels and messages must exist in both translation dictionaries; `t(key)` returns the key when missing, so `t(key) || fallback` does not protect the UI. Snapshot ticket language/labels at export start. Keep the button's `data-i18n` synchronized with its busy/idle state, and translate completion messages in the currently selected language.

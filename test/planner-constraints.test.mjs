@@ -695,3 +695,27 @@ test('every offered destination survives normalization with its local timezone a
     assert.equal(findPlannerRequestIssue({...request, destination: {...request.destination, id: 'unknown'}}).reason, 'travel-region');
   }
 });
+
+test('a night without a chosen stay shows a localized city-center label but keeps the destination string for routing', () => {
+  const station = { placeId: 'seoul-station', displayName: '서울역', formattedAddress: '서울 중구', lat: 37.55, lng: 126.97 };
+  const dates = ['2030-10-17', '2030-10-18', '2030-10-19'];
+  const request = { destination: { id: 'seoul', country: 'KOR', name: 'Seoul, South Korea' }, date: dates, startTime: '09:00', endTime: '18:00',
+    startLocation: station, endLocation: station, overnightLocations: ['', ''], anchorSchedules: [] };
+  const generated = () => dates.map((date, i) => ({ day: i + 1, date, scheduleItems: [{ type: 'attraction', title: '경복궁', time: '11:00', endTime: '12:00', location: '경복궁' }] }));
+  const days = enforcePlannerConstraints(generated(), request, 'ko');
+  const end = days[0].scheduleItems.at(-1);
+  assert.equal(end.title, '도착 · 숙소 미정 (서울 중심)');
+  assert.equal(end.location, 'Seoul, South Korea', 'routing and Places still use the destination string');
+  assert.equal(end.stayUnsetLabel, '숙소 미정 (서울 중심)');
+  assert.equal(end.googleMapsUrl, '');
+  assert.equal(days[1].scheduleItems[0].title, '출발 · 숙소 미정 (서울 중심)');
+  assert.equal(days[0].scheduleItems[0].stayUnsetLabel, undefined);
+  assert.ok(days[0].scheduleItems[0].googleMapsUrl);
+  assert.equal(enforcePlannerConstraints(generated(), request, 'en')[0].scheduleItems.at(-1).title,
+    'Arrive · Stay not set (central Seoul)');
+  // Enforcing an existing result again (a language switch on an unsaved result) relabels instead of adding items.
+  const again = enforcePlannerConstraints(days, request, 'en');
+  assert.equal(again[0].scheduleItems.length, days[0].scheduleItems.length);
+  assert.equal(again[0].scheduleItems.at(-1).title, 'Arrive · Stay not set (central Seoul)');
+  assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)), null);
+});

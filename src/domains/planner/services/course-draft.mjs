@@ -12,10 +12,12 @@ export function setDraftDestination(draft, destination) {
 export function addCourseToDraft(draft, course, language = 'ko') {
   const trip = course.destination ? setDraftDestination(draft, course.destination) : draft;
   const anchors = [...trip.anchorSchedules];
+  // A course is one day's route, so its stops share a day; each new course takes the day after the latest one.
+  const day = Math.max(0, ...anchors.map(item => Number.isInteger(item.day) ? item.day : 0)) + 1;
   for (const stop of course.stops) {
     const name = language === 'en' ? stop.englishName || stop.name : stop.name;
     if (!anchors.some(item => [stop.name, name].includes(item.name) && item.location === stop.location)) {
-      anchors.push({ day: 1, name, location: stop.location, time: '', endTime: '', flexible: true, stayMinutes: stop.stayMinutes });
+      anchors.push({ day, name, location: stop.location, time: '', endTime: '', flexible: true, stayMinutes: stop.stayMinutes });
     }
   }
   return { ...trip, anchorSchedules: anchors, selectedWaypoints: [] };

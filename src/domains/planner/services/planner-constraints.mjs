@@ -2,6 +2,8 @@ import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { isAirportName } from './flight-arrival.mjs';
+import { destinationById } from './travel-destinations.mjs';
+import { tFor } from '../../../utils/i18n.js';
 
 function selectedFields(location) {
   const selectedPlace = normalizeSelectedPlace(location);
@@ -119,16 +121,27 @@ function mapsSearchUrl(location) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 }
 
-function makeBoundaryItem(kind, source, time, isKo) {
+// A night without a stay ends at destination.name, an English machine string kept for validation, Places and routing.
+// The traveler sees an honest, localized "stay not set" label instead.
+export function stayUnsetLabel(location, destination, isKo) {
+  if (typeof location !== 'string' || !destination?.name || location !== destination.name) return '';
+  const lang = isKo ? 'ko' : 'en';
+  const city = destinationById(destination.id);
+  return tFor('stayUnsetCityCenter', lang).replace('{0}', city ? tFor(city.key, lang) : location);
+}
+
+function makeBoundaryItem(kind, source, time, isKo, destination) {
   const location = getLocationName(source);
+  const label = stayUnsetLabel(location, destination, isKo);
+  const shown = label || location;
   const isStart = kind === 'departure';
   return {
     time,
     endTime: '',
     type: kind,
     title: isStart
-      ? (isKo ? `출발 · ${location}` : `Depart · ${location}`)
-      : (isKo ? `도착 · ${location}` : `Arrive · ${location}`),
+      ? (isKo ? `출발 · ${shown}` : `Depart · ${shown}`)
+      : (isKo ? `도착 · ${shown}` : `Arrive · ${shown}`),
     description: isStart
       ? (isKo ? '지정한 출발지에서 일정을 시작합니다.' : 'Start the itinerary at the selected departure point.')
       : (isKo ? '지정한 도착지에서 일정을 마칩니다.' : 'Finish the itinerary at the selected destination.'),
@@ -136,8 +149,9 @@ function makeBoundaryItem(kind, source, time, isKo) {
     ...selectedFields(source),
     duration: isStart ? (isKo ? '출발' : 'Departure') : (isKo ? '도착' : 'Arrival'),
     officialWebsiteUrl: '',
-    googleMapsUrl: mapsSearchUrl(location),
-    transitInfo: ''
+    googleMapsUrl: label ? '' : mapsSearchUrl(location),
+    transitInfo: '',
+    ...(label ? { stayUnsetLabel: label } : {})
   };
 }
 
@@ -356,7 +370,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
 
     const startLocation = getLocationName(constraints.startLocation);
     if (startLocation) {
-      const requiredStart = makeBoundaryItem('departure', constraints.startLocation, constraints.startTime, isKo);
+      const requiredStart = makeBoundaryItem('departure', constraints.startLocation, constraints.startTime, isKo, normalizedRequest.destination);
       if (scheduleItems[0] && scheduleItems[0].type !== 'AnchorSchedule' &&
           !scheduleItems[0].placeIntent?.purpose &&
           isSameLocation(scheduleItems[0].selectedPlace || scheduleItems[0].location, constraints.startLocation)) {
@@ -370,7 +384,8 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
           duration: requiredStart.duration,
           location: startLocation,
           ...selectedFields(constraints.startLocation),
-          googleMapsUrl: mapsSearchUrl(startLocation)
+          googleMapsUrl: requiredStart.googleMapsUrl,
+          ...(requiredStart.stayUnsetLabel ? { title: requiredStart.title, stayUnsetLabel: requiredStart.stayUnsetLabel } : {})
         };
       } else {
         scheduleItems.unshift(requiredStart);
@@ -379,7 +394,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
 
     const endLocation = getLocationName(constraints.endLocation);
     if (endLocation) {
-      const requiredEnd = makeBoundaryItem('arrival', constraints.endLocation, constraints.endTime, isKo);
+      const requiredEnd = makeBoundaryItem('arrival', constraints.endLocation, constraints.endTime, isKo, normalizedRequest.destination);
       const lastIndex = scheduleItems.length - 1;
       if (scheduleItems[lastIndex] && scheduleItems[lastIndex].type !== 'AnchorSchedule' &&
           !scheduleItems[lastIndex].placeIntent?.purpose &&
@@ -394,7 +409,8 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
           duration: requiredEnd.duration,
           location: endLocation,
           ...selectedFields(constraints.endLocation),
-          googleMapsUrl: mapsSearchUrl(endLocation)
+          googleMapsUrl: requiredEnd.googleMapsUrl,
+          ...(requiredEnd.stayUnsetLabel ? { title: requiredEnd.title, stayUnsetLabel: requiredEnd.stayUnsetLabel } : {})
         };
       } else {
         scheduleItems.push(requiredEnd);

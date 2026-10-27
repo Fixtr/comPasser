@@ -12,13 +12,13 @@ import { icons } from '../../../ui/icons.js';
 import { animateScreen } from '../../../ui/screen-motion.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { bindPlaceSelection, restorePlaceInput } from '../services/selected-place.mjs';
-import { plannerDraftStore, toPlannerDraft } from '../services/planner-draft.mjs';
+import { plannerDraftStore, toPlannerDraft, spreadVisitDays } from '../services/planner-draft.mjs';
 import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
 import { findMissingLocation } from '../services/location-validation.mjs';
-import { getLocationName, normalizePlannerRequest } from '../services/planner-constraints.mjs';
+import { getLocationName, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
 import { airportArrivalTime, tripStartAfterLanding } from '../services/flight-arrival.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
@@ -248,10 +248,17 @@ export default class TravelForm extends HTMLElement {
   }
 
   renderGenerationCredits() {
-    const value = this.shadowRoot?.getElementById('generation-credit-balance');
-    if (value) value.textContent = this.generationCredits === 'unlimited' ? t('generationCreditsUnlimited') : Number.isSafeInteger(this.generationCredits)
-      ? t('generationCreditsCount').replace('{0}', this.generationCredits)
-      : t(this.generationCredits === undefined ? 'generationCreditsLoading' : 'generationCreditsUnavailable');
+    const credits = this.generationCredits;
+    const text = credits === 'unlimited' ? t('generationCreditsUnlimited') : Number.isSafeInteger(credits)
+      ? t('generationCreditsCount').replace('{0}', credits)
+      : t(credits === undefined ? 'generationCreditsLoading' : 'generationCreditsUnavailable');
+    this.shadowRoot?.querySelectorAll('.credit-balance').forEach(line => {
+      line.querySelector('strong').textContent = text;
+      line.querySelector('.credit-empty').hidden = credits !== 0;
+    });
+    // Only a known zero blocks; an unknown balance (loading, offline, failure) leaves the decision to the server.
+    const generate = this.shadowRoot?.getElementById('final-generate');
+    if (generate) generate.disabled = credits === 0;
   }
 
   render() {
@@ -269,6 +276,9 @@ export default class TravelForm extends HTMLElement {
         #review-panel p { color: var(--cp-ink-2); overflow-wrap: anywhere; }
         #review-panel button { min-height: 44px; font: inherit; padding: 8px 12px; border: 1px solid var(--cp-rule); border-radius: 6px; background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
         #review-panel #final-generate { display: block; width: 100%; color: var(--cp-surface); background: var(--cp-ink); }
+        #review-panel #final-generate:disabled { color: var(--cp-muted); background: var(--cp-sunken); cursor: not-allowed; }
+        .credit-empty { display: block; margin-top: 4px; color: var(--cp-ink); }
+        .credit-empty[hidden] { display: none; }
         #review-issues { margin: 12px 0; border-left: 3px solid var(--cp-danger); padding: 12px; }
         :host([handoff-flow]) .link-btn { white-space: normal; min-height: 44px; }
         /* With wider fonts the start label wrapped beside "Where should I go?" and sat higher than the end label; let the button wrap instead. */
@@ -322,6 +332,11 @@ export default class TravelForm extends HTMLElement {
       </dialog>
       <section id="review-panel" tabindex="-1" hidden></section>
       <form id="travel-form">
+        <p class="credit-balance" role="status">
+          <span data-i18n="generationCreditsLabel">${t('generationCreditsLabel')}</span>:
+          <strong id="generation-credit-balance">${t('generationCreditsLoading')}</strong>
+          <span class="credit-empty" data-i18n="generationCreditsEmpty" hidden>${t('generationCreditsEmpty')}</span>
+        </p>
         
         <div class="form-section">
           <h2 class="section-head">
@@ -476,10 +491,6 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         
-        <p class="credit-balance" role="status">
-          <span data-i18n="generationCreditsLabel">${t('generationCreditsLabel')}</span>:
-          <strong id="generation-credit-balance">${t('generationCreditsLoading')}</strong>
-        </p>
         <div class="submit-row">
           <button type="button" id="reset-btn" class="reset-btn">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -620,7 +631,9 @@ export default class TravelForm extends HTMLElement {
   populateForm(requestData, { persist = true } = {}) {
     if (!requestData) return;
 
-    this.draft = persist ? plannerDraftStore.save(requestData) : toPlannerDraft(requestData);
+    // Picks arrive without a day; the form spreads them once the trip dates are known.
+    const draft = spreadVisitDays(toPlannerDraft(requestData));
+    this.draft = persist ? plannerDraftStore.save(draft) : draft;
     requestData = this.draft;
 
     try {
@@ -867,10 +880,11 @@ export default class TravelForm extends HTMLElement {
     const request = this.getFormData();
     const defaults = normalizePlannerRequest({ ...request, dailyLocations: null }).dailyData;
     const days = normalizePlannerRequest(request).dailyData;
+    const place = location => stayUnsetLabel(getLocationName(location), request.destination, getLang() === 'ko') || getLocationName(location) || t('locationUnset');
     this.shadowRoot.querySelectorAll('.daily-location-row').forEach((row, index) => {
       row.querySelector('.daily-location-default').textContent = t('dailyLocationDefault')
-        .replace('{0}', getLocationName(defaults[index].startLocation) || t('locationUnset'))
-        .replace('{1}', getLocationName(defaults[index].endLocation) || t('locationUnset'));
+        .replace('{0}', place(defaults[index].startLocation))
+        .replace('{1}', place(defaults[index].endLocation));
       for (const kind of ['start', 'end']) {
         const input = row.querySelector(`.daily-${kind}-location`);
         input.setAttribute('placeholder', t('dailyLocationInherit'));
@@ -933,10 +947,11 @@ export default class TravelForm extends HTMLElement {
       +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):line(anchor.time)+' – '+line(anchor.endTime)}</p>`).join(''))
       +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
       +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
-      +`<div id="review-issues" role="alert" hidden></div><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
+      +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
     this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;
     root.querySelectorAll('[data-review-edit]').forEach(button=>button.onclick=()=>{ this.hideReview();if(button.dataset.reviewEdit==='style')window.navigate('/preference/2', { state: { returnTo: '/plan' } }); });
     root.querySelector('#final-generate').onclick=()=> { if(this.isSubmitting)return; const form=this.shadowRoot.getElementById('travel-form'); if(!form.reportValidity())return; form.dispatchEvent(new Event('submit',{cancelable:true})); };
+    this.renderGenerationCredits();
     this.draft = plannerDraftStore.update({step:'/plan?review=1'});
     root.focus({preventScroll:true});root.scrollIntoView({block:'start',behavior:'auto'});
     if (enteringReview) animateScreen(root, true);

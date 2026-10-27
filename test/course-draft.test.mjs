@@ -24,6 +24,9 @@ test('copying a course for another city replaces that city’s visits; Korean co
   const korean = curatedRoute('curated-seoul');
   assert.deepEqual(korean.destination, seoul);
   assert.deepEqual(addCourseToDraft({ anchorSchedules: [] }, korean).destination, seoul);
+  // A course is one day's route: its stops share a day, and the next course takes the next day.
+  const two = addCourseToDraft(addCourseToDraft({ anchorSchedules: [] }, korean), curatedRoute('curated-seoul-2'));
+  assert.deepEqual(two.anchorSchedules.map(stop => stop.day), [1, 1, 2]);
   const tokyoDraft = addCourseToDraft({ anchorSchedules: [] }, curatedRoute('curated-tokyo'));
   const switched = addCourseToDraft(tokyoDraft, korean);
   assert.deepEqual([switched.country, switched.destination], ['KOR', seoul]);

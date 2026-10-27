@@ -31,6 +31,8 @@ const CALL_TIMEOUT_MS = 200000;
 export async function getGenerationCredits() {
   const response = await httpsCallable(fns(), 'getGenerationCredits')();
   if (response?.data?.unlimited === true) return 'unlimited';
+  // A running generation holds a credit it refunds on failure, so the balance is not a known zero yet.
+  if (response?.data?.generating === true) return null;
   const balance = response?.data?.balance;
   if (!Number.isSafeInteger(balance) || balance < 0) throw new Error('Invalid generation credit balance.');
   return balance;
@@ -86,8 +88,8 @@ export async function generateOptimizedItinerary(plannerRequest) {
     }
     if (error?.details?.reason === 'credits-empty') {
       throw new Error(currentLang === 'ko'
-        ? '생성권이 없습니다. 광고 시청 기능은 준비 중입니다.'
-        : 'No generation credits remain. Rewarded ads are not available yet.');
+        ? '남은 생성권이 없어 일정을 만들 수 없습니다. 지금은 생성권을 더 받을 수 없습니다.'
+        : 'No generation credits remain, so this itinerary cannot be created. More credits are not available right now.');
     }
     if (error?.details?.reason === 'generation-in-progress') {
       throw new Error(currentLang === 'ko'
