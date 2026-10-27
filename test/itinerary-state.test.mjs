@@ -51,6 +51,33 @@ test('개인 일정의 로컬 편집도 같은 계정에서 새로고침하면 �
   assert.equal(make(storage).activateDocument('trip', { userId: 'owner' }).plan.days[0].scheduleItems[0].title, '수정함');
 });
 
+test('개인 일정은 편집했을 때만 저장할 변경이 있다고 표시하고, 저장 표시는 수정 이력을 지우지 않는다', () => {
+  const storage = memoryStorage(), state = make(storage);
+  state.open(plan(), { kind: 'private', id: 'trip' });
+  state.selectDay(1);
+  state.resolvePlaces(1, [{ index: 0, name: '확인된 이름', address: '주소' }]);
+  assert.ok(!state.current.unsaved, '열기·날짜 선택·장소 확인은 편집이 아니다');
+  state.replaceDayItems(0, [{ title: '시간 수정', time: '12:00' }]);
+  assert.equal(state.current.unsaved, true);
+  assert.equal(make(storage).activateDocument('trip', { userId: 'owner' }).unsaved, true, '새로고침해도 남는다');
+  state.editDayItems(1, [], { undo: true });
+  state.markSaved();
+  assert.ok(!state.current.unsaved);
+  assert.deepEqual(state.current.dirtyDays, [1]);
+  assert.ok(state.current.undoByDay[1]);
+  assert.ok(!make(storage).activateDocument('trip', { userId: 'owner' }).unsaved);
+});
+
+test('저장 표시가 생기기 전에 편집한 개인 일정은 복원할 때 저장할 변경으로 본다', () => {
+  const storage = memoryStorage();
+  const entry = (id, edited) => ({ source: { kind: 'private', id, ownerId: 'owner' }, plan: plan(), dayIndex: 0,
+    dirtyDays: edited ? [0] : [], undoByDay: {} });
+  storage.setItem(ITINERARY_SESSION_KEY, JSON.stringify({ version: 1, userId: 'owner', entries: [entry('edited', true), entry('opened', false)] }));
+  const state = make(storage);
+  assert.equal(state.activateDocument('edited', { userId: 'owner' }).unsaved, true);
+  assert.ok(!state.activateDocument('opened', { userId: 'owner' }).unsaved);
+});
+
 test('게스트와 다른 계정은 개인 캐시를 복원하지 못하고 계정 전환은 이전 사본을 비운다', () => {
   const storage = memoryStorage(), state = make(storage);
   state.open(plan(), { kind: 'private', id: 'trip' });

@@ -67,6 +67,8 @@ export default class VerifyView extends HTMLElement {
     const goLoginBtn = this.shadowRoot.getElementById('go-login-btn');
     const statusIcon = this.shadowRoot.getElementById('status-icon');
 
+    // data-i18n 도 바꿔야 언어를 바꿨을 때 인증 대기 문구로 돌아가지 않는다.
+    const say = (el, key) => { el.dataset.i18n = key; el.textContent = t(key); };
     /** 결과 표시를 한 곳에서. 예전에는 제목 문자열 앞에 ❌ / ✅ 를 붙였다. */
     const setStatus = (tone, icon) => {
       statusIcon.dataset.tone = tone;
@@ -76,9 +78,9 @@ export default class VerifyView extends HTMLElement {
     if (!oobCode) {
       spinner.style.display = 'none';
       setStatus('danger', icons.warn);
-      titleText.textContent = t('verifyBadRequestTitle');
-      subtitleText.textContent = t('verifyBadRequestDesc');
-      errorMsg.textContent = t('verifyBadAccess');
+      say(titleText, 'verifyBadRequestTitle');
+      say(subtitleText, 'verifyBadRequestDesc');
+      say(errorMsg, 'verifyBadAccess');
       errorMsg.style.display = 'block';
       goLoginBtn.style.display = 'inline-block';
       return;
@@ -89,8 +91,6 @@ export default class VerifyView extends HTMLElement {
       const form = this.shadowRoot.getElementById('reset-form');
       const input = this.shadowRoot.getElementById('new-password-input');
       const resetBtn = this.shadowRoot.getElementById('reset-btn');
-      // data-i18n 도 바꿔야 언어를 바꿨을 때 인증 대기 문구로 돌아가지 않는다.
-      const say = (el, key) => { el.dataset.i18n = key; el.textContent = t(key); };
       const fail = (key) => { errorMsg.textContent = t(key); errorMsg.style.display = 'block'; };
       spinner.style.display = 'none';
       say(titleText, 'resetPasswordTitle');
@@ -127,15 +127,15 @@ export default class VerifyView extends HTMLElement {
       await verifyEmailCode(oobCode);
       spinner.style.display = 'none';
       setStatus('ok', icons.check);
-      titleText.textContent = t('verifyDoneTitle');
-      subtitleText.textContent = t('verifyDoneDesc');
+      say(titleText, 'verifyDoneTitle');
+      say(subtitleText, 'verifyDoneDesc');
       goLoginBtn.style.display = 'inline-block';
     } catch (err) {
       console.error('Email verification error:', err);
       spinner.style.display = 'none';
       setStatus('danger', icons.warn);
-      titleText.textContent = t('verifyFailedTitle');
-      subtitleText.textContent = t('verifyFailedDesc');
+      say(titleText, 'verifyFailedTitle');
+      say(subtitleText, 'verifyFailedDesc');
       let msg = err.message;
       if (err.code === 'auth/invalid-action-code') {
         msg = '이미 만료되었거나 사용된 인증 코드입니다.';

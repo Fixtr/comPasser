@@ -1,4 +1,5 @@
-import { saveItinerary, createSharedItinerary, loadItineraryDocument, watchSharedItinerary } from '../services/firestore-service.js';
+import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument, watchSharedItinerary } from '../services/firestore-service.js';
+import { offlineTrips } from '../services/offline-trips.mjs';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
@@ -241,7 +242,7 @@ export default class ItineraryView extends HTMLElement {
       onStorageError: () => this.showToast(t('itinerarySessionUnavailable'), true),
     });
     this.actions = createItineraryActions({
-      state: this.state, getCurrentUser, saveItinerary, createSharedItinerary, getSharedItineraryUrl,
+      state: this.state, getCurrentUser, saveItinerary, updateItinerary, createSharedItinerary, getSharedItineraryUrl,
     });
     this._loadVersion = 0;
     this._itineraryVersion = 0;
@@ -270,7 +271,12 @@ export default class ItineraryView extends HTMLElement {
     });
     this.updateTexts();
 
-    this._languageHandler = () => this.updateTexts();
+    this._languageHandler = () => {
+      this.updateTexts();
+      // Day tabs and cards are built from translated strings; rebuild them without a new map request.
+      const plan = this.normalizeData(this.currentItinerary);
+      if (plan?.days?.length) { this.renderDayTabs(plan); this.renderActiveDay(plan); }
+    };
     window.addEventListener('i18n-changed', this._languageHandler);
 
     // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
@@ -469,12 +475,14 @@ export default class ItineraryView extends HTMLElement {
     }
     const hasPlan = Boolean(this.currentItinerary);
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
+    const entry = this.state.current;
     const saveKey = this.isReadOnly
       ? (getCurrentUser() ? 'saveSharedCopyBtn' : 'loginToSaveSharedBtn')
-      : 'saveItineraryBtn';
-    if (saveBtn && !saveBtn.disabled) {
+      : entry?.source.kind !== 'private' ? 'saveItineraryBtn' : entry.unsaved ? 'saveChangesBtn' : 'savedStateBtn';
+    if (saveBtn && !this._saving) {
       saveBtn.dataset.i18n = saveKey;
       saveBtn.textContent = t(saveKey);
+      saveBtn.disabled = saveKey === 'savedStateBtn';
     }
     const notice = this.shadowRoot.getElementById('shared-notice');
     if (notice) {
@@ -500,14 +508,17 @@ export default class ItineraryView extends HTMLElement {
       saveBtn.addEventListener('click', async () => {
         trackEvent('save_itinerary_click');
         try {
+          this._saving = true;
           saveBtn.disabled = true;
           saveBtn.textContent = t('savingStateBtn') || '저장 중...';
           const result = await this.actions.save({
             language: getLang(),
             onSaved: id => {
+              this.refreshOfflineCopy(id);
               this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
               this.renderCurrentState();
-              if (window.navigate) window.navigate('/view/' + id);
+              // Replace the pre-save /view or /share entry so Back can't reopen a copy that offers Save again.
+              if (window.navigate) window.navigate('/view/' + id, { replace: true });
             },
           });
           if (result.status === 'login-required') {
@@ -519,10 +530,20 @@ export default class ItineraryView extends HTMLElement {
           console.error("Save error:", error);
           this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
         } finally {
-          saveBtn.disabled = false;
+          this._saving = false;
           this.refreshAccessControls();
         }
       });
+    }
+  }
+
+  // A trip kept for offline reading must show the saved changes at the trip site.
+  refreshOfflineCopy(id) {
+    try {
+      const offline = offlineTrips.get(this.state.userId, id);
+      if (offline) offlineTrips.save(offline.userId, { ...offline, itineraryPlan: this.currentItinerary });
+    } catch {
+      showGlobalToast(t('offlineFailed'), { tone: 'warning' });
     }
   }
 
@@ -1335,6 +1356,7 @@ export default class ItineraryView extends HTMLElement {
       : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
     const scheduleItems = fit.items;
     this.state.replaceDayItems(this.activeDayIndex, scheduleItems);
+    this.refreshAccessControls();
 
     this.updateAnchorWarning(scheduleItems, transitRoutes);
 
@@ -1527,7 +1549,16 @@ export default class ItineraryView extends HTMLElement {
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
 
-    // Tabs setup
+    this.renderDayTabs(safePlan);
+
+    // Render initial
+    this.requestMapRoute();
+    } catch (error) {
+      console.error('renderCurrentState error:', error);
+    }
+  }
+
+  renderDayTabs(safePlan) {
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
     tabsContainer.innerHTML = '';
     
@@ -1560,12 +1591,6 @@ export default class ItineraryView extends HTMLElement {
         headerEl.textContent = headerFormat.replace('{0}', safePlan.days[0]?.date || '');
         headerEl.style.display = 'block';
       }
-    }
-
-    // Render initial
-    this.requestMapRoute();
-    } catch (error) {
-      console.error('renderCurrentState error:', error);
     }
   }
 

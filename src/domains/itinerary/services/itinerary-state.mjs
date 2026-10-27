@@ -78,6 +78,8 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
             if (source.kind === 'private' && (typeof source.id !== 'string' || !source.id)) continue;
             const days = normalizeData(entry.plan).days;
             entry.dayIndex = Number.isInteger(entry.dayIndex) && days[entry.dayIndex] ? entry.dayIndex : 0;
+            // Copies kept before the unsaved flag existed count as edited when they carry edit marks.
+            if (source.kind === 'private' && entry.unsaved === undefined) entry.unsaved = Boolean(entry.dirtyDays?.length || Object.keys(entry.undoByDay || {}).length);
             entries.set(keyOf(source), entry);
           }
         } else if (initial && userId && !saved) {
@@ -97,13 +99,13 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       return true;
     },
 
-    open(plan, { kind = 'draft', id = null } = {}) {
+    open(plan, { kind = 'draft', id = null, savedFromDraft = false } = {}) {
       if (!validPlan(plan)) return null;
       if (!['draft', 'private', 'shared'].includes(kind)) return null;
       if (kind !== 'draft' && !id) return null;
       if (kind === 'private' && !userId) return null;
       const source = kind === 'shared' ? { kind, id } : { kind, id, ownerId: userId || null };
-      const entry = { source, plan, dayIndex: 0, dirtyDays: [], undoByDay: {} };
+      const entry = { source, plan, dayIndex: 0, dirtyDays: [], undoByDay: {}, ...(savedFromDraft ? { savedFromDraft } : {}) };
       activeKey = keyOf(source);
       entries.set(activeKey, entry);
       changed();
@@ -147,9 +149,12 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
     },
 
     replaceDayItems(index, items) {
-      const day = normalizeData(current()?.plan)?.days?.[index];
+      const entry = current();
+      const day = normalizeData(entry?.plan)?.days?.[index];
       if (!day || !Array.isArray(items)) return false;
       day.scheduleItems = items;
+      // 저장한 일정이 저장본과 달라졌다는 표시. dirtyDays(시간 재계산 필요)와는 별개다.
+      entry.unsaved = true;
       changed();
       return true;
     },
@@ -162,7 +167,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if (undo) entry.undoByDay[index]=structuredClone(day.scheduleItems); else delete entry.undoByDay[index];
       entry.dirtyDays ||= [];
       if (!entry.dirtyDays.includes(index)) entry.dirtyDays.push(index);
-      day.scheduleItems=items;changed();return true;
+      day.scheduleItems=items;entry.unsaved=true;changed();return true;
     },
     undoDeletion(index) {
       const entry=current(),items=entry?.undoByDay?.[index];
@@ -170,6 +175,10 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       delete entry.undoByDay[index];
       if(!entry.dirtyDays.includes(index))entry.dirtyDays.push(index);
       return this.replaceDayItems(index,items);
+    },
+    markSaved() {
+      const entry=current();
+      if (entry?.unsaved) { entry.unsaved=false; changed(); }
     },
     markDayRecalculated(index) {
       const entry=current();if(!entry)return;

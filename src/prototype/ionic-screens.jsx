@@ -7,6 +7,7 @@ import { getLang } from '../utils/i18n.js';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { t } from '../utils/i18n.js';
+import { showConfirm } from '../utils/confirm-dialog.js';
 import { TravelGlobe } from './travel-globe.jsx';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
 import { addCourseToDraft, cityDestination } from '../domains/planner/services/course-draft.mjs';
@@ -308,17 +309,37 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     return () => { cancelled = true; view.cancelPendingLoad(); };
   }, [ready, desktop, loaded, active, authSettled, path, user?.uid, navigate, offlineMode]);
 
+  // Generation success clears the planner, so the result's own request is the only copy of the inputs.
+  const keepInputs = view => {
+    const request = view.currentItinerary?.request || view.currentItinerary?.metadata?.request;
+    if (request) plannerDraftStore.save(request);
+  };
   const edit = () => {
     const view = itinerary.current;
     if (!view?.canEdit()) return;
-    const request = view.currentItinerary?.request || view.currentItinerary?.metadata?.request;
-    if (request) plannerDraftStore.save(request);
+    keepInputs(view);
     navigate('/plan');
+  };
+  const leaveDialog = useRef(null);
+  // A route change closes the leave question instead of leaving it over the next page.
+  useEffect(() => () => leaveDialog.current?.abort(), [active, path]);
+  const back = async () => {
+    const view = itinerary.current;
+    const editable = view?.currentItinerary && view.canEdit();
+    // Bare /view only shows the unsaved generated draft; saving moves to /view/:id.
+    if (editable && path === '/view') {
+      leaveDialog.current = new AbortController();
+      const leave = await showConfirm({ title: t('resultLeaveTitle'), message: t('resultLeaveMessage'), confirmText: t('planLeaveYes'), cancelText: t('planLeaveNo'), signal: leaveDialog.current.signal });
+      if (!leave || window.location.pathname !== path) return;
+      keepInputs(view);
+    // Saving a fresh result replaces /view, so the planner sits right behind it and needs its inputs back.
+    } else if (editable && view.state.current?.savedFromDraft) keepInputs(view);
+    navigate(window.history.state?.idx > 0 ? -1 : '/');
   };
 
   const map = <IonContent fullscreen scrollY={false} className="ionic-map-content">
       <map-view />
-      <IonButton className="ionic-result-back" size="small" onClick={() => navigate(window.history.state?.idx > 0 ? -1 : '/')}>{t('shellBack')}</IonButton>
+      <IonButton className="ionic-result-back" size="small" onClick={() => void back()}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
     </IonContent>;
   const schedule = <><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;

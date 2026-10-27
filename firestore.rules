@@ -47,21 +47,26 @@ service cloud.firestore {
     }
 
     // itineraries/{id}: 로그인 사용자가 저장한 개인 일정. userId 필드로 소유자를 식별한다.
-    // (src/domains/itinerary/services/firestore-service.js: saveItinerary/getUserItineraries/deleteItinerary)
+    // (src/domains/itinerary/services/firestore-service.js: saveItinerary/updateItinerary/renameItinerary/getUserItineraries/deleteItinerary)
     match /itineraries/{itineraryId} {
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && canWriteAccountData();
 
-      // 목록에서 일정 이름을 바꿀 수 있어야 하지만 그 외의 수정은 계속 막는다.
-      // 소유자가 title 한 필드만 바꾸는 경우로 한정해, 저장된 일정 내용
-      // (itineraryPlan)이나 소유자(userId)는 건드릴 수 없게 한다.
+      // 소유자는 이름(title)과 저장한 일정 내용(itineraryPlan)만 고칠 수 있다.
+      // 소유자(userId)와 저장 시각(createdAt)은 바꾸거나 지울 수 없다.
+      // 바뀐 필드만 검사해 이름이 없던 예전 일정도 내용을 고칠 수 있다.
       allow update: if request.auth != null
         && canWriteAccountData()
         && resource.data.userId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title'])
-        && request.resource.data.title is string
-        && request.resource.data.title.size() > 0
-        && request.resource.data.title.size() <= 100;
+        && validItineraryEdit(request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    function validItineraryEdit(changed) {
+      return changed.hasOnly(['title', 'itineraryPlan'])
+        && (!changed.hasAny(['title']) || (request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 100))
+        && (!changed.hasAny(['itineraryPlan']) || request.resource.data.itineraryPlan is map);
     }
 
     function validVisitorInfo(info) {

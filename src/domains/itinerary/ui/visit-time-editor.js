@@ -26,7 +26,7 @@ export function openVisitTimeEditor(view, host, index) {
     }
     const result=editVisitTime(items,index,inputs[0].value,inputs[1].value);
     if(!result.changed){error.textContent=t('visitTimeInvalid');return;}
-    view.state.replaceDayItems(day,result.items);form.remove();view.requestMapRoute({scheduleEdited:true});
+    view.state.replaceDayItems(day,result.items);form.remove();view.refreshAccessControls();view.requestMapRoute({scheduleEdited:true});
   });
   host.append(form);inputs[0].focus();
 }

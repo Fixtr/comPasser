@@ -53,6 +53,14 @@ test('only owner private trips can be stored offline; failed writes are not succ
   cache.save('owner',{id:'abc',userId:'owner',itineraryPlan:plan});cache.setUser('other');assert.equal(local.getItem('compasser.offline.v1'),null);
   const blocked=createOfflineTrips({getStorage:()=>({getItem:()=>null,setItem:()=>{throw Error('quota')},removeItem:()=>{}})});blocked.setUser('owner');assert.throws(()=>blocked.save('owner',{id:'abc',userId:'owner',itineraryPlan:plan}));
 });
+test('trips kept offline take the server plan when the trip list loads; other trips are not cached',()=> {
+  const local=memory(),cache=createOfflineTrips({getStorage:()=>local,now:()=>100});cache.setUser('owner');
+  cache.save('owner',{id:'abc',userId:'owner',title:'Paris',itineraryPlan:plan});
+  const edited=structuredClone(plan);edited.days[0].scheduleItems[0].title='Edited elsewhere';
+  cache.refresh('owner',[{id:'abc',userId:'owner',title:'Paris',itineraryPlan:edited},{id:'xyz',userId:'owner',itineraryPlan:plan}]);
+  assert.equal(cache.get('owner','abc').itineraryPlan.days[0].scheduleItems[0].title,'Edited elsewhere');
+  assert.equal(cache.get('owner','xyz'),null);
+});
 test('delete undo and dirty state are scoped to each day and cannot edit a shared original',()=> {
   const state=createItineraryState();state.setUser('owner');state.open(structuredClone(plan));
   state.editDayItems(0,[],{undo:true});state.selectDay(1);assert.equal(state.current.undoByDay[1],undefined);assert.deepEqual(state.current.dirtyDays,[0]);

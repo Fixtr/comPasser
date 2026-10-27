@@ -43,7 +43,10 @@ const pages = [
 ];
 
 function SettingsControls({ theme, onThemeChange, lang }) {
+  const nextLang = lang === 'ko' ? 'en' : 'ko';
   return <div className="ionic-settings" role="group" aria-label={lang === 'ko' ? '화면 설정' : 'Display settings'}>
+    {/* Guests have no profile, so the language switch sits here; it names the language it switches to. */}
+    <button type="button" lang={nextLang} onClick={() => setLang(nextLang)}>{t('languageToggle')}</button>
     <button type="button" onClick={onThemeChange} aria-label={t(theme === 'dark' ? 'lightMode' : 'darkMode')}>{t(theme === 'dark' ? 'lightMode' : 'darkMode')}</button>
   </div>;
 }
@@ -121,7 +124,9 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
 function Shell() {
   const [auth, setAuth] = useState({ user: null, settled: !!missingFirebaseConfig.length });
   const [lang, setLanguage] = useState(() => {
-    if (new URLSearchParams(window.location.search).get('lang') === 'en') setLang('en');
+    const requested = new URLSearchParams(window.location.search).get('lang');
+    // The address bar is untrusted, and setLang would accept inherited names such as 'constructor'.
+    if (requested === 'en' || requested === 'ko') setLang(requested);
     return getLang();
   });
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
