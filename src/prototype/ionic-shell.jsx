@@ -65,7 +65,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   if (active && path === '/preference') return <Navigate to="/preference/1" replace />;
 
   let screen;
-  if (path === '/' || path === '/home') screen = <HomeScreen user={user} settings={settings} />;
+  if (path === '/' || path === '/home') screen = <HomeScreen authSettled={authSettled} settings={settings} />;
   else if (path === '/destination') screen = <DestinationScreen settings={settings} />;
   else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
   else if (path === '/courses') screen = <CoursesScreen settings={settings} />;
