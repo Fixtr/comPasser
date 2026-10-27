@@ -34,7 +34,7 @@ test.beforeEach(async ({page,context,baseURL})=>{
  await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort('blockedbyclient'));
  await page.route('**/src/domains/auth/services/firebase-auth.js',route=>route.fulfill({contentType:'text/javascript',body:auth}));
  await page.route('**/src/domains/map/services/google-maps-loader.js',route=>route.fulfill({contentType:'text/javascript',body:maps}));
- await page.route('**/src/domains/itinerary/services/firestore-service.js',route=>route.fulfill({contentType:'text/javascript',body:`const trip=${JSON.stringify(trip)};export const getUserItineraries=async()=>[structuredClone(trip)];export const loadItineraryDocument=async()=>({access:'private',itineraryPlan:structuredClone(trip.itineraryPlan)});export const saveItinerary=async()=>trip.id;export const createSharedItinerary=async()=>'';export const watchSharedItinerary=()=>()=>{};export const renameItinerary=async()=>{};export const deleteItinerary=async()=>{};`}));
+ await page.route('**/src/domains/itinerary/services/firestore-service.js',route=>route.fulfill({contentType:'text/javascript',body:`const trip=${JSON.stringify(trip)};export const getUserItineraries=async()=>[structuredClone(trip)];export const loadItineraryDocument=async()=>({access:'private',itineraryPlan:structuredClone(trip.itineraryPlan)});export const saveItinerary=async()=>{window.saves=(window.saves||0)+1;return trip.id};export const updateItinerary=async(id,plan)=>{window.updates=(window.updates||[]).concat([{id,plan}]);return id};export const createSharedItinerary=async()=>'';export const watchSharedItinerary=()=>()=>{};export const renameItinerary=async()=>{};export const deleteItinerary=async()=>{};`}));
  await page.route('**/src/domains/profile/services/account-deletion-api.js',route=>route.fulfill({contentType:'text/javascript',body:`export const accountDeletionClient={status:async()=>({state:'not-found'}),hasReceipt:()=>false};`}));
  await page.route('**/src/domains/map/ui/map-view.js',route=>route.fulfill({contentType:'text/javascript',body:`class MapView extends HTMLElement{connectedCallback(){this.handler=event=>{window.mapDays=(window.mapDays||[]).concat(event.detail.context.dayIndex);const items=event.detail.plan.days[0].scheduleItems;setTimeout(()=>window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:event.detail.context,routes:items.slice(1).map((_,index)=>({fromIndex:index,toIndex:index+1,durationMinutes:10,mode:'WALKING',steps:[]}))}})),0)};window.addEventListener('render-map-route',this.handler)}disconnectedCallback(){window.removeEventListener('render-map-route',this.handler)}}customElements.define('map-view',MapView);`}));
  await page.route('**/src/domains/planner/services/flexible-visit-checks.js',route=>route.fulfill({contentType:'text/javascript',body:`export const createFlexibleVisitChecks=()=>({travelMinutes:async()=>10,hoursStatus:async()=> 'open'});`}));
@@ -643,6 +643,46 @@ test('online own trip stays editable, undo is per day, and only changed day is r
  await expect(page.locator('main.flow-page')).toContainText('Paris, France');await expect(page.locator('itinerary-view')).toHaveCount(0);await expect(page.locator('main.flow-page')).toContainText('인터넷');
 });
 
+test('saved trip edits update the same trip; the button shows unsaved and saved states',async({page})=>{
+ await page.setViewportSize({width:1100,height:850});await page.goto('/profile/trips');
+ const profile=page.locator('profile-view[data-active]');await profile.locator('.btn-offline').click();await profile.locator('.btn-view').click();
+ const view=page.locator('itinerary-view:visible');const save=view.locator('#save-itinerary-btn');
+ await expect(view.locator('#timeline-container')).toContainText('Museum 1');await expect(save).toHaveText('저장됨');await expect(save).toBeDisabled();
+ await view.evaluate(element=>{void element.handleItemEdit('remove',1);});await page.locator('#app-confirm-host .confirm-ok').click();
+ await expect(save).toHaveText('변경 사항 저장');await expect(save).toBeEnabled();
+ await page.reload();await expect(save).toHaveText('변경 사항 저장');
+ await save.click();await expect(save).toHaveText('저장됨');await expect(save).toBeDisabled();await expect(page).toHaveURL(/view\/own123$/);
+ const updates=await page.evaluate(()=>(window.updates||[]).map(update=>[update.id,update.plan.days[0].scheduleItems.map(item=>item.title)]));
+ expect(updates).toHaveLength(1);expect(updates[0][0]).toBe('own123');expect(updates[0][1]).not.toContain('Museum 1');
+ expect(await page.evaluate(()=>window.saves||0)).toBe(0);
+ // The copy kept for offline reading shows the saved change.
+ expect(await page.evaluate(()=>localStorage.getItem('compasser.offline.v1'))).not.toContain('Museum 1');
+ await page.reload();await expect(save).toHaveText('저장됨');
+});
+
+test('saving a generated draft replaces it in history, so Back cannot reopen a copy that offers Save again',async({page})=>{
+ const form=await openExitTestForm(page);
+ await form.evaluate(el=>el.showReview());
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await expect(page).toHaveURL(/view$/);await expect(page.getByText('Museum 1').first()).toBeVisible();
+ const save=page.locator('itinerary-view:visible #save-itinerary-btn');
+ await expect(save).toHaveText('이 일정 저장하기');await save.click();
+ await expect(page).toHaveURL(/view\/own123$/);await expect(save).toHaveText('저장됨');
+ await page.locator('.ionic-result-back:visible').click();await expect(page).toHaveURL(/plan$/);await expect(page.getByRole('alertdialog')).toHaveCount(0);
+ await expect(form.locator('#review-panel')).toContainText('Booked visit');
+ expect(await page.evaluate(()=>window.saves)).toBe(1);
+});
+
+test('switching language on a result re-renders the timeline without a new map request',async({page})=>{
+ await page.setViewportSize({width:1280,height:900});await page.goto('/profile/trips');
+ const profile=page.locator('profile-view[data-active]');await profile.locator('.btn-offline').click();await profile.locator('.btn-view').click();
+ const view=page.locator('itinerary-view:visible');await expect(view.locator('#day-tabs-container')).toContainText('1일차');
+ await page.evaluate(()=>{window.mapDays=[]});
+ await page.locator('.ionic-desktop-schedule').getByRole('button',{name:'English',exact:true}).click();
+ await expect(view.locator('#day-tabs-container')).toContainText('Day 1');await expect(view.locator('#timeline-container')).not.toContainText('방문 시간 수정');
+ expect(await page.evaluate(()=>window.mapDays.length)).toBe(0);
+});
+
 test('profile trips keep profile navigation; language is inside security; home is usable in English dark at 320px',async({page},testInfo)=>{
  await page.setViewportSize({width:320,height:760});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/profile/personal');
  const profile=page.locator('profile-view[data-active]');await profile.locator('.nav-item[data-tab=trips]').click();await expect(page).toHaveURL(/profile\/personal\?tab=trips$/);await expect(page.locator('ion-tab-button[tab=profile]')).toHaveClass(/tab-selected/);await expect(profile.locator('.sidebar')).toBeVisible();
@@ -1128,6 +1168,32 @@ for (const acceptExit of [true,false]) {
   }
  });
 }
+
+test('unsaved result Back asks first; No keeps the result, Yes returns to the review with every input', async ({page}) => {
+ const form=await openExitTestForm(page);
+ await form.evaluate(el=>el.showReview());
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await expect(page).toHaveURL(/view$/);await expect(page.getByText('Museum 1').first()).toBeVisible();await expectEmptyPlanner(page);
+ const back=page.locator('.ionic-result-back:visible');const dialog=page.getByRole('alertdialog');
+ await back.click();await expect(dialog).toContainText('이 일정은 아직 저장하지 않아 내 일정에 남지 않습니다.');
+ await expect(dialog.getByRole('button',{name:'아니오',exact:true})).toBeFocused();
+ await page.keyboard.press('Escape');await expect(page).toHaveURL(/view$/);await expectEmptyPlanner(page);
+ await back.click();await dialog.getByRole('button',{name:'아니오',exact:true}).click();await expect(page).toHaveURL(/view$/);
+ await back.click();await dialog.getByRole('button',{name:'예',exact:true}).click();
+ await expect(page).toHaveURL(/plan$/);await expect(dialog).toHaveCount(0);
+ const review=form.locator('#review-panel');await expect(review).toBeVisible();
+ await expect(review).toContainText('Booked visit');await expect(review).toContainText('09:00');
+ const draft=await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read());
+ expect([draft.date,draft.theme,draft.budget,draft.destination?.id,draft.anchorSchedules.map(a=>a.name)]).toEqual([['2030-10-17','2030-10-18'],'food','standard','paris',['Booked visit']]);
+});
+
+test('saved trip Back leaves without asking', async ({page}) => {
+ await page.goto('/profile/trips');
+ const profile=page.locator('profile-view[data-active]');await profile.locator('.btn-offline').click();await profile.locator('.btn-view').click();
+ await expect(page).toHaveURL(/view\/own123$/);
+ await page.locator('.ionic-result-back:visible').click();
+ await expect(page).toHaveURL(/profile\/trips$/);await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
 
 test('flights fill and lock the first departure and last arrival; removing a flight unlocks it',async({page})=>{
  const open=async date=>{await page.goto('/destination');await page.evaluate(async date=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:'Paris Station',startTime:'09:00',endTime:'21:00',anchorSchedules:[]});},date);

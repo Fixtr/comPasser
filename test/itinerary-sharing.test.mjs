@@ -30,7 +30,7 @@ function fakeElement() {
   };
 }
 
-function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false, watch = async () => () => {}, routeMinutes = async () => null } = {}) {
+function itineraryView({ user = null, load = async () => null, confirm = true, pathname = '/share/public123', mapEvents = false, storage = null, save, update, exportImage = async () => 'downloaded', copyLink = async () => {}, shareToKakao = async () => {}, realTranslations = false, watch = async () => () => {}, routeMinutes = async () => null } = {}) {
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
@@ -38,7 +38,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     'day-tabs-container', 'day-title-header',
   ].map(id => [id, fakeElement()]));
   const editButton = fakeElement();
-  const calls = { loads: [], saves: [], shares: [], confirms: [], navigations: [], events: [], renders: [], errors: [], exports: [], toasts: [], copies: [], kakao: [] };
+  const calls = { loads: [], saves: [], updates: [], shares: [], confirms: [], navigations: [], events: [], renders: [], errors: [], exports: [], toasts: [], copies: [], kakao: [] };
   const state = { user, confirm };
   const listeners = new Map();
   const dependencies = {
@@ -67,6 +67,8 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
       return load(id, options);
     },
     saveItinerary: async (...args) => { calls.saves.push(args); return save ? save(...args) : 'mycopy123'; },
+    updateItinerary: async (...args) => { calls.updates.push(args); return update ? update(...args) : args[0]; },
+    offlineTrips: { get: () => null, save() {} },
     createSharedItinerary: async plan => { calls.shares.push(plan); return 'published123'; },
     watchSharedItinerary: watch,
     exportItineraryImage: input => { calls.exports.push(input); return exportImage(input); },
@@ -393,7 +395,29 @@ test('로그인 사용자는 공유본을 자기 계정의 새 일정으로 저�
   assert.deepEqual(app.calls.saves, [['reader456', plan, buildItineraryTitle(plan, 'ko')]]);
   assert.deepEqual(app.calls.navigations, ['/view/mycopy123']);
   assert.deepEqual(app.calls.shares, [], '공유 원본에 쓰지 않는다');
-  assert.equal(app.control('save-itinerary-btn').disabled, false);
+  assert.equal(app.control('save-itinerary-btn').textContent, 'savedStateBtn');
+  assert.equal(app.control('save-itinerary-btn').disabled, true, '저장한 사본을 다시 저장해 중복을 만들지 않는다');
+  assert.deepEqual(app.calls.errors, []);
+});
+
+test('저장한 개인 일정을 고쳐 저장하면 같은 문서를 갱신하고 버튼이 저장 상태를 알린다', async () => {
+  const app = itineraryView({ user: { uid: 'owner' }, pathname: '/view/trip123' });
+  app.view.showResults(samplePlan(), { id: 'trip123' });
+  const button = app.control('save-itinerary-btn');
+  assert.equal(button.textContent, 'savedStateBtn');
+  assert.equal(button.disabled, true);
+
+  app.view.insertPlaceAt(2, { title: '새 장소', location: '새 장소', stayMinutes: 20 });
+  assert.equal(button.textContent, 'saveChangesBtn');
+  assert.equal(button.disabled, false);
+  await app.save();
+
+  assert.deepEqual(app.calls.saves, [], '새 문서를 만들지 않는다');
+  assert.equal(app.calls.updates.length, 1);
+  assert.equal(app.calls.updates[0][0], 'trip123');
+  assert.ok(app.calls.updates[0][1].days[0].scheduleItems.some(item => item.title === '새 장소'));
+  assert.equal(button.textContent, 'savedStateBtn');
+  assert.equal(button.disabled, true);
   assert.deepEqual(app.calls.errors, []);
 });
 
@@ -699,8 +723,9 @@ test('저장·공유 전달 실패는 화면에서 알리고 버튼을 다시 �
   for (const [action, buttonId] of [
     ['save', 'save-itinerary-btn'], ['copyShare', 'share-itinerary-btn'], ['kakaoShare', 'kakao-share-btn'],
   ]) {
-    const app = itineraryView({ user: { uid: 'owner' }, save: fail, copyLink: fail, shareToKakao: fail });
+    const app = itineraryView({ user: { uid: 'owner' }, update: fail, copyLink: fail, shareToKakao: fail });
     app.view.showResults(samplePlan(), { id: 'mine123' });
+    app.view.state.replaceDayItems(0, samplePlan().days[0].scheduleItems);
     await app[action]();
     assert.equal(app.control(buttonId).disabled, false);
     assert.equal(app.calls.errors.length, 1);

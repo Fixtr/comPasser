@@ -26,8 +26,8 @@ export async function saveItinerary(userId, itineraryPlan, title) {
 /**
  * 저장된 일정의 이름만 바꾼다.
  *
- * firestore.rules 가 title 한 필드만, 소유자에 한해, 100자 이내로 수정을
- * 허용한다. 일정 내용(itineraryPlan)이나 소유자(userId)는 바꿀 수 없다.
+ * firestore.rules 는 소유자에게 title(100자 이내)과 itineraryPlan 수정만
+ * 허용한다. 소유자(userId)와 저장 시각(createdAt)은 바꿀 수 없다.
  *
  * @param {string} documentId
  * @param {string} title 새 이름(빈 문자열/100자 초과는 거부)
@@ -43,6 +43,24 @@ export async function renameItinerary(documentId, title) {
         return trimmed;
     } catch (error) {
         console.error("Error renaming itinerary:", error);
+        throw error;
+    }
+}
+
+/**
+ * 저장한 일정의 내용만 같은 문서에 덮어쓴다. 이름·소유자·저장 시각은 그대로 둔다.
+ * updateDoc은 바꾼 필드만 쓰므로 다른 기기에서 바꾼 이름을 덮지 않는다.
+ *
+ * @param {string} documentId
+ * @param {object} itineraryPlan
+ */
+export async function updateItinerary(documentId, itineraryPlan) {
+    try {
+        const { db, doc, updateDoc } = await loadFirestore();
+        await updateDoc(doc(db, "itineraries", documentId), { itineraryPlan });
+        return documentId;
+    } catch (error) {
+        console.error("Error updating itinerary:", error);
         throw error;
     }
 }

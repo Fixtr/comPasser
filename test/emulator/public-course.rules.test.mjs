@@ -146,3 +146,34 @@ test('publication cleanup deletes only the removed publication, preserving revie
     assert.equal((await db.doc('course_reviews/cleanupNew').get()).exists, true);
   } finally { await app.delete(); }
 });
+
+test('saved trips accept owner plan edits in place; owner, creation time and other fields stay fixed', async () => {
+  const createdAt = new Date('2026-10-01T00:00:00Z');
+  const plan = titles => ({ days: titles.map((title, index) => ({ day: index + 1, scheduleItems: [{ title }] })) });
+  const edit = (user, data, mask = 'itineraryPlan', path = 'itineraries/editableTrip') =>
+    request(`${path}?updateMask.fieldPaths=${mask}`, { method: 'PATCH', user, data });
+  await request('itineraries/editableTrip', { method: 'PATCH', admin: true, data: { userId: 'tripOwner', title: 'Seoul', createdAt, itineraryPlan: plan(['경복궁']) } });
+  for (const user of [undefined, 'intruder']) assert.equal((await edit(user, { itineraryPlan: plan(['침입']) })).status, 403, String(user));
+
+  const saved = await edit('tripOwner', { itineraryPlan: plan(['덕수궁']) });
+  assert.equal(saved.status, 200, await saved.text());
+  const { fields: stored } = await (await request('itineraries/editableTrip', { user: 'tripOwner' })).json();
+  assert.equal(stored.userId.stringValue, 'tripOwner');
+  assert.equal(stored.title.stringValue, 'Seoul');
+  assert.equal(Date.parse(stored.createdAt.timestampValue), createdAt.getTime());
+  assert.equal(stored.itineraryPlan.mapValue.fields.days.arrayValue.values[0].mapValue.fields.scheduleItems.arrayValue.values[0].mapValue.fields.title.stringValue, '덕수궁');
+
+  for (const [mask, data] of [['userId', { userId: 'intruder' }], ['createdAt', { createdAt: new Date() }], ['secret', { secret: 'x' }],
+    ['itineraryPlan', { itineraryPlan: 'x' }], ['title', { title: '' }], ['title', { title: 'x'.repeat(101) }]]) {
+    assert.equal((await edit('tripOwner', data, mask)).status, 403, mask);
+  }
+  assert.equal((await edit('tripOwner', { title: '서울 여행' }, 'title')).status, 200);
+
+  // Trips saved before titles existed can still be edited.
+  await request('itineraries/untitledTrip', { method: 'PATCH', admin: true, data: { userId: 'tripOwner', itineraryPlan: plan(['경복궁']) } });
+  assert.equal((await edit('tripOwner', { itineraryPlan: plan(['덕수궁']) }, 'itineraryPlan', 'itineraries/untitledTrip')).status, 200);
+
+  await request('itineraries/fencedTrip', { method: 'PATCH', admin: true, data: { userId: 'fencedOwner', title: 'Seoul', itineraryPlan: plan(['경복궁']) } });
+  await request('account_deletions/fencedOwner', { method: 'PATCH', admin: true, data: { state: 'pending' } });
+  assert.equal((await edit('fencedOwner', { itineraryPlan: plan(['덕수궁']) }, 'itineraryPlan', 'itineraries/fencedTrip')).status, 403);
+});

@@ -34,6 +34,10 @@ export function createOfflineTrips({ getStorage = () => null, now = Date.now } =
       write([...read().filter(trip => trip.id !== item.id), saved]);
       return saved;
     },
+    // Saved trips can be edited on another device, so copies already kept offline follow the server list.
+    refresh(uid, items) {
+      for (const item of items) if (this.get(uid, item.id)) this.save(uid, item);
+    },
     remove(uid, id) { if (uid && uid === owner) write(read().filter(item => id !== null && item.id !== id)); },
     clear() { getStorage()?.removeItem(OFFLINE_TRIPS_KEY); },
   };

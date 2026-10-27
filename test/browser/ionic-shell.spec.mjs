@@ -137,7 +137,7 @@ test('공개 코스 편집은 출처 없는 방문 정보를 거부하고 승인
       { type: 'attraction', title: 'Museum', location: 'Seoul museum', duration: 90 },
       { type: 'dining', title: 'Cafe', location: 'Seoul cafe', duration: 60 }
     ] }] } }]; }
-    export async function saveItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+    export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
     export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
     export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
     export async function watchSharedItinerary() {} export async function getItineraryById() {}
@@ -194,7 +194,7 @@ test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주�
 
 const missingItineraryStore = `
   export async function loadItineraryDocument() { return null; }
-  export async function saveItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+  export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
   export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
   export async function getSharedItinerary() {} export async function getUserItineraries() { return []; }
   export function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
@@ -334,6 +334,36 @@ test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async 
   await expect(page.locator('.ionic-desktop-schedule .ionic-settings')).toBeVisible();
   await page.locator('.ionic-desktop-schedule').getByRole('button', { name: 'Light mode' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
+test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=ko 주소로 한국어를 연다', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  // The English route page's "Build your trip" opens the app in English.
+  await page.goto('/home?lang=en');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.getByRole('button', { name: '한국어', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
+  await expect(page.getByRole('heading', { name: '고정 일정에서 시작하는 여행' })).toBeVisible();
+  expect((await page.getByRole('button', { name: '다크 모드', exact: true }).boundingBox()).x).toBeGreaterThan(200);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.goto('/login');
+  await expect(page.locator('login-view h2').last()).toHaveText('로그인');
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await page.goto('/home?lang=ko');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
+  // Only the two app languages come from the address bar.
+  await page.goto('/home?lang=constructor');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
+  expect(await page.evaluate(() => localStorage.getItem('compasser_lang'))).toBe('ko');
+});
+
+test('인증 결과 화면은 언어를 바꿔도 결과 문구를 유지한다', async ({ page }) => {
+  await page.goto('/verify');
+  const title = page.locator('verify-view #title-text').last();
+  await expect(title).toHaveText('유효하지 않은 요청');
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(title).toHaveText('Invalid request');
 });
 
 test('로그인 사용자는 탭을 바꾸고 브라우저 뒤로 가기로 돌아온다', async ({ page }) => {

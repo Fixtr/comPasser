@@ -41,7 +41,7 @@ function viewHarness({ user = null } = {}) {
     document: { createElement: element, getElementById: () => null },
     window: { dispatchEvent() {} }, CustomEvent: class {},
     getCurrentUser: () => user, escapeHtml, safeHttpUrl, normalizeData, isEditableItem, isTransportEstimatedCost, createItineraryState,
-    createItineraryActions, saveItinerary() {}, createSharedItinerary() {}, getSharedItineraryUrl() {},
+    createItineraryActions, saveItinerary() {}, updateItinerary() {}, offlineTrips: { get: () => null, save() {} }, createSharedItinerary() {}, getSharedItineraryUrl() {},
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},

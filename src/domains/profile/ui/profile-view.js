@@ -286,7 +286,11 @@ class ProfileView extends HTMLElement {
         try {
             const items = await getUserItineraries(user.uid);
             if (getCurrentUser()?.uid !== user.uid) return;
-            if (navigator.onLine === false) this.itineraries=offlineTrips.list(user.uid); else this.itineraries=items;
+            if (navigator.onLine === false) this.itineraries=offlineTrips.list(user.uid);
+            else {
+                this.itineraries=items;
+                try { offlineTrips.refresh(user.uid, items); } catch { showToast(t('offlineFailed'), { tone: 'warning' }); }
+            }
             this.renderItineraries();
         } catch (error) {
             if (getCurrentUser()?.uid !== user.uid) return;

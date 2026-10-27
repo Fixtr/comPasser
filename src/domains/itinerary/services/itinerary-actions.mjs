@@ -8,6 +8,7 @@ export function createItineraryActions({
   state,
   getCurrentUser,
   saveItinerary,
+  updateItinerary,
   createSharedItinerary,
   getSharedItineraryUrl,
 }) {
@@ -24,14 +25,28 @@ export function createItineraryActions({
 
       const snapshot = state.snapshot();
       const revision = state.revision;
-      const title = buildItineraryTitle(snapshot.plan, language);
-      const id = await saveItinerary(user.uid, snapshot.plan, title);
+      // 저장한 개인 일정은 같은 문서를 고친다. 초안과 공유본은 새 개인 문서를 만든다.
+      let updating = snapshot.source.kind === 'private';
+      const create = () => saveItinerary(user.uid, snapshot.plan, buildItineraryTitle(snapshot.plan, language));
+      let id;
+      try {
+        id = updating ? await updateItinerary(snapshot.source.id, snapshot.plan) : await create();
+      } catch (error) {
+        // The rules deny an update only when the trip is gone or the account is fenced (create is fenced too).
+        // Edits to the user's own trip deleted on another device are kept as a new trip.
+        if (!updating || !['permission-denied', 'not-found'].includes(error?.code) || snapshot.source.ownerId !== user.uid) throw error;
+        updating = false;
+        id = await create();
+      }
       if (getCurrentUser()?.uid !== user.uid) return { status: 'account-changed' };
       if (revision !== state.revision) return { status: 'saved-earlier-version', id };
 
-      // 공유 원본은 수정하지 않고, 저장 요청 당시의 사본을 개인 일정으로 연다.
-      state.open(snapshot.plan, { kind: 'private', id });
-      state.selectDay(snapshot.dayIndex);
+      if (updating) state.markSaved();
+      else {
+        // 공유 원본은 수정하지 않고, 저장 요청 당시의 사본을 개인 일정으로 연다.
+        state.open(snapshot.plan, { kind: 'private', id, savedFromDraft: snapshot.source.kind === 'draft' });
+        state.selectDay(snapshot.dayIndex);
+      }
       onSaved(id);
       return { status: 'saved', id };
     },

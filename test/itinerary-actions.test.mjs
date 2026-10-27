@@ -14,17 +14,22 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function fixture({ user = { uid: 'owner' }, save, share } = {}) {
+function fixture({ user = { uid: 'owner' }, save, share, update } = {}) {
   const session = { user };
   const state = createItineraryState();
   state.setUser(user?.uid);
   const calls = { saves: [], shares: [], urls: [] };
+  const updates = [];
   const actions = createItineraryActions({
     state,
     getCurrentUser: () => session.user,
     saveItinerary: async (...args) => {
       calls.saves.push(args);
       return save ? save(...args) : 'saved123';
+    },
+    updateItinerary: async (...args) => {
+      updates.push(args);
+      return update ? update(...args) : args[0];
     },
     createSharedItinerary: async (snapshot, sourceId) => {
       assert.equal(sourceId, state.current.source.id);
@@ -36,7 +41,7 @@ function fixture({ user = { uid: 'owner' }, save, share } = {}) {
       return `https://app.example/share/${id}`;
     },
   });
-  return { state, session, calls, actions };
+  return { state, session, calls, updates, actions };
 }
 
 test('저장은 최신 일정의 사본과 제목을 전달하고 선택 날짜를 유지한 뒤 UI에 알린다', async () => {
@@ -56,6 +61,64 @@ test('저장은 최신 일정의 사본과 제목을 전달하고 선택 날짜�
   assert.deepEqual(calls.saves, [['owner', original, '9월 8일~9월 9일 · 1박 2일']]);
   assert.notEqual(calls.saves[0][1], original);
   assert.deepEqual(notifications, ['saved123']);
+});
+
+test('저장한 개인 일정은 같은 문서를 고치고 새 문서를 만들지 않는다', async () => {
+  const { state, calls, updates, actions } = fixture();
+  const entry = state.open(plan(), { kind: 'private', id: 'mine123' });
+  state.selectDay(1);
+  state.editDayItems(0, [{ title: '덕수궁', time: '11:00' }], { undo: true });
+  const notifications = [];
+
+  assert.deepEqual(await actions.save({ onSaved: id => notifications.push(id) }), { status: 'saved', id: 'mine123' });
+  assert.deepEqual(calls.saves, []);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0][0], 'mine123');
+  assert.equal(updates[0][1].days[0].scheduleItems[0].title, '덕수궁');
+  assert.notEqual(updates[0][1], entry.plan);
+  assert.equal(state.current, entry);
+  assert.ok(!entry.unsaved);
+  assert.deepEqual(entry.dirtyDays, [0], '시간 재계산 표시는 저장으로 지우지 않는다');
+  assert.equal(entry.dayIndex, 1);
+  assert.deepEqual(notifications, ['mine123']);
+
+  await actions.save();
+  assert.equal(updates.length, 2);
+  assert.deepEqual(calls.saves, []);
+});
+
+test('다른 기기에서 지운 개인 일정의 편집은 새 일정으로 저장한다', async () => {
+  const gone = Object.assign(new Error('missing'), { code: 'permission-denied' });
+  const { state, calls, actions } = fixture({ update: async () => { throw gone; } });
+  state.open(plan(), { kind: 'private', id: 'deleted123' });
+  state.replaceDayItems(0, [{ title: '지우기 전 편집' }]);
+
+  assert.deepEqual(await actions.save(), { status: 'saved', id: 'saved123' });
+  assert.equal(calls.saves.length, 1);
+  assert.equal(calls.saves[0][1].days[0].scheduleItems[0].title, '지우기 전 편집');
+  assert.deepEqual(state.current.source, { kind: 'private', id: 'saved123', ownerId: 'owner' });
+
+  // Another account's cached trip is never copied into the signed-in account.
+  const other = fixture({ user: { uid: 'other' }, update: async () => { throw gone; } });
+  other.state.open(plan(), { kind: 'private', id: 'foreign' });
+  other.state.current.source.ownerId = 'owner';
+  await assert.rejects(other.actions.save(), error => error === gone);
+  assert.deepEqual(other.calls.saves, []);
+});
+
+test('개인 일정 저장 중 다시 편집하면 저장할 변경이 남는다', async () => {
+  const write = deferred();
+  const { state, actions } = fixture({ update: () => write.promise });
+  state.open(plan(), { kind: 'private', id: 'mine123' });
+  state.replaceDayItems(0, [{ title: '첫 편집' }]);
+  let notifications = 0;
+  const saving = actions.save({ onSaved: () => notifications++ });
+  state.replaceDayItems(0, [{ title: '저장 중 편집' }]);
+  write.resolve('mine123');
+
+  assert.deepEqual(await saving, { status: 'saved-earlier-version', id: 'mine123' });
+  assert.equal(state.current.unsaved, true);
+  assert.equal(notifications, 0);
 });
 
 test('공유본 저장은 공개 원본을 수정하지 않고 로그인 계정의 개인 사본을 연다', async () => {
@@ -221,7 +284,7 @@ test('저장·공개 확인·공개 쓰기 오류는 호출자에게 전달하�
   for (const stage of ['save', 'confirm', 'share']) {
     const failure = new Error(`${stage} failed`);
     const fail = async () => { throw failure; };
-    const { state, calls, actions } = fixture({ save: stage === 'save' ? fail : undefined, share: stage === 'share' ? fail : undefined });
+    const { state, calls, actions } = fixture({ update: stage === 'save' ? fail : undefined, share: stage === 'share' ? fail : undefined });
     state.open(plan(), { kind: 'private', id: 'mine123' });
     const before = state.snapshot();
     let notifications = 0;
