@@ -78,6 +78,8 @@ class PublicCourses extends HTMLElement {
       h2 { margin:0 0 8px; font-size:clamp(1.4rem,4vw,1.8rem); }
       p { color:var(--cp-ink-2); line-height:1.6; }
       .cards { display:grid; grid-template-columns:repeat(3,minmax(0,280px)); gap:12px; }
+      /* The list is never wider than 700px, so a card with its reviews open takes the whole row at any screen size. */
+      .cards article.reviewing { grid-column:1 / -1; }
       @media (max-width:600px) { .cards { grid-template-columns:1fr; gap:10px; } .cards article { padding:12px; overflow-wrap:anywhere; } }
       article { display:flex; flex-direction:column; border:1px solid var(--cp-rule); background:var(--cp-surface); padding:14px; min-width:0; overflow-wrap:anywhere; }
       article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
@@ -159,13 +161,13 @@ class PublicCourses extends HTMLElement {
       const reviews = document.createElement('button'); reviews.type = 'button'; reviews.textContent = t('courseReviewsButton'); reviews.setAttribute('aria-expanded', 'false');
       reviews.onclick = async () => {
         const old = article.querySelector('course-reviews');
-        if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); return; }
+        if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); article.classList.remove('reviewing'); return; }
         reviews.disabled = true;
         try {
           await import('./course-reviews.js');
           if (!article.isConnected) return;
           const panel = document.createElement('course-reviews'); panel.course = course;
-          article.append(panel); reviews.setAttribute('aria-expanded', 'true');
+          article.append(panel); reviews.setAttribute('aria-expanded', 'true'); article.classList.add('reviewing');
         } catch { reviews.textContent = t('courseReviewsError'); }
         finally { reviews.disabled = false; }
       };
