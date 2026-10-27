@@ -703,7 +703,7 @@ test('후기 링크의 코스 조회가 늦게 끝나도 사용자가 먼저 고
   await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'seoul');
 });
 
-test('휴대폰에서 여행자 코스 카드는 한 줄에 하나씩 놓여 후기 창이 화면 폭을 쓴다', async ({ page }) => {
+test('여행자 코스 후기 창은 휴대폰을 가로로 들어도, 태블릿과 데스크톱에서도 목록 폭을 쓴다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
@@ -720,7 +720,10 @@ test('휴대폰에서 여행자 코스 카드는 한 줄에 하나씩 놓여 후
   const courses = page.locator('public-courses:visible');
   const panel = courses.locator('course-reviews');
   await expect(panel).toBeVisible();
-  const [cardsWidth, panelWidth] = await Promise.all([courses.boundingBox(), panel.boundingBox()].map(box => box.then(b => b.width)));
-  expect(panelWidth).toBeGreaterThan(cardsWidth * 0.8);
+  for (const [width, height] of [[390, 844], [844, 390], [932, 430], [768, 1024], [1280, 900]]) {
+    await page.setViewportSize({ width, height });
+    const [cardsWidth, panelWidth] = await Promise.all([courses.boundingBox(), panel.boundingBox()].map(box => box.then(b => b.width)));
+    expect(panelWidth).toBeGreaterThan(cardsWidth * 0.8);
+  }
 });
 
