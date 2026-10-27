@@ -1,4 +1,4 @@
-import { verifyEmailCode } from '../services/firebase-auth.js';
+import { verifyEmailCode, resetPassword } from '../services/firebase-auth.js';
 import { authStyles } from './auth-style.js';
 import { icons } from '../../../ui/icons.js';
 import { t, applyTranslations } from '../../../utils/i18n.js';
@@ -33,8 +33,13 @@ export default class VerifyView extends HTMLElement {
       </div>
       
       <div id="loading-spinner" class="spinner"></div>
+
+      <div id="reset-form" class="auth-form" style="display: none; margin-bottom: 0.9rem;">
+        <input type="password" id="new-password-input" class="auth-input" data-i18n-placeholder="newPasswordPlaceholder" placeholder="${t('newPasswordPlaceholder')}" autocomplete="new-password" />
+        <button id="reset-btn" class="auth-btn" data-i18n="resetPasswordBtn">${t('resetPasswordBtn')}</button>
+      </div>
       
-      <div id="error-msg"></div>
+      <div id="error-msg" role="alert"></div>
 
       <button id="go-login-btn" class="auth-btn" data-i18n="verifyGoLoginBtn">${t('verifyGoLoginBtn')}</button>
     `;
@@ -76,6 +81,45 @@ export default class VerifyView extends HTMLElement {
       errorMsg.textContent = t('verifyBadAccess');
       errorMsg.style.display = 'block';
       goLoginBtn.style.display = 'inline-block';
+      return;
+    }
+
+    // 프로젝트의 메일 작업 URL 이 이 화면이라 비밀번호 재설정 링크도 여기로 온다.
+    if (new URLSearchParams(window.location.search).get('mode') === 'resetPassword') {
+      const form = this.shadowRoot.getElementById('reset-form');
+      const input = this.shadowRoot.getElementById('new-password-input');
+      const resetBtn = this.shadowRoot.getElementById('reset-btn');
+      // data-i18n 도 바꿔야 언어를 바꿨을 때 인증 대기 문구로 돌아가지 않는다.
+      const say = (el, key) => { el.dataset.i18n = key; el.textContent = t(key); };
+      const fail = (key) => { errorMsg.textContent = t(key); errorMsg.style.display = 'block'; };
+      spinner.style.display = 'none';
+      say(titleText, 'resetPasswordTitle');
+      say(subtitleText, 'resetPasswordDesc');
+      form.style.display = '';
+      // 라우터가 verify 를 다시 불러도 처리기가 겹치지 않게 대입한다.
+      resetBtn.onclick = async () => {
+        errorMsg.style.display = 'none';
+        if (input.value.length < 6) {
+          fail('pwTooShort');
+          return;
+        }
+        resetBtn.disabled = true;
+        try {
+          await resetPassword(oobCode, input.value);
+          form.style.display = 'none';
+          setStatus('ok', icons.check);
+          say(titleText, 'resetPasswordDoneTitle');
+          say(subtitleText, 'resetPasswordDoneDesc');
+        } catch (err) {
+          console.error('Password reset error:', err.code);
+          fail(err.code === 'auth/weak-password' ? 'pwTooShort'
+            : err.code === 'auth/expired-action-code' || err.code === 'auth/invalid-action-code' ? 'resetLinkExpired'
+            : 'resetPasswordFailed');
+        } finally {
+          resetBtn.disabled = false;
+          input.value = '';
+        }
+      };
       return;
     }
 

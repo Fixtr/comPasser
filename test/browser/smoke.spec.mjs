@@ -42,6 +42,7 @@ test('generation → save/share/export → profile → account lifecycle', async
 
 for (const [title, file] of [
   ['account deletion guard and recovery', 'account-deletion-smoke.js'],
+  ['password reset request and new password from the email link', 'password-reset-smoke.js'],
   ['image export theme isolation', 'image-export-theme-smoke.js'],
   ['image export translations', 'image-export-i18n-smoke.js'],
   ['planner draft restoration', 'planner-draft-smoke.js'],

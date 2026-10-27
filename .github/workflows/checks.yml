@@ -33,7 +33,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A normal run takes ~9 min; the Ubuntu mirror behind --with-deps alone took 9 min on 2026-10-23.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
