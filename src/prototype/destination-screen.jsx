@@ -63,7 +63,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
       if (suggestionId) save({ anchorSchedules: anchors.map(anchor => anchor.location?.placeId === canonical.placeId ? { ...anchor, suggestionId } : anchor) });
       return;
     }
-    save({ anchorSchedules: [...anchors, { name: canonical.displayName, location: canonical, suggestionId, day: 1, flexible: true, stayMinutes: 60, time: '', endTime: '' }] });
+    save({ anchorSchedules: [...anchors, { name: canonical.displayName, location: canonical, suggestionId, flexible: true, stayMinutes: 60, time: '', endTime: '' }] });
     setError('');
   };
   const addSuggestion = async place => {

@@ -134,3 +134,11 @@ test('출발·도착이 없어도 첫 곳과 마지막 곳으로 구간을 만�
   assert.equal(pass.to, '가회동');
   assert.equal(pass.rows.length, 2);
 });
+
+test('an arrival at an unset stay shows its label on the ticket, not the destination string', () => {
+  const unsetPlan = { days: [{ ...day, scheduleItems: [
+    ...day.scheduleItems.filter(item => item.type !== 'arrival'),
+    { type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', location: 'Seoul, South Korea', stayUnsetLabel: '숙소 미정 (서울 중심)', time: '18:00' },
+  ] }] };
+  assert.equal(buildBoardingPass({ plan: unsetPlan, dayIndex: 0, title: '서울 여행' }).to, '숙소 미정 (서울 중심)');
+});

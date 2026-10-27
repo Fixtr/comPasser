@@ -161,3 +161,15 @@ test('길찾기 팝업에서 장소 이름으로 HTML과 속성을 주입할 수
   assert.doesNotMatch(popup.innerHTML, /<img|" autofocus|href="javascript:/);
   assert.ok(popup.innerHTML.includes(`title="${escapeHtml(payload + attributePayload)}"`));
 });
+
+test('an unset-stay endpoint shows its label without reviews or directions to a whole city', () => {
+  const { view, control } = viewHarness();
+  view.showResults(planWith({ type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', time: '18:00', location: 'Seoul, South Korea',
+    stayUnsetLabel: '숙소 미정 (서울 중심)', googleMapsUrl: '' }), { access: 'shared', id: 'public123' });
+  const html = control('timeline-container').children[0].innerHTML;
+  assert.doesNotMatch(html, /nav-btn|reviewsBtn|Seoul, South Korea/);
+  assert.ok(html.includes('숙소 미정 (서울 중심)'));
+  const { view: other, control: otherControl } = viewHarness();
+  other.showResults(planWith({ type: 'departure', title: '출발 · 서울역', time: '09:00', location: '서울역', googleMapsUrl: '' }), { access: 'shared', id: 'public123' });
+  assert.match(otherControl('timeline-container').children[0].innerHTML, /nav-btn/);
+});

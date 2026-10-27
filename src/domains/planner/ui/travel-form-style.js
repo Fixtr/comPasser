@@ -424,6 +424,8 @@ export const travelFormStyles = `
         .anchor-flexible-option input, .overnight-option input { width: 20px; height: 20px; padding: 0; flex: none; }
         .anchor-flexible-hint { display: none; margin: 0 0 0.75rem; color: var(--cp-muted); font-size: 0.8rem; line-height: 1.5; }
         .anchor-item.is-flexible .anchor-flexible-hint { display: block; }
+        /* The opening-hours hint is the same for every row, so only the first automatic row shows it. */
+        .anchor-item.is-flexible ~ .anchor-item.is-flexible .anchor-flexible-hint { display: none; }
         .anchor-item.is-flexible .anchor-fields { display: block; }
         .anchor-item.is-flexible .anchor-time-field { display: none; }
 

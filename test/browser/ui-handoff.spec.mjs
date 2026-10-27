@@ -158,7 +158,7 @@ test('AI recommendation browsing preserves inputs, sends visit context and adds/
  expect(await page.evaluate(()=>window.fixtureInjected)).toBeUndefined();
  const add=widget.locator('.ai-place-card button');await add.click();await expect(add).toHaveAttribute('aria-pressed','true');
  const selected=await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read());
- expect(selected.anchorSchedules[0]).toMatchObject({day:1,flexible:true,location:{placeId:'ai-museum'},suggestionId:'ai:ai-museum'});
+ expect(selected.anchorSchedules[0]).toMatchObject({flexible:true,location:{placeId:'ai-museum'},suggestionId:'ai:ai-museum'});expect(selected.anchorSchedules[0].day).toBeUndefined();
  expect(selected.date).toEqual(before.date);expect(selected.startLocation).toEqual(before.startLocation);expect(selected.theme).toBe(before.theme);
  expect(await page.evaluate(()=>window.catalogueRequests||[])).toEqual([]);
  await page.screenshot({path:testInfo.outputPath('ai-interests-390.png'),fullPage:true});
@@ -1168,6 +1168,58 @@ for (const acceptExit of [true,false]) {
   }
  });
 }
+
+for (const [credits,shown,blocked] of [[0,'0장',true],['unlimited','무제한',false],['fail','확인 불가',false]]) {
+ test(`credit balance leads the plan form and the review; only a known zero blocks generation: ${credits}`, async ({page}) => {
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`export const getGenerationCredits=async()=>{if(${JSON.stringify(credits)}==='fail')throw new Error('offline');return ${JSON.stringify(credits)}};export async function generateOptimizedItinerary(request){window.generationCalls=(window.generationCalls||0)+1;return {...${JSON.stringify(trip.itineraryPlan)},request}}`}));
+  const form=await openExitTestForm(page);
+  const top=form.locator('#travel-form > .credit-balance');await expect(top).toContainText(shown);
+  expect((await top.boundingBox()).y).toBeLessThan((await form.locator('#travel-form > .form-section').first().boundingBox()).y);
+  await expect(top.locator('.credit-empty')).toBeVisible({visible:blocked});
+  await form.evaluate(el=>el.showReview());
+  const review=form.locator('#review-panel');await expect(review.locator('.credit-balance')).toContainText(shown);
+  const generate=review.locator('#final-generate');
+  if (blocked) {
+   await expect(generate).toBeDisabled();await expect(review.locator('.credit-empty')).toBeVisible();
+   await generate.click({force:true});expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
+   await review.locator('[data-review-edit]').first().click();await expect(form.locator('#start-time')).toHaveValue('09:00');
+  } else await expect(generate).toBeEnabled();
+ });
+}
+
+test('a failed generation re-reads the credit balance, so the returned review blocks at zero', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`let balance=1;export const getGenerationCredits=async()=>balance;export async function generateOptimizedItinerary(){balance=0;throw new Error('남은 생성권이 없어 일정을 만들 수 없습니다.')}`}));
+ const form=await openExitTestForm(page);await expect(form.locator('#travel-form > .credit-balance')).toContainText('1장');
+ await form.evaluate(el=>el.showReview());
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await page.getByRole('button',{name:'입력으로 돌아가기'}).click();
+ await expect(form.locator('#review-panel .credit-balance')).toContainText('0장');await expect(form.locator('#review-panel #final-generate')).toBeDisabled();
+});
+
+test('the plan form spreads untimed picks across the trip days and shows the opening-hours hint once', async ({page}) => {
+ await page.goto('/home');
+ await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.save({date:['2030-10-17','2030-10-18','2030-10-19'],country:'FRA',destination:{id:'paris',country:'FRA',name:'Paris, France'},theme:'food',budget:'standard',startTime:'09:00',endTime:'18:00',stays:[],anchorSchedules:['A','B','C','D','E'].map(name=>({name,location:'Paris',time:'',endTime:'',flexible:true,stayMinutes:60}))}));
+ await page.evaluate(()=>window.navigate('/plan'));
+ const form=page.locator('travel-form');await expect(form.locator('.anchor-day')).toHaveCount(5);
+ expect(await form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['1','2','3','1','2']);
+ await expect(form.locator('.anchor-flexible-hint:visible')).toHaveCount(1);
+ await form.locator('.anchor-day').first().selectOption('3');await form.evaluate(el=>el.saveDraft());
+ const days=async()=>(await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).anchorSchedules.map(anchor=>anchor.day);
+ expect(await days()).toEqual([3,2,3,1,2]);
+ // A day the user chose is kept when the form is filled from storage again (reloading /plan discards inputs by design).
+ await form.evaluate(el=>el.refreshFromStorage());await expect(form.locator('.anchor-day')).toHaveCount(5);
+ expect(await form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['3','2','3','1','2']);
+});
+
+test('a night without a stay ends at a localized stay-unset label with no reviews or directions', async ({page}) => {
+ const form=await openExitTestForm(page);
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await expect(page).toHaveURL(/view$/);
+ const view=page.locator('itinerary-view:visible');await expect(view.locator('#timeline-container')).toContainText('숙소 미정 (파리 중심)');
+ await expect(view.locator('#timeline-container')).not.toContainText('Paris, France');
+ const arrival=view.locator('.schedule-card[data-type=arrival]');await expect(arrival).toHaveCount(1);
+ await expect(arrival.locator('.nav-btn')).toHaveCount(0);await expect(arrival.locator('a.primary')).toHaveCount(0);
+});
 
 test('unsaved result Back asks first; No keeps the result, Yes returns to the review with every input', async ({page}) => {
  const form=await openExitTestForm(page);

@@ -82,7 +82,7 @@ function formatDate(value) {
  * 표에 적을 이름. 장소 이름이 있으면 그쪽이 우선이다 — 티켓은 "무엇을
  * 하는가"보다 "어디에 있는가"를 말하는 물건이다.
  */
-const placeOf = item => String(item?.location || item?.title || '').trim();
+const placeOf = item => String(item?.stayUnsetLabel || item?.location || item?.title || '').trim();
 const nameOf = item => String(item?.title || item?.location || '').trim();
 
 /**

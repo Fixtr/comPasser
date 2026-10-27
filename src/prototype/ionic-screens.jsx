@@ -206,6 +206,7 @@ export function PlanScreen({ user, settings }) {
     plannerDraftStore.update({ step: search.includes('review=1') ? '/plan?review=1' : '/plan' });
     const element = form.current;
     let generate;
+    let loadCredits = () => {};
     let cancelled = false;
     const discard = () => { run.current++; element?.discardDraft?.(); setPhase('form'); };
     window.addEventListener('planner-draft-discarded', discard);
@@ -228,6 +229,8 @@ export function PlanScreen({ user, settings }) {
           setPhase('error');
         }
       } finally {
+        // Each attempt may spend or refund a credit, so the review shows the server's balance on return.
+        loadCredits();
         if (request === run.current) { element.isGenerating = false; window.dispatchEvent(new CustomEvent('itinerary-generation-complete')); }
       }
     };
@@ -241,7 +244,8 @@ export function PlanScreen({ user, settings }) {
       if (search.includes('review=1')) element?.showReview();
       element?.renderPreferenceBadges();
       element?.syncDateFloor();
-      service.getGenerationCredits().then(balance => element?.setGenerationCredits(balance)).catch(() => element?.setGenerationCredits(null));
+      loadCredits = () => service.getGenerationCredits().then(balance => element?.setGenerationCredits(balance)).catch(() => element?.setGenerationCredits(null));
+      loadCredits();
       element?.addEventListener('generate-itinerary', onGenerate);
     });
     return () => { cancelled = true; run.current++; window.removeEventListener('planner-draft-discarded', discard); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
@@ -349,7 +353,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     const saved=offlineTrips.get(user?.uid,id);
     return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={()=>navigate(window.history.state?.idx > 0 ? -1 : '/profile/trips')}>← {t('shellBack')}</button>{settings}</div><main className="flow-page">
       <h1>{saved?.title || t('tabTrips')}</h1><p role="status">{t('offlineNotice')}</p>
-      {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{item.resolvedName || item.title}</h3><p>{item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
+      {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{(!item.stayUnsetLabel && item.resolvedName) || item.title}</h3><p>{item.stayUnsetLabel || item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
     </main></IonContent></IonPage>;
   }
   return <IonPage className="ionic-result-page">

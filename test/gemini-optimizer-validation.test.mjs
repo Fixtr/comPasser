@@ -18,7 +18,7 @@ function fixture(error, creditBalance = 2, generatedDays = [{ day: 1, scheduleIt
     app: {}, getLang: () => 'en',
     getFunctions: () => { calls.push('functions'); return {}; },
     httpsCallable: (_functions, name) => async () => { calls.push(name === 'getGenerationCredits' ? 'credits' : 'call'); if (error) throw error;
-      return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : { balance: creditBalance } : { days: generatedDays } }; }, console: { log() {}, error() {} } };
+      return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : creditBalance && typeof creditBalance === 'object' ? creditBalance : { balance: creditBalance } : { days: generatedDays } }; }, console: { log() {}, error() {} } };
   vm.createContext(context);
   const run = vm.runInContext(`${source}\ngenerateOptimizedItinerary`, context);
   const getCredits = vm.runInContext('getGenerationCredits', context);
@@ -66,12 +66,18 @@ test('auth errors still fail; network/quota errors still yield marked fallback r
   }
 });
 
-test('empty generation credits fail instead of returning a mock itinerary', async () => {
-  await assert.rejects(fixture({ code: 'functions/resource-exhausted', details: { reason: 'credits-empty' } }).run(valid()), /No generation credits remain/);
+test('empty generation credits fail instead of returning a mock itinerary, without promising ads', async () => {
+  // Rewarded ads are paused (functions/index.js), so the message must not offer them.
+  await assert.rejects(fixture({ code: 'functions/resource-exhausted', details: { reason: 'credits-empty' } }).run(valid()),
+    error => /No generation credits remain/.test(error.message) && !/\bads?\b/i.test(error.message));
+  const source = readFileSync(new URL('../src/domains/planner/services/gemini-optimizer.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /광고/);
 });
 
 test('credit balance accepts only a valid nonnegative server integer', async () => {
   assert.equal(await fixture(null, 0).getCredits(), 0);
+  // A credit held by a running generation may come back on failure, so the balance is not a known zero yet.
+  assert.equal(await fixture(null, { balance: 0, generating: true }).getCredits(), null);
   assert.equal(await fixture(null, 'unlimited').getCredits(), 'unlimited');
   await assert.rejects(fixture(null, -1).getCredits(), /Invalid generation credit balance/);
   await assert.rejects(fixture(null, '1').getCredits(), /Invalid generation credit balance/);

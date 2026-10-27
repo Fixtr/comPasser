@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlannerDraftStore, toPlannerDraft } from '../src/domains/planner/services/planner-draft.mjs';
+import { createPlannerDraftStore, spreadVisitDays, toPlannerDraft } from '../src/domains/planner/services/planner-draft.mjs';
 import { getFormData } from '../src/domains/planner/ui/travel-form-data.js';
 
 function fixture() {
@@ -215,4 +215,21 @@ test('daily location overrides survive storage, resize by duration and never inf
   assert.equal(store.read().dailyLocations, null);
   assert.equal(toPlannerDraft({dailyData:[{date:'2026-10-01',startLocation:'역'},
     {date:'2026-10-02',startLocation:'공항'}]}).dailyLocations, null);
+});
+
+test('untimed picks with no day inside the trip go to the day with the fewest anchors; explicit days and timed anchors stay', () => {
+  const pick = name => ({ name, location: name, time: '', endTime: '', flexible: true, stayMinutes: 60 });
+  const draft = toPlannerDraft({ date: ['2026-10-01', '2026-10-02', '2026-10-03'], anchorSchedules: [
+    { day: 1, name: '공연', time: '12:00', endTime: '13:00', location: '공연장' },
+    { ...pick('A'), day: 3 }, pick('B'), pick('C'), pick('D'), { ...pick('E'), day: 5 },
+    { name: '시간만 정한 일정', time: '15:00', endTime: '16:00', location: '카페' },
+  ] });
+  const spread = spreadVisitDays(draft);
+  assert.deepEqual(spread.anchorSchedules.map(anchor => anchor.day), [1, 3, 2, 1, 2, 3, undefined]);
+  assert.deepEqual(spreadVisitDays(spread), spread);
+  assert.deepEqual(spreadVisitDays(toPlannerDraft({ date: ['2026-10-01', '2026-10-02', '2026-10-03'], anchorSchedules: ['A', 'B', 'C', 'D', 'E'].map(pick) }))
+    .anchorSchedules.map(anchor => anchor.day), [1, 2, 3, 1, 2]);
+  for (const date of [[], ['2026-10-01']]) {
+    assert.equal(spreadVisitDays(toPlannerDraft({ date, anchorSchedules: [pick('A')] })).anchorSchedules[0].day, undefined);
+  }
 });

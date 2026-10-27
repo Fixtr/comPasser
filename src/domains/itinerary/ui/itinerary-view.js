@@ -83,7 +83,8 @@ function renderScheduleCard(scheduleItem, idx, editable) {
   ` : '';
 
   const isRecommendation = !['departure', 'arrival', 'AnchorSchedule'].includes(scheduleItem.type) && Object.hasOwn(scheduleItem, 'placeIntent');
-  const linksHtml = `
+  // An unset stay stands for a whole city, so reviews and directions to it would mislead.
+  const linksHtml = scheduleItem.stayUnsetLabel ? '' : `
     <div class="action-links" ${isRecommendation && scheduleItem.placeStatus !== 'verified' ? 'hidden' : ''}>
       ${officialUrl ? `<a href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener noreferrer" class="action-link-badge">${icons.info} <span data-i18n="officialSiteBtn">${t('officialSiteBtn')}</span></a>` : ''}
       ${gmapsStr || isRecommendation ? `<a href="${escapeHtml(gmapsStr)}" target="_blank" rel="noopener noreferrer" class="action-link-badge primary">${icons.search} <span data-i18n="reviewsBtn">${t('reviewsBtn')}</span></a>` : ''}
@@ -116,7 +117,7 @@ function renderScheduleCard(scheduleItem, idx, editable) {
       ${editable && !['departure','arrival','AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="visit-time-btn replace-place-btn-style">${escapeHtml(t('visitTimeBtn'))}</button>` : ''}
       ${editable && !['departure', 'arrival', 'AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="replace-place-btn">${escapeHtml(t('replacePlaceBtn'))}</button>` : ''}
       <div class="schedule-meta">
-        <span class="meta-item">${icons.pin} ${escapeHtml(locationStr)}</span>
+        <span class="meta-item">${icons.pin} ${escapeHtml(scheduleItem.stayUnsetLabel || locationStr)}</span>
         <span class="meta-item">${icons.clock} ${escapeHtml(scheduleItem.duration || fallbackDuration(scheduleItem))}${(function() {
           const info = typeof scheduleItem.transitInfo === 'string' ? scheduleItem.transitInfo : '';
           // 시간 정보 추출 정규식 (예: 약 15분, 1시간 10분 등)
@@ -920,7 +921,7 @@ export default class ItineraryView extends HTMLElement {
         address,
       });
 
-      if (!visible) {
+      if (!visible || item.stayUnsetLabel) {
         target.hidden = true;
         return;
       }
@@ -1722,7 +1723,7 @@ export default class ItineraryView extends HTMLElement {
     const isToday = String(dayData.date).slice(0, 10) === today;
     const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(now);
     const stop = (dayData.scheduleItems || []).find(item =>
-      item.type !== 'departure' && item.title &&
+      item.type !== 'departure' && item.title && !item.stayUnsetLabel &&
       (!Object.hasOwn(item, 'placeIntent') || item.placeStatus === 'verified') &&
       (!isToday || (typeof item.time === 'string' && item.time >= currentTime)));
     panel.hidden = !stop || Boolean(this.currentItinerary?.isFallback);
