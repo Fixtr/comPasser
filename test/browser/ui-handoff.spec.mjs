@@ -680,7 +680,7 @@ test('profile security offers logout to a signed-in user, then hides it after si
  await expect(page.locator('profile-view[data-active] #btn-logout')).toBeHidden();
 });
 
-test('public course cards use three columns with separate contained action buttons', async ({page}) => {
+test('public course cards use three columns on desktop, stack on phones, with separate contained action buttons', async ({page}) => {
  await page.route('**/src/domains/itinerary/services/public-course-service.js',route=>route.fulfill({contentType:'text/javascript',body:`export async function listPublicCourses(){return {courses:[1,2,3].map(n=>({id:'course'+n,title:'서울 산책 '+n,review:n===2?'다양한 장소를 둘러보고 즐기는 서울의 산책 코스입니다.':'' ,stops:[{name:'서울숲',location:'Seoul',stayMinutes:60}]})),hasMore:false}}export async function getPublicCourse(){return null}`}));
  await page.goto('/courses');await page.locator('[data-course-country=KOR]').click();await page.locator('[data-course-city=seoul]').click();
  const courses=page.locator('public-courses');await courses.scrollIntoViewIfNeeded();await expect(courses.locator('article')).toHaveCount(3);
@@ -689,9 +689,11 @@ test('public course cards use three columns with separate contained action butto
   const cards=await courses.locator('article').all();const first=await cards[0].boundingBox();
   const firstAction=await cards[0].locator('button[data-course]').boundingBox();
   for(const card of cards) {
-   const box=await card.boundingBox();expect(Math.abs(box.y-first.y)).toBeLessThan(1);
+   const box=await card.boundingBox();
    const buttons=card.locator(':scope > button');const make=await buttons.nth(0).boundingBox();const review=await buttons.nth(1).boundingBox();
-   expect(Math.abs(make.y-firstAction.y)).toBeLessThan(1);
+   // Phones stack the cards so an opened review panel keeps the full width.
+   if(width>600) {expect(Math.abs(box.y-first.y)).toBeLessThan(1);expect(Math.abs(make.y-firstAction.y)).toBeLessThan(1);}
+   else {expect(Math.abs(box.x-first.x)).toBeLessThan(1);expect(box.width).toBeGreaterThan(width*0.8);}
    expect(review.y).toBeGreaterThanOrEqual(make.y+make.height+8);
    for(const action of [make,review]) {expect(action.x).toBeGreaterThanOrEqual(box.x);expect(action.x+action.width).toBeLessThanOrEqual(box.x+box.width);expect(action.height).toBeGreaterThanOrEqual(44);}
   }

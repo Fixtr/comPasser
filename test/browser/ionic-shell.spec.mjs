@@ -192,16 +192,18 @@ test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주�
   await expect(page).toHaveURL(/\/profile\/security$/);
 });
 
+const missingItineraryStore = `
+  export async function loadItineraryDocument() { return null; }
+  export async function saveItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+  export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
+  export async function getSharedItinerary() {} export async function getUserItineraries() { return []; }
+  export function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
+`;
+
 test('휴대폰 결과 시트는 결과 화면에서는 닫히지 않고, 화면을 떠나면 다음 화면을 가리지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
-  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
-    export async function loadItineraryDocument() { return null; }
-    export async function saveItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-    export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
-    export async function getSharedItinerary() {} export async function getUserItineraries() { return []; }
-    export function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
-  ` }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
   const sheet = page.locator('ion-modal.ionic-result-sheet');
   await page.goto('/share/abc123');
   await expect(sheet).toBeVisible();
@@ -213,6 +215,33 @@ test('휴대폰 결과 시트는 결과 화면에서는 닫히지 않고, 화면
   await page.goBack();
   await expect(page).toHaveURL(/\/share\/abc123$/);
   await expect(sheet).toBeVisible();
+});
+
+test('휴대폰과 넓은 화면을 두 번 오가도 결과 시트에 일정이 다시 채워진다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await page.goto('/share/abc123');
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  // Tablet rotation: the sheet unmounts at 900px+ without Ionic's dismiss events.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator('.ionic-desktop-schedule').getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+});
+
+test('휴대폰 결과 시트는 오프라인에서 돌아와도 일정이 다시 채워진다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await page.goto('/share/abc123');
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await page.context().setOffline(true);
+  await expect(page.getByText('오프라인 읽기 전용', { exact: false })).toBeVisible();
+  await page.context().setOffline(false);
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
 });
 
 test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보여준다', async ({ page }) => {
@@ -433,6 +462,41 @@ test('같은 도시 영문 코스를 이어 담으면 빈 출발지 칸이 기�
   expect(draft.startLocation).toBe('Myeongdong Station');
 });
 
+test('새 탭에서 같은 도시 영문 코스를 담아도 저장해 둔 초안의 장소와 출발지가 남는다', async ({ page }) => {
+  // Real Firebase settles after the home screen mounts; the saved draft is restored only then.
+  const slowAuth = authModule.replace('setTimeout(() => callback(currentUser), 0);', 'setTimeout(() => callback(currentUser), 500);');
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: slowAuth }));
+  await page.goto('/en/routes/curated-seoul');
+  await page.getByLabel('Start near your accommodation (optional)').fill('Myeongdong Station');
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  // A new tab shares localStorage but starts with an empty sessionStorage.
+  await page.evaluate(() => sessionStorage.clear());
+  await page.goto('/en/routes/curated-seoul-2');
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1')).draft);
+  expect(saved.startLocation).toBe('Myeongdong Station');
+  expect(saved.anchorSchedules.map(stop => stop.name)).toEqual(['Gyeongbokgung Palace', 'Seochon Hanok Village', 'Bukchon Hanok Village']);
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')))).toEqual(saved);
+});
+
+test('빈 출발지는 앱이 이어 쓸 저장 사본의 도시를 기준으로 지우거나 남긴다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.goto('/en/routes/curated-seoul-2');
+  // This tab still holds Seoul, but another tab saved Busan last; the app restores that saved copy.
+  await page.evaluate(() => {
+    const draft = (id, name, startLocation) => ({ destination: { id, country: 'KOR', name }, startLocation, anchorSchedules: [] });
+    sessionStorage.setItem('currentFormData', JSON.stringify(draft('seoul', 'Seoul, South Korea', 'Myeongdong Station')));
+    localStorage.setItem('compasser.planner.v1', JSON.stringify({ owner: null, draft: draft('busan', 'Busan, South Korea', 'Haeundae Beach') }));
+  });
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1')).draft);
+  expect(saved.destination).toMatchObject({ id: 'seoul' });
+  expect(saved.startLocation).toBe('');
+});
+
 test('영문 페이지에서 다른 도시의 여행자 코스를 담으면 그 코스 도시로 바뀐다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
@@ -637,5 +701,26 @@ test('후기 링크의 코스 조회가 늦게 끝나도 사용자가 먼저 고
   await chooseCourseCity(page);
   await page.waitForTimeout(2000);
   await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'seoul');
+});
+
+test('휴대폰에서 여행자 코스 카드는 한 줄에 하나씩 놓여 후기 창이 화면 폭을 쓴다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const course = id => ({ id, ownerId: 'another-user', title: 'Palace walk ' + id, review: '', stops: [
+      { name: '경복궁', location: '경복궁, 서울 종로구', stayMinutes: 60 }, { name: '북촌', location: '북촌, 서울 종로구', stayMinutes: 60 }
+    ] });
+    export async function listPublicCourses() { return { courses: ['reviewRoute', 'second', 'third'].map(course), hasMore: false }; }
+    export async function getPublicCourse(id) { return id === 'reviewRoute' ? course(id) : null; }
+    export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/courses?review=reviewRoute');
+  const courses = page.locator('public-courses:visible');
+  const panel = courses.locator('course-reviews');
+  await expect(panel).toBeVisible();
+  const [cardsWidth, panelWidth] = await Promise.all([courses.boundingBox(), panel.boundingBox()].map(box => box.then(b => b.width)));
+  expect(panelWidth).toBeGreaterThan(cardsWidth * 0.8);
 });
 

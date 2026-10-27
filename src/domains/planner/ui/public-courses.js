@@ -78,7 +78,7 @@ class PublicCourses extends HTMLElement {
       h2 { margin:0 0 8px; font-size:clamp(1.4rem,4vw,1.8rem); }
       p { color:var(--cp-ink-2); line-height:1.6; }
       .cards { display:grid; grid-template-columns:repeat(3,minmax(0,280px)); gap:12px; }
-      @media (max-width:600px) { .cards { gap:10px; } .cards article { padding:12px; overflow-wrap:anywhere; } }
+      @media (max-width:600px) { .cards { grid-template-columns:1fr; gap:10px; } .cards article { padding:12px; overflow-wrap:anywhere; } }
       article { display:flex; flex-direction:column; border:1px solid var(--cp-rule); background:var(--cp-surface); padding:14px; min-width:0; overflow-wrap:anywhere; }
       article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
       article > button[data-course] { margin-top:auto; }

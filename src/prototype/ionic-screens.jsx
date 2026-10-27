@@ -18,7 +18,7 @@ import { useStageTransition } from './screen-transition.js';
 
 let generatedPlan = null;
 
-export function HomeScreen({ settings }) {
+export function HomeScreen({ authSettled, settings }) {
   const navigate = useNavigate();
   const location = useLocation();
   const active = ['/', '/home'].includes(location.pathname);
@@ -36,8 +36,10 @@ export function HomeScreen({ settings }) {
     if (!active) return;
     const id = new URLSearchParams(location.search).get('course');
     if (!id || !PUBLIC_ROUTE_ID.test(id)) return;
-    let cancelled = false;
     setImportStatus('publicRouteImporting');
+    // The saved draft is restored when auth settles; importing earlier would overwrite it in a new tab.
+    if (!authSettled) return;
+    let cancelled = false;
     void (async () => {
       try {
         const course = curatedRoute(id) || await (await import('../domains/itinerary/services/public-course-service.js')).getPublicCourse(id);
@@ -50,7 +52,7 @@ export function HomeScreen({ settings }) {
       } catch { if (!cancelled) setImportStatus('publicRouteImportFailed'); }
     })();
     return () => { cancelled = true; };
-  }, [active, location.search, navigate]);
+  }, [active, authSettled, location.search, navigate]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
     {importStatus && <p role="status">{t(importStatus)}</p>}
@@ -261,6 +263,8 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   useEffect(() => { const update=()=>setOffline(navigator.onLine===false); window.addEventListener('online',update);window.addEventListener('offline',update);return()=>{window.removeEventListener('online',update);window.removeEventListener('offline',update);}; }, []);
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 900px)').matches);
   const [ready, setReady] = useState(false);
+  // The sheet unmounts without onDidDismiss on desktop and offline; the next sheet must present before it loads.
+  if (ready && (desktop || offlineMode)) setReady(false);
   const [loaded, setLoaded] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const navigate = useNavigate();
