@@ -105,7 +105,7 @@ button { font: inherit; cursor: pointer; }
 .travel-globe { text-align: center; padding-top: 16px; }
 .travel-globe h2 { font-size: 22px; margin: 24px 0 8px; }
 .globe-stage { min-height: 320px; display: grid; place-items: center; position: relative; }
-.globe-stage svg { touch-action: none; max-width: 100%; height: auto; }
+.globe-stage svg { touch-action: pan-y; max-width: 100%; height: auto; }
 .globe-ocean { fill: var(--cp-sunken); stroke: var(--cp-rule); }
 .globe-stage path { fill: var(--cp-surface); stroke: var(--cp-rule); stroke-width: .5; cursor: pointer; transition: fill 200ms ease-out; }
 :root[data-theme="dark"] .globe-stage path, :root[data-theme="dark"] .globe-ocean { stroke: var(--cp-muted); }

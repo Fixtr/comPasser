@@ -978,6 +978,36 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });
 
+test('작은 폰에서도 홈의 두 진입 버튼이 탭 바 위에 보이고, 지구본 자동 회전은 처음 만지면 멈춘다', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/home');
+  const buttons = page.locator('.ionic-home-links button');
+  await expect(buttons).toHaveCount(2);
+  const tabBar = await page.locator('ion-tab-bar').boundingBox();
+  for (const box of await buttons.evaluateAll(items => items.map(item => item.getBoundingClientRect().toJSON()))) {
+    expect(box.bottom).toBeLessThanOrEqual(tabBar.y);
+  }
+  const globe = page.locator('.globe-stage svg');
+  await expect(globe).toBeVisible();
+  // Vertical swipes over the globe scroll the page; horizontal drags still turn it.
+  expect(await globe.evaluate(element => getComputedStyle(element).touchAction)).toBe('pan-y');
+  const toggle = page.locator('.globe-stage .globe-auto');
+  await expect(toggle).toHaveAttribute('aria-label', '자동 회전 멈추기');
+  const turned = () => globe.locator('path[data-country=CHN]').getAttribute('d');
+  const before = await turned();
+  await expect.poll(turned).not.toBe(before);
+  // The first touch anywhere ends the intro turn, so taps no longer wait behind it.
+  await page.locator('.ionic-home h1').click();
+  await expect(toggle).toHaveAttribute('aria-label', '자동 회전 시작');
+  const stopped = await turned();
+  await page.waitForTimeout(300);
+  expect(await turned()).toBe(stopped);
+  // Rotation the user switches back on keeps going.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-label', '자동 회전 멈추기');
+  await expect.poll(turned).not.toBe(stopped);
+});
+
 test('홈은 일정 만들기와 코스 둘러보기 두 진입 버튼을 제공하고 새 일정 바로가기는 없다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/home');

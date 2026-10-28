@@ -46,6 +46,9 @@ class HomeCourses extends HTMLElement {
       h3 { flex:1; margin:0 0 8px; font-size:1rem; }
       button { min-height:44px; padding:8px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-size:13px; font-weight:700; }
       @media (max-width:600px) { .cards { gap:8px; } article { padding:8px; } h3 { font-size:13px; } button { font-size:12px; } }
+      /* Three 110px columns broke Korean names mid-syllable ('서촌 한/옥마을'); phones stack the cards. */
+      @media (max-width:520px) { .cards { grid-template-columns:minmax(0,1fr); } }
+      h3, button, a { word-break:keep-all; }
       button:focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
     `;
     const heading = document.createElement('h2');

@@ -56,11 +56,12 @@ export function HomeScreen({ authSettled, settings }) {
         <h1>{t('flowHomeTitle')}</h1>
         <p>{t('flowHomeDescription')}</p>
       </div>
+      {/* Above the globe so the two entries stay above the tab bar on short phones. */}
+      <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
       <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={country => {
         plannerDraftStore.update({ country, destinationStage: 'city', step: '/destination' });
         navigate('/destination');
       }} /></Suspense>
-      <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
     </div>
   </IonContent></IonPage>;
 }

@@ -487,8 +487,10 @@ test('all added countries offer places and curated courses, and US selections ke
  await page.screenshot({path:testInfo.outputPath('courses-newyork-320.png'),fullPage:true});
  const courseCards=page.locator('home-courses article');
  const firstCard=await courseCards.nth(0).boundingBox();const secondCard=await courseCards.nth(1).boundingBox();const thirdCard=await courseCards.nth(2).boundingBox();
- expect(Math.abs(firstCard.y-secondCard.y)).toBeLessThan(1);expect(Math.abs(firstCard.y-thirdCard.y)).toBeLessThan(1);
- expect(thirdCard.x).toBeGreaterThan(secondCard.x);expect(thirdCard.x+thirdCard.width).toBeLessThanOrEqual(320);
+ // Phones stack the operator cards in one column (the owner chose this over three 110px columns).
+ expect(Math.abs(firstCard.x-secondCard.x)).toBeLessThan(1);expect(Math.abs(firstCard.x-thirdCard.x)).toBeLessThan(1);
+ expect(secondCard.y).toBeGreaterThan(firstCard.y+firstCard.height-1);expect(thirdCard.x+thirdCard.width).toBeLessThanOrEqual(320);
+ expect(await courseCards.first().locator('h3').evaluate(element=>getComputedStyle(element).wordBreak)).toBe('keep-all');
  await expect(courseCards.locator('p')).toHaveCount(0);
  await page.setViewportSize({width:1280,height:900});
  await page.locator('home-courses h2').scrollIntoViewIfNeeded();
@@ -511,9 +513,12 @@ test('all added countries offer places and curated courses, and US selections ke
 test('globe wheel and native two-finger pinch zoom without scrolling, rotating or selecting a country',async({page,context})=>{
  await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/home');
  const globe=page.locator('.globe-stage svg'),ocean=globe.locator('circle');await expect(ocean).toHaveAttribute('r','128');
- const toggle=page.locator('.globe-stage .globe-auto');await expect(toggle).toHaveAttribute('aria-pressed','true');
+ // Reduced motion never turns the globe, so its control starts paused (and has no aria-pressed).
+ const toggle=page.locator('.globe-stage .globe-auto');await expect(toggle).toHaveAttribute('aria-label','자동 회전 시작');await expect(toggle).not.toHaveAttribute('aria-pressed',/./);
  expect(await toggle.evaluate(element=>{const style=getComputedStyle(element);return [style.right,style.bottom,style.borderWidth,style.backgroundColor]})).toEqual(['0px','0px','0px','rgba(0, 0, 0, 0)']);
- await toggle.click();await expect(toggle).toHaveAttribute('aria-pressed','false');await toggle.click();await expect(toggle).toHaveAttribute('aria-pressed','true');
+ const shape=()=>page.locator('.globe-stage path[data-country=CHN]').getAttribute('d');const still=await shape();
+ // A turn the user starts runs even under reduced motion, so the label never claims a rotation that is not happening.
+ await toggle.click();await expect(toggle).toHaveAttribute('aria-label','자동 회전 멈추기');await expect.poll(shape).not.toBe(still);await toggle.click();await expect(toggle).toHaveAttribute('aria-label','자동 회전 시작');
  const radius=()=>ocean.evaluate(element=>Number(element.getAttribute('r')));
  const box=await globe.boundingBox(),x=box.x+box.width/2,y=box.y+box.height/2;
  const scroll=()=>page.locator('ion-content:visible').evaluate(async element=>(await element.getScrollElement()).scrollTop);
