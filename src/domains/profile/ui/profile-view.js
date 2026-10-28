@@ -5,7 +5,7 @@ import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itin
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
-import { buildItineraryTitle } from '../../itinerary/services/itinerary-title.mjs';
+import { buildItineraryTitle, itineraryCity } from '../../itinerary/services/itinerary-title.mjs';
 import { profileStyles } from './profile-style.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
 import { t, getLang, setLang, applyTranslations } from '../../../utils/i18n.js';
@@ -22,6 +22,13 @@ function stateBlock(className, text) {
   box.textContent = text;
   return box;
 }
+
+// Titles saved before cities were added, renamed, or saved in the other language may not name
+// the city; the card's date line names it then.
+const tripCityPrefix = (item, title) => {
+    const city = itineraryCity(item.itineraryPlan, getLang());
+    return city && !['ko', 'en'].some(lang => title.includes(itineraryCity(item.itineraryPlan, lang))) ? `${city} · ` : '';
+};
 
 class ProfileView extends HTMLElement {
     constructor() {
@@ -320,7 +327,7 @@ class ProfileView extends HTMLElement {
             const dateString = dateObj.toLocaleDateString(getLang() === 'en' ? 'en-US' : 'ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
             const anchorsCount = item.itineraryPlan?.days?.reduce((acc, day) => acc + (day.scheduleItems?.filter(i => i.type === 'AnchorSchedule').length || 0), 0) || 0;
             // 저장 시 기록해 둔 제목을 쓰고, 그전에 저장된 문서는 지금 계산해 채운다.
-            const tripTitle = item.title || buildItineraryTitle(item.itineraryPlan);
+            const tripTitle = item.title || buildItineraryTitle(item.itineraryPlan, getLang());
             const anchorSuffix = anchorsCount > 0 ? ` · ${t('flowPlaces')} ${anchorsCount}` : '';
 
             const card = document.createElement('div');
@@ -332,7 +339,7 @@ class ProfileView extends HTMLElement {
                         <span class="trip-anchor-suffix">${anchorSuffix}</span>
                         <button class="btn-rename" data-i18n-title="renameTitle" title="${t('renameTitle')}" data-i18n-aria="renameAria" aria-label="${t('renameAria')}">${icons.pencil}</button>
                     </div>
-                    <div class="trip-date">${t('savedOn').replace('{0}', dateString)}</div>
+                    <div class="trip-date"><span class="trip-city">${tripCityPrefix(item, tripTitle)}</span>${t('savedOn').replace('{0}', dateString)}</div>
                 </div>
                 <div class="trip-actions">
                     <button class="btn-view" data-id="${item.id}" data-i18n="viewBtn">${t('viewBtn')}</button>
@@ -537,6 +544,7 @@ class ProfileView extends HTMLElement {
                 item.title = next; // 다시 불러오지 않아도 목록 상태가 최신이 되도록
                 restore();
                 card.querySelector('.trip-title').textContent = next;
+                card.querySelector('.trip-city').textContent = tripCityPrefix(item, next);
             } catch (error) {
                 console.error('Rename failed:', error);
                 saveBtn.disabled = false;

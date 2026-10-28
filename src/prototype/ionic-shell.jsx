@@ -6,11 +6,12 @@ import {
   IonTabs, IonTitle, IonToolbar, isPlatform, setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { matchPath, Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
 import { decideRoute, getSafeReturnPath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
+import { destinationById } from '../domains/planner/services/travel-destinations.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { showErrorToast } from '../utils/toast.js';
 import { DestinationScreen } from './destination-screen.jsx';
@@ -100,6 +101,14 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
   const location = useLocation();
   const navigate = useNavigate();
   usePlanExitGuard(location, user);
+  useEffect(() => {
+    const key = pages.find(([path]) => matchPath(path, location.pathname))?.[1] || 'shellNotFound';
+    // Picked city steps name the city, so tabs and history entries can be told apart; same check as usePlacePick.
+    const query = new URLSearchParams(location.search);
+    const city = ['/recommend', '/courses'].includes(location.pathname) && destinationById(query.get('city'));
+    const cityName = city && city.country === query.get('country') ? `${t(city.key)} · ` : '';
+    document.title = key === 'heroTitle' ? 'ComPasser' : `${cityName}${t(key)} · ComPasser`;
+  }, [location.pathname, location.search, lang]);
   useEffect(() => {
     const previous = window.navigate;
     window.navigate = (path, options) => {
