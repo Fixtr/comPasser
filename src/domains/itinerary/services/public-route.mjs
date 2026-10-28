@@ -32,21 +32,25 @@ export function curatedRoute(id) {
   const destination = cityDestination({ country: 'KOR', ...city });
   const places = variant === 1 ? city.places.slice(0, 2)
     : [city.places[variant === 2 ? 0 : 1], city.places[2]];
-  if (city.country && city.country !== 'KOR') return {
-    id, title: `${tFor(city.key, 'en')}: a first visit`, curated: true,
+  // The three routes of a city differ only by their stops, so the title names them.
+  const titled = route => ({ ...route, title: `${tFor(city.key, 'en')}: ${route.stops.map(stop => stop.englishName || stop.name).join(' and ')}` });
+  if (city.country && city.country !== 'KOR') return titled({
+    id, curated: true,
     destination,
     review: tFor('courseInternationalIntro', 'en'),
+    // `name` is Korean (the app's Korean planner imports it). Japanese and French catalogue ids are the
+    // places' local names; numbered ids ('taipei-1') are not, so those stops have no local name.
     stops: places.map(place => typeof place === 'string'
       ? { name: place, location: `${place}, ${tFor(city.key, 'en')}`, stayMinutes: 60 }
-      : { name: place.name, englishName: place.englishName, location: place.location, englishAddress: place.location, stayMinutes: place.stayMinutes, guideUrl: place.guide }),
-  };
-  return { id, title: `${tFor(city.key, 'en')}: a first visit`, curated: true, destination,
+      : { name: place.name, englishName: place.englishName, localName: /-\d+$/.test(place.id) ? '' : place.id, location: place.location, englishAddress: place.location, stayMinutes: place.stayMinutes, guideUrl: place.guide }),
+  });
+  return titled({ id, curated: true, destination,
     review: tFor(variant === 1 ? city.pairReason : 'courseInternationalIntro', 'en'), stops: (variant === 1 ? city.pair : additionalPairs[city.id][variant - 2]).map(placeId => {
       const place = city.places.find(item => item.id === placeId);
       return { name: tFor(`${place.key}Name`, 'ko'), englishName: tFor(`${place.key}Name`, 'en'),
         location: tFor(`${place.key}Location`, 'ko'), englishAddress: tFor(`${place.key}Location`, 'en'),
         stayMinutes: Number.parseInt(place.stay, 10), guideUrl: place.guide };
-    }) };
+    }) });
 }
 
 export function checkedVisitorInfo(input, today = todayString()) {

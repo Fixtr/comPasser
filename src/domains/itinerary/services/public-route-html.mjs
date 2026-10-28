@@ -1,6 +1,14 @@
 import { escapeHtml as e, safeHttpUrl } from '../../../utils/html-safety.mjs';
-import { publicRouteUrl } from './public-route.mjs';
+import { courseCities, publicRouteUrl } from './public-route.mjs';
 import { courseCity } from './course-community.mjs';
+import { tFor } from '../../../utils/i18n.js';
+
+// Local names and addresses carry their language so screen readers do not read Hangul or kana as English.
+const LOCAL_LANG = { KOR: 'ko', JPN: 'ja', FRA: 'fr', TWN: 'zh-Hant', THA: 'th', VNM: 'vi', ITA: 'it', ESP: 'es', SGP: 'en', GBR: 'en', USA: 'en' };
+const routeCity = course => courseCities.find(city => city.id === (course.destination?.id || courseCity(course)));
+// Some traveler routes are titled just '3'; a title with no letters says nothing, so the stops stand in.
+const routeTitle = course => [course.titleEn, course.title].find(title => /\p{L}/u.test(title || ''))
+  || course.stops.map(stop => stop.englishName || stop.name).join(' → ');
 
 const styles = `
   :root{color-scheme:light;--ink:#17201c;--paper:#f4f4f1}*{box-sizing:border-box}
@@ -13,6 +21,8 @@ const styles = `
   .actions{display:flex;flex-wrap:wrap;gap:12px}.muted{color:#515b54}.address{user-select:all}img{max-width:100%;height:auto}
   label{display:block}input{display:block;min-height:44px;width:100%;padding:10px;font:inherit;margin:8px 0 16px}
   .qr{width:190px}.share code{display:block;overflow-wrap:anywhere}footer{font-size:.9rem}
+  .cities{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none}.cities a{display:inline-block;padding:8px 12px;min-height:44px;border:1px solid #c8ccc5;background:#fff;text-decoration:none}
+  .card{position:relative}.card h3 a::after{content:"";position:absolute;inset:0}
   @media print{header,.actions,.start,footer,button{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
 `;
 
@@ -28,22 +38,39 @@ function shell(title, description, canonical, body, { noindex = false, script = 
 
 export function renderPublicRoute(course, origin) {
   const canonical = publicRouteUrl(course.id, origin);
-  const title = course.titleEn || course.title;
+  const title = routeTitle(course);
   const names = course.stops.map(stop => stop.englishName || stop.name);
+  const country = routeCity(course)?.country || course.destination?.country;
+  // Only curated names are known to be in the city's language; travelers often type theirs in Korean.
+  const lang = course.curated && LOCAL_LANG[country] ? ` lang="${LOCAL_LANG[country]}"` : '';
+  // Curated stops abroad store a Korean `name` for the app and only a 'place, city' search text, not a street address.
+  const abroad = course.curated && country !== 'KOR';
   const description = `${names.join(' → ')}. Choose your dates and starting place to plan your visit.`;
   const stopHtml = course.stops.map((stop, index) => {
     const info = stop.visitorInfo;
     const menu = { available: 'Available', unavailable: 'Not available', unknown: 'Not checked' };
     const reservation = { required: 'Required', recommended: 'Recommended', not_required: 'Not required', unknown: 'Not checked' };
     const source = info && safeHttpUrl(info.sourceUrl);
-    return `<article><h2>${index + 1}. ${e(stop.englishName || stop.name)}</h2>
-      ${stop.englishName && stop.englishName !== stop.name ? `<p>${e(stop.name)}</p>` : ''}
+    const english = stop.englishName || stop.name;
+    const local = abroad ? stop.localName : stop.name;
+    const where = abroad
+      // With a local name the place line is that name plus the city; numbered stops' lines are English.
+      ? `<p class="address"${stop.localName ? lang : ''}>${e(stop.location)}</p>
+      <button type="button" class="copy-address" data-address="${e(stop.location)}">Copy place name</button>
+      <a href="https://www.google.com/maps/search/?api=1&amp;query=${e(encodeURIComponent(stop.location))}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+      : `${stop.englishAddress ? `<p>${e(stop.englishAddress)}</p>` : ''}<p class="address"${lang}>${e(stop.location)}</p>
+      <button type="button" class="copy-address" data-address="${e(stop.location)}">Copy local address</button>`;
+    // Curated stops carry no checked menu or reservation data, so 'Not checked' twice per beach is only noise.
+    const checked = source ? `<p>English menu: ${e(menu[info.englishMenu] || 'Not checked')}<br>
+      Reservation: ${e(reservation[info.reservation] || 'Not checked')}</p>
+      <p class="muted">Checked by the route publisher on ${e(info.checkedOn)}. <a href="${e(source)}" target="_blank" rel="noopener noreferrer">Read the source</a>. Confirm details before visiting.</p>`
+      : course.curated ? '' : `<p>English menu: Not checked<br>Reservation: Not checked</p>
+      <p class="muted">Menu and reservation information has not been checked.</p>`;
+    return `<article><h2>${index + 1}. ${e(english)}</h2>
+      ${local && local !== english ? `<p${lang}>${e(local)}</p>` : ''}
       <p>${e(stop.stayMinutes)} minutes suggested visit time · excludes travel</p>
-      ${stop.englishAddress ? `<p>${e(stop.englishAddress)}</p>` : ''}<p class="address">${e(stop.location)}</p>
-      <button type="button" class="copy-address" data-address="${e(stop.location)}">Copy local address</button>
-      <p>English menu: ${e(source ? menu[info.englishMenu] || 'Not checked' : 'Not checked')}<br>
-      Reservation: ${e(source ? reservation[info.reservation] || 'Not checked' : 'Not checked')}</p>
-      ${source ? `<p class="muted">Checked by the route publisher on ${e(info.checkedOn)}. <a href="${e(source)}" target="_blank" rel="noopener noreferrer">Read the source</a>. Confirm details before visiting.</p>` : '<p class="muted">Menu and reservation information has not been checked.</p>'}
+      ${where}
+      ${checked}
       ${safeHttpUrl(stop.guideUrl) ? `<a href="${e(safeHttpUrl(stop.guideUrl))}" target="_blank" rel="noopener noreferrer">Official visitor guide</a>` : ''}</article>`;
   }).join('');
   const credit = course.credit;
@@ -62,13 +89,21 @@ export function renderPublicRoute(course, origin) {
 }
 
 export function renderRouteDirectory(courses, origin) {
-  return shell('Travel routes for your first days in Korea', 'Explore short routes in Korea, copy local addresses and plan around your own dates.', `${origin}/en/routes`,
-    `<h1>Find your first route in Korea</h1><p>Browse places, then build a trip around your own dates and starting point.</p>${courses.map(course =>
-      `<article><h2><a href="${e(publicRouteUrl(course.id, origin))}">${e(course.titleEn || course.title)}</a></h2><p>${e(course.stops.map(stop => stop.englishName || stop.name).join(' → '))}</p></article>`).join('')}`);
+  // Same-site links: an absolute href sends preview and local servers to the production site.
+  const card = course => `<article class="card"><h3><a href="${e(new URL(publicRouteUrl(course.id, origin)).pathname)}">${e(routeTitle(course))}</a></h3><p>${e(course.stops.map(stop => stop.englishName || stop.name).join(' → '))}</p></article>`;
+  // One section per city, in the catalogue's order, so a visitor looking for Tokyo can jump straight there.
+  const groups = courseCities.map(city => ({ city, routes: courses.filter(course => course.curated && course.destination?.id === city.id) })).filter(group => group.routes.length);
+  const travelers = courses.filter(course => !course.curated);
+  const sections = [...groups.map(({ city, routes }) => ({ id: `city-${city.id}`, name: tFor(city.key, 'en'), note: '', routes })),
+    ...(travelers.length ? [{ id: 'travelers', name: 'Shared by travelers', note: '<p class="muted">Names and notes may be in their original language.</p>', routes: travelers }] : [])];
+  return shell('Short travel routes for your first days in a new city', 'Explore short city routes, copy local addresses or place names and plan around your own dates.', `${origin}/en/routes`,
+    `<h1>Find your first route</h1><p>Browse places, then build a trip around your own dates and starting point.</p>
+    <nav aria-label="Cities"><ul class="cities">${sections.map(section => `<li><a href="#${section.id}">${e(section.name)}</a></li>`).join('')}</ul></nav>
+    ${sections.map(section => `<section id="${section.id}"><h2>${e(section.name)}</h2>${section.note}${section.routes.map(card).join('')}</section>`).join('')}`);
 }
 
 export function renderRouteError(status, origin) {
   const unavailable = status === 503;
-  return shell(unavailable ? 'Route temporarily unavailable' : 'This route is no longer public', 'Explore other routes in Korea.', `${origin}/en/routes`,
+  return shell(unavailable ? 'Route temporarily unavailable' : 'This route is no longer public', 'Explore other travel routes.', `${origin}/en/routes`,
     `<h1>${unavailable ? 'Please try again shortly' : 'This route is no longer public'}</h1><p>${unavailable ? 'We could not check the current route. Reload this page to retry.' : 'The publisher may have removed it.'}</p><a href="/en/routes">Explore other routes</a>`, { noindex: true });
 }

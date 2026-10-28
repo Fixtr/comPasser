@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { courseCities, curatedRoute, checkedVisitorInfo, preparePublicRouteExtras, publicRouteUrl } from '../src/domains/itinerary/services/public-route.mjs';
-import { renderPublicRoute } from '../src/domains/itinerary/services/public-route-html.mjs';
+import { renderPublicRoute, renderRouteDirectory } from '../src/domains/itinerary/services/public-route-html.mjs';
 import { addCourseToDraft } from '../src/domains/planner/services/course-draft.mjs';
 import worker from '../src/server/public-routes-worker.mjs';
 
@@ -78,7 +78,7 @@ test('curated English pages, QR downloads, HEAD and invalid routes work without 
   assert.doesNotMatch(overseasHtml, /plan your visit in Korea/);
   const response = await worker.fetch(request('/en/routes/curated-busan'), env);
   assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  assert.match(await response.text(), /Busan: a first visit/);
+  assert.match(await response.text(), /Busan: Haeundae Beach and Dongbaekseom Island/);
   const qr = await worker.fetch(request('/en/routes/curated-busan/qr.svg?download=1'), env);
   assert.equal(qr.headers.get('Content-Type'), 'image/svg+xml'); assert.match(qr.headers.get('Content-Disposition'), /attachment/);
   assert.match(await qr.text(), /^<svg /);
@@ -110,13 +110,52 @@ test('public pages read only the guest-readable collection and stop serving revo
   assert.equal(offline.status, 503); assert.match(await offline.text(), /noindex/);
 });
 
-test('directory and sitemap use canonical individual route URLs', async t => {
+test('directory links every route on the same site and the sitemap uses canonical route URLs', async t => {
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ documents: [] })));
   const directory = await worker.fetch(request('/en/routes'), env);
   const html = await directory.text();
-  for (const city of courseCities) for (const suffix of ['', '-2', '-3']) assert.ok(html.includes(`https://example.com/en/routes/curated-${city.id}${suffix}`));
+  // Each route page carries its absolute canonical URL; the directory's own links stay on the site serving it.
+  for (const city of courseCities) for (const suffix of ['', '-2', '-3']) assert.ok(html.includes(`href="/en/routes/curated-${city.id}${suffix}"`));
   const sitemap = await worker.fetch(request('/sitemap.xml'), env);
   assert.equal(sitemap.headers.get('Content-Type'), 'application/xml');
   assert.equal((await sitemap.text()).match(/<loc>/g).length, courseCities.length * 3 + 1);
   assert.match(await (await worker.fetch(request('/robots.txt'), env)).text(), /Sitemap: https:\/\/example.com\/sitemap.xml/);
+});
+
+test('curated stops abroad show the local name, one place line and a maps link, never the Korean name', () => {
+  const tokyo = renderPublicRoute(curatedRoute('curated-tokyo'), origin);
+  assert.match(tokyo, /<p lang="ja">浅草寺<\/p>/);
+  assert.doesNotMatch(tokyo, /센소지|도쿄 타워/);
+  assert.equal(tokyo.match(/浅草寺, Tokyo<\/p>/g).length, 1, 'the place line is not repeated as an "English address"');
+  assert.match(tokyo, /<p class="address" lang="ja">浅草寺, Tokyo<\/p>/);
+  assert.match(tokyo, /Copy place name/); assert.doesNotMatch(tokyo, /Copy local address/);
+  assert.match(tokyo, /https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=%E6%B5%85%E8%8D%89%E5%AF%BA%2C%20Tokyo/);
+  assert.doesNotMatch(tokyo, /Not checked/);
+  // No local name in the catalogue (numbered ids) means no second name line at all.
+  const bangkok = renderPublicRoute(curatedRoute('curated-bangkok'), origin);
+  assert.doesNotMatch(bangkok, /방콕 왕궁|왓 포/);
+  assert.doesNotMatch(bangkok, / lang="th"/);
+  // A local name equal to the English one is not shown twice.
+  assert.doesNotMatch(renderPublicRoute(curatedRoute('curated-paris-3'), origin), /<p lang="fr">Arc de Triomphe<\/p>/);
+  // Korean routes keep the Korean name and real local address, tagged as Korean.
+  const seoul = renderPublicRoute(curatedRoute('curated-seoul'), origin);
+  assert.match(seoul, /<p lang="ko">경복궁<\/p>/); assert.match(seoul, /class="address" lang="ko"/); assert.match(seoul, /Copy local address/);
+  assert.doesNotMatch(seoul, /Not checked/);
+});
+
+test('the route directory groups routes by city with jump links, distinct titles and a travelers section', () => {
+  const curated = courseCities.flatMap(city => ['', '-2', '-3'].map(suffix => curatedRoute(`curated-${city.id}${suffix}`)));
+  const travelers = [{ id: 'trip1', title: '3', stops: [{ name: '경복궁', location: '경복궁, 서울', stayMinutes: 60 }, { name: '북촌', location: '북촌, 서울', stayMinutes: 60 }] }];
+  const html = renderRouteDirectory([...curated, ...travelers], origin);
+  assert.doesNotMatch(html, /Korea/);
+  assert.match(html, /<a href="#city-tokyo">Tokyo<\/a>/);
+  assert.match(html, /<h3><a href="\/en\/routes\/curated-tokyo">/); assert.doesNotMatch(html, /<h3><a href="https:/); assert.match(html, /<section id="city-tokyo"><h2>Tokyo<\/h2>/);
+  assert.match(html, /<section id="travelers"><h2>Shared by travelers<\/h2>/);
+  const titles = [...html.matchAll(/<h3><a [^>]+>([^<]+)<\/a><\/h3>/g)].map(match => match[1]);
+  assert.equal(titles.length, curated.length + 1);
+  assert.equal(new Set(titles).size, titles.length, 'every card has its own title');
+  assert.ok(titles.includes('경복궁 → 북촌'), 'a title with no letters is replaced by the stops');
+  // A digits-only English title does not hide the traveler's own title.
+  assert.match(renderPublicRoute({ ...travelers[0], title: '서울 산책', titleEn: '2024' }, origin), /<h1>서울 산책<\/h1>/);
+  assert.ok(html.indexOf('id="city-seoul"') < html.indexOf('id="city-tokyo"') && html.indexOf('id="city-tokyo"') < html.indexOf('id="travelers"'));
 });
