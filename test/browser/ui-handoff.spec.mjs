@@ -345,6 +345,8 @@ test('travel dates show the chosen city as text and a translated change button o
   await page.evaluate(async()=> (await import('/src/utils/i18n.js')).setLang('en'));
   await expect(view.locator('.destination-summary p')).toHaveText('Destination · Seoul');
   await view.getByRole('button',{name:'Change destination',exact:true}).click(); await expect(page).toHaveURL(/\/destination$/);
+  // /destination loads its code on first visit; until it shows, the preference page and its own Back are still the visible ones.
+  await expect(page.getByRole('heading',{name:'Must-visit places',exact:true})).toBeVisible();
   expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read().date)).toEqual(['2030-10-17']);
   await page.getByRole('button',{name:'← Back',exact:true}).click();
   await page.getByRole('button',{name:'Busan',exact:true}).click();

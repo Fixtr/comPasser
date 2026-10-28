@@ -81,6 +81,8 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('html2canvas')) return undefined;
           if (id.includes('@capacitor-firebase')) return undefined;
+          // Only the home globe uses these; unnamed, they ride in its lazy chunk instead of the first-load vendor.
+          if (/node_modules\/(?:d3-|internmap|topojson-client)/.test(id)) return undefined;
           if (id.includes('@firebase/firestore') || id.includes('firebase/firestore') || id.includes('re2js')) return 'vendor-firestore';
           if (id.includes('@firebase/functions') || id.includes('firebase/functions')) return 'vendor-functions';
           if (id.includes('@firebase/auth') || id.includes('firebase/auth')) return 'vendor-auth';

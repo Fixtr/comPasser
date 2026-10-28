@@ -104,7 +104,7 @@ button { font: inherit; cursor: pointer; }
 .catalogue-places > summary { min-height: 44px; padding: 12px 0; font-size: 15px; font-weight: 600; cursor: pointer; }
 .travel-globe { text-align: center; padding-top: 16px; }
 .travel-globe h2 { font-size: 22px; margin: 24px 0 8px; }
-.globe-stage { min-height: 270px; display: grid; place-items: center; position: relative; }
+.globe-stage { min-height: 320px; display: grid; place-items: center; position: relative; }
 .globe-stage svg { touch-action: none; max-width: 100%; height: auto; }
 .globe-ocean { fill: var(--cp-sunken); stroke: var(--cp-rule); }
 .globe-stage path { fill: var(--cp-surface); stroke: var(--cp-rule); stroke-width: .5; cursor: pointer; transition: fill 200ms ease-out; }

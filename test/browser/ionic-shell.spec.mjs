@@ -357,6 +357,25 @@ test('느린 연결에서 앱 코드가 오기 전에도 불러오는 중임을 
   await expect(page.locator('.boot')).toHaveCount(0);
 });
 
+test('홈 밖 화면의 코드가 늦게 오면 불러오는 중을 보이고, 도착하면 새 제목으로 포커스가 간다', async ({ page }) => {
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/src/prototype/ionic-screens.jsx', async route => { await held; await route.continue(); });
+  await page.goto('/home');
+  await expect(page.locator('.travel-globe svg path')).toHaveCount(177);
+  await page.getByRole('button', { name: '코스 둘러보기' }).focus();
+  await page.keyboard.press('Enter');
+  // Ionic hides the old page after 300 ms of waiting; the loader under it must then show, not a blank outlet.
+  await expect(page.getByRole('status').filter({ hasText: 'ComPasser' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeHidden();
+  release();
+  await expect(page.getByRole('heading', { name: '어느 나라의 코스를 볼까요?' })).toBeFocused();
+  await expect(page.locator('.boot')).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
+  await expect(page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)')).toHaveCount(1);
+});
+
 test('느린 공유 링크는 시트에 불러오는 중을 보여 주고, 없는 일정에는 지도를 받지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
