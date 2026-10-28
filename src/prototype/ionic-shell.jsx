@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   IonApp, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon,
@@ -14,12 +14,11 @@ import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs
 import { destinationById } from '../domains/planner/services/travel-destinations.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { showErrorToast } from '../utils/toast.js';
-import { DestinationScreen } from './destination-screen.jsx';
 import { installPageTransitions } from './screen-transition.js';
 import { usePlanExitGuard } from './plan-exit-guard.js';
 import { logout, missingFirebaseConfig, subscribeToAuthChanges } from '../domains/auth/services/firebase-auth.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
-import { HomeScreen, AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen } from './ionic-screens.jsx';
+import { HomeScreen } from './home-screen.jsx';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -34,6 +33,13 @@ import './ionic-shell.css';
 // CloseWatcher turns Escape into Ionic's hardware Back, which left the page from anywhere on desktop.
 // Only Android has a system Back for it to handle; elsewhere overlays still close on Escape by themselves.
 setupIonicReact({ experimentalCloseWatcher: isPlatform('android') });
+
+// Home is the only screen needed for the first paint; the rest load when their route first shows.
+const lazyScreen = (load, name) => lazy(() => load().then(module => ({ default: module[name] })));
+const screens = () => import('./ionic-screens.jsx');
+const DestinationScreen = lazyScreen(() => import('./destination-screen.jsx'), 'DestinationScreen');
+const [AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen] =
+  ['AuthScreen', 'PreferenceScreen', 'PlanScreen', 'ResultScreen', 'ProfileScreen', 'AccountDeletionScreen', 'RecommendScreen', 'CoursesScreen'].map(name => lazyScreen(screens, name));
 
 const pages = [
   ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
@@ -86,7 +92,8 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   else if (path === '/account-deletion-status') screen = <AccountDeletionScreen settings={settings} />;
 
   if (active && decision.action === 'wait') return <IonPage><IonContent className="ion-padding">{t('shellSignInRequired')}</IonContent></IonPage>;
-  if (screen) return screen;
+  // Not an IonPage: it sits under the old page, which Ionic hides after 300 ms while the screen's code arrives.
+  if (screen) return <Suspense fallback={<div className="boot" role="status"><strong>ComPasser</strong><p>{t('loadingModal')}</p></div>}>{screen}</Suspense>;
   return <IonPage>
     <IonHeader><IonToolbar>
       {path !== '/' && path !== '/home' && <IonButtons slot="start"><IonBackButton defaultHref="/" text={t('shellBack')} /></IonButtons>}

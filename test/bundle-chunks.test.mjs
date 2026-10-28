@@ -44,6 +44,8 @@ test('인증이 쓰는 것은 그대로 첫 로드 청크에 남는다', () => {
 test('앱 코드와 동적 import 전용 패키지는 이름을 받지 않는다', () => {
   assert.equal(manualChunks('/repo/src/app/main.js'), undefined);
   assert.equal(manualChunks(idFor('html2canvas-pro')), undefined);
+  // The home globe loads after first paint; its map math must not join the first-load vendor chunk.
+  for (const pkg of ['d3-geo', 'd3-array', 'internmap', 'topojson-client']) assert.equal(manualChunks(idFor(pkg)), undefined, pkg);
 });
 
 test('firebase 모듈별 청크 분리는 그대로다', () => {
