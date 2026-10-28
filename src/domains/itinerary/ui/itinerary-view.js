@@ -1391,7 +1391,7 @@ export default class ItineraryView extends HTMLElement {
         ${itineraryStyles}
       </style>
       
-      <!-- Global loader handles loading state -->
+      <p id="results-loading" class="state-block" role="status" data-i18n="resultLoading" hidden>${t('resultLoading')}</p>
 
       <div id="results" style="display: none;">
         <!-- 배경은 호스트(:host)가 준다. 여기에 흰색을 박아 두면 다크 모드에서
@@ -1443,6 +1443,9 @@ export default class ItineraryView extends HTMLElement {
   setLoading(isLoading) {
     this.setAttribute('visible', '');
     const results = this.shadowRoot.getElementById('results');
+    // A blank sheet on a slow share link looks finished; say it is still loading.
+    const loading = this.shadowRoot.getElementById('results-loading');
+    if (loading) loading.hidden = !isLoading;
 
     if (isLoading) {
       results.style.display = 'none';

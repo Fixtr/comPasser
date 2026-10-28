@@ -8,6 +8,10 @@ import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { addCourseToDraft, cityDestination } from '../services/course-draft.mjs';
 import { destinations } from '../services/travel-destinations.mjs';
 
+// The list is global (each city filters it here), so the last one loaded can stand in for any
+// city while a load fails, e.g. offline after picking another city.
+let lastLoaded = null;
+
 class PublicCourses extends HTMLElement {
   static get observedAttributes() { return ['city']; }
   attributeChangedCallback() {
@@ -20,6 +24,13 @@ class PublicCourses extends HTMLElement {
     this.courses = [];
     this.filters = { search: '', city: '', duration: '' };
     this.render = this.render.bind(this);
+    // Only a load that failed offline retries by itself, the same kind (page 1 or load-more) that failed.
+    // The reload re-renders every card, so the review panel the user had open is opened again.
+    this.reloadWhenOnline = () => {
+      if (!this.error || !this.offline) return;
+      this.keepOpenId = this.shadowRoot.querySelector('article.reviewing button[data-course]')?.dataset.course || null;
+      void this.load(this.failedMore);
+    };
   }
 
   connectedCallback() {
@@ -27,6 +38,7 @@ class PublicCourses extends HTMLElement {
     this.openReviewId = /^[a-zA-Z0-9]+$/.test(requestedReview || '') ? requestedReview : null;
     this.render();
     window.addEventListener('i18n-changed', this.render);
+    window.addEventListener('online', this.reloadWhenOnline);
     this.shadowRoot.addEventListener('click', event => {
       const button = event.target.closest('button[data-course]');
       if (!button) return;
@@ -49,7 +61,7 @@ class PublicCourses extends HTMLElement {
     } else void this.load();
   }
 
-  disconnectedCallback() { window.removeEventListener('i18n-changed', this.render); this.observer?.disconnect(); }
+  disconnectedCallback() { window.removeEventListener('i18n-changed', this.render); window.removeEventListener('online', this.reloadWhenOnline); this.observer?.disconnect(); }
 
   async load(more = false) {
     if (this.loading) return;
@@ -62,8 +74,15 @@ class PublicCourses extends HTMLElement {
         if (requested) this.courses.unshift({ id: this.openReviewId, ...requested });
       }
       this.cursor = result.cursor; this.hasMore = result.hasMore; this.error = false;
+      if (!more) lastLoaded = this.courses;
     }
-    catch (error) { console.error('Public courses unavailable:', error); this.error = true; }
+    catch (error) {
+      console.error('Public courses unavailable:', error);
+      this.error = true;
+      this.offline = navigator.onLine === false;
+      this.failedMore = more;
+      if (!this.courses.length && lastLoaded) { this.courses = lastLoaded; this.hasMore = false; }
+    }
     this.loading = false;
     this.loaded = true;
     if (this.isConnected) this.render();
@@ -100,9 +119,10 @@ class PublicCourses extends HTMLElement {
     root.append(style, heading, intro);
     if (this.error || !this.courses.length) {
       const message = document.createElement('p');
-      message.textContent = t(this.error ? 'publicCoursesError' : this.loaded ? 'publicCoursesEmpty' : 'publicCourseLoading');
+      message.textContent = t(this.error ? (this.offline ? (this.courses.length ? 'publicCoursesOfflineCached' : 'courseOffline') : 'publicCoursesError') : this.loaded ? 'publicCoursesEmpty' : 'publicCourseLoading');
       root.append(message);
-      if (this.error) {
+      // Offline it reloads by itself on the 'online' event, so a retry button would only fail again.
+      if (this.error && !this.offline) {
         const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry');
         retry.onclick = () => void this.load(); root.append(retry);
       }
@@ -139,7 +159,7 @@ class PublicCourses extends HTMLElement {
     this.cards = document.createElement('div'); this.cards.className = 'cards';
     root.append(filters, hint, this.cards);
     this.renderCards();
-    if (this.hasMore) {
+    if (this.hasMore && !(this.error && this.offline)) {
       const more = document.createElement('button'); more.className = 'more'; more.textContent = t('courseLoadMore');
       more.onclick = () => { more.disabled = true; void this.load(true); }; root.append(more);
     }
@@ -181,6 +201,9 @@ class PublicCourses extends HTMLElement {
       if (course.id === this.openReviewId) {
         this.openReviewId = null;
         void reviews.click(); article.scrollIntoView({ block: 'center' });
+      } else if (course.id === this.keepOpenId) {
+        this.keepOpenId = null;
+        void reviews.click();
       }
     }
   }

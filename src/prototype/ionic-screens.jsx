@@ -346,8 +346,11 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   useEffect(() => {
     if (offlineMode) return undefined;
     let cancelled = false;
+    // null (falsy) marks a failed load, so the effects below still wait for the views.
     void Promise.all([import('../domains/map/ui/map-view.js'), import('../domains/itinerary/ui/itinerary-view.js')])
-      .then(() => { if (!cancelled) setLoaded(true); });
+      .then(() => { if (!cancelled) setLoaded(true); }, () => { if (!cancelled) setLoaded(null); });
+    // A saved or shared trip needs the Firestore SDK; fetch it alongside the views instead of after them.
+    if (/^\/(?:view|share)\//.test(path)) void import('../lib/firestore-lazy.mjs').then(lazy => lazy.loadFirestore()).catch(() => {});
     return () => { cancelled = true; };
   }, [offlineMode]);
 
@@ -407,7 +410,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       <IonButton className="ionic-result-back" size="small" onClick={() => void back()}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
     </IonContent>;
-  const schedule = <><div className="ionic-sheet-settings">{settings}</div><itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;
+  const schedule = <><div className="ionic-sheet-settings">{settings}</div>{loaded === false && <p className="ionic-result-loading" role="status">{t('resultLoading')}</p>}{loaded === null && <div role="alert"><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>}<itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;
 
   if (offlineMode) {
     const id=path.match(/^\/view\/([a-zA-Z0-9]+)$/)?.[1];

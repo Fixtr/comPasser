@@ -3,7 +3,7 @@ import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
-import { getLang } from "../../../utils/i18n.js";
+import { getLang, t } from "../../../utils/i18n.js";
 import {
   MIN_PADDING, centerOffsetFor, toPoint, isSinglePlace
 } from "../services/map-framing.mjs";
@@ -88,13 +88,9 @@ export class MapView extends HTMLElement {
     // 온다 — 라이브러리 여섯 벌(marker·geocoding·routes·maps·core·places)
     // 이라 가볍지 않고, 지도는 그 화면들 중 어디에도 보이지 않는다.
     //
-    // 대신 화면에 보이는 순간에 켠다. 이 요소가 있는 #page-view 는 다른
-    // 경로에서 display:none 이라 교차가 일어나지 않는다 — 즉 결과 화면에
-    // 들어온 그 순간이 정확히 필요한 순간이다.
-    this._visibilityObserver = new IntersectionObserver((entries) => {
-      if (entries.some(entry => entry.isIntersecting)) this.ensureMap();
-    }, { threshold: 0.01 });
-    this._visibilityObserver.observe(this);
+    // 대신 그릴 경로가 생기면(renderRoute) 켠다. 지도 칸은 경로 전까지 숨어 있어
+    // 미리 받아 봐야 보일 것이 없고, 느린 연결에서는 공유 일정을 읽는 Firestore 와
+    // 대역폭을 다퉈 "없는 일정" 안내까지 늦춘다(Slow 3G 에서 34초).
 
     // Listen for manual route render requests (e.g. when loading by ID)
     window.removeEventListener('render-map-route', this._renderRouteHandler);
@@ -110,17 +106,12 @@ export class MapView extends HTMLElement {
     window.removeEventListener('render-map-route', this._renderRouteHandler);
     window.removeEventListener('cancel-map-route', this._cancelRouteHandler);
     this.clearMap();
-    if (this._visibilityObserver) {
-      this._visibilityObserver.disconnect();
-      this._visibilityObserver = null;
-    }
   }
 
   /**
    * 지도를 한 번만 켠다.
    *
-   * 보이게 됐을 때(옵저버)와 경로를 그려 달라고 했을 때(renderRoute) 둘 다
-   * 이 문을 지난다. 두 신호가 거의 동시에 오는 것이 정상이라, Promise 를
+   * 경로를 그려 달라는 요청(renderRoute)이 빠르게 겹쳐 올 수 있어, Promise 를
    * 붙잡아 두지 않으면 지도를 두 번 만들게 된다.
    *
    * 실패한 시도는 붙잡아 두지 않는다 — 네트워크가 잠깐 끊겼다 돌아온
@@ -187,17 +178,17 @@ export class MapView extends HTMLElement {
       <div id="map-container"></div>
 
 
-      <div class="loading-overlay" id="loading-overlay">
+      <div class="loading-overlay hidden" id="loading-overlay" aria-hidden="true">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
           <circle cx="12" cy="10" r="3"></circle>
         </svg>
-        <span style="margin-top: 1rem; font-weight: 500;" id="loading-text">Loading Map...</span>
+        <span style="margin-top: 1rem; font-weight: 500;" id="loading-text"></span>
       </div>
     `;
   }
 
-  setLoading(isLoading, text = "Loading...") {
+  setLoading(isLoading, text = '') {
     const overlay = this.shadowRoot.getElementById('loading-overlay');
     const textEl = this.shadowRoot.getElementById('loading-text');
 
@@ -207,6 +198,8 @@ export class MapView extends HTMLElement {
     } else {
       overlay.classList.add('hidden');
     }
+    // A faded overlay is still in the tree; keep screen readers from reading it.
+    overlay.setAttribute('aria-hidden', String(!isLoading));
   }
 
 
@@ -265,7 +258,7 @@ export class MapView extends HTMLElement {
     const version = ++this._renderVersion;
     const isCurrent = () => version === this._renderVersion;
     this.clearMapLayers();
-    this.setLoading(true, "Analyzing locations...");
+    this.setLoading(true, t('mapAnalyzing'));
     try {
       // 예전에는 지도가 없으면 여기서 포기했다. 지금은 지도를 늦게 켜므로,
       // 그리라는 요청이 먼저 도착하는 것이 정상이다 — 그때 켜면 된다.
@@ -339,7 +332,7 @@ export class MapView extends HTMLElement {
 
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
-        this.setLoading(true, "Calculating routes...");
+        this.setLoading(true, t('mapRouting'));
         await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent, day.timeZone || travelRegion(itineraryPlan.request).timeZone);
       } else {
         this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.', context);

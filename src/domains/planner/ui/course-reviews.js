@@ -9,13 +9,24 @@ class CourseReviews extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.reviews = [];
     this.sequence = 0;
+    // Only an offline failure retries by itself; an online one keeps its retry button.
+    this.reloadWhenOnline = () => { if (this.error && this.offline) void this.load(); };
   }
 
   connectedCallback() {
-    this.unsubscribe = subscribeToAuthChanges(() => void this.load());
+    // Reviews are public, so load them now instead of after auth settles (slow on a weak or lost
+    // connection, which left the panel blank); load again only when the account changes.
+    this.loadedFor = getCurrentUser()?.uid || null;
+    void this.load();
+    this.unsubscribe = subscribeToAuthChanges(user => {
+      if ((user?.uid || null) === this.loadedFor) return;
+      this.loadedFor = user?.uid || null;
+      void this.load();
+    });
+    window.addEventListener('online', this.reloadWhenOnline);
   }
 
-  disconnectedCallback() { this.sequence++; this.unsubscribe?.(); }
+  disconnectedCallback() { this.sequence++; this.unsubscribe?.(); window.removeEventListener('online', this.reloadWhenOnline); }
 
   async load(more = false) {
     const sequence = ++this.sequence;
@@ -34,6 +45,7 @@ class CourseReviews extends HTMLElement {
       if (sequence !== this.sequence) return;
       console.error('Course reviews unavailable:', error);
       this.error = true;
+      this.offline = navigator.onLine === false;
     } finally {
       if (sequence === this.sequence && this.isConnected) { this.busy = false; this.render(); }
     }
@@ -58,8 +70,9 @@ class CourseReviews extends HTMLElement {
     const disclaimer = document.createElement('p'); disclaimer.textContent = t('courseReviewsDisclaimer'); root.append(disclaimer);
     if (this.busy || this.error) {
       const status = document.createElement('p'); status.setAttribute('role', 'status');
-      status.textContent = t(this.error ? 'courseReviewsError' : 'publicCourseLoading'); root.append(status);
-      if (this.error) { const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry'); retry.onclick = () => void this.load(); root.append(retry); }
+      // Loading failed: say so, not 'couldn't process', which reads like a submit failed.
+      status.textContent = t(this.error ? (this.offline ? 'courseOffline' : 'courseReviewsLoadError') : 'publicCourseLoading'); root.append(status);
+      if (this.error && !this.offline) { const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry'); retry.onclick = () => void this.load(); root.append(retry); }
       return;
     }
     for (const review of this.reviews) {

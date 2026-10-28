@@ -59,11 +59,13 @@ test('index.html 이 직접 부르는 외부 스크립트는 정해진 것뿐이
     'external-scripts.js 에서 필요한 순간에 불러라:\n' + unexpected.join('\n'));
 });
 
-test('지도는 붙자마자가 아니라 보일 때 불러온다', () => {
+test('지도는 붙자마자가 아니라 그릴 경로가 생길 때 불러온다', () => {
   const body = methodBody(mapView, 'connectedCallback()');
   assert.ok(!/this\.initMap\s*\(/.test(body),
     '<map-view> 는 index.html 마크업에 있어 모든 경로에서 붙는다. ' +
     'connectedCallback 에서 지도를 켜면 랜딩에서도 Maps JS 를 받는다');
+  // 보이자마자 켜면 공유 링크에서 Firestore 와 대역폭을 다퉈 "없는 일정" 안내가 늦어진다.
+  assert.ok(!/ensureMap\s*\(/.test(body), '결과 화면이 보이는 것만으로 Maps JS 를 받는다');
   assert.match(mapView, /ensureMap\s*\(/, '필요할 때 켜는 자리가 없다');
 });
 

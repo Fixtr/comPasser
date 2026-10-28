@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -13,12 +13,12 @@ import { readFileSync } from 'node:fs';
 
 const SW_SOURCE = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
 
-function makeResponse(body, ok = true, redirected = false) {
-  return { body, ok, redirected, clone: () => makeResponse(body, ok, redirected) };
+function makeResponse(body, ok = true, redirected = false, status = ok ? 200 : 500) {
+  return { body, ok, redirected, status, clone: () => makeResponse(body, ok, redirected, status) };
 }
 
 /** sw.js 를 가짜 환경에서 실행하고 조작용 핸들을 돌려준다. */
-function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = [] } = {}) {
+function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = [], network = null } = {}) {
   const listeners = {};
   const store = new Map(); // cacheName -> Map(url -> response)
   const fetchCalls = [];
@@ -66,6 +66,7 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
   const fetchImpl = (req) => {
     const url = typeof req === 'string' ? req : req.url;
     fetchCalls.push(url);
+    if (network) return network(url);
     return networkFails ? Promise.reject(new Error('offline')) : Promise.resolve(makeResponse(`network:${url}`));
   };
 
@@ -170,6 +171,46 @@ test('offline navigation never gets a redirected shell', async () => {
   const res = await offline.dispatchFetch(req('https://app.example/recommend', { mode: 'navigate' }));
   assert.match(res.body, /^precached:/);
   assert.equal(res.redirected, false);
+});
+
+test('a stalled navigation shows the cached shell after 3 seconds', async (t) => {
+  // Lie-fi: the connection is up but never answers, so fetch neither resolves nor rejects.
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const sw = runServiceWorker({ network: () => new Promise(() => {}), cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  const pending = sw.dispatchFetch(req('https://app.example/courses', { mode: 'navigate' }));
+  mock.timers.tick(3000);
+  assert.equal((await pending).body, 'shell');
+});
+
+test('a slow first visit with no cached shell keeps waiting for the network', async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['setTimeout'] });
+  let answer;
+  const sw = runServiceWorker({ network: () => new Promise(resolve => { answer = resolve; }) });
+  const pending = sw.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
+  mock.timers.tick(3000);
+  await new Promise(resolve => setImmediate(resolve));
+  answer(makeResponse('network:/'));
+  assert.equal((await pending).body, 'network:/');
+});
+
+test('a server error on navigation shows the cached shell, or the error page when none is cached', async () => {
+  const failing = () => Promise.resolve(makeResponse('down', false, false, 503));
+  const withShell = runServiceWorker({ network: failing, cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  assert.equal((await withShell.dispatchFetch(req('https://app.example/home', { mode: 'navigate' }))).body, 'shell');
+  const withoutShell = runServiceWorker({ network: failing });
+  assert.equal((await withoutShell.dispatchFetch(req('https://app.example/home', { mode: 'navigate' }))).status, 503);
+  // A redirect is the server's answer, not a failure.
+  const redirect = runServiceWorker({ network: () => Promise.resolve({ ...makeResponse('', false, false, 0), type: 'opaqueredirect' }), cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  assert.equal((await redirect.dispatchFetch(req('https://app.example/index.html', { mode: 'navigate' }))).type, 'opaqueredirect');
+});
+
+test('navigations to real files and the privacy page never get the app shell', () => {
+  const sw = runServiceWorker({ network: () => new Promise(() => {}), cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  for (const path of ['/privacy', '/privacy.html', '/privacy/', '/compasser-preview', '/compasser-preview.html', '/demo.gif']) {
+    assert.equal(sw.dispatchFetch(req(`https://app.example${path}`, { mode: 'navigate' })), undefined, path);
+  }
 });
 
 test('hashed build assets are served from cache first', async () => {
