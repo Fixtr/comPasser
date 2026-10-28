@@ -11,7 +11,7 @@ import { showConfirm } from '../utils/confirm-dialog.js';
 import { TravelGlobe } from './travel-globe.jsx';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
 import { addCourseToDraft, cityDestination } from '../domains/planner/services/course-draft.mjs';
-import { destinations } from '../domains/planner/services/travel-destinations.mjs';
+import { destinations, destinationById } from '../domains/planner/services/travel-destinations.mjs';
 import { courseCity } from '../domains/itinerary/services/course-community.mjs';
 import { CountryPicker } from './country-picker.jsx';
 import { DestinationScreen } from './destination-screen.jsx';
@@ -134,7 +134,7 @@ export function CoursesScreen({ settings }) {
       {settings}
     </div>
     <main ref={stageRef} className="flow-page">
-      <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'flowCountry')}</h1>
+      <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'courseCountryTitle')}</h1>
       {!country && <CountryPicker kind="course" onSelect={next => { picked.current = true; setCountry(next); }} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => { picked.current = true; setCity(city); }}>{t(city.key)}</button> : null)}</div>}
       {city && <div key={city.id}>
@@ -147,8 +147,22 @@ export function CoursesScreen({ settings }) {
   </IonContent></IonPage>;
 }
 
+// Says why sign-in is asked; for planning it names only what the guest draft really holds.
+function authReason(search) {
+  const next = new URLSearchParams(search).get('next') || '';
+  if (next.startsWith('/profile')) return t('authReasonAccount');
+  if (!['/preference/1', '/preference/2', '/plan'].includes(next)) return '';
+  const { destination, anchorSchedules } = plannerDraftStore.read();
+  const city = destinationById(destination?.id);
+  if (!city) return t('authReasonPlan');
+  return anchorSchedules.length
+    ? t('authReasonPlaces').replace('{0}', anchorSchedules.length).replace('{1}', t(city.key))
+    : t('authReasonCity').replace('{0}', t(city.key));
+}
+
 export function AuthScreen({ kind, search, settings }) {
   const verify = useRef(null);
+  const reason = kind === 'verify' ? '' : authReason(search);
   useEffect(() => {
     let cancelled = false;
     const modules = {
@@ -165,6 +179,7 @@ export function AuthScreen({ kind, search, settings }) {
     <div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>ComPasser</button>{settings}</div>
     <div className="ionic-legacy-auth">
       {!!missingFirebaseConfig.length && <p role="alert">{t('configErrorBody').replace('{0}', missingFirebaseConfig.join(', '))}</p>}
+      {reason && <p className="ionic-auth-reason">{reason}</p>}
       {kind === 'login' ? <login-view /> : kind === 'join' ? <join-view /> : <verify-view ref={verify} />}
     </div>
   </IonContent></IonPage>;

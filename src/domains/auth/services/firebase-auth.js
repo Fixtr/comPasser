@@ -132,9 +132,10 @@ export async function loginWithGoogle() {
     }
 }
 
-export async function logout() {
+// keepLocalData: the shell signs out an unverified sign-up without wiping the guest's planner draft.
+export async function logout({ keepLocalData = false } = {}) {
     try {
-        try {
+        if (!keepLocalData) try {
         localStorage.removeItem('compasser.offline.v1');
         localStorage.removeItem('compasser.planner.v1');
         sessionStorage.removeItem('currentFormData');

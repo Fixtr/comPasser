@@ -54,7 +54,7 @@ export function renderPublicRoute(course, origin) {
     <input id="start-location" maxlength="200" placeholder="Enter a hotel, station or address"></section>
     <div class="actions"><a class="action" id="plan-route" href="/home?course=${e(course.id)}&amp;lang=en" data-city="${e(course.destination?.id || courseCity(course) || '')}">Plan with these places</a>
       ${course.curated ? '' : `<a href="/courses?review=${e(course.id)}&amp;lang=en">Traveler reviews</a>`}</div>
-    <p class="muted">Places become required visits. Check travel times and opening hours in your generated itinerary.</p>
+    <p class="muted">Building the itinerary needs an account. Places become required visits. Check travel times and opening hours in your generated itinerary.</p>
     <section class="share"><h2>Share this route</h2><p>Use this link in a video, travel post or accommodation guide.</p>
       <code>${e(canonical)}</code><img class="qr" src="/en/routes/${e(course.id)}/qr.svg" alt="QR code for this route" width="190" height="190">
       <div class="actions"><button id="copy-link" type="button">Copy link</button><a href="/en/routes/${e(course.id)}/qr.svg?download=1">Download QR</a><button id="print-route" type="button">Print route and QR</button></div>

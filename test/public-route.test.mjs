@@ -65,6 +65,7 @@ test('English landing HTML escapes publisher content and distinguishes unchecked
   assert.match(html, /Checked by the route publisher on 2026-10-04/);
   assert.match(html, /Menu and reservation information has not been checked/);
   assert.match(html, /\/home\?course=route1&amp;lang=en/);
+  assert.match(html, /Building the itinerary needs an account/);
   assert.match(html, /Copy local address/);
   assert.doesNotMatch(renderPublicRoute(curatedRoute('curated-seoul'), origin), /Traveler reviews/);
 });

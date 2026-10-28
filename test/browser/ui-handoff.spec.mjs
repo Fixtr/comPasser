@@ -198,7 +198,7 @@ test('pending AI requests cannot apply after the visit date changes or cached na
  await widget.getByRole('button',{name:'AI 추천 받기',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.aiRequests.length)).toBe(2);
  const draft=await page.evaluate(()=>sessionStorage.getItem('currentFormData'));
  await page.evaluate(()=>window.navigate('/home'));await expect(page).toHaveURL(/home$/);await page.evaluate(()=>window.releaseAI());
- await page.getByRole('button',{name:'추천 장소',exact:true}).click();await expect(page).toHaveURL(/recommend$/);
+ await page.getByRole('button',{name:'일정 만들기',exact:true}).click();await expect(page).toHaveURL(/recommend$/);
  await expect(widget.locator('.ai-place-card')).toHaveCount(0);expect(await page.evaluate(()=>sessionStorage.getItem('currentFormData'))).toBe(draft);
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toBeVisible();
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -593,7 +593,7 @@ test('320px wizard restores destination, shifts stays, preserves overrides, revi
  await page.goto('/');
  const themeButton=page.getByRole('button',{name:'다크 모드',exact:true});await expect(themeButton).toBeVisible();
  const themeBox=await themeButton.boundingBox();expect(themeBox.height).toBe(32);expect(themeBox.x).toBeGreaterThan(200);
- const createBox=await page.getByRole('button',{name:'추천 장소',exact:true}).boundingBox();const tabBox=await page.locator('ion-tab-bar').boundingBox();expect(createBox.y+createBox.height).toBeLessThanOrEqual(tabBox.y);
+ const createBox=await page.getByRole('button',{name:'일정 만들기',exact:true}).boundingBox();const tabBox=await page.locator('ion-tab-bar').boundingBox();expect(createBox.y+createBox.height).toBeLessThanOrEqual(tabBox.y);
  await page.screenshot({path:testInfo.outputPath('home-ko-light-320.png'),fullPage:true});
  await page.goto('/destination');
  await page.getByRole('button',{name:'프랑스',exact:true}).click();await page.reload();

@@ -75,7 +75,8 @@ self.addEventListener('fetch', (event) => {
   if (!isSameOrigin(url)) return;
 
   // Public route pages must never restore an unpublished snapshot from offline caches.
-  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') return;
+  // The privacy policy is not an app screen, so offline the browser's own error beats the app's not-found page.
+  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt' || url.pathname === '/privacy') return;
 
   // 서비스 워커 자신은 캐시하지 않는다(업데이트가 막힌다).
   if (url.pathname === '/sw.js') return;

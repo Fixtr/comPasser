@@ -6,6 +6,12 @@
 - **Routing**: Routing based on authentication state is handled at the application entry point (`src/app/main.js`), which listens to `subscribeToAuthChanges` and toggles the visibility of the `login-view` and the main `app-content`.
 - **Environment Variables**: Make sure to populate the `.env` file with the relevant `VITE_FIREBASE_*` keys for authentication to work correctly.
 
+## Guest Sign-in Context
+
+- The Ionic `/login` and `/join` (`AuthScreen`) show one reason line chosen by `next`: a planning return (`/preference/1`, `/preference/2`, `/plan`) names only what the guest draft holds (the city and the number of picked places, or the city alone, or a generic line when the draft has no city); a `/profile...` return says trips and profile need an account; a plain visit shows nothing.
+- An email account that is not verified yet never owns the planner draft: the shell keeps the guest owner for it and signs it out with `logout({ keepLocalData: true })`, so signing up by email keeps the guest's picks. Every other `logout()` call still clears local travel data.
+- Signup and login link to the privacy policy at its public address (`PRIVACY_POLICY_URL`, `https://hackerton-48w.pages.dev/privacy`) in a new tab, because a bare `/privacy` falls back to `index.html` inside the native app. The policy is Korean only, so the English link says so. `public/sw.js` leaves `/privacy` to the network, so offline the browser shows its own error instead of the app's not-found page.
+
 ## Password Reset
 
 - Firebase's email action URL is project-wide and points at this app's `/verify` (checked 2026-10-27: `https://hackerton-48w.pages.dev/verify`), so verification **and** reset links land there. `verify-view.js` branches on `mode=resetPassword` (new password → `resetPassword`); every other mode still goes to `verifyEmailCode`. Moving the site to another domain means updating that URL in the Firebase console.

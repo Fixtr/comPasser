@@ -84,8 +84,9 @@ function authFixture({deleteError}={}) {
     deleteUser:async user=>{calls.push(['delete',user.uid]); if(deleteError)throw deleteError;},
     localStorage:{removeItem:key=>calls.push(['local',key])},
     sessionStorage:{removeItem:key=>calls.push(['session',key])},
+    signOut:async()=>calls.push(['signOut']),Capacitor:{isNativePlatform:()=>false},
   };
-  const api=new Function(...Object.keys(deps),authSource+'\nreturn {requireRecentLoginForDeletion,deleteCurrentUser};')(...Object.values(deps));
+  const api=new Function(...Object.keys(deps),authSource+'\nreturn {requireRecentLoginForDeletion,deleteCurrentUser,logout};')(...Object.values(deps));
   return {api,auth,calls};
 }
 
@@ -106,6 +107,15 @@ test('Firebase 인증 삭제 성공 후에만 로컬 상태를 정리한다', as
   const app=authFixture();
   await app.api.deleteCurrentUser('owner');
   assert.deepEqual(app.calls,[['delete','owner'],['local','hasSeenTutorial'],['local','compasser.offline.v1'],['local','compasser.planner.v1'],['session','currentFormData'],['session','savedItineraryData'],['session','userPreference'],['session','compasser.itineraries.v1']]);
+});
+
+test('가입 직후 인증 전 계정을 내보낼 때는 게스트의 여행 계획을 지우지 않는다', async () => {
+  const kept=authFixture();
+  await kept.api.logout({keepLocalData:true});
+  assert.deepEqual(kept.calls,[['signOut']]);
+  const cleared=authFixture();
+  await cleared.api.logout();
+  assert.deepEqual(cleared.calls.filter(call=>call[1]==='compasser.planner.v1'||call[1]==='currentFormData'),[['local','compasser.planner.v1'],['session','currentFormData']]);
 });
 
 test('Firebase 인증 삭제 어댑터도 대상 계정 변경을 차단한다', async () => {
