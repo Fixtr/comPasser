@@ -16,11 +16,13 @@ const identity = item => normalizeSelectedPlace(item?.selectedPlace) || normaliz
 // Verify every generated day, including tabs the user never opens. Saved/shared plans never call this.
 export async function verifyGeneratedItinerary(plan, {
   geocoding = new GeocodingService(getMapsLoader(), { getLanguage: getLang, countryCode: travelRegion(plan.request).countryCode }),
-  createChecks = createFlexibleVisitChecks
+  createChecks = createFlexibleVisitChecks,
+  onStage = () => {}
 } = {}) {
   const result = structuredClone(plan);
   const excludedIds = () => result.days.flatMap(day => day.scheduleItems.map(item => identity(item)?.placeId).filter(Boolean));
   // Resolve all day identities before filling gaps so later-day visits cannot become an earlier day's extra.
+  onStage('places');
   try {
     for (const day of result.days) {
       const items = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
@@ -35,6 +37,7 @@ export async function verifyGeneratedItinerary(plan, {
         return { ...clean, ...(found?.resolvedPlace ? { resolvedPlace: normalizeSelectedPlace(found.resolvedPlace) } : {}) };
       });
     }
+    onStage('routes');
     for (const [dayIndex, day] of result.days.entries()) {
       const constraints = getDayConstraints(result, dayIndex);
       if (!constraints?.endTime) continue;

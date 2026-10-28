@@ -4,25 +4,25 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { normalizePlannerRequest, enforcePlannerConstraints } from '../src/domains/planner/services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../src/domains/planner/services/planner-validation.js';
-import { buildMockItinerary, isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
-import { setLang } from '../src/utils/i18n.js';
+import { isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
+import { setLang, t } from '../src/utils/i18n.js';
 import { prepareGeneratedPlaces } from '../src/domains/map/services/recommendation-place.mjs';
 
 const source = readFileSync(new URL('../src/domains/planner/services/gemini-optimizer.js', import.meta.url), 'utf8')
   .replace(/^import\s[\s\S]*?from\s+['"][^'"]+['"];\s*/gm, '').replace(/^export /gm, '');
 assert.doesNotMatch(source, /^import /m);
 function fixture(error, creditBalance = 2, generatedDays = [{ day: 1, scheduleItems: [] }]) {
-  const calls = [];
+  const calls = [], verifyOptions = [];
   const context = { normalizePlannerRequest, enforcePlannerConstraints, findPlannerInputIssue, plannerValidationMessage,
-    buildMockItinerary, isValidGeneratedDays, prepareGeneratedPlaces, verifyGeneratedItinerary:async plan=>{calls.push('quality');return plan;}, addSelectedWaypoint: days => days,
-    app: {}, getLang: () => 'en',
+    isValidGeneratedDays, prepareGeneratedPlaces, verifyGeneratedItinerary:async (plan,options)=>{calls.push('quality');verifyOptions.push(options);return plan;}, addSelectedWaypoint: days => days,
+    app: {}, getLang: () => 'en', t,
     getFunctions: () => { calls.push('functions'); return {}; },
     httpsCallable: (_functions, name) => async () => { calls.push(name === 'getGenerationCredits' ? 'credits' : 'call'); if (error) throw error;
       return { data: name === 'getGenerationCredits' ? creditBalance === 'unlimited' ? { unlimited: true } : creditBalance && typeof creditBalance === 'object' ? creditBalance : { balance: creditBalance } : { days: generatedDays } }; }, console: { log() {}, error() {} } };
   vm.createContext(context);
   const run = vm.runInContext(`${source}\ngenerateOptimizedItinerary`, context);
   const getCredits = vm.runInContext('getGenerationCredits', context);
-  return { run, getCredits, calls };
+  return { run, getCredits, calls, verifyOptions };
 }
 const valid = () => ({ date: '2026-10-01', startTime: '09:00', endTime: '18:00', startLocation: '서울역', endLocation: '호텔', anchorSchedules: [] });
 
@@ -55,15 +55,31 @@ test('unknown server validation reason gets a safe generic message', async () =>
   await assert.rejects(app.run(valid()), error => !error.message.includes('<script>'));
 });
 
-test('auth errors still fail; network/quota errors still yield marked fallback results', async () => {
+test('auth errors fail and are not offered as a retry', async () => {
   for (const code of ['functions/unauthenticated', 'functions/permission-denied']) {
-    await assert.rejects(fixture({ code }).run(valid()), /session has expired/);
+    await assert.rejects(fixture({ code }).run(valid()), error => /session has expired/.test(error.message) && error.retryable !== true);
   }
-  for (const code of ['functions/unavailable', 'functions/resource-exhausted']) {
-    const result = await fixture({ code }).run(valid());
-    assert.equal(result.isFallback, true);
-    assert.equal(result.fallbackReason, code.endsWith('resource-exhausted') ? 'quota' : 'error');
+});
+
+test('AI call failures reject with a retryable message instead of a mock itinerary', async () => {
+  setLang('en');
+  for (const code of ['functions/internal', 'functions/unavailable', 'functions/resource-exhausted']) {
+    await assert.rejects(fixture({ code, message: 'Both models failed.' }).run(valid()), error => error.retryable === true && error.message === t('generationAiFailed'));
   }
+  // A timeout or a lost connection (the SDK's bare 'internal') may still finish on the server and hold the credit lease.
+  for (const error of [{ code: 'functions/deadline-exceeded', message: 'deadline-exceeded' }, { code: 'functions/internal', message: 'internal' }]) {
+    await assert.rejects(fixture(error).run(valid()), rejected => rejected.retryable === false && rejected.message === t('generationOutcomeUnknown'));
+  }
+  // The server already spent the credit on a returned plan, so a broken plan is not a one-tap retry.
+  await assert.rejects(fixture(null, 2, []).run(valid()), error => error.retryable === false && error.message === t('generationAiFailed'));
+  setLang('ko');
+});
+
+test('generation hands its stage callback to the map verification', async () => {
+  const app = fixture();
+  const onStage = () => {};
+  await app.run(valid(), { onStage });
+  assert.equal(app.verifyOptions[0]?.onStage, onStage);
 });
 
 test('empty generation credits fail instead of returning a mock itinerary, without promising ads', async () => {

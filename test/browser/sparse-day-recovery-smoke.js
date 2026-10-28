@@ -25,7 +25,9 @@ async page => {
   await page.evaluate(async()=>{
     const {verifyGeneratedItinerary}=await import('/src/domains/planner/services/generated-day-quality.js');
     const view=document.querySelector('itinerary-view');
-    const plan=await verifyGeneratedItinerary(view.currentItinerary);
+    const stages=[];
+    const plan=await verifyGeneratedItinerary(view.currentItinerary,{onStage:stage=>stages.push(stage)});
+    if(stages.join()!=='places,routes') throw Error('Generation did not report its places and routes stages');
     if(plan.days.some(day=>!day.scheduleItems.some(i=>i.gapFill))) throw Error('An unopened generated day was not verified');
     if(plan.days[0].scheduleItems.find(i=>i.title==='palace').time!=='09:00') throw Error('Generation ignored palace opening');
     view.state.open(plan);view.renderCurrentState();

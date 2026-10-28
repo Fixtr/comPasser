@@ -23,6 +23,8 @@ export function usePlanExitGuard(location, user) {
     };
     const ask = async proceed => {
       if (pending) return;
+      // A running generation asks to stop it instead, which keeps the inputs.
+      if (!window.dispatchEvent(new CustomEvent('plan-exit-requested', { cancelable: true }))) return;
       pending = true;
       const controller = new AbortController();
       dialog.current = controller;

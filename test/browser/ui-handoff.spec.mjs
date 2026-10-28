@@ -694,15 +694,14 @@ test('profile trips keep profile navigation; language is inside security; home i
 
 test('typed but unselected departure or arrival blocks generation until a search result is chosen',async({page})=>{
  await page.addInitScript(()=>{window.generationCalls=0});
- const form=await openExitTestForm(page);
+ const form=await openExitTestForm(page,{startLocation:'',endLocation:'',anchorSchedules:[{name:'Booked visit',day:1,time:'12:00',endTime:'13:00',location:'Paris'}]});
  await selectPlace(form.locator('#start-location'),'Paris Airport');await selectPlace(form.locator('.anchor-location').first(),'Louvre');
  // Typing fires only input, never gmp-select: the text stays unverified, like "인천국제공항" resolving to a seaport.
  await form.locator('#end-location').evaluate(element=>{element.value='Airport Terminal 1';element.dispatchEvent(new Event('input',{bubbles:true}))});
  await form.locator('button[type=submit].primary-btn').click();
- if(await form.locator('#final-generate').isVisible())await form.locator('#final-generate').click();
- await expect(page.getByText('장소를 확인하지 못했습니다. 검색에서 다시 선택해 주세요.').first()).toBeVisible();
+ await expect(form.locator('#review-issues')).toContainText('장소를 확인하지 못했습니다. 검색에서 다시 선택해 주세요.');await expect(form.locator('#final-generate')).toBeDisabled();
  expect(await page.evaluate(()=>window.generationCalls)).toBe(0);await expect(page).toHaveURL(/plan$/);
- if(await form.locator('#review-issues').isVisible())await form.locator('#review-issues button').first().click();
+ await form.locator('#review-issues button').first().click();
  await selectPlace(form.locator('#end-location'),'Paris Airport');
  await form.locator('button[type=submit].primary-btn').click();await form.locator('#final-generate').click();
  await expect(page).toHaveURL(/view$/);expect(await page.evaluate(()=>window.generationCalls)).toBe(1);
@@ -861,11 +860,12 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
   await expect(page.getByRole('button',{name:'서울',exact:true})).toBeVisible();
  });
 
-async function openExitTestForm(page) {
+async function openExitTestForm(page,extra={}) {
  await page.goto('/home');
- await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.save({date:['2030-10-17','2030-10-18'],country:'FRA',destination:{id:'paris',country:'FRA',name:'Paris, France'},theme:'food',budget:'standard',startTime:'09:00',endTime:'18:00',anchorSchedules:[{name:'Booked visit',day:1,time:'12:00',endTime:'13:00',location:'Paris'}],stays:[]}));
+ const draft={date:['2030-10-17','2030-10-18'],country:'FRA',destination:{id:'paris',country:'FRA',name:'Paris, France'},theme:'food',budget:'standard',startTime:'09:00',endTime:'18:00',startLocation:place,endLocation:place,anchorSchedules:[{name:'Booked visit',day:1,time:'12:00',endTime:'13:00',location:place}],stays:[],...extra};
+ await page.evaluate(async draft=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.save(draft),draft);
  await page.evaluate(()=>window.navigate('/plan'));
- await expect(page.locator('travel-form #start-time')).toHaveValue('09:00');
+ await expect(page.locator('travel-form #start-time')).toHaveValue(draft.startTime);
  return page.locator('travel-form');
 }
 async function expectEmptyPlanner(page) {
@@ -1153,21 +1153,124 @@ test('date edit action precedes theme edit and both fit in Korean and English', 
  }
 });
 
-for (const acceptExit of [true,false]) {
- test(`pending generation and exit confirmation remain consistent: leave=${acceptExit}`, async ({page}) => {
-  await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`export const getGenerationCredits=async()=>3;export const generateOptimizedItinerary=request=>new Promise(resolve=>{window.releaseGeneration=()=>resolve({...${JSON.stringify(trip.itineraryPlan)},request})})`}));
-  const form=await openExitTestForm(page);
-  await form.dispatchEvent('generate-itinerary',{detail:{date:['2030-10-17'],startTime:'09:00',endTime:'18:00',anchorSchedules:[]}});
+const slowGeneration=`export const getGenerationCredits=async()=>3;export const generateOptimizedItinerary=(request,{onStage}={})=>new Promise(resolve=>{window.generationCalls=(window.generationCalls||0)+1;window.stage=onStage;window.releaseGeneration=()=>resolve({...${JSON.stringify(trip.itineraryPlan)},request})})`;
+async function startGeneration(page,form) {
+ await form.evaluate(el=>el.showReview());
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await expect(page.getByRole('heading',{name:'여행 동선을 만들고 있습니다',exact:true})).toBeVisible();
+}
+
+test('generation shows which stage is running and how long it can take', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
+ const form=await openExitTestForm(page);await startGeneration(page,form);
+ const steps=page.locator('.ionic-generation-steps li');
+ await expect(steps).toHaveText(['일정 초안 만들기','장소 확인','이동시간 계산']);
+ await expect(steps.nth(0)).toHaveAttribute('aria-current','step');
+ await page.evaluate(()=>window.stage('places'));
+ await expect(steps.nth(1)).toHaveAttribute('aria-current','step');await expect(steps.nth(0)).not.toHaveAttribute('aria-current','step');
+ // Screen readers hear the stage as text in the status region; the list itself is visual.
+ await expect(page.locator('.ionic-generation .ionic-visually-hidden')).toHaveText('장소 확인');
+ await page.evaluate(()=>window.stage('routes'));await expect(steps.nth(2)).toHaveAttribute('aria-current','step');
+ await expect(page.locator('.ionic-generation')).toContainText('1분 넘게 걸릴 수도 있어요');
+});
+
+for (const back of ['button','history']) {
+ test(`Back during generation asks to stop instead of deleting inputs: ${back}`, async ({page}) => {
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
+  const form=await openExitTestForm(page);await startGeneration(page,form);
+  const goBack=()=>back==='button'?page.getByRole('button',{name:'← 뒤로',exact:true}).click():page.evaluate(()=>history.back());
+  await goBack();const dialog=page.getByRole('alertdialog');
+  await expect(dialog).toContainText('일정 만들기를 멈출까요?');await expect(dialog).not.toContainText('삭제');await expect(page).toHaveURL(/plan$/);
+  await dialog.getByRole('button',{name:'계속 기다리기',exact:true}).click();
   await expect(page.getByRole('heading',{name:'여행 동선을 만들고 있습니다',exact:true})).toBeVisible();
-  await page.evaluate(()=>window.navigate('/home'));await expect(page.getByRole('alertdialog')).toBeVisible();
-  if (acceptExit) {
-   await page.getByRole('button',{name:'예',exact:true}).click();await expect(page).toHaveURL(/home$/);
-   await page.evaluate(()=>window.releaseGeneration());await expectEmptyPlanner(page);await expect(page).toHaveURL(/home$/);
-  } else {
-   await page.evaluate(()=>window.releaseGeneration());await expect(page).toHaveURL(/view$/);await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  }
+  await goBack();await page.getByRole('alertdialog').getByRole('button',{name:'멈추기',exact:true}).click();
+  await expect(form.locator('#review-panel')).toBeVisible();await expect(form.locator('#review-panel')).toContainText('Booked visit');
+  await page.evaluate(()=>window.releaseGeneration());await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,200)));
+  await expect(page).toHaveURL(/plan$/);await expect(form.locator('#review-panel')).toBeVisible();
+  // The usual exit question is back once nothing is generating.
+  await page.evaluate(()=>window.navigate('/home'));await expect(page.getByRole('alertdialog')).toContainText('이 창을 나가면 입력값이 삭제됩니다');
+  await page.getByRole('button',{name:'예',exact:true}).click();await expect(page).toHaveURL(/home$/);await expectEmptyPlanner(page);
  });
 }
+
+test('a stopped generation ignores its late result even after leaving the planner', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
+ const form=await openExitTestForm(page);await startGeneration(page,form);
+ await page.evaluate(()=>window.navigate('/home'));await page.getByRole('alertdialog').getByRole('button',{name:'멈추기',exact:true}).click();
+ await expect(form.locator('#review-panel')).toBeVisible();
+ await page.evaluate(()=>window.navigate('/home'));await page.getByRole('button',{name:'예',exact:true}).click();await expect(page).toHaveURL(/home$/);
+ await page.evaluate(()=>window.releaseGeneration());await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,200)));
+ await expect(page).toHaveURL(/home$/);await expectEmptyPlanner(page);
+});
+
+test('the stop question leaves out credits for an unlimited account', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration.replace('getGenerationCredits=async()=>3','getGenerationCredits=async()=>"unlimited"')}));
+ const form=await openExitTestForm(page);await expect(form.locator('#travel-form > .credit-balance')).toContainText('무제한');await startGeneration(page,form);
+ await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await expect(page.getByRole('alertdialog')).toContainText('입력한 내용은 그대로 남아요');await expect(page.getByRole('alertdialog')).not.toContainText('생성권');
+});
+
+test('a result that arrives while the stop question is open still opens it', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
+ const form=await openExitTestForm(page);await startGeneration(page,form);
+ await page.getByRole('button',{name:'← 뒤로',exact:true}).click();await expect(page.getByRole('alertdialog')).toBeVisible();
+ await page.evaluate(()=>window.releaseGeneration());
+ await expect(page).toHaveURL(/view$/);await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
+test('an AI failure offers 다시 시도 with the same request and keeps the inputs', async ({page}) => {
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`export const getGenerationCredits=async()=>3;export async function generateOptimizedItinerary(request){window.generationRequests=(window.generationRequests||[]).concat([request]);if(window.generationRequests.length===1)throw Object.assign(new Error('AI가 일정을 만들지 못했어요.'),{retryable:true});return {...${JSON.stringify(trip.itineraryPlan)},request}}`}));
+ const form=await openExitTestForm(page);
+ await form.evaluate(el=>el.showReview());
+ await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
+ await expect(page.getByRole('heading',{name:'일정을 만들지 못했습니다',exact:true})).toBeVisible();
+ await expect(page.getByRole('alert').filter({hasText:'AI가 일정을 만들지 못했어요.'})).toBeVisible();await expect(page).toHaveURL(/plan$/);
+ expect(await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read().anchorSchedules[0].name)).toBe('Booked visit');
+ await page.getByRole('button',{name:'다시 시도',exact:true}).click();
+ await expect(page).toHaveURL(/view$/);
+ const requests=await page.evaluate(()=>window.generationRequests);expect(requests).toHaveLength(2);expect(requests[1]).toEqual(requests[0]);
+});
+
+test('the review lists every blocking field at once and keeps 일정 생성하기 off until they are fixed', async ({page}) => {
+ const form=await openExitTestForm(page,{startTime:'',endTime:'',startLocation:'',endLocation:'',anchorSchedules:[{name:'Booked visit',day:1,time:'12:00',endTime:'',location:place}]});
+ await form.locator('button[type=submit].primary-btn').click();
+ const review=form.locator('#review-panel'),issues=review.locator('#review-issues');
+ await expect(review).toContainText('시간 미입력 – 시간 미입력');
+ await expect(issues.locator('p')).toHaveCount(5);await expect(issues.getByRole('button',{name:'수정',exact:true})).toHaveCount(5);
+ for (const text of ['시작 시간','종료 시간','출발지','도착지','1번째 고정 일정']) await expect(issues).toContainText(text);
+ await expect(review.locator('#final-generate')).toBeDisabled();
+ await issues.getByRole('button',{name:'수정',exact:true}).nth(3).click();
+ await expect(form.locator('#travel-form')).toBeVisible();await expect(form.locator('#end-location')).toHaveAttribute('aria-invalid','true');
+ await form.locator('#start-time').fill('18:00');await form.locator('#end-time').fill('09:00');
+ await selectPlace(form.locator('#start-location'),'Paris Airport');await selectPlace(form.locator('#end-location'),'Paris Airport');
+ await form.locator('.anchor-end-time').first().fill('13:00');
+ await form.locator('button[type=submit].primary-btn').click();
+ await expect(issues.locator('p')).toHaveCount(1);await expect(issues).toContainText('종료 시간은 시작 시간보다 늦어야');await expect(review.locator('#final-generate')).toBeDisabled();
+ await issues.getByRole('button',{name:'수정',exact:true}).click();
+ await form.locator('#start-time').fill('09:00');await form.locator('#end-time').fill('18:00');
+ await form.locator('button[type=submit].primary-btn').click();
+ await expect(issues).toBeHidden();await expect(review.locator('#final-generate')).toBeEnabled();
+ await review.locator('#final-generate').click();await expect(page).toHaveURL(/view$/);expect(await page.evaluate(()=>window.generationCalls)).toBe(1);
+});
+
+test('the review offers automatic placement for a visit without times, and lists a stay past the trip once', async ({page}) => {
+ const form=await openExitTestForm(page,{anchorSchedules:[{name:'Booked visit',day:1,time:'',endTime:'',location:place}],stays:[{location:place,checkin:'2030-10-17',checkout:'2030-10-19'}]});
+ await form.locator('button[type=submit].primary-btn').click();
+ const issues=form.locator('#review-issues');
+ await expect(issues.locator('p')).toHaveCount(2);await expect(issues).toContainText('숙박 날짜');await expect(issues.locator('p').first()).not.toHaveText(/^:/);
+ await issues.getByRole('button',{name:'자동 배치로 변경',exact:true}).click();
+ await expect(issues.locator('p')).toHaveCount(1);
+ await issues.getByRole('button',{name:'수정',exact:true}).click();await expect(form.locator('.trip-stay .stay-checkin').first()).toHaveAttribute('aria-invalid','true');
+});
+
+test('a flight airport picked after its time fills the locked first departure', async ({page}) => {
+ const form=await openExitTestForm(page,{date:['2030-10-17'],startLocation:''});
+ await form.locator('#add-arrival-flight').click();await form.locator('#arrival-flight-time').fill('10:00');
+ await selectPlace(form.locator('#arrival-flight-airport'),'Paris Airport');
+ await expect.poll(()=>form.evaluate(element=>element.getFormData().startLocation?.placeId)).toBe('Paris Airport');
+ await form.locator('button[type=submit].primary-btn').click();
+ await expect(form.locator('#review-issues')).toBeHidden();await expect(form.locator('#final-generate')).toBeEnabled();
+});
 
 for (const [credits,shown,blocked] of [[0,'0장',true],['unlimited','무제한',false],['fail','확인 불가',false]]) {
  test(`credit balance leads the plan form and the review; only a known zero blocks generation: ${credits}`, async ({page}) => {
@@ -1192,7 +1295,7 @@ test('a failed generation re-reads the credit balance, so the returned review bl
  const form=await openExitTestForm(page);await expect(form.locator('#travel-form > .credit-balance')).toContainText('1장');
  await form.evaluate(el=>el.showReview());
  await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));
- await page.getByRole('button',{name:'입력으로 돌아가기'}).click();
+ await expect(page.getByRole('button',{name:'다시 시도'})).toHaveCount(0);await page.getByRole('button',{name:'입력으로 돌아가기'}).click();
  await expect(form.locator('#review-panel .credit-balance')).toContainText('0장');await expect(form.locator('#review-panel #final-generate')).toBeDisabled();
 });
 
@@ -1282,6 +1385,6 @@ test('flights fill and lock the first departure and last arrival; removing a fli
  expect(await form.evaluate(element=>element.getFormData().dailyTimes.map(day=>[day.startTime,day.endTime]))).toEqual([['11:00','21:00'],['09:00','18:00']]);
 
  form=await open(['2030-10-17']);await form.locator('#add-arrival-flight').click();
- await form.locator('button[type=submit].primary-btn').click();await form.locator('#final-generate').click();
- await expect(form.locator('#review-issues')).toContainText('항공편의 공항과 시각');expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
+ await form.locator('button[type=submit].primary-btn').click();await expect(form.locator('#final-generate')).toBeDisabled();
+ await expect(form.locator('#review-issues')).toContainText('도착편: 항공편의 공항과 시각');expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
 });

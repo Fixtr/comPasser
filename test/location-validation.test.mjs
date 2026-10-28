@@ -12,8 +12,7 @@
  *
  * 통과한 뒤가 더 나쁘다. 빈 채로 흘러가면 —
  *   · functions/itinerary-prompt.js 는 AI 에게 출발지를 **"Unknown"** 이라고 말하고
- *   · planner-constraints.mjs 의 경계 보정(`if (startLocation)`)이 통째로 꺼지며
- *   · gemini-fallback.mjs 는 조용히 **"Seoul, South Korea"** 로 바꿔 버린다.
+ *   · planner-constraints.mjs 의 경계 보정(`if (startLocation)`)이 통째로 꺼진다.
  * PRD 가 약속한 "경로 경계 무결성"이 소리 없이 사라지는 것이다.
  */
 import test from 'node:test';

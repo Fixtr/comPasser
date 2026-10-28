@@ -17,6 +17,9 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .shell-content preference-view, .shell-content travel-form, .shell-content profile-view, .shell-content account-deletion-status-view { display: block; width: 100%; }
 .ionic-form-hidden { display: none; }
 .ionic-generation { max-width: 32rem; margin: 18vh auto 0; text-align: center; }
+.ionic-generation-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin: 16px 0 8px; padding: 0; list-style: none; color: var(--cp-muted); }
+.ionic-generation-steps [aria-current="step"] { color: var(--cp-ink); font-weight: 700; }
+.ionic-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ionic-result-page { --background: var(--cp-sunken); }
 .ionic-result-desktop { display: grid; grid-template-columns: minmax(320px, 41%) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
 .ionic-desktop-schedule { min-width: 0; overflow-y: auto; background: var(--cp-surface); border-right: 1px solid var(--cp-rule-hard); }
