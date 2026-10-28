@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프라인에서 다시 연다', async ({ page, context }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: '고정 일정에서 시작하는 여행' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === 'activated');
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
 
@@ -18,10 +18,12 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
 
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: '고정 일정에서 시작하는 여행' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
   await page.goto('/share/abc123');
   await expect(page.locator('main.flow-page')).toContainText('오프라인');
   await expect(page.locator('itinerary-view,map-view')).toHaveCount(0);
+  // The privacy policy is not part of the app, so offline it must not open the app's not-found page.
+  await expect(page.goto('/privacy')).rejects.toThrow();
   // Public pages must not display a cached copy after the owner unpublishes.
   await expect(page.goto('/en/routes/curated-seoul')).rejects.toThrow();
 });

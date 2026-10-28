@@ -42,6 +42,9 @@ const pages = [
   ['/view', 'shellResult'],
 ];
 
+// An email sign-up stays signed out until verified, so it neither claims nor clears the guest's planner draft.
+const unverifiedEmail = user => !!user?.providerData?.some(provider => provider.providerId === 'password') && !user.emailVerified;
+
 function SettingsControls({ theme, onThemeChange, lang }) {
   const nextLang = lang === 'ko' ? 'en' : 'ko';
   return <div className="ionic-settings" role="group" aria-label={lang === 'ko' ? '화면 설정' : 'Display settings'}>
@@ -163,11 +166,10 @@ function Shell() {
   };
   useEffect(() => {
     if (missingFirebaseConfig.length) { plannerDraftStore.setUser(null); offlineTrips.setUser(null); return undefined; }
-    return subscribeToAuthChanges(user => { plannerDraftStore.setUser(user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true }); });
+    return subscribeToAuthChanges(user => { plannerDraftStore.setUser(unverifiedEmail(user) ? null : user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true }); });
   }, []);
   useEffect(() => {
-    if (!auth.user) return;
-    if (auth.user.providerData?.some(provider => provider.providerId === 'password') && !auth.user.emailVerified) void logout();
+    if (unverifiedEmail(auth.user)) void logout({ keepLocalData: true });
   }, [auth.user]);
   return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
 }

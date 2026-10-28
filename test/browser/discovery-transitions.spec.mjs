@@ -57,7 +57,7 @@ test('Japan city changes preserve the Ionic page and work through cached home na
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
-  await page.getByRole('button', { name: '추천 장소', exact: true }).click();
+  await page.getByRole('button', { name: '일정 만들기', exact: true }).click();
   await page.getByRole('heading', { name: '어느 나라로 떠날까요?' }).evaluate(heading => {
     window.originalRecommendPage = heading.closest('.ion-page');
     window.originalRecommendContent = heading.closest('ion-content');
@@ -74,7 +74,7 @@ test('Japan city changes preserve the Ionic page and work through cached home na
   }
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-  await page.getByRole('button', { name: '코스 추천', exact: true }).click();
+  await page.getByRole('button', { name: '코스 둘러보기', exact: true }).click();
   await page.locator('[data-course-country=JPN]').click();
   for (const city of ['tokyo', 'kyoto']) {
     await page.locator(`[data-course-city=${city}]`).click();
@@ -83,7 +83,7 @@ test('Japan city changes preserve the Ionic page and work through cached home na
   }
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-  await page.getByRole('button', { name: '추천 장소', exact: true }).click();
+  await page.getByRole('button', { name: '일정 만들기', exact: true }).click();
   await page.locator('[data-recommend-country=JPN]').click();
   await page.locator('[data-recommend-city=tokyo]').click();
   await expect(page.locator('.flow-place-row')).toHaveCount(3);
@@ -108,14 +108,14 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
     await page.emulateMedia({ reducedMotion });
     await recordScreenMotion(page);
     await page.goto('/home');
-    await page.getByRole('button', { name: '코스 추천', exact: true }).click();
+    await page.getByRole('button', { name: '코스 둘러보기', exact: true }).click();
     await page.locator('[data-course-country=JPN]').click();
     await page.locator('[data-course-city=tokyo]').click();
     await expect(page.locator('home-courses article')).toHaveCount(3);
     await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
     await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
     await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-    await page.getByRole('button', { name: '추천 장소', exact: true }).click();
+    await page.getByRole('button', { name: '일정 만들기', exact: true }).click();
     await page.locator('[data-recommend-country=JPN]').click();
     await page.locator('[data-recommend-city=kyoto]').click();
     await expect(page.locator('.flow-place-row')).toHaveCount(3);

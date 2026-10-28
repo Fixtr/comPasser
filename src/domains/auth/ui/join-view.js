@@ -5,6 +5,7 @@ import { showToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { icons } from '../../../ui/icons.js';
 import { getSafeReturnPath } from '../../../app/route-decision.mjs';
+import { PRIVACY_POLICY_URL } from '../../itinerary/services/share-url.mjs';
 
 export default class JoinView extends HTMLElement {
   constructor() {
@@ -85,6 +86,10 @@ export default class JoinView extends HTMLElement {
         <div id="error-msg"></div>
 
         <button id="email-signup-btn" class="auth-btn" data-i18n="joinWithEmail">${t('joinWithEmail')}</button>
+      </div>
+
+      <div class="login-link">
+        <a href="${PRIVACY_POLICY_URL}" target="_blank" rel="noopener noreferrer" data-i18n="authPrivacyLink">${t('authPrivacyLink')}</a>
       </div>
 
       <div class="login-link">

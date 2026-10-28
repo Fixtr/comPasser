@@ -1,5 +1,7 @@
 // 공개 웹 주소는 docs/PLAY_STORE.md의 배포 주소와 맞춘다.
 export const DEFAULT_PUBLIC_APP_URL = 'https://hackerton-48w.pages.dev';
+// Inside the native app a bare /privacy falls back to index.html, so the policy opens at its public address.
+export const PRIVACY_POLICY_URL = `${DEFAULT_PUBLIC_APP_URL}/privacy`;
 
 /** 앱 내부의 localhost 대신, 받는 사람이 열 수 있는 웹 공유 주소를 만든다. */
 export function buildSharedItineraryUrl(id, { origin, isNative = false, publicAppUrl } = {}) {

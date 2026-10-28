@@ -8,6 +8,7 @@ import { showErrorToast, showSuccessToast } from '../../../utils/toast.js';
 import { authStyles } from './auth-style.js';
 import { loadKakaoSdk } from '../../../utils/external-scripts.js';
 import { getSafeReturnPath } from '../../../app/route-decision.mjs';
+import { PRIVACY_POLICY_URL } from '../../itinerary/services/share-url.mjs';
 
 /**
  * Functions 핸들은 **쓸 때 만든다.**
@@ -147,6 +148,9 @@ export default class LoginView extends HTMLElement {
         </button>
       </div>
 
+      <div class="join-link">
+        <a href="${PRIVACY_POLICY_URL}" target="_blank" rel="noopener noreferrer" data-i18n="authPrivacyLink">${t('authPrivacyLink')}</a>
+      </div>
       <div class="join-link">
         <span data-i18n="loginNoAccount">${t('loginNoAccount')}</span> <a href="#" id="go-to-join" data-i18n="loginGoToJoin">${t('loginGoToJoin')}</a>
       </div>

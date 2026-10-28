@@ -51,7 +51,7 @@ test('코스는 나라와 도시를 고른 뒤 해당 도시만 표시하고 이
     export async function getPublicCourse() { return null; }
   ` }));
   await page.goto('/courses');
-  await expect(page.getByRole('heading', { name: '어느 나라로 떠날까요?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '어느 나라의 코스를 볼까요?' })).toBeVisible();
   await expect(page.locator('home-courses,public-courses')).toHaveCount(0);
   expect(await page.evaluate(() => window.courseLoads || 0)).toBe(0);
   const draft = await page.evaluate(() => sessionStorage.getItem('currentFormData'));
@@ -106,6 +106,7 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   await page.getByRole('link', { name: 'Plan with these places' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
   await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('Your places in Seoul (2) are still here. Log in to keep planning.');
   const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   expect(draft.startLocation).toBe('My hostel near Seoul Station');
   expect(draft.endLocation).toBe('');
@@ -210,6 +211,7 @@ test('휴대폰 결과 시트는 결과 화면에서는 닫히지 않고, 화면
   expect(await sheet.evaluate(modal => modal.dismiss())).toBe(false);
   await sheet.getByRole('button', { name: '새 일정 만들기' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fplan$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('일정을 만들고 저장하려면 로그인이 필요해요.');
   await expect(sheet).toBeHidden();
   await page.locator('login-view #email-input').last().click();
   await page.goBack();
@@ -277,6 +279,7 @@ test('게스트도 추천 장소를 선택하지 않고 로그인 후 취향 선
   await page.locator('[data-recommend-city=busan]').click();
   await page.getByRole('button', { name: '장소 선택 없이 다음', exact: true }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
   await page.locator('login-view #email-input').last().fill('test@example.com');
   await page.locator('login-view #password-input').last().fill('password');
   await page.locator('login-view #email-login-btn').last().click();
@@ -319,7 +322,7 @@ test('한국 recommend와 destination은 동일한 검색창과 장소 목록 �
 test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async()=> (await import('/src/utils/i18n.js')).setLang('en'));
-  await expect(page.getByRole('heading', { name: 'Build your trip around your plans' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AI plans your trip, day by day' })).toBeVisible();
   await page.getByRole('button', { name: 'Dark mode' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('body')).toHaveClass(/dark/);
@@ -327,7 +330,7 @@ test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.getByRole('heading', { name: 'Build your trip around your plans' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AI plans your trip, day by day' })).toBeVisible();
   await page.goto('/login');
   await expect(page.locator('login-view h2').last()).toHaveText('Log in');
   await page.goto('/share/abc123');
@@ -343,13 +346,25 @@ test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=k
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.getByRole('button', { name: '한국어', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
-  await expect(page.getByRole('heading', { name: '고정 일정에서 시작하는 여행' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
   expect((await page.getByRole('button', { name: '다크 모드', exact: true }).boundingBox()).x).toBeGreaterThan(200);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/login');
   await expect(page.locator('login-view h2').last()).toHaveText('로그인');
+  // A plain visit to the login page needs no reason line.
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveCount(0);
+  const privacy = page.locator('login-view a[data-i18n="authPrivacyLink"]').last();
+  await expect(privacy).toHaveText('개인정보처리방침');
+  await expect(privacy).toHaveAttribute('href', 'https://hackerton-48w.pages.dev/privacy');
+  await expect(privacy).toHaveAttribute('target', '_blank');
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await expect(privacy).toHaveText('Privacy Policy (in Korean)');
+  await page.goto('/join');
+  const joinPrivacy = page.locator('join-view a[data-i18n="authPrivacyLink"]').last();
+  await expect(joinPrivacy).toHaveText('Privacy Policy (in Korean)');
+  await expect(joinPrivacy).toHaveAttribute('href', 'https://hackerton-48w.pages.dev/privacy');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/home?lang=ko');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
   // Only the two app languages come from the address bar.
@@ -560,6 +575,7 @@ test('공개 여행자 코스를 가져오면 장소가 필수 방문지로 이�
   await expect(courses.getByText('Easy to walk')).toBeVisible();
   await courses.getByRole('button', { name: '이 코스로 일정 만들기' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('서울에서 고른 장소 2곳은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
   const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   expect(draft.anchorSchedules.map(stop => stop.name)).toEqual(['Museum', 'Cafe']);
   expect(draft.anchorSchedules.every(stop => stop.flexible && !stop.time)).toBe(true);
@@ -576,6 +592,40 @@ test('공개 코스가 없으면 게스트가 자기 코스를 공개하는 흐�
   await courses.scrollIntoViewIfNeeded();
   await courses.getByRole('button', { name: '내 일정에서 코스 공개하기' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('내 일정과 프로필은 로그인해야 볼 수 있어요.');
+});
+
+test('게스트가 내 일정·프로필 탭을 누르면 로그인 화면이 이유를 말한다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.goto('/home');
+  await page.locator('ion-tab-button[tab=trips]').click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('내 일정과 프로필은 로그인해야 볼 수 있어요.');
+  await page.goBack();
+  await page.locator('ion-tab-button[tab=profile]').click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Fpersonal$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('내 일정과 프로필은 로그인해야 볼 수 있어요.');
+});
+
+test('이메일로 가입해도 게스트가 고른 여행 계획이 남는다', async ({ page }) => {
+  const signUpModule = authModule
+    .replace('export async function signUpWithEmail() {}', "export async function signUpWithEmail() { notify({ uid: 'new-user', providerData: [{ providerId: 'password' }], emailVerified: false }); await new Promise(resolve => setTimeout(resolve, 50)); notify(null); }")
+    .replace('export async function logout() {', "export async function logout({ keepLocalData = false } = {}) { if (!keepLocalData) { localStorage.removeItem('compasser.planner.v1'); sessionStorage.removeItem('currentFormData'); sessionStorage.removeItem('userPreference'); }");
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: signUpModule }));
+  await page.goto('/recommend');
+  await page.locator('[data-recommend-country=KOR]').click();
+  await page.locator('[data-recommend-city=busan]').click();
+  await page.getByRole('button', { name: '장소 선택 없이 다음', exact: true }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  await page.locator('login-view #go-to-join').last().click();
+  await expect(page).toHaveURL(/\/join\?next=%2Fpreference%2F1$/);
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
+  await page.locator('join-view #email-input').last().fill('new@example.com');
+  await page.locator('join-view #password-input').last().fill('password');
+  await page.locator('join-view #email-signup-btn').last().click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1') || 'null')?.draft?.destination?.id)).toBe('busan');
+  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
 });
 
 test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·삭제한다', async ({ page }, testInfo) => {
@@ -661,7 +711,7 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });
 
-test('홈은 장소와 코스 두 진입 버튼을 제공하고 새 일정 바로가기는 없다', async ({ page }, testInfo) => {
+test('홈은 일정 만들기와 코스 둘러보기 두 진입 버튼을 제공하고 새 일정 바로가기는 없다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/home');
   const preview = page.locator('.travel-globe');
@@ -670,7 +720,7 @@ test('홈은 장소와 코스 두 진입 버튼을 제공하고 새 일정 바�
   const actions = page.locator('.ionic-home-links');
   await expect(actions.locator('.ionic-home-new')).toHaveCount(0);
   await expect(actions.locator('button')).toHaveCount(2);
-  await expect(actions.locator('button')).toHaveText(['추천 장소', '코스 추천']);
+  await expect(actions.locator('button')).toHaveText(['일정 만들기', '코스 둘러보기']);
   const desktop = await actions.locator('button').evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().top));
   expect(new Set(desktop).size).toBe(1);
   await expect(page.locator('.ionic-home-links a[href="/en/routes"]')).toHaveCount(0);
@@ -681,14 +731,14 @@ test('홈은 장소와 코스 두 진입 버튼을 제공하고 새 일정 바�
   expect(mobile[0].top).toBe(mobile[1].top);
   expect(Math.abs(mobile[0].width-mobile[1].width)).toBeLessThan(1);
   await page.screenshot({ path: testInfo.outputPath('home-mobile.png'), fullPage: true });
-  await actions.getByRole('button', { name: '추천 장소', exact: true }).click();
+  await actions.getByRole('button', { name: '일정 만들기', exact: true }).click();
   await expect(page).toHaveURL(/\/recommend$/);
 });
 
 test('기존 /home?review= 링크는 /courses?review= 로 리다이렉트된다', async ({ page }) => {
   await page.goto('/home?review=route123');
   await expect(page).toHaveURL(/\/courses\?review=route123$/);
-  await expect(page.getByRole('heading', {name: '어느 나라로 떠날까요?'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: '어느 나라의 코스를 볼까요?'})).toBeVisible();
   await chooseCourseCity(page);
   await expect(page.locator('public-courses:visible')).toBeVisible();
 });
@@ -712,7 +762,7 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
   await page.getByRole('button', { name: '← Back', exact: true }).click();
   await expect(page.locator('[data-course-city]')).toHaveCount(2);
   await page.goto('/courses?review=missingRoute');
-  await expect(page.getByRole('heading', { name: 'Choose a country' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a country to browse routes', exact: true })).toBeVisible();
   await expect(page.locator('public-courses')).toHaveCount(0);
 });
 
