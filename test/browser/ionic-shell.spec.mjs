@@ -238,7 +238,8 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   await page.goto('/en/routes/curated-seoul');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Seoul');
-  await expect(page.getByText('English menu: Not checked').first()).toBeVisible();
+  // Curated stops have no checked menu data, so the page no longer says 'Not checked' for each one.
+  await expect(page.getByText('English menu: Not checked')).toHaveCount(0);
   await page.getByRole('button', { name: 'Copy local address' }).first().click();
   expect(await page.evaluate(() => window.copiedAddress)).toContain('서울');
   expect(await page.locator('.qr').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
@@ -263,6 +264,23 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   await page.locator('login-view #email-login-btn').last().click();
   await expect(page).toHaveURL(/\/preference\/1$/);
   expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation)).toBe(draft.startLocation);
+});
+
+test('영문 루트 목록은 도시로 바로 이동하고 카드 어디를 눌러도 그 루트가 열린다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/routes');
+  await expect(page).toHaveTitle('Short travel routes for your first days in a new city | ComPasser');
+  await page.getByRole('navigation', { name: 'Cities' }).getByRole('link', { name: 'Tokyo', exact: true }).click();
+  await expect(page).toHaveURL(/#city-tokyo$/);
+  const tokyo = page.locator('#city-tokyo');
+  await expect(tokyo.getByRole('heading', { name: 'Tokyo', exact: true })).toBeInViewport();
+  // The route line, not only the title link, opens the route: the link's overlay takes a real click there.
+  const line = await tokyo.locator('.card p').first().boundingBox();
+  await page.mouse.click(line.x + line.width / 2, line.y + line.height / 2);
+  await expect(page).toHaveURL(/\/en\/routes\/curated-tokyo$/);
+  await expect(page.getByText('浅草寺', { exact: true })).toHaveAttribute('lang', 'ja');
+  await expect(page.getByRole('link', { name: 'Open in Google Maps' }).first()).toHaveAttribute('href', /google\.com\/maps\/search/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('영문 여행자 코스 가져오기 실패는 로그인으로 보내지 않고 다시 시도할 수 있다', async ({ page }) => {
