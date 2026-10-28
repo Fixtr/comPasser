@@ -380,6 +380,39 @@ test('느린 공유 링크는 시트에 불러오는 중을 보여 주고, 없�
   await expect(page.locator('map-view #loading-overlay')).toHaveAttribute('aria-hidden', 'true');
 });
 
+test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주고, 다시 연결되면 스스로 다시 불러온다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const offline = () => { if (!navigator.onLine) throw new Error('Failed to get documents from server'); };
+    export async function listPublicCourses() { offline(); window.courseLoads = (window.courseLoads || 0) + 1;
+      return { courses: [{ id: 'walk1', ownerId: 'another-user', title: 'Palace walk', review: '', stops: [{ name: '경복궁', location: '경복궁, 서울 종로구', stayMinutes: 60 }] }], hasMore: false }; }
+    export async function getPublicCourse() { return null; }
+    export async function listCourseReviews() { offline(); return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { offline(); return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/courses');
+  await chooseCourseCity(page);
+  const courses = page.locator('public-courses:visible');
+  await expect(courses.getByText('Palace walk')).toBeVisible();
+  // The installed app has every chunk precached; the dev server does not, so load the panel first.
+  await page.evaluate(() => import('/src/domains/planner/ui/course-reviews.js'));
+  await page.context().setOffline(true);
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.locator('[data-course-city=seoul]').click();
+  await expect(courses.getByText('오프라인이라 이미 불러온 코스를 보여 주고 있어요.', { exact: false })).toBeVisible();
+  await expect(courses.getByText('Palace walk')).toBeVisible();
+  await expect(courses.getByRole('button', { name: '다시 시도' })).toHaveCount(0);
+  await courses.getByRole('button', { name: '여행자 후기 보기·작성' }).click();
+  await expect(courses.locator('course-reviews').getByRole('status')).toHaveText('오프라인이에요. 연결되면 다시 불러올게요.');
+  const loads = await page.evaluate(() => window.courseLoads);
+  await page.context().setOffline(false);
+  await expect.poll(() => page.evaluate(() => window.courseLoads)).toBe(loads + 1);
+  await expect(courses.getByText('오프라인이라', { exact: false })).toHaveCount(0);
+  await expect(courses.getByText('Palace walk')).toBeVisible();
+  // The re-rendered list opens the review panel the user had open, and it loads now.
+  await expect(courses.locator('course-reviews')).toContainText('아직 여행자 후기가 없습니다.');
+});
+
 test('결과 화면 모듈을 받지 못하면 불러오는 중 대신 다시 불러오기를 보여 준다', async ({ page }) => {
   await page.route('**/src/domains/itinerary/ui/itinerary-view.js', route => route.abort());
   await page.goto('/share/abc123');
