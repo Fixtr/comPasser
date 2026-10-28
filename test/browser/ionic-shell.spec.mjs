@@ -394,8 +394,13 @@ test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주�
   await chooseCourseCity(page);
   const courses = page.locator('public-courses:visible');
   await expect(courses.getByText('Palace walk')).toBeVisible();
-  // The installed app has every chunk precached; the dev server does not, so load the panel first.
-  await page.evaluate(() => import('/src/domains/planner/ui/course-reviews.js'));
+  // The installed app has every chunk precached; the dev server does not, so open and close the
+  // panel once online, through the app's own import, before going offline.
+  const toggle = courses.getByRole('button', { name: '여행자 후기 보기·작성' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(courses.locator('course-reviews')).toHaveCount(0);
   await page.context().setOffline(true);
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
   await page.locator('[data-course-city=seoul]').click();
