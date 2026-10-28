@@ -1,4 +1,6 @@
 import { normalizeData } from './itinerary-normalize.mjs';
+import { destinationById } from '../../planner/services/travel-destinations.mjs';
+import { tFor } from '../../../utils/i18n.js';
 
 /**
  * 저장된 일정을 목록에서 구분할 수 있는 제목을 만든다.
@@ -8,7 +10,8 @@ import { normalizeData } from './itinerary-normalize.mjs';
  * 아니다). 여행 날짜와 실제 방문지를 조합해 한눈에 구분되게 한다.
  *
  * 출발/도착 지점은 대개 호텔·공항이라 변별력이 없으므로 제외하고,
- * 실제 방문지(관광/식사/필수 일정)를 기준으로 삼는다.
+ * 실제 방문지(관광/식사/필수 일정)를 기준으로 삼는다. 여행 도시를 알면
+ * 맨 앞에 붙인다 — 날짜·일수가 같은 서울 여행과 도쿄 여행을 가려야 한다.
  */
 
 const SKIPPED_TYPES = new Set(['departure', 'arrival']);
@@ -49,12 +52,25 @@ function realStopTitles(days) {
   return titles;
 }
 
+/** 일정 요청에 담긴 카탈로그 도시 이름. 도시 정보가 없는 예전 일정은 ''. */
+export function itineraryCity(itinerary, language = 'ko') {
+  const request = itinerary?.itineraryPlan?.request || itinerary?.request;
+  const city = destinationById(request?.destination?.id);
+  return city ? tFor(city.key, language === 'ko' ? 'ko' : 'en') : '';
+}
+
 /**
  * @param {object} itinerary 저장 대상 일정({request, days} 또는 {itineraryPlan})
  * @param {string} [language] 'ko' | 'en'
- * @returns {string} 예: "8월 20일 · 경복궁 외 3곳", "8월 20일~22일 · 3일 여행"
+ * @returns {string} 예: "서울 · 8월 20일 · 경복궁 외 3곳", "8월 20일~8월 22일 · 2박 3일"
  */
 export function buildItineraryTitle(itinerary, language = 'ko') {
+  const city = itineraryCity(itinerary, language);
+  const title = datedTitle(itinerary, language);
+  return city ? `${city} · ${title}` : title;
+}
+
+function datedTitle(itinerary, language) {
   const isKo = language === 'ko';
   const plan = normalizeData(itinerary);
   const days = Array.isArray(plan?.days) ? plan.days : [];

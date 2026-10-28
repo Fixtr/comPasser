@@ -54,6 +54,7 @@
 
 ## Image Export
 
+- New saved titles lead with the trip's catalogue city when `request.destination.id` names one (`itineraryCity`), e.g. '서울 · 8월 20일~8월 22일 · 2박 3일'. Stored titles are never rewritten; the trip list adds the city to a card's date line when its title (saved earlier, renamed, or in the other language) does not name it.
 - Boundary items with `stayUnsetLabel` (a night without a stay) render the label instead of the English destination name, omit reviews/directions and the resolved-place line, are skipped by the next-stop panel, and give the ticket FROM/TO. Saved and shared snapshots made before this keep their stored titles.
 - `ui/itinerary-image-export.js` owns the temporary ticket DOM, light-theme capture, native share/download fallback, and cleanup. It takes a state snapshot's plan and selected day plus language/labels; it does not read the active view or mutate itinerary state.
 - `itinerary-view.js` only supplies the snapshot and handles button state and result/error messages. Cancellation is a separate result: it must not start a download or announce a successful share.

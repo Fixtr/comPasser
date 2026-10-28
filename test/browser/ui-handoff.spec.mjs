@@ -1390,3 +1390,14 @@ test('flights fill and lock the first departure and last arrival; removing a fli
  await form.locator('button[type=submit].primary-btn').click();await expect(form.locator('#final-generate')).toBeDisabled();
  await expect(form.locator('#review-issues')).toContainText('도착편: 항공편의 공항과 시각');expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
 });
+
+test('Back from the phone result sheet lands focus on the trip list heading, not the page body', async ({page}) => {
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/profile/trips');
+ const profile=page.locator('profile-view[data-active]');
+ await profile.locator('.btn-view').click();
+ await expect(page.locator('itinerary-view:visible').first()).toBeVisible();
+ await page.goBack();
+ await expect(page).toHaveURL(/\/profile\/trips$/);
+ await expect.poll(()=>page.evaluate(()=>{const host=document.activeElement;return host?.tagName==='PROFILE-VIEW'?host.shadowRoot.activeElement?.tagName:host?.tagName;})).toMatch(/^H[12]$/);
+});

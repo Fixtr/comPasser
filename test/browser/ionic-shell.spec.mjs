@@ -126,6 +126,91 @@ test('코스·추천에서 고른 나라와 도시는 주소에 남아 뒤로가
   await expect(page.locator('[data-recommend-country=KOR]')).toBeVisible();
 });
 
+test('화면과 단계가 바뀌면 새 제목으로 포커스가 가고 탭 제목도 그 화면을 말한다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [{ id: 'walk1', ownerId: 'another-user', title: 'Palace walk', review: '', stops: [{ name: '경복궁', location: '경복궁, 서울 종로구', stayMinutes: 60 }] }], hasMore: false }; }
+    export async function getPublicCourse() { return null; }
+    export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/home');
+  await expect(page).toHaveTitle('ComPasser');
+  await page.getByRole('button', { name: '코스 둘러보기' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: '어느 나라의 코스를 볼까요?' })).toBeFocused();
+  await expect(page).toHaveTitle('코스 둘러보기 · ComPasser');
+  await page.locator('[data-course-country=KOR]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: '어느 도시가 끌리나요?' })).toBeFocused();
+  await page.locator('[data-course-city=seoul]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: '둘러볼 코스', exact: true })).toBeFocused();
+  await expect(page).toHaveTitle('서울 · 코스 둘러보기 · ComPasser');
+  const reviews = page.locator('public-courses:visible').getByRole('button', { name: '여행자 후기 보기·작성' });
+  await reviews.focus();
+  await page.keyboard.press('Enter');
+  await expect(reviews).toHaveAttribute('aria-expanded', 'true');
+  await expect(reviews).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: '어느 도시가 끌리나요?' })).toBeFocused();
+  await expect(page).toHaveTitle('코스 둘러보기 · ComPasser');
+
+  await page.goto('/recommend?country=KOR');
+  await page.locator('[data-recommend-city=busan]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: '꼭 갈 장소', exact: true })).toBeFocused();
+  await expect(page).toHaveTitle('부산 · 일정 만들기 · ComPasser');
+  // Domain views keep their heading in a shadow root; route changes still land there.
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/recommend\?country=KOR$/);
+  await expect(page.getByRole('button', { name: '← 뒤로', exact: true })).toBeFocused();
+  await page.evaluate(() => window.navigate('/login'));
+  await expect(page.locator('login-view:visible h2').first()).toBeFocused();
+  await expect(page).toHaveTitle('로그인 · ComPasser');
+  // Before the user does anything, even a redirect (guest deep link to trips → login) keeps the
+  // starting focus. Playwright's Chromium reports earlier activity from the start, so the new tab
+  // reports none, as a real browser does for a typed or pasted address.
+  const fresh = await page.context().newPage();
+  await fresh.addInitScript(() => Object.defineProperty(navigator, 'userActivation', { value: { hasBeenActive: false } }));
+  await fresh.goto('/profile/trips');
+  await expect(fresh).toHaveURL(/\/login\?next=/);
+  await expect(fresh.locator('login-view:visible h2').first()).toBeVisible();
+  await fresh.waitForTimeout(1200);
+  expect(await fresh.evaluate(() => document.activeElement === document.body)).toBe(true);
+  await page.goto('/no-such-page?lang=en');
+  await expect(page).toHaveTitle('Page not found · ComPasser');
+});
+
+test('내 일정 카드는 제목에 도시가 없을 때 날짜 줄에 도시를 보여 주고, 이름을 바꾸면 다시 판단한다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
+  await page.route('**/src/lib/firestore-lazy.mjs', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function loadFirestore() { return { db: {}, doc: () => ({}), getDoc: async () => ({ exists: () => false }) }; }' }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const plan = id => ({ request: { destination: { id } }, days: [{ date: '2026-08-20', scheduleItems: [{ type: 'attraction', title: 'Walk' }] }] });
+    export async function getUserItineraries() { return [
+      { id: 'old', title: '8월 20일 · Walk', itineraryPlan: plan('tokyo') },
+      { id: 'new', title: '서울 · 8월 20일 · Walk', itineraryPlan: plan('seoul') },
+      { id: 'english', title: 'Busan · 08/20 · Walk', itineraryPlan: plan('busan') },
+    ]; }
+    export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+    export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
+    export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
+    export async function watchSharedItinerary() {} export async function getItineraryById() {}
+  ` }));
+  await page.goto('/profile/trips');
+  const cards = page.locator('profile-view:visible .trip-card');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0).locator('.trip-city')).toHaveText('도쿄 · ');
+  await expect(cards.nth(1).locator('.trip-city')).toHaveText('');
+  await expect(cards.nth(2).locator('.trip-city')).toHaveText('');
+  await cards.nth(0).locator('.btn-rename').click();
+  await cards.nth(0).locator('.rename-input').fill('도쿄 첫 산책');
+  await cards.nth(0).locator('.btn-rename-save').click();
+  await expect(cards.nth(0).locator('.trip-title')).toHaveText('도쿄 첫 산책');
+  await expect(cards.nth(0).locator('.trip-city')).toHaveText('');
+});
+
 test('알림은 화면 위쪽에 하나만 떠서 아래쪽 버튼도 위쪽 뒤로 버튼도 가리지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/courses');

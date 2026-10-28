@@ -162,14 +162,16 @@ class PublicCourses extends HTMLElement {
       reviews.onclick = async () => {
         const old = article.querySelector('course-reviews');
         if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); article.classList.remove('reviewing'); return; }
-        reviews.disabled = true;
+        // aria-busy, not disabled: a disabled button drops keyboard focus to the page body.
+        if (reviews.getAttribute('aria-busy') === 'true') return;
+        reviews.setAttribute('aria-busy', 'true');
         try {
           await import('./course-reviews.js');
           if (!article.isConnected) return;
           const panel = document.createElement('course-reviews'); panel.course = course;
           article.append(panel); reviews.setAttribute('aria-expanded', 'true'); article.classList.add('reviewing');
         } catch { reviews.textContent = t('courseReviewsError'); }
-        finally { reviews.disabled = false; }
+        finally { reviews.removeAttribute('aria-busy'); }
       };
       article.append(label, title, stops, review, action, reviews);
       const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);

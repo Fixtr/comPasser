@@ -26,7 +26,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const [busy, setBusy] = useState(false);
   const search = useRef(null);
   const version = useRef(0);
-  const stageRef = useStageTransition(city?.id || country || 'country');
+  const stageRef = useStageTransition(city?.id || country || 'country', { focusOnMount: embedded });
   const save = changes => setDraft(plannerDraftStore.save({ ...read(), step: '/destination', ...changes }));
   const selected = draft.anchorSchedules;
   useEffect(() => {

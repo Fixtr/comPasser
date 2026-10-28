@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
+import { buildItineraryTitle, itineraryCity } from '../src/domains/itinerary/services/itinerary-title.mjs';
 
 const day = (date, ...items) => ({ date, scheduleItems: items });
 const stop = (title, type = 'attraction') => ({ type, title });
@@ -59,4 +59,16 @@ test('missing or malformed data yields a safe generic title', () => {
 test('same start and end date is treated as a single day, not a range', () => {
   const itinerary = { days: [day('2026-08-20', stop('경복궁'))] };
   assert.equal(buildItineraryTitle(itinerary), '8월 20일 · 경복궁');
+});
+
+test('a trip whose request names a catalogue city leads with that city', () => {
+  const days = [day('2026-08-20'), day('2026-08-21'), day('2026-08-22')];
+  const seoul = { request: { destination: { id: 'seoul', name: 'Seoul, South Korea' } }, days };
+  const tokyo = { itineraryPlan: { request: { destination: { id: 'tokyo' } }, days } };
+  assert.equal(buildItineraryTitle(seoul), '서울 · 8월 20일~8월 22일 · 2박 3일');
+  assert.equal(buildItineraryTitle(tokyo, 'en'), 'Tokyo · 08/20–08/22 · 3 days');
+  assert.equal(itineraryCity(tokyo), '도쿄');
+  // An unknown id or a plan from before destinations were stored keeps the old title.
+  assert.equal(itineraryCity({ request: { destination: { id: 'atlantis' } }, days }), '');
+  assert.equal(buildItineraryTitle({ request: {}, days }), '8월 20일~8월 22일 · 2박 3일');
 });
