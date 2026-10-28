@@ -113,13 +113,13 @@ test('홈 추천에서 로그인해도 날짜 선택을 건너뛰지 않는다',
   assert.equal(isPublicPath('/preference/1'), false);
   assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true,
     hasPreference: true, returnTo: '/preference/1' }), { action: 'redirect', to: '/preference/1' });
-  for (const value of ['/preference/3', '/preference/1?next=https://evil.example', '/preference/1/']) {
+  for (const value of ['/preference/3', '/preference/1?next=https://evil.example', '/preference/1/', '/courses?country=KOR&city=seoul', '/courses?city=seoul&country=KOR&review=route123']) {
     assert.equal(getSafeReturnPath(value), null);
   }
 });
 
 test('커뮤니티 후기·코스 공개 로그인은 지정한 내부 화면으로 복귀한다', () => {
-  for (const value of ['/home', '/home?review=route123', '/recommend', '/courses', '/courses?review=route123', '/profile/trips', '/profile/personal?tab=trips']) {
+  for (const value of ['/home', '/home?review=route123', '/recommend', '/courses', '/courses?review=route123', '/courses?country=KOR&city=seoul&review=route123', '/profile/trips', '/profile/personal?tab=trips']) {
     assert.equal(getSafeReturnPath(value), value);
     assert.deepEqual(decideRoute({ path: '/login', user: { uid: 'u1' }, authSettled: true, returnTo: value }), { action: 'redirect', to: value });
     assert.equal(getSafeReturnPath(`${value}?delete=true`), null);

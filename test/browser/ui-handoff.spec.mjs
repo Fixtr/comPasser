@@ -88,7 +88,9 @@ test('refresh remembers recent results through errors and cached returns, bounds
   expect(new Set(capped.map(place=>place.placeId)).size).toBe(20);
   expect(capped.every(place=>Object.keys(place).sort().join(',')==='displayName,placeId')).toBe(true);
   await page.evaluate(()=>window.navigate('/home'));await expect(page).toHaveURL(/home$/);
-  await page.evaluate(path=>window.navigate(path),path);await expect(page).toHaveURL(new RegExp(path+'$'));
+  // /recommend keeps its city in the address; the bare path would open the country step.
+  const cached=path==='/recommend'?'/recommend?country=KOR&city=seoul':path;
+  await page.evaluate(target=>window.navigate(target),cached);await expect(page).toHaveURL(new RegExp(cached.replace('?','\\?')+'$'));
   await widget.locator('.ai-place-controls button').click();await expect(widget.locator('.ai-place-card')).toHaveCount(1);
   expect(await page.evaluate(()=>window.aiRequests.at(-1).excludedPlaces.length)).toBe(20);
   await widget.getByRole('button',{name:'산책',exact:true}).click();
@@ -198,7 +200,7 @@ test('pending AI requests cannot apply after the visit date changes or cached na
  await widget.getByRole('button',{name:'AI 추천 받기',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.aiRequests.length)).toBe(2);
  const draft=await page.evaluate(()=>sessionStorage.getItem('currentFormData'));
  await page.evaluate(()=>window.navigate('/home'));await expect(page).toHaveURL(/home$/);await page.evaluate(()=>window.releaseAI());
- await page.getByRole('button',{name:'일정 만들기',exact:true}).click();await expect(page).toHaveURL(/recommend$/);
+ await page.goBack();await expect(page).toHaveURL(/recommend\?country=KOR&city=seoul$/);
  await expect(widget.locator('.ai-place-card')).toHaveCount(0);expect(await page.evaluate(()=>sessionStorage.getItem('currentFormData'))).toBe(draft);
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toBeVisible();
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toHaveAttribute('aria-pressed','true');

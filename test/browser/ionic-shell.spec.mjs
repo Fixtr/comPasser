@@ -85,6 +85,65 @@ test('코스는 나라와 도시를 고른 뒤 해당 도시만 표시하고 이
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('코스·추천에서 고른 나라와 도시는 주소에 남아 뒤로가기와 새로고침에도 유지되고 Esc 로 페이지를 떠나지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return { courses: [], hasMore: false }; } export async function getPublicCourse() { return null; }' }));
+  await page.goto('/home');
+  await page.getByRole('button', { name: '코스 둘러보기' }).click();
+  await chooseCourseCity(page);
+  await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).focus();
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
+  await page.reload();
+  await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'seoul');
+  await page.goBack();
+  await expect(page.locator('[data-course-city]:visible')).toHaveCount(6);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: '어느 나라의 코스를 볼까요?' })).toBeVisible();
+  await page.goForward();
+  await page.goForward();
+  await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'seoul');
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await expect(page).toHaveURL(/\/courses\?country=KOR$/);
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await expect(page).toHaveURL(/\/courses$/);
+
+  await page.goto('/recommend?country=JPN&city=seoul');
+  await expect(page.locator('[data-recommend-city]')).toHaveCount(2);
+  await page.goto('/recommend?country=nope');
+  await expect(page.locator('[data-recommend-country=KOR]')).toBeVisible();
+  await page.locator('[data-recommend-country=KOR]').click();
+  await page.locator('[data-recommend-city=seoul]').click();
+  await expect(page).toHaveURL(/\/recommend\?country=KOR&city=seoul$/);
+  await page.reload();
+  await expect(page.locator('[data-recommend-city]')).toHaveCount(0);
+  await expect(page).toHaveURL(/city=seoul$/);
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await expect(page.locator('[data-recommend-city]')).toHaveCount(6);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/recommend\?country=nope$/);
+  await expect(page.locator('[data-recommend-country=KOR]')).toBeVisible();
+});
+
+test('알림은 화면 위쪽에 하나만 떠서 아래쪽 버튼도 위쪽 뒤로 버튼도 가리지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/courses');
+  await page.evaluate(async () => {
+    const { showErrorToast } = await import('/src/utils/toast.js');
+    showErrorToast('첫 번째 오류');
+    showErrorToast('두 번째 오류');
+  });
+  const toast = page.locator('#app-toast-container .app-toast');
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toHaveText('두 번째 오류');
+  // The container, not the toast: the toast slides in, so its box moves for 0.2s.
+  const box = await page.locator('#app-toast-container').boundingBox();
+  const back = await page.getByRole('button', { name: '← 뒤로', exact: true }).boundingBox();
+  expect(box.y).toBeLessThan(844 / 4);
+  expect(box.y).toBeGreaterThanOrEqual(back.y + back.height);
+});
+
 test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 방문지를 로그인까지 유지한다', async ({ page }, testInfo) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.addInitScript(() => {
@@ -658,7 +717,7 @@ test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·�
   await page.locator('login-view #email-input').last().fill('test@example.com');
   await page.locator('login-view #password-input').last().fill('password');
   await page.locator('login-view #email-login-btn').last().click();
-  await expect(page).toHaveURL(/\/courses\?review=reviewRoute$/);
+  await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul&review=reviewRoute$/);
   await reviews.locator('input[name=visitDate]').fill('2020-01-01');
   await reviews.locator('input[name=walkingKm]').fill('3.5');
   await reviews.locator('input[name=spentWon]').fill('20000');

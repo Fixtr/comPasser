@@ -687,7 +687,8 @@ class ProfileView extends HTMLElement {
                             }
                         } catch (logoutError) {
                             console.error('Re-login preparation failed:', logoutError);
-                            if (getCurrentUser()?.uid === user.uid) showErrorToast(t('accountDeletionSignOutFailed'));
+                            // 토스트는 한 번에 하나라, 앞의 재로그인 안내를 함께 담는다.
+                            if (getCurrentUser()?.uid === user.uid) showErrorToast(`${t('accountDeletionSignInRequired')} ${t('accountDeletionSignOutFailed')}`, { duration: 8000 });
                         }
                     } else {
                         showErrorToast(t(err.deletionStatusUnknown ? 'accountDeletionUnknown' : 'accountDeletionCheckFailed'));

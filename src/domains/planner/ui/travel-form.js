@@ -1679,12 +1679,13 @@ export default class TravelForm extends HTMLElement {
    * 그리고 그 칸에 표시를 남긴다(aria-invalid — 보조기기도 읽는다).
    */
   _revealInvalidField(control, message) {
-    if (message) showErrorToast(message);
+    // The review lists the issue inline, so a toast there would only repeat it and outlive the fix.
     if (this.reviewing) {
       this._showReviewIssues([{ control, message }], true);
       this.shadowRoot.getElementById('review-issues').scrollIntoView({ block: 'center', behavior: 'auto' });
       return;
     }
+    if (message) showErrorToast(message);
     if (!control) return;
     // 표시는 늘 한 칸에만. 앞서 걸렸던 칸을 그대로 두면 "지금 막고 있는 것"이
     // 둘로 보인다 — 값이 코드로 바뀌어 input 이 안 뜬 경우에도 남는다.

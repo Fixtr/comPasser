@@ -79,7 +79,10 @@ class CourseReviews extends HTMLElement {
     const user = getCurrentUser();
     if (!user) {
       const login = document.createElement('button'); login.textContent = t('courseReviewLogin');
-      login.onclick = () => window.navigate(`/login?next=${encodeURIComponent(`/courses?review=${this.course.id}`)}`); root.append(login); return;
+      // Return to the same country and city: the kept /courses page shows whatever its address says.
+      const here = new URLSearchParams(window.location.search);
+      const place = here.get('city') ? { country: here.get('country'), city: here.get('city') } : {};
+      login.onclick = () => window.navigate(`/login?next=${encodeURIComponent(`/courses?${new URLSearchParams({ ...place, review: this.course.id })}`)}`); root.append(login); return;
     }
     if (user.uid === this.course.ownerId) { const note = document.createElement('p'); note.textContent = t('courseReviewOwnerHint'); root.append(note); return; }
     const form = document.createElement('form');
