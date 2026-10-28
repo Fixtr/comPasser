@@ -14,7 +14,15 @@ class CourseReviews extends HTMLElement {
   }
 
   connectedCallback() {
-    this.unsubscribe = subscribeToAuthChanges(() => void this.load());
+    // Reviews are public, so load them now instead of after auth settles (slow on a weak or lost
+    // connection, which left the panel blank); load again only when the account changes.
+    this.loadedFor = getCurrentUser()?.uid || null;
+    void this.load();
+    this.unsubscribe = subscribeToAuthChanges(user => {
+      if ((user?.uid || null) === this.loadedFor) return;
+      this.loadedFor = user?.uid || null;
+      void this.load();
+    });
     window.addEventListener('online', this.reloadWhenOnline);
   }
 
