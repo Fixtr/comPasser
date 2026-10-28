@@ -1308,14 +1308,15 @@ test('the plan form spreads untimed picks across the trip days and shows the ope
  await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.save({date:['2030-10-17','2030-10-18','2030-10-19'],country:'FRA',destination:{id:'paris',country:'FRA',name:'Paris, France'},theme:'food',budget:'standard',startTime:'09:00',endTime:'18:00',stays:[],anchorSchedules:['A','B','C','D','E'].map(name=>({name,location:'Paris',time:'',endTime:'',flexible:true,stayMinutes:60}))}));
  await page.evaluate(()=>window.navigate('/plan'));
  const form=page.locator('travel-form');await expect(form.locator('.anchor-day')).toHaveCount(5);
- expect(await form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['1','2','3','1','2']);
+ // The days are spread just after the rows render; wait for the values, not only the row count.
+ await expect.poll(()=>form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['1','2','3','1','2']);
  await expect(form.locator('.anchor-flexible-hint:visible')).toHaveCount(1);
  await form.locator('.anchor-day').first().selectOption('3');await form.evaluate(el=>el.saveDraft());
  const days=async()=>(await page.evaluate(async()=>(await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).anchorSchedules.map(anchor=>anchor.day);
  expect(await days()).toEqual([3,2,3,1,2]);
  // A day the user chose is kept when the form is filled from storage again (reloading /plan discards inputs by design).
  await form.evaluate(el=>el.refreshFromStorage());await expect(form.locator('.anchor-day')).toHaveCount(5);
- expect(await form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['3','2','3','1','2']);
+ await expect.poll(()=>form.locator('.anchor-day').evaluateAll(selects=>selects.map(select=>select.value))).toEqual(['3','2','3','1','2']);
 });
 
 test('a night without a stay ends at a localized stay-unset label with no reviews or directions', async ({page}) => {

@@ -400,6 +400,9 @@ test('느린 공유 링크는 시트에 불러오는 중을 보여 주고, 없�
 });
 
 test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주고, 다시 연결되면 스스로 다시 불러온다', async ({ page }) => {
+  // Offline, Firebase Auth can take long to report its state (CI showed it); the review panel must not wait for it.
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace(
+    'setTimeout(() => callback(currentUser), 0);', 'if (navigator.onLine) setTimeout(() => callback(currentUser), 0);') }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
     const offline = () => { if (!navigator.onLine) throw new Error('Failed to get documents from server'); };
     export async function listPublicCourses() { offline(); window.courseLoads = (window.courseLoads || 0) + 1;
@@ -413,8 +416,13 @@ test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주�
   await chooseCourseCity(page);
   const courses = page.locator('public-courses:visible');
   await expect(courses.getByText('Palace walk')).toBeVisible();
-  // The installed app has every chunk precached; the dev server does not, so load the panel first.
-  await page.evaluate(() => import('/src/domains/planner/ui/course-reviews.js'));
+  // The installed app has every chunk precached; the dev server does not, so open and close the
+  // panel once online, through the app's own import, before going offline.
+  const toggle = courses.getByRole('button', { name: '여행자 후기 보기·작성' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(courses.locator('course-reviews')).toHaveCount(0);
   await page.context().setOffline(true);
   await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
   await page.locator('[data-course-city=seoul]').click();
