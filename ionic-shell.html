@@ -20,9 +20,19 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <title>ComPasser</title>
+    <!-- The boot screen paints before about 0.5 MB of app JS arrives (15 s on Slow 3G); React replaces it. -->
+    <style>
+      body { margin: 0; }
+      .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin: 0; background: #FFFFFF; color: #101010; font-family: system-ui, -apple-system, sans-serif; }
+      .boot strong { font-size: 1.5rem; letter-spacing: 0.02em; }
+      .boot p { margin: 0; color: #45454b; }
+      html[data-theme="dark"] .boot { background: #121211; color: #EDEDE9; }
+      html[data-theme="dark"] .boot p { color: #C2C2BD; }
+      html[lang="en"] .boot [lang="ko"], html:not([lang="en"]) .boot [lang="en"] { display: none; }
+    </style>
   </head>
   <body>
-    <div id="ionic-shell"></div>
+    <div id="ionic-shell"><div class="boot" role="status"><strong>ComPasser</strong><p lang="ko">불러오는 중…</p><p lang="en">Loading…</p></div></div>
     <script type="module" src="/src/prototype/ionic-shell.jsx"></script>
   </body>
 </html>

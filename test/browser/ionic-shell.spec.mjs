@@ -345,6 +345,50 @@ const missingItineraryStore = `
   export function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
 `;
 
+test('느린 연결에서 앱 코드가 오기 전에도 불러오는 중임을 보여 준다', async ({ page }) => {
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/src/prototype/ionic-shell.jsx', async route => { await held; await route.continue(); });
+  await page.goto('/home', { waitUntil: 'commit' });
+  await expect(page.getByRole('status').filter({ hasText: '불러오는 중…' })).toBeVisible();
+  await expect(page.getByText('Loading…', { exact: true })).toBeHidden();
+  release();
+  await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
+  await expect(page.locator('.boot')).toHaveCount(0);
+});
+
+test('느린 공유 링크는 시트에 불러오는 중을 보여 주고, 없는 일정에는 지도를 받지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export const getMapsLoader = () => ({ importLibrary: async () => { window.mapsLibraries = (window.mapsLibraries || 0) + 1; return {}; } });
+  ` }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore.replace(
+    'export async function loadItineraryDocument() { return null; }',
+    'export async function loadItineraryDocument() { await new Promise(resolve => { window.releaseDocument = resolve; }); return null; }') }));
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await page.goto('/share/abc123');
+  await expect(sheet.getByRole('status').filter({ hasText: '일정을 불러오는 중…' })).toBeVisible();
+  // Still said while the read itself is pending, not only while the views load.
+  await expect.poll(() => page.evaluate(() => typeof window.releaseDocument)).toBe('function');
+  await expect(sheet.locator('itinerary-view').getByRole('status').filter({ hasText: '일정을 불러오는 중…' })).toBeVisible();
+  await page.evaluate(() => window.releaseDocument());
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expect(sheet.getByRole('status').filter({ hasText: '일정을 불러오는 중…' })).toBeHidden();
+  expect(await page.evaluate(() => window.mapsLibraries || 0)).toBe(0);
+  await expect(page.locator('map-view').getByText('Loading Map...')).toHaveCount(0);
+  await expect(page.locator('map-view #loading-overlay')).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('결과 화면 모듈을 받지 못하면 불러오는 중 대신 다시 불러오기를 보여 준다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/ui/itinerary-view.js', route => route.abort());
+  await page.goto('/share/abc123');
+  const schedule = page.locator('.ionic-desktop-schedule');
+  await expect(schedule.getByRole('alert')).toContainText('화면을 불러오지 못했습니다');
+  await expect(schedule.getByRole('button', { name: '화면 다시 불러오기' })).toBeVisible();
+  await expect(schedule.getByRole('status').filter({ hasText: '일정을 불러오는 중…' })).toHaveCount(0);
+});
+
 test('휴대폰 결과 시트는 결과 화면에서는 닫히지 않고, 화면을 떠나면 다음 화면을 가리지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
@@ -763,13 +807,14 @@ test('이메일로 가입해도 게스트가 고른 여행 계획이 남는다',
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
   await page.locator('login-view #go-to-join').last().click();
   await expect(page).toHaveURL(/\/join\?next=%2Fpreference%2F1$/);
-  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
+  // Login and join both show this line for a moment while the pages swap; read the join page's own.
+  await expect(page.locator('ion-router-outlet > .ion-page', { has: page.locator('join-view') }).locator('.ionic-auth-reason')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
   await page.locator('join-view #email-input').last().fill('new@example.com');
   await page.locator('join-view #password-input').last().fill('password');
   await page.locator('join-view #email-signup-btn').last().click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1') || 'null')?.draft?.destination?.id)).toBe('busan');
-  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
+  await expect(page.locator('ion-router-outlet > .ion-page', { has: page.locator('login-view') }).locator('.ionic-auth-reason')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
 });
 
 test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·삭제한다', async ({ page }, testInfo) => {

@@ -9,6 +9,8 @@
  * 전략
  *  - 내비게이션(HTML): 네트워크 우선, 실패하면 설치 시 저장한 셸('/').
  *    새 HTML과 오래된 JS가 섞이지 않도록 탐색 응답으로 캐시를 덮지 않는다.
+ *    연결이 멈추면 fetch 는 실패하지 않고 끝없이 기다리므로, 3초가 지나거나
+ *    서버 오류(5xx)면 저장한 셸을 먼저 보여 준다.
  *  - 빌드 산출물(/assets/*): 파일명에 콘텐츠 해시가 있어 내용이 바뀌면 이름도
  *    바뀐다. 따라서 캐시 우선이 안전하고 가장 빠르다.
  *  - 그 외 same-origin 정적 파일(아이콘 등): stale-while-revalidate.
@@ -24,6 +26,7 @@ const ASSET_CACHE = `compasser-assets-${VERSION}`;
 const SHELL_URL = '/';
 
 const PRECACHE_ASSETS = self.__PRECACHE_ASSETS__ || [];
+const NAVIGATION_TIMEOUT_MS = 3000;
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -76,7 +79,7 @@ self.addEventListener('fetch', (event) => {
 
   // Public route pages must never restore an unpublished snapshot from offline caches.
   // The privacy policy is not an app screen, so offline the browser's own error beats the app's not-found page.
-  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt' || url.pathname === '/privacy') return;
+  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt' || /^\/privacy(?:\.html|\/)?$/.test(url.pathname)) return;
 
   // 서비스 워커 자신은 캐시하지 않는다(업데이트가 막힌다).
   if (url.pathname === '/sw.js') return;
@@ -89,14 +92,31 @@ self.addEventListener('fetch', (event) => {
 
   // 1) 페이지 이동: 네트워크 우선 -> 실패 시 캐시된 셸
   if (request.mode === 'navigate') {
+    // Opening a real file (compasser-preview.html, demo.gif) must not turn into the app shell on a slow link.
+    if ((/\.\w+$/.test(url.pathname) && url.pathname !== '/index.html') || url.pathname === '/compasser-preview') return;
     event.respondWith((async () => {
+      const network = fetch(request);
+      // Redirects (opaqueredirect, status 0) pass through; only server errors count as a failure.
+      const usable = network.then(response => (response.status >= 500 ? Promise.reject(new Error('server error')) : response));
+      usable.catch(() => {});
+      let timer;
+      const timeout = new Promise(resolve => { timer = setTimeout(resolve, NAVIGATION_TIMEOUT_MS, null); });
       try {
-        const fresh = await fetch(request);
-        return fresh;
+        const fresh = await Promise.race([usable, timeout]);
+        if (fresh) return fresh;
       } catch {
-        const cached = await caches.match(SHELL_URL);
-        // SPA 라우팅이라 어떤 경로든 같은 셸을 돌려주면 된다.
-        return cached || Response.error();
+        // Offline or a server error: try the shell below.
+      } finally {
+        clearTimeout(timer);
+      }
+      // SPA 라우팅이라 어떤 경로든 같은 셸을 돌려주면 된다.
+      const cached = await caches.match(SHELL_URL);
+      if (cached) return cached;
+      // No shell yet (first visit): keep waiting for whatever the network sends.
+      try {
+        return await network;
+      } catch {
+        return Response.error();
       }
     })());
     return;

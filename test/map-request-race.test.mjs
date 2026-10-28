@@ -93,7 +93,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
     } }),
     GeocodingService: class { geocodeSchedule(...args) { return geocode(...args); } },
     RoutingService: class { getTransitRoute(...args) { return route(...args); } },
-    getLang: () => 'ko', buildTransitDepartureTime,
+    getLang: () => 'ko', t: key => key, buildTransitDepartureTime,
     getComputedStyle: () => ({ getPropertyValue: () => '' }), document: { documentElement: {} },
     CustomEvent: class { constructor(type, { detail } = {}) { this.type = type; this.detail = detail; } },
     window: {
