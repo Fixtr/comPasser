@@ -191,6 +191,8 @@ export function PreferenceScreen({ step, settings, active }) {
   return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => navigate(editingDates ? '/plan' : step === 1 ? '/destination' : '/preference/1')}>← {t('shellBack')}</button>{settings}</div><preference-view ref={view} /></IonContent></IonPage>;
 }
 
+const GENERATION_STAGES = [['draft', 'shellStageDraft'], ['places', 'shellStagePlaces'], ['routes', 'shellStageRoutes']];
+
 export function PlanScreen({ user, settings }) {
   const form = useRef(null);
   const navigate = useNavigate();
@@ -198,6 +200,9 @@ export function PlanScreen({ user, settings }) {
   const [phase, setPhase] = useState('form');
   const phaseRef = useStageTransition(phase);
   const [error, setError] = useState('');
+  const [retryable, setRetryable] = useState(false);
+  const [stage, setStage] = useState('draft');
+  const retry = useRef(null);
   const run = useRef(0);
 
   useEffect(() => {
@@ -208,17 +213,36 @@ export function PlanScreen({ user, settings }) {
     let generate;
     let loadCredits = () => {};
     let cancelled = false;
+    let stopping = null;
     const discard = () => { run.current++; element?.discardDraft?.(); setPhase('form'); };
     window.addEventListener('planner-draft-discarded', discard);
+    // Leaving during generation only stops it: the server still finishes, so the inputs stay and its result is ignored.
+    const stop = async () => {
+      if (stopping) return;
+      stopping = new AbortController();
+      const accepted = await showConfirm({ title: t('planStopTitle'), message: t(element.generationCredits === 'unlimited' ? 'planStopMessageUnlimited' : 'planStopMessage'), confirmText: t('planStopYes'), cancelText: t('planStopNo'), signal: stopping.signal });
+      stopping = null;
+      if (!accepted || !element?.isGenerating) return;
+      run.current++;
+      element.isGenerating = false;
+      setPhase('form');
+      window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
+      loadCredits();
+      element.showReview();
+    };
+    const exitRequested = event => { if (element?.isGenerating) { event.preventDefault(); void stop(); } };
+    window.addEventListener('plan-exit-requested', exitRequested);
     const onGenerate = async event => {
       if (element?.isGenerating) return;
       element.isGenerating = true;
       const request = ++run.current;
       const userId = getCurrentUser()?.uid;
+      retry.current = () => onGenerate(event);
       setPhase('loading');
+      setStage('draft');
       setError('');
       try {
-        const result = await generate(event.detail);
+        const result = await generate(event.detail, { onStage: next => { if (request === run.current) setStage(next); } });
         if (request !== run.current || getCurrentUser()?.uid !== userId) return;
         generatedPlan = { userId, plan: result };
         plannerDraftStore.clear();
@@ -226,12 +250,13 @@ export function PlanScreen({ user, settings }) {
       } catch (cause) {
         if (request === run.current) {
           setError(cause?.message || t('generationFail'));
+          setRetryable(cause?.retryable === true);
           setPhase('error');
         }
       } finally {
         // Each attempt may spend or refund a credit, so the review shows the server's balance on return.
         loadCredits();
-        if (request === run.current) { element.isGenerating = false; window.dispatchEvent(new CustomEvent('itinerary-generation-complete')); }
+        if (request === run.current) { stopping?.abort(); element.isGenerating = false; window.dispatchEvent(new CustomEvent('itinerary-generation-complete')); }
       }
     };
     void Promise.all([
@@ -248,14 +273,19 @@ export function PlanScreen({ user, settings }) {
       loadCredits();
       element?.addEventListener('generate-itinerary', onGenerate);
     });
-    return () => { cancelled = true; run.current++; window.removeEventListener('planner-draft-discarded', discard); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
+    return () => { cancelled = true; run.current++; stopping?.abort(); window.removeEventListener('planner-draft-discarded', discard); window.removeEventListener('plan-exit-requested', exitRequested); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
   }, [navigate, pathname, search, user?.uid]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}>← {t('shellBack')}</button>{settings}</div><div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
     {phase !== 'form' && <div ref={phaseRef} className="ionic-generation" role="status" aria-live="polite">
-      {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2><p>{t('shellGeneratingDescription')}</p><IonProgressBar type="indeterminate" /></>
-        : <><h2>{t('shellGenerationFailed')}</h2><p role="alert">{error}</p><IonButton onClick={() => setPhase('form')}>{t('shellReturnToForm')}</IonButton></>}
+      {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2>
+        <ol className="ionic-generation-steps" aria-hidden="true">{GENERATION_STAGES.map(([key, label]) => <li key={key} aria-current={key === stage ? 'step' : undefined}>{t(label)}</li>)}</ol>
+        <p className="ionic-visually-hidden">{t(GENERATION_STAGES.find(([key]) => key === stage)[1])}</p>
+        <p>{t('shellGeneratingWait')}</p><IonProgressBar type="indeterminate" /></>
+        : <><h2>{t('shellGenerationFailed')}</h2><p role="alert">{error}</p>
+          {retryable && <IonButton onClick={() => retry.current?.()}>{t('shellRetry')}</IonButton>}
+          <IonButton fill={retryable ? 'outline' : 'solid'} onClick={() => setPhase('form')}>{t('shellReturnToForm')}</IonButton></>}
     </div>}
   </IonContent></IonPage>;
 }

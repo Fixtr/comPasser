@@ -1,11 +1,11 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../../auth/services/firebase-auth.js";
-import { getLang } from "../../../utils/i18n.js";
+import { getLang, t } from "../../../utils/i18n.js";
 import {
   enforcePlannerConstraints,
   normalizePlannerRequest
 } from "./planner-constraints.mjs";
-import { buildMockItinerary, isValidGeneratedDays } from "./gemini-fallback.mjs";
+import { isValidGeneratedDays } from "./gemini-fallback.mjs";
 import { findPlannerInputIssue, plannerValidationMessage } from './planner-validation.js';
 import { prepareGeneratedPlaces } from '../../map/services/recommendation-place.mjs';
 import { verifyGeneratedItinerary } from './generated-day-quality.js';
@@ -46,7 +46,7 @@ export async function getGenerationCredits() {
  * 결정론적 가드레일(enforcePlannerConstraints)은 사용자 입력을 알고 있는
  * 클라이언트에 그대로 남겨 둔다.
  */
-export async function generateOptimizedItinerary(plannerRequest) {
+export async function generateOptimizedItinerary(plannerRequest, { onStage } = {}) {
   const issue = findPlannerInputIssue(plannerRequest);
   if (issue) throw new Error(plannerValidationMessage(issue));
   const normalizedRequest = normalizePlannerRequest(plannerRequest);
@@ -72,7 +72,7 @@ export async function generateOptimizedItinerary(plannerRequest) {
     return await verifyGeneratedItinerary({
       request: normalizedRequest,
       days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget), normalizedRequest, currentLang), normalizedRequest)
-    });
+    }, { onStage });
   } catch (error) {
     // Bad input needs editing, never a generated-looking fallback result.
     if (error?.code === 'functions/invalid-argument') {
@@ -97,14 +97,13 @@ export async function generateOptimizedItinerary(plannerRequest) {
         : 'An itinerary is already being generated. Please try again shortly.');
     }
 
-    console.error("[generateItinerary] Cloud Function call failed. Falling back to Mock Data.", error);
-
-    // 예전에는 alert 한 번 띄우고 Mock 일정을 정상 결과와 똑같이 렌더링했다.
-    // alert 을 닫는 순간 화면에는 가짜 일정만 남아, 사용자가 그걸 진짜로 믿고
-    // 저장·공유까지 할 수 있었다. 이제는 표식을 함께 넘겨 화면이 상시 경고를
-    // 띄우고 저장/공유를 막는다.
-    const fallbackReason = error?.code === "functions/resource-exhausted" ? "quota" : "error";
-    return buildMockItinerary(normalizedRequest, currentLang, fallbackReason);
+    console.error("[generateItinerary] generation failed.", error);
+    // A made-up plan looked real, so failures stay errors. Only a call the server failed may be retried as is:
+    // a broken plan it returned already used its credit, and after a timeout or a lost connection
+    // (the SDK's bare 'internal') the server may still finish, so a retry would hit its lease.
+    const unknown = error?.code === 'functions/deadline-exceeded' || (error?.code === 'functions/internal' && error.message === 'internal');
+    throw Object.assign(new Error(t(unknown ? 'generationOutcomeUnknown' : 'generationAiFailed')),
+      { retryable: !unknown && String(error?.code).startsWith('functions/') });
   }
 }
 

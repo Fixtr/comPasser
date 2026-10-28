@@ -16,8 +16,8 @@ import { plannerDraftStore, toPlannerDraft, spreadVisitDays } from '../services/
 import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { todayString } from '../services/trip-date.mjs';
-import { findIncompleteAnchor, isAnchorBlank } from '../services/anchor-validation.mjs';
-import { findMissingLocation } from '../services/location-validation.mjs';
+import { findIncompleteAnchor, isAnchorBlank, missingAnchorFields } from '../services/anchor-validation.mjs';
+import { findMissingLocation, REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
 import { getLocationName, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
 import { airportArrivalTime, tripStartAfterLanding } from '../services/flight-arrival.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
@@ -44,6 +44,13 @@ function fieldLabelOf(control) {
   const label = control.closest?.('.form-group')?.querySelector('label');
   if (label && label.textContent.trim()) return label.textContent.trim();
   return control.getAttribute?.('placeholder')?.trim() || '';
+}
+
+function invalidFieldMessage(control) {
+  const label = fieldLabelOf(control);
+  return control.validity && !control.validity.valueMissing && control.validationMessage
+    ? `${label}: ${control.validationMessage}`
+    : t('missingFieldError').replace('{0}', label);
 }
 
 
@@ -91,13 +98,7 @@ export default class TravelForm extends HTMLElement {
     // Listen for completion to reset button state
     window.addEventListener('itinerary-generation-complete', () => {
       this.isSubmitting = false;
-      const btn = this.shadowRoot.querySelector('.primary-btn');
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = t(this.hasAttribute('handoff-flow') ? 'flowReview' : 'generateBtn');
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-      }
+      this._resetSubmitButton(this.shadowRoot.querySelector('.primary-btn'));
     });
 
     // Listen for global language changes
@@ -133,6 +134,7 @@ export default class TravelForm extends HTMLElement {
   }
 
   discardDraft() {
+    this.discardCount = (this.discardCount || 0) + 1;
     this.reviewing = false;
     this.isSubmitting = false;
     this.isGenerating = false;
@@ -256,9 +258,9 @@ export default class TravelForm extends HTMLElement {
       line.querySelector('strong').textContent = text;
       line.querySelector('.credit-empty').hidden = credits !== 0;
     });
-    // Only a known zero blocks; an unknown balance (loading, offline, failure) leaves the decision to the server.
+    // A listed review issue or a known zero blocks; an unknown balance (loading, offline, failure) leaves the decision to the server.
     const generate = this.shadowRoot?.getElementById('final-generate');
-    if (generate) generate.disabled = credits === 0;
+    if (generate) generate.disabled = credits === 0 || this.reviewBlocked === true || this.isSubmitting === true;
   }
 
   render() {
@@ -535,6 +537,8 @@ export default class TravelForm extends HTMLElement {
 
   setupAutocompleteListener(autocomplete) {
     bindPlaceSelection(autocomplete, () => {
+      // A flight's airport fills the locked first or last location as soon as it is picked.
+      this.syncFlights(autocomplete);
       this.shadowRoot.getElementById('travel-form').dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
@@ -939,22 +943,95 @@ export default class TravelForm extends HTMLElement {
     const root=this.shadowRoot.getElementById('review-panel');
     const draft=this.draft;
     const line=value => escapeHtml(String(value || t('locationUnset')));
+    const time=value => escapeHtml(value || t('timeUnset'));
+    const tripTimes=draft.dailyTimes?.some(day=>day.isCustom) ? draft.dailyTimes.map(day=>`<p>Day ${day.day} · ${time(day.startTime)} – ${time(day.endTime)}</p>`).join('') : `<p>${time(draft.startTime)} – ${time(draft.endTime)}</p>`;
     const section=(key,content,target='details') => `<section><h3>${t(key)}</h3>${content}<button type="button" data-review-edit="${target}">${t('flowEdit')}</button></section>`;
     root.innerHTML=`<h2>${t('flowReviewTitle')}</h2>`
       +section('flowTravelDate',`<p>${line(this.shadowRoot.getElementById('trip-destination').value)}</p><p>${line(draft.date[0])} → ${line(draft.date.at(-1))}</p>`)
-      +section('tripStartLocation',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p><p>${line(draft.startTime)} – ${line(draft.endTime)}</p>`)
+      +section('tripStartLocation',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p>${tripTimes}`)
       +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
-      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):line(anchor.time)+' – '+line(anchor.endTime)}</p>`).join(''))
+      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join(''))
       +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
       +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
       +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
     this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;
     root.querySelectorAll('[data-review-edit]').forEach(button=>button.onclick=()=>{ this.hideReview();if(button.dataset.reviewEdit==='style')window.navigate('/preference/2', { state: { returnTo: '/plan' } }); });
     root.querySelector('#final-generate').onclick=()=> { if(this.isSubmitting)return; const form=this.shadowRoot.getElementById('travel-form'); if(!form.reportValidity())return; form.dispatchEvent(new Event('submit',{cancelable:true})); };
+    const issues=this._reviewIssues();
+    this.reviewBlocked=issues.length > 0;
+    this._showReviewIssues(issues);
     this.renderGenerationCredits();
+    if (this.isSubmitting) root.querySelector('#final-generate').textContent=t('flowChecking');
     this.draft = plannerDraftStore.update({step:'/plan?review=1'});
     root.focus({preventScroll:true});root.scrollIntoView({block:'start',behavior:'auto'});
     if (enteringReview) animateScreen(root, true);
+  }
+
+  /**
+   * Every blocker the inputs alone can show, listed at once instead of one per tap on 일정 생성하기.
+   * Checks that need maps (travel times, opening hours, overlaps) still run when generating.
+   */
+  _reviewIssues() {
+    const root=this.shadowRoot, request=this.getFormData(), issues=[];
+    const add=(control, message) => { if (control && !issues.some(issue => issue.control === control)) issues.push({ control, message }); };
+    for (const control of root.getElementById('travel-form').elements) {
+      if (control.matches('.stay-checkin, .stay-checkout')) continue; // stayIssue below covers stay dates
+      const day=control.closest('.daily-time-row')?.dataset.day;
+      if (control.willValidate && !control.validity.valid) add(control, (day ? `[Day ${day}] ` : '') + invalidFieldMessage(control));
+    }
+    const pastDate=[request.date].flat().find(date => date < localTravelDate(new Date(), travelRegion(request).timeZone));
+    if (pastDate) add(root.getElementById('reselect-date-btn'), t('pastDateValidationError').replace('{0}', pastDate));
+    for (const day of request.dailyTimes?.some(entry => entry.isCustom) ? request.dailyTimes : [{ ...request, day: 0 }]) {
+      if (!day.startTime || !day.endTime || day.startTime < day.endTime) continue;
+      add(day.day ? root.querySelector(`.daily-time-row[data-day="${day.day}"] .daily-end-time`) : root.getElementById('end-time'),
+        (day.day ? `[Day ${day.day}] ` : '') + t('basicTimeValidationError'));
+    }
+    const flights={};
+    for (const kind of ['arrival', 'departure']) {
+      const entry=root.getElementById(`${kind}-flight`);
+      if (entry.hidden) continue;
+      flights[kind]=true;
+      const airport=entry.querySelector('.flight-airport');
+      const message=`${t(`${kind}Flight`)}: ${t('incompleteFlightError')}`;
+      if (!normalizeSelectedPlace(getAutocompleteValue(airport))) add(airport, message);
+      else if (!entry.querySelector('.flight-time').value) add(entry.querySelector('.flight-time'), message);
+    }
+    for (const field of REQUIRED_LOCATIONS) {
+      // A shown flight fills this end with its airport, and the flight line already asks for it.
+      if (flights[field.key === 'startLocation' ? 'arrival' : 'departure'] || getLocationName(request[field.key])) continue;
+      const control=root.getElementById(field.id);
+      add(control, t('missingLocationError').replace('{0}', fieldLabelOf(control) || t(field.labelKey)));
+    }
+    const badStay=stayIssue(request.stays || [], request.date);
+    if (badStay >= 0) add(root.querySelectorAll('.trip-stay .stay-checkin')[badStay], t('flowStayInvalid'));
+    for (const control of root.querySelectorAll('#start-location, #end-location, .stay-location, .anchor-location, .daily-start-location, .daily-end-location')) {
+      if (control.closest('.form-group')?.inert) continue; // locked to a flight's airport, which the flight line checks
+      const value=getAutocompleteValue(control);
+      const name=control.closest('.anchor-item')?.querySelector('.anchor-name').value.trim() || fieldLabelOf(control) || (control.matches('.stay-location') ? t('flowStays') : '');
+      if (getLocationName(value) && !normalizeSelectedPlace(value)) add(control, name ? `${name}: ${t('flowPlaceFailed')}` : t('flowPlaceFailed'));
+    }
+    this._readAnchorRows().forEach((row, index) => {
+      if (isAnchorBlank(row)) return;
+      // Planning with a destination needs a searched place for every visit, fixed or automatic.
+      const field=missingAnchorFields(row)[0] || (getLocationName(row.location) ? '' : 'location');
+      if (!field) return;
+      const control=row.el.querySelector(ANCHOR_FIELD_SELECTOR[field]);
+      add(control, t('incompleteAnchorError').replace('{0}', String(index + 1)).replace('{1}', fieldLabelOf(control)));
+    });
+    return issues;
+  }
+
+  _showReviewIssues(issues, offerAuto = false) {
+    const box=this.shadowRoot.getElementById('review-issues');
+    box.hidden=!issues.length; box.replaceChildren();
+    for (const { control, message } of issues) {
+      const text=document.createElement('p'); text.textContent=message;
+      const edit=document.createElement('button'); edit.type='button'; edit.textContent=t('flowEdit');
+      edit.onclick=() => { this.hideReview(); this._revealInvalidField(control); };
+      box.append(text, edit);
+      const row=(offerAuto || control?.matches?.('.anchor-time, .anchor-end-time')) && control?.closest('.anchor-item');
+      if (row) { const auto=document.createElement('button'); auto.type='button'; auto.textContent=t('flowAuto'); auto.onclick=() => { const toggle=row.querySelector('.anchor-flexible'); toggle.checked=true; toggle.dispatchEvent(new Event('change')); this.saveDraft(); this.showReview(); }; box.append(auto); }
+    }
   }
 
   hideReview() {
@@ -1304,11 +1381,7 @@ export default class TravelForm extends HTMLElement {
       queueMicrotask(() => { revealedThisRound = false; });
 
       const control = e.target;
-      const label = fieldLabelOf(control);
-      const message = control.validity && !control.validity.valueMissing && control.validationMessage
-        ? `${label}: ${control.validationMessage}`
-        : t('missingFieldError').replace('{0}', label);
-      this._revealInvalidField(control, message);
+      this._revealInvalidField(control, invalidFieldMessage(control));
     }, true);
 
     // Auto-save form data on any input
@@ -1408,7 +1481,13 @@ export default class TravelForm extends HTMLElement {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      if (this.hasAttribute('handoff-flow') && !this.reviewing) { this.saveDraft(); this.showReview(); return; }
+      if (this.hasAttribute('handoff-flow') && !this.reviewing) {
+        // A pick still loading would be reviewed as typed text and listed as unverified.
+        const discarded = this.discardCount;
+        await Promise.all(Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete')).map(element => element.placeSelectionPending));
+        if (discarded !== this.discardCount) return; // the draft was deleted while a pick loaded
+        this.saveDraft(); this.showReview(); return;
+      }
       if (this.isSubmitting) {
         console.log('Already submitting, preventing duplicate request...');
         return;
@@ -1424,6 +1503,9 @@ export default class TravelForm extends HTMLElement {
         btn.style.opacity = '0.7';
         btn.style.cursor = 'not-allowed';
       }
+      // The checks before generation can take seconds, so the review's button says so.
+      const generate = this.reviewing && this.shadowRoot.getElementById('final-generate');
+      if (generate) { generate.disabled = true; generate.textContent = t('flowChecking'); }
 
       try {
       await Promise.all(Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete'))
@@ -1599,14 +1681,8 @@ export default class TravelForm extends HTMLElement {
   _revealInvalidField(control, message) {
     if (message) showErrorToast(message);
     if (this.reviewing) {
-      const issue = this.shadowRoot.getElementById('review-issues');
-      issue.hidden = false; issue.replaceChildren();
-      const text = document.createElement('p'); text.textContent = message; issue.append(text);
-      const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = t('flowEdit');
-      edit.onclick = () => { this.hideReview(); this._revealInvalidField(control); }; issue.append(edit);
-      const row = control?.closest('.anchor-item');
-      if (row) { const auto = document.createElement('button'); auto.type = 'button'; auto.textContent = t('flowAuto'); auto.onclick = () => { const toggle = row.querySelector('.anchor-flexible'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); this.saveDraft(); this.showReview(); }; issue.append(auto); }
-      issue.scrollIntoView({ block: 'center', behavior: 'auto' });
+      this._showReviewIssues([{ control, message }], true);
+      this.shadowRoot.getElementById('review-issues').scrollIntoView({ block: 'center', behavior: 'auto' });
       return;
     }
     if (!control) return;
@@ -1625,12 +1701,15 @@ export default class TravelForm extends HTMLElement {
   }
 
   _resetSubmitButton(btn) {
+    this.isSubmitting = false;
     if (btn) {
       btn.disabled = false;
       btn.textContent = t(this.hasAttribute('handoff-flow') ? 'flowReview' : 'generateBtn');
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
     }
+    const generate = this.shadowRoot.getElementById('final-generate');
+    if (generate) { generate.textContent = t('flowGenerate'); this.renderGenerationCredits(); }
   }
 
   }
