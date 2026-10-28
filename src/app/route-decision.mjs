@@ -30,7 +30,7 @@ export function isHomePath(path) {
 /** 명시한 내부 화면만 복귀를 허용한다. 복귀 자체가 생성·삭제를 실행하지 않는다. */
 export function getSafeReturnPath(value) {
   if (value === '/preference/2' || value === '/plan' || value === '/plan?review=1' || value === '/destination' || value === '/profile/personal' || value === '/profile/personal?tab=trips' || value === '/profile/security' || value === '/profile/trips' || value === '/home' || value === '/recommend' || value === '/courses' || value === '/preference/1') return value;
-  if (typeof value === 'string' && (/^\/home\?review=[a-zA-Z0-9]+$/.test(value) || /^\/courses\?review=[a-zA-Z0-9]+$/.test(value))) return value;
+  if (typeof value === 'string' && (/^\/home\?review=[a-zA-Z0-9]+$/.test(value) || /^\/courses\?(?:country=[A-Z]{3}&city=[a-z0-9-]+&)?review=[a-zA-Z0-9]+$/.test(value))) return value;
   return typeof value === 'string' && value.match(/^\/(?:share|view)\/[a-zA-Z0-9]+$/)?.[0] === value
     ? value
     : null;

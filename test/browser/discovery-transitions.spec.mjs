@@ -10,7 +10,8 @@ test('course screen reports a failed UI module and recovers after reload', async
   await expect(page.getByRole('alert')).toContainText('화면을 불러오지 못했습니다');
   await page.unroute('**/src/domains/planner/ui/home-courses.js');
   await page.getByRole('button', { name: '화면 다시 불러오기' }).click();
-  await page.locator('[data-course-country=JPN]').click();
+  await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'tokyo');
+  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
   await page.locator('[data-course-city=kyoto]').click();
   await expect(page.locator('home-courses article')).toHaveCount(3);
   expect(errors).toEqual([]);

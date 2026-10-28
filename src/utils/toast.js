@@ -6,6 +6,7 @@
  * 하며, 여러 개가 연달아 뜨면 사용자가 계속 닫아야 했다.
  *
  * 이 모듈은 Shadow DOM 밖(document.body)에 하나의 컨테이너를 두고 재사용한다.
+ * 화면 위쪽에 띄운다: 아래쪽에는 저장·일정 생성 같은 다음 행동 버튼과 탭 바가 있어 가려진다.
  * 어떤 컴포넌트나 서비스에서도 부를 수 있고, 스타일은 한 번만 주입한다.
  */
 
@@ -36,7 +37,8 @@ function ensureStyle() {
     #${CONTAINER_ID} {
       position: fixed;
       left: 50%;
-      bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+      /* Below the top row of Back, language and theme buttons. */
+      top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3.5rem);
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
@@ -59,7 +61,7 @@ function ensureStyle() {
       line-height: 1.5;
       word-break: keep-all;
       opacity: 0;
-      transform: translateY(0.75rem);
+      transform: translateY(-0.75rem);
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
     #${CONTAINER_ID} .app-toast.visible { opacity: 1; transform: translateY(0); }
@@ -109,7 +111,8 @@ export function showToast(message, options = {}) {
   // 탭하면 즉시 닫을 수 있게 한다(모바일에서 화면을 가릴 때).
   toast.addEventListener('click', () => dismiss(toast));
 
-  container.appendChild(toast);
+  // One at a time: a stack piles stale errors over the screen.
+  container.replaceChildren(toast);
   // requestAnimationFrame 은 탭이 백그라운드면 실행되지 않아, 그 사이 생성된
   // 토스트가 opacity 0 인 채로 남는다. 강제 리플로우 후 동기적으로 클래스를
   // 붙여 전환은 살리면서 표시 자체는 보장한다(main.js 의 로딩 화면과 같은 방식).

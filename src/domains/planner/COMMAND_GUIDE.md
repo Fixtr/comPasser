@@ -81,10 +81,10 @@
 
 ## Course discovery navigation
 
-- Ionic `/courses` opens country selection, then city selection, then the course browser. Reuse all six curated Korean cities and the existing Japanese/French destinations. Do not mount/fetch course lists before city selection or mutate the planner draft while browsing.
+- Ionic `/courses` opens country selection, then city selection, then the course browser. `/recommend` and `/courses` keep the step in the URL (`?country=<code>&city=<id>`, validated against the catalogue) and push one history entry per pick, so Back and reload keep the user's step. Reuse all six curated Korean cities and the existing Japanese/French destinations. Do not mount/fetch course lists before city selection or mutate the planner draft while browsing.
 - Pass the chosen `city` to `home-courses` and `public-courses`; show only that city's curated/public records. Scoped public lists retain search, duration, pagination and reviews, without a second city selector. Missing courses stay an honest empty state.
 - Back returns to city selection, then country selection, then home. Preserve the selected browser state across the existing login/review return route. Legacy unscoped widgets retain their existing full catalogue and city filter.
-- A `/courses?review=<public course id>` link (English route page, `/home?review=` redirect, post-login return after a reload) reads only that course with `getPublicCourse`, opens the first catalogue city whose aliases list it (`courseCity`, the same match as `filterCourses`), and `public-courses` opens its review panel. Unknown, curated or unreadable ids stay on country selection; curated courses have no reviews.
+- A `/courses?review=<public course id>` link (English route page, `/home?review=` redirect, post-login return after a reload) reads only that course with `getPublicCourse`, opens the first catalogue city whose aliases list it (`courseCity`, the same match as `filterCourses`) by replacing the address with that country and city (keeping `review`), and `public-courses` opens its review panel. Unknown, curated or unreadable ids stay on country selection; curated courses have no reviews.
 
 - Home no longer links directly to the English route directory. After country/city selection in `/courses`, each curated/public card uses `courseEnglishLink` (이 코스 영어로 보기 / View this route in English) to open its existing English route page. Profile sharing/QR labels and public directory URLs remain unchanged.
 

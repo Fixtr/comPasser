@@ -515,8 +515,9 @@ export default class ItineraryView extends HTMLElement {
           const result = await this.actions.save({
             language: getLang(),
             onSaved: id => {
-              this.refreshOfflineCopy(id);
+              // Toast first: an offline-copy warning from refreshOfflineCopy then replaces it instead of being hidden.
               this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
+              this.refreshOfflineCopy(id);
               this.renderCurrentState();
               // Replace the pre-save /view or /share entry so Back can't reopen a copy that offers Save again.
               if (window.navigate) window.navigate('/view/' + id, { replace: true });

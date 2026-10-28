@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   IonApp, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon,
   IonLabel, IonPage, IonRouterOutlet, IonTabBar, IonTabButton,
-  IonTabs, IonTitle, IonToolbar, setupIonicReact,
+  IonTabs, IonTitle, IonToolbar, isPlatform, setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -30,7 +30,9 @@ import '@ionic/react/css/palettes/high-contrast-dark.class.css';
 import '../styles/tokens.css';
 import './ionic-shell.css';
 
-setupIonicReact({ experimentalCloseWatcher: true });
+// CloseWatcher turns Escape into Ionic's hardware Back, which left the page from anywhere on desktop.
+// Only Android has a system Back for it to handle; elsewhere overlays still close on Escape by themselves.
+setupIonicReact({ experimentalCloseWatcher: isPlatform('android') });
 
 const pages = [
   ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],

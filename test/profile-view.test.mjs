@@ -215,7 +215,7 @@ test('재로그인 안내 및 로그아웃 실패 시에도 확인창과 버튼�
       logout: () => { if (failLogout) throw new Error('offline'); },
     } });
     await app.deleteAccount(); assert.deepEqual(app.calls.stages, []);
-    assert.deepEqual(app.calls.toasts, [['accountDeletionSignInRequired', { duration: 5000 }], ...(failLogout ? [['accountDeletionSignOutFailed']] : [])]);
+    assert.deepEqual(app.calls.toasts, [['accountDeletionSignInRequired', { duration: 5000 }], ...(failLogout ? [['accountDeletionSignInRequired accountDeletionSignOutFailed', { duration: 8000 }]] : [])]);
     assert.equal(app.location.href, failLogout ? '/profile/security' : '/login?next=%2Fprofile%2Fsecurity');
     assertDeleteControlsRestored(app);
   }

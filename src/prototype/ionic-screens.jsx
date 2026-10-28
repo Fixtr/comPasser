@@ -11,7 +11,7 @@ import { showConfirm } from '../utils/confirm-dialog.js';
 import { TravelGlobe } from './travel-globe.jsx';
 import { curatedRoute, PUBLIC_ROUTE_ID } from '../domains/itinerary/services/public-route.mjs';
 import { addCourseToDraft, cityDestination } from '../domains/planner/services/course-draft.mjs';
-import { destinations, destinationById } from '../domains/planner/services/travel-destinations.mjs';
+import { destinations, destinationById, destinationCountries } from '../domains/planner/services/travel-destinations.mjs';
 import { courseCity } from '../domains/itinerary/services/course-community.mjs';
 import { CountryPicker } from './country-picker.jsx';
 import { DestinationScreen } from './destination-screen.jsx';
@@ -73,16 +73,32 @@ export function HomeScreen({ authSettled, settings }) {
   </IonContent></IonPage>;
 }
 
-export function RecommendScreen({ settings }) {
-  const [country, setCountry] = useState('');
-  const [city, setCity] = useState(null);
-  const stageRef = useStageTransition(city?.id || country || 'country');
-  const recommendationCities = destinations;
+// The country and city live in the URL, so Back steps up one level and a reload keeps them.
+function usePlacePick(path) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Ionic keeps this page mounted under later routes; keep showing its own last address.
+  const shown = useRef(location.search);
+  if (location.pathname === path) shown.current = location.search;
+  const query = new URLSearchParams(shown.current);
+  // The address bar is untrusted: only known countries and cities of that country count.
+  const city = destinations.find(item => item.id === query.get('city') && item.country === query.get('country')) || null;
+  const country = city?.country || (destinationCountries.includes(query.get('country')) ? query.get('country') : '');
+  const pick = next => navigate(`${path}?${new URLSearchParams(next)}`, { state: { picked: true } });
   const back = () => {
-    if (city) setCity(null);
-    else if (country) setCountry('');
+    // A step picked here sits right after its parent in history; a pasted or reloaded deep link may not.
+    if (location.state?.picked) navigate(-1);
+    else if (city) navigate(`${path}?country=${country}`, { replace: true });
+    else if (country) navigate(path, { replace: true });
     else window.navigate('/home');
   };
+  return { country, city, pick, back };
+}
+
+export function RecommendScreen({ settings }) {
+  const { country, city, pick, back } = usePlacePick('/recommend');
+  const stageRef = useStageTransition(city?.id || country || 'country');
+  const recommendationCities = destinations;
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
       <button onClick={back}>← {t('shellBack')}</button>
@@ -90,20 +106,21 @@ export function RecommendScreen({ settings }) {
     </div>
     {city ? <DestinationScreen key={city.id} browseCity={city} embedded /> : <main ref={stageRef} className="flow-page">
       {!city && <h1>{t(country ? 'flowCity' : 'flowCountry')}</h1>}
-      {!country && <CountryPicker kind="recommend" onSelect={setCountry} />}
-      {country && !city && <div className="flow-choices country-grid city-grid">{recommendationCities.map(city => city.country === country ? <button key={city.id} data-recommend-city={city.id} onClick={() => setCity(city)}>{t(city.key)}</button> : null)}</div>}
+      {!country && <CountryPicker kind="recommend" onSelect={next => pick({ country: next })} />}
+      {country && !city && <div className="flow-choices country-grid city-grid">{recommendationCities.map(city => city.country === country ? <button key={city.id} data-recommend-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
     </main>}
   </IonContent></IonPage>;
 }
 
 export function CoursesScreen({ settings }) {
-  const [country, setCountry] = useState('');
-  const [city, setCity] = useState(null);
+  const { country, city, pick: pickPlace, back: backPlace } = usePlacePick('/courses');
+  const navigate = useNavigate();
   const [loadState, setLoadState] = useState('loading');
   const stageRef = useStageTransition(city?.id || country || 'country');
   const courseCities = destinations;
   // Once the user picks or goes back, a late review-link lookup must not move them.
   const picked = useRef(false);
+  const pick = next => { picked.current = true; pickPlace(next); };
   useEffect(() => {
     let active = true;
     void Promise.all([
@@ -112,21 +129,20 @@ export function CoursesScreen({ settings }) {
     ]).then(() => { if (active) setLoadState('ready'); })
       .catch(() => { if (active) setLoadState('error'); });
     // Review links (route pages, post-login return) open the course's city; public-courses then opens its panel.
-    const reviewId = new URLSearchParams(window.location.search).get('review');
-    if (/^[a-zA-Z0-9]+$/.test(reviewId || '')) void import('../domains/itinerary/services/public-course-service.js')
+    const query = new URLSearchParams(window.location.search);
+    const reviewId = query.get('review');
+    if (/^[a-zA-Z0-9]+$/.test(reviewId || '') && !query.get('city')) void import('../domains/itinerary/services/public-course-service.js')
       .then(service => service.getPublicCourse(reviewId))
       .then(course => {
         const match = course && destinations.find(item => item.id === courseCity(course));
-        if (active && match && !picked.current && window.location.pathname === '/courses') { setCountry(match.country); setCity(match); }
+        if (active && match && !picked.current && window.location.pathname === '/courses') navigate(`/courses?${new URLSearchParams({ country: match.country, city: match.id, review: reviewId })}`, { replace: true });
       })
       .catch(error => console.error('Review course unavailable:', error));
     return () => { active = false; };
   }, []);
   const back = () => {
     picked.current = true;
-    if (city) setCity(null);
-    else if (country) setCountry('');
-    else window.navigate('/home');
+    backPlace();
   };
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
@@ -135,8 +151,8 @@ export function CoursesScreen({ settings }) {
     </div>
     <main ref={stageRef} className="flow-page">
       <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'courseCountryTitle')}</h1>
-      {!country && <CountryPicker kind="course" onSelect={next => { picked.current = true; setCountry(next); }} />}
-      {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => { picked.current = true; setCity(city); }}>{t(city.key)}</button> : null)}</div>}
+      {!country && <CountryPicker kind="course" onSelect={next => pick({ country: next })} />}
+      {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
       {city && <div key={city.id}>
         <p>{t(`country${country}`)} · {t(city.key)}</p>
         {loadState === 'loading' && <p role="status">{t('discoveryScreenLoading')}</p>}
