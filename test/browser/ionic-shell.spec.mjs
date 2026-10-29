@@ -547,6 +547,34 @@ test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보�
   await page.goto('/unknown-page');
   await expect(page).toHaveURL(/\/unknown-page$/);
   await expect(page.getByText('주소를 확인해 주세요.')).toBeVisible();
+  // The page is not a dead end: it leads home and keeps the language and theme switches.
+  const notFound = page.locator('.ion-page:visible');
+  await expect(notFound.getByRole('button', { name: 'English' })).toBeVisible();
+  await expect(notFound.getByRole('button', { name: /다크 모드|라이트 모드/ })).toBeVisible();
+  await notFound.getByRole('link', { name: '홈으로' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: '페이지를 찾을 수 없습니다' })).toHaveCount(0);
+
+  // Unknown profile tabs and malformed trip IDs are not trips to sign in for, and say so in the heading and tab title.
+  for (const path of ['/profile/unknown', '/share/abc-def', '/view/abc-def']) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.locator('.ion-page:visible h1')).toHaveText('페이지를 찾을 수 없습니다');
+    await expect(page).toHaveTitle('페이지를 찾을 수 없습니다 · ComPasser');
+  }
+
+  // A trailing slash opens the same screen instead of a page that never becomes active.
+  await page.goto('/courses/?country=JPN');
+  await expect(page).toHaveURL(/\/courses\?country=JPN$/);
+  await page.goto('/profile/trips/');
+  await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+});
+
+test('게스트를 로그인으로 보낼 때 주소의 쿼리도 돌아올 곳에 남긴다', async ({ page }) => {
+  await page.goto('/profile/personal?tab=trips');
+  await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Fpersonal%3Ftab%3Dtrips$/);
+  await page.goto('/plan?review=1');
+  await expect(page).toHaveURL(/\/login\?next=%2Fplan%3Freview%3D1$/);
 });
 
 test('로그인 복원이 늦어도 한국 추천 목록은 표시되고 선택 없이 진행할 수 있다', async ({ page }) => {

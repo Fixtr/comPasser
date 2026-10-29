@@ -82,10 +82,13 @@ test('로그인하지 않았으면 로그인으로 보낸다', () => {
   }
 });
 
-test('공유 전용 경로와 기존 상세 경로는 유효한 문서 ID만 허용한다', () => {
-  for (const path of ['/share', '/share/', '/share/abc/extra', '/view/abc/extra']) {
-    assert.deepEqual(settled(path, null), { action: 'redirect', to: '/login' });
+test('잘못된 공유·상세 주소는 로그인으로 보내지 않고 찾을 수 없음 화면을 그린다', () => {
+  // Document IDs never contain a hyphen or a slash, so signing in could not open these either.
+  for (const path of ['/share/', '/share/abc-def', '/share/abc/extra', '/view/abc-def', '/view/abc/extra']) {
+    assert.deepEqual(settled(path, null), { action: 'render' }, path);
+    assert.equal(getSafeReturnPath(path), null, path);
   }
+  assert.deepEqual(pending('/share/abc-def'), { action: 'render' });
 });
 
 test('로그인·가입 이후 원래 일정으로 복귀한다', () => {

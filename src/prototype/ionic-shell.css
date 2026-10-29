@@ -50,10 +50,11 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-settings button { position: relative; min-width: 70px; min-height: 32px; padding: 5px 8px; font-size: 11px; border-radius: 6px; }
 .ionic-settings button::after { content: ''; position: absolute; inset: -6px 0; }
 .ionic-page-nav { max-width: 700px; min-height: 44px; padding: 6px 0; }
+.ionic-page-nav>a { display: inline-flex; align-items: center; text-decoration: none; }
 .ionic-home-settings { max-width: 440px; }
 button { font: inherit; cursor: pointer; }
 .flow-page { max-width: 700px; margin: 12px auto 36px; color: var(--cp-ink); }
-.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .globe-selection button, .globe-auto, .ionic-home-links button { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: 6px; min-height: 44px; padding: 8px 12px; }
+.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .ionic-page-nav>a, .globe-selection button, .globe-auto, .ionic-home-links button { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: 6px; min-height: 44px; padding: 8px 12px; }
 .flow-page gmp-place-autocomplete { display: block; margin-top: 8px; }
 .flow-page label { font-size: 14px; }
 .flow-choices { display: grid; gap: 10px; }
@@ -116,6 +117,6 @@ button { font: inherit; cursor: pointer; }
 .globe-selection button::after { content: ''; position: absolute; inset: -6px 0; }
 @keyframes globe-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .flow-page * { box-sizing: border-box; }
-.flow-page :is(button,input,select), .ionic-home :is(button,a), .ionic-page-nav button { outline-offset: 3px; }
-.flow-page :is(button,input,select):focus-visible, .ionic-home :is(button,a):focus-visible, .ionic-page-nav button:focus-visible { outline: 3px solid var(--cp-ink); }
+.flow-page :is(button,input,select), .ionic-home :is(button,a), .ionic-page-nav :is(button,a) { outline-offset: 3px; }
+.flow-page :is(button,input,select):focus-visible, .ionic-home :is(button,a):focus-visible, .ionic-page-nav :is(button,a):focus-visible { outline: 3px solid var(--cp-ink); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
