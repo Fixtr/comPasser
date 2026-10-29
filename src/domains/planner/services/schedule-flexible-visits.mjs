@@ -1,4 +1,4 @@
-import { normalizePlannerRequest } from './planner-constraints.mjs';
+import { isSameLocation, normalizePlannerRequest } from './planner-constraints.mjs';
 
 const parseTime = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
   ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
@@ -10,18 +10,25 @@ export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStat
   if (!anchors.some(anchor => anchor.flexible)) return { request, issue: null };
   const days = normalizePlannerRequest(request).dailyData;
   const scheduled = anchors.map(anchor => ({ ...anchor }));
+  // An untimed visit to a place already on that day (a timed appointment, or an earlier untimed visit) is one
+  // visit, as the review says; placing it would give it its own time and keep it as a second event.
+  const merged = new Set(anchors.flatMap((anchor, index) => anchor.flexible && anchors.some((other, otherIndex) => otherIndex !== index
+    && Number(other.day || 1) === Number(anchor.day || 1) && isSameLocation(other.location, anchor.location)
+    && (!other.flexible || otherIndex < index)) ? [index] : []));
+  const kept = list => list.filter((_, index) => !merged.has(index));
+  const unplaced = { ...request, anchorSchedules: kept(anchors) };
 
   for (const day of days) {
     const start = parseTime(day.startTime);
     const end = parseTime(day.endTime);
-    if (start === null || end === null || start >= end) return { request, issue: null };
+    if (start === null || end === null || start >= end) return { request: unplaced, issue: null };
     const indexed = scheduled.map((anchor, index) => ({ anchor, index }))
-      .filter(({ anchor }) => Number(anchor.day || 1) === day.day);
+      .filter(({ anchor, index }) => Number(anchor.day || 1) === day.day && !merged.has(index));
     const fixed = indexed.filter(({ anchor }) => !anchor.flexible)
       .map(({ anchor }) => ({ anchor, start: parseTime(anchor.time), end: parseTime(anchor.endTime) }))
       .sort((a, b) => a.start - b.start);
     if (fixed.some(slot => slot.start === null || slot.end === null || slot.start >= slot.end)) {
-      return { request, issue: null };
+      return { request: unplaced, issue: null };
     }
     const gaps = [];
     let previous = { location: day.startLocation }, cursor = start;
@@ -67,5 +74,5 @@ export async function scheduleFlexibleVisits(request, { travelMinutes, hoursStat
       remaining.splice(remaining.findIndex(item => item.index === best.index), 1);
     }
   }
-  return { request: { ...request, anchorSchedules: scheduled }, issue: null };
+  return { request: { ...request, anchorSchedules: kept(scheduled) }, issue: null };
 }
