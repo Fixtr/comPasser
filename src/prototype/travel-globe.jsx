@@ -6,15 +6,20 @@ import world from '../domains/planner/ui/world-110m.json';
 import { t, getLang } from '../utils/i18n.js';
 const countries = feature(world, world.objects.features).features;
 const supported = new Set(destinationCountries);
+// Rebuilding 177 country paths every frame kept a slow phone's main thread 100% busy and made taps
+// wait about 1 s, so the automatic turn is a short intro: it stops after this long or at the first touch.
+const AUTO_TURN_MS = 10000;
 
 export function TravelGlobe({ active, onChooseCity }) {
   const svg = useRef(null), rotation = useRef([-127, -30, 0]), drag = useRef(null), velocity = useRef([0,0]);
   const pointers = useRef(new Map()), pinch = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState(null);
-  const [turning, setTurning] = useState(true);
-  const [angle, setAngle] = useState(rotation.current);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Reduced motion never turns, so the control starts in its paused state instead of claiming to rotate.
+  const [turning, setTurning] = useState(!reduced);
+  const userTurned = useRef(false);
+  const [angle, setAngle] = useState(rotation.current);
   const projection = geoOrthographic().scale(128 * zoom).translate([130,130]).rotate(angle);
   const path = geoPath(projection);
   const zoomBy = factor => setZoom(value => Math.max(.65, Math.min(4, value * factor)));
@@ -37,7 +42,8 @@ export function TravelGlobe({ active, onChooseCity }) {
     };
   }, [active]);
   useEffect(() => {
-    if (!active || reduced) return undefined;
+    // Under reduced motion only a turn the user starts runs (it starts paused); drags keep no inertia.
+    if (!active || (reduced && !turning)) return undefined;
     let frame, last = 0;
     const tick = now => {
       if (last && !drag.current && !document.hidden) {
@@ -52,6 +58,15 @@ export function TravelGlobe({ active, onChooseCity }) {
     frame=requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [active, reduced, turning, selected]);
+  useEffect(() => {
+    // Rotation the user switched on keeps going; the intro turn ends on its own.
+    if (!active || !turning || userTurned.current) return undefined;
+    const stop = event => { if (!event?.target?.closest?.('.globe-auto')) setTurning(false); };
+    const timer = setTimeout(stop, AUTO_TURN_MS);
+    document.addEventListener('pointerdown', stop, true);
+    document.addEventListener('keydown', stop, true);
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', stop, true); document.removeEventListener('keydown', stop, true); };
+  }, [active, turning]);
   const choose = country => {
     const next = selected === country ? null : country;
     setSelected(next); velocity.current=[0,0];
@@ -101,7 +116,8 @@ export function TravelGlobe({ active, onChooseCity }) {
       <circle cx="130" cy="130" r={128 * zoom} className="globe-ocean" />
       {countries.map(country => <path key={country.properties.id} data-country={country.properties.id} d={path(country) || ''} className={selected===country.properties.id ? 'globe-selected' : ''}><title>{countryName(country.properties.id)}</title></path>)}
     </svg>
-    <button className="globe-auto" onClick={() => setTurning(!turning)} aria-pressed={turning} aria-label={t(turning ? 'globePause' : 'globePlay')} title={t(turning ? 'globePause' : 'globePlay')}><span aria-hidden="true">{turning ? '❚❚' : '▶'}</span></button>
+    {/* The label names the action, so no aria-pressed: both together read as 'stop rotation, pressed'. */}
+    <button className="globe-auto" onClick={() => { userTurned.current = !turning; setTurning(!turning); }} aria-label={t(turning ? 'globePause' : 'globePlay')} title={t(turning ? 'globePause' : 'globePlay')}><span aria-hidden="true">{turning ? '❚❚' : '▶'}</span></button>
     </div>
     <h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p>
     {selected && <div key={selected} className="globe-selection" role="status"><strong>{countryName(selected)}</strong>{supported.has(selected) ? <button onClick={() => onChooseCity(selected)}>{t('globeCity')}</button> : <small>{t('globeSoon')}</small>}</div>}
