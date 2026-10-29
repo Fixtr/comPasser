@@ -6,7 +6,7 @@ import {
   IonTabs, IonTitle, IonToolbar, isPlatform, setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { matchPath, Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, matchPath, Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
 import { decideRoute, getSafeReturnPath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
@@ -68,12 +68,16 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   const params = useParams();
   const path = routePath.includes(':id') ? routePath.replace(':id', params.id || '') : routePath === '*' ? location.pathname : routePath;
   const active = location.pathname === path;
+  // '/profile/' matches the '/profile' route but is never that page's address, so the page would never become active.
+  const trimmed = location.pathname.replace(/(.)\/+$/, '$1');
+  if (trimmed !== location.pathname && trimmed === path) return <Navigate to={trimmed + location.search} replace />;
   const firstSearch = useRef(location.search).current;
   const search = active ? location.search : firstSearch;
   const next = new URLSearchParams(search).get('next');
   const decision = routePath === '*' ? { action: 'render' } : decideRoute({ path, user, authSettled, hasPreference: !!sessionStorage.getItem('userPreference'), returnTo: next });
   if (active && decision.action === 'redirect') {
-    const returnPath = !user && getSafeReturnPath(path);
+    // The query is part of where the guest was going (/plan?review=1, /profile/personal?tab=trips).
+    const returnPath = !user && (getSafeReturnPath(path + search) || getSafeReturnPath(path));
     const target = returnPath ? `${decision.to}?next=${encodeURIComponent(returnPath)}` : decision.to;
     return <Navigate to={target} replace />;
   }
@@ -88,7 +92,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} settings={settings} active={active} />;
   else if (path === '/plan') screen = <PlanScreen user={user} settings={settings} />;
   else if (path === '/view' || /^\/(?:view|share)\/[a-zA-Z0-9]+$/.test(path)) screen = <ResultScreen path={path} active={active} user={user} authSettled={authSettled} settings={settings} />;
-  else if (path.startsWith('/profile')) screen = <ProfileScreen key={user?.uid || 'guest'} tab={path === '/profile/personal' && new URLSearchParams(search).get('tab') === 'trips' ? 'trips' : path.split('/')[2] || 'personal'} settings={settings} active={active} />;
+  else if (['/profile', '/profile/trips', '/profile/personal', '/profile/security'].includes(path)) screen = <ProfileScreen key={user?.uid || 'guest'} tab={path === '/profile/personal' && new URLSearchParams(search).get('tab') === 'trips' ? 'trips' : path.split('/')[2] || 'personal'} settings={settings} active={active} />;
   else if (path === '/account-deletion-status') screen = <AccountDeletionScreen settings={settings} />;
 
   if (active && decision.action === 'wait') return <IonPage><IonContent className="ion-padding">{t('shellSignInRequired')}</IonContent></IonPage>;
@@ -97,9 +101,9 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   return <IonPage>
     <IonHeader><IonToolbar>
       {path !== '/' && path !== '/home' && <IonButtons slot="start"><IonBackButton defaultHref="/" text={t('shellBack')} /></IonButtons>}
-      <IonTitle>{t(titleKey)}</IonTitle>
+      <IonTitle>{t('shellNotFound')}</IonTitle>
     </IonToolbar></IonHeader>
-    <IonContent className="ion-padding shell-content"><h1>{t(titleKey)}</h1><p>{t('shellCheckAddress')}</p></IonContent>
+    <IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><Link to="/">{t('profileGoHome')}</Link>{settings}</div><h1>{t('shellNotFound')}</h1><p>{t('shellCheckAddress')}</p></IonContent>
   </IonPage>;
 }
 
@@ -109,7 +113,9 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
   const navigate = useNavigate();
   usePlanExitGuard(location, user);
   useEffect(() => {
-    const key = pages.find(([path]) => matchPath(path, location.pathname))?.[1] || 'shellNotFound';
+    const route = pages.find(([path]) => matchPath(path, location.pathname));
+    // A trip address whose ID no document can have shows the not-found page, so the tab says so too.
+    const key = route && !(route[0].endsWith('/:id') && !getSafeReturnPath(location.pathname)) ? route[1] : 'shellNotFound';
     // Picked city steps name the city, so tabs and history entries can be told apart; same check as usePlacePick.
     const query = new URLSearchParams(location.search);
     const city = ['/recommend', '/courses'].includes(location.pathname) && destinationById(query.get('city'));

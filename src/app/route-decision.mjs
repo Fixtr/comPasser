@@ -50,7 +50,12 @@ export function isPublicPath(path) {
   if (path == null) return true;
   const p = String(path);
   return isHomePath(p) || p === '/destination' || p === '/recommend' || p === '/courses' || p === '/login' || p === '/join' || p === '/account-deletion-status' || p.startsWith('/verify')
-    || (/^\/share\//.test(p) && getSafeReturnPath(p) !== null);
+    || /^\/share\//.test(p) || isMalformedTripPath(p);
+}
+
+/** A `/view/` or `/share/` address whose ID no document can have: it gets the not-found page, not a sign-in. */
+function isMalformedTripPath(p) {
+  return /^\/(?:share|view)\/./.test(p) && getSafeReturnPath(p) === null;
 }
 
 /**
