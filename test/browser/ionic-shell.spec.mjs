@@ -651,10 +651,10 @@ test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=k
   await expect(privacy).toHaveAttribute('target', '_blank');
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('login-view h2').last()).toHaveText('Log in');
-  await expect(privacy).toHaveText('Privacy Policy (in Korean)');
+  await expect(privacy).toHaveText('Privacy Policy (English translation below the Korean)');
   await page.goto('/join');
   const joinPrivacy = page.locator('join-view a[data-i18n="authPrivacyLink"]').last();
-  await expect(joinPrivacy).toHaveText('Privacy Policy (in Korean)');
+  await expect(joinPrivacy).toHaveText('Privacy Policy (English translation below the Korean)');
   await expect(joinPrivacy).toHaveAttribute('href', 'https://hackerton-48w.pages.dev/privacy');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/home?lang=ko');

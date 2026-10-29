@@ -105,7 +105,7 @@ function normalizeForComparison(value) {
     .replace(/[\s()[\]{},.\-_/\\]/g, '');
 }
 
-function isSameLocation(actual, expected) {
+export function isSameLocation(actual, expected) {
   const actualPlace = normalizeSelectedPlace(actual);
   const expectedPlace = normalizeSelectedPlace(expected);
   if (actualPlace && expectedPlace) return actualPlace.placeId === expectedPlace.placeId;
@@ -115,6 +115,15 @@ function isSameLocation(actual, expected) {
   return actualText === expectedText
     || actualText.includes(expectedText)
     || expectedText.includes(actualText);
+}
+
+/**
+ * Must-visits that one result will show as a single visit: the same venue on the same day, unless both
+ * have their own different times (two appointments). The review tells the user before generating.
+ */
+export function mergedSameDayVisits(anchors = []) {
+  return anchors.some((anchor, index) => anchors.slice(index + 1).some(other => Number(other.day) === Number(anchor.day)
+    && isSameLocation(other.location, anchor.location) && !(anchor.time && other.time && anchor.time !== other.time)));
 }
 
 function mapsSearchUrl(location) {
@@ -270,9 +279,15 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     for (const anchor of anchors) {
       const requiredAnchor = makeAnchorItem(anchor, isKo);
       const matchedIndexes = [];
+      // Two timed appointments at one venue (lunch and dinner) are separate events: an item at another
+      // anchor's own time belongs to that anchor, even when place or title also matches this one.
+      const claimedByOther = item => !isSameTime(item.time, anchor.time)
+        && anchors.some(other => other !== anchor && isSameTime(item.time, other.time) && matchesAnchor(item, other));
       scheduleItems.forEach((item, itemIndex) => {
-        if (matchesAnchor(item, anchor)) matchedIndexes.push(itemIndex);
+        if (matchesAnchor(item, anchor) && !claimedByOther(item)) matchedIndexes.push(itemIndex);
       });
+      // An untimed visit to a venue the user already has a timed appointment at is covered by it.
+      if (!matchedIndexes.length && !anchor.time && scheduleItems.some(item => matchesAnchor(item, anchor) && claimedByOther(item))) continue;
 
       if (matchedIndexes.length === 0) {
         scheduleItems.push(requiredAnchor);
