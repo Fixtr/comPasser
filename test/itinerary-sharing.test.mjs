@@ -508,7 +508,7 @@ test('인증 상태 재평가가 같은 문서를 동시에 두 번 조회하지
   assert.deepEqual(await Promise.all([first, second]), [true, true]);
 });
 
-test('저장 중 추가 편집이 발생하면 요청 시점 사본만 저장하고 최신 화면을 덮지 않는다', async () => {
+test('저장 중 추가 편집이 발생하면 요청 시점 사본만 저장하고 최신 화면은 그 일정의 미저장 편집으로 남긴다', async () => {
   let finish;
   const app = itineraryView({ user: { uid: 'owner' }, save: () => new Promise(resolve => { finish = resolve; }) });
   app.view.showResults(samplePlan());
@@ -518,7 +518,12 @@ test('저장 중 추가 편집이 발생하면 요청 시점 사본만 저장하
   await saving;
   assert.equal(app.calls.saves[0][1].days[0].scheduleItems.length, 4);
   assert.equal(app.view.currentItinerary.days[0].scheduleItems.length, 5);
-  assert.deepEqual(app.calls.navigations, []);
+  // The address names the new trip, so saving the later edit updates it instead of making a second trip.
+  assert.deepEqual(app.calls.navigations, ['/view/saved123']);
+  assert.equal(app.view.state.current.unsaved, true);
+  await app.save();
+  assert.equal(app.calls.saves.length, 1);
+  assert.equal(app.calls.updates.length, 1);
 });
 
 test('개인 일정 조회 도중 계정이 바뀌면 이전 계정의 결과나 캐시가 남지 않는다', async () => {

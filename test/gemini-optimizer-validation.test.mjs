@@ -68,7 +68,7 @@ test('AI call failures reject with a retryable message instead of a mock itinera
   }
   // A timeout or a lost connection (the SDK's bare 'internal') may still finish on the server and hold the credit lease.
   for (const error of [{ code: 'functions/deadline-exceeded', message: 'deadline-exceeded' }, { code: 'functions/internal', message: 'internal' }]) {
-    await assert.rejects(fixture(error).run(valid()), rejected => rejected.retryable === false && rejected.message === t('generationOutcomeUnknown'));
+    await assert.rejects(fixture(error).run(valid()), rejected => rejected.retryable === false && rejected.outcomeUnknown === true && rejected.message === t('generationOutcomeUnknown'));
   }
   // The server already spent the credit on a returned plan, so a broken plan is not a one-tap retry.
   await assert.rejects(fixture(null, 2, []).run(valid()), error => error.retryable === false && error.message === t('generationAiFailed'));

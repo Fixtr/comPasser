@@ -205,6 +205,11 @@ test('내 일정 카드는 제목에 도시가 없을 때 날짜 줄에 도시�
   await expect(cards.nth(1).locator('.trip-city')).toHaveText('');
   await expect(cards.nth(2).locator('.trip-city')).toHaveText('');
   await cards.nth(0).locator('.btn-rename').click();
+  // An empty name says why instead of silently keeping the old one.
+  await cards.nth(0).locator('.rename-input').fill('  ');
+  await cards.nth(0).locator('.btn-rename-save').click();
+  await expect(cards.nth(0).locator('.rename-input')).toBeVisible();
+  expect(await cards.nth(0).locator('.rename-input').evaluate(input => input.validationMessage)).toBe('여행 이름을 입력해 주세요.');
   await cards.nth(0).locator('.rename-input').fill('도쿄 첫 산책');
   await cards.nth(0).locator('.btn-rename-save').click();
   await expect(cards.nth(0).locator('.trip-title')).toHaveText('도쿄 첫 산책');

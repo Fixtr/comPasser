@@ -103,7 +103,7 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
     // (the SDK's bare 'internal') the server may still finish, so a retry would hit its lease.
     const unknown = error?.code === 'functions/deadline-exceeded' || (error?.code === 'functions/internal' && error.message === 'internal');
     throw Object.assign(new Error(t(unknown ? 'generationOutcomeUnknown' : 'generationAiFailed')),
-      { retryable: !unknown && String(error?.code).startsWith('functions/') });
+      { retryable: !unknown && String(error?.code).startsWith('functions/'), outcomeUnknown: unknown });
   }
 }
 

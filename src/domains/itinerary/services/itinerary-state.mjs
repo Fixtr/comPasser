@@ -176,6 +176,18 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if(!entry.dirtyDays.includes(index))entry.dirtyDays.push(index);
       return this.replaceDayItems(index,items);
     },
+    /** The entry still on screen becomes the trip saved from it; edits made during the save stay unsaved. */
+    adoptSaved(entry, id, savedPlan) {
+      if (!entry || current() !== entry || !userId) return null;
+      const source = { kind: 'private', id, ownerId: userId };
+      const moved = { ...entry, source, unsaved: JSON.stringify(entry.plan) !== JSON.stringify(savedPlan), ...(entry.source.kind === 'draft' ? { savedFromDraft: true } : {}) };
+      // The shared original stays cached; a saved draft or a deleted trip's key would offer Save again.
+      if (entry.source.kind !== 'shared') entries.delete(activeKey);
+      activeKey = keyOf(source);
+      entries.set(activeKey, moved);
+      changed();
+      return moved;
+    },
     markSaved() {
       const entry=current();
       if (entry?.unsaved) { entry.unsaved=false; changed(); }
