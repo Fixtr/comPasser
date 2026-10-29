@@ -8,6 +8,7 @@ import { travelRegion } from '../functions/travel-region.mjs';
 
 import {
   enforcePlannerConstraints,
+  mergedSameDayVisits,
   normalizePlannerRequest
 } from '../src/domains/planner/services/planner-constraints.mjs';
 
@@ -718,4 +719,36 @@ test('a night without a chosen stay shows a localized city-center label but keep
   assert.equal(again[0].scheduleItems.length, days[0].scheduleItems.length);
   assert.equal(again[0].scheduleItems.at(-1).title, 'Arrive · Stay not set (central Seoul)');
   assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)), null);
+});
+
+test('two timed appointments at one venue on one day stay two events; untimed duplicates still merge', async () => {
+  const request = { date: ['2026-10-06'], startTime: '09:00', endTime: '21:00', startLocation: '서울역', endLocation: '서울역',
+    anchorSchedules: [
+      { day: 1, name: '점심 예약', time: '12:00', endTime: '13:00', location: '광장시장' },
+      { day: 1, name: '저녁 예약', time: '18:00', endTime: '19:00', location: '광장시장' },
+    ] };
+  const anchors = day => day.scheduleItems.filter(item => item.type === 'AnchorSchedule').map(item => [item.time, item.title]);
+  // The model often returns one item for the venue; the second appointment is restored, not absorbed.
+  const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [
+    { type: 'AnchorSchedule', time: '12:00', endTime: '13:00', title: '광장시장 점심', location: '광장시장' },
+  ] }], request);
+  assert.deepEqual(anchors(day), [['12:00', '점심 예약'], ['18:00', '저녁 예약']]);
+  assert.deepEqual(enforcePlannerConstraints([day], request), [day]);
+  const untimed = { ...request, anchorSchedules: request.anchorSchedules.map(anchor => ({ ...anchor, time: '', endTime: '', flexible: true })) };
+  // The real path places untimed visits first (giving each its own time), then enforces: the merge must happen there.
+  const generate = async input => {
+    const placed = await scheduleFlexibleVisits(input, { travelMinutes: async () => 10, hoursStatus: async () => 'open' });
+    assert.equal(placed.issue, null);
+    return enforcePlannerConstraints([{ day: 1, scheduleItems: [] }], placed.request)[0];
+  };
+  assert.equal((await generate(untimed)).scheduleItems.filter(item => item.type === 'AnchorSchedule').length, 1);
+  // An untimed visit to a venue with a timed appointment is covered by it, in either order, and never moves the appointment.
+  for (const order of [[0, 1], [1, 0]]) {
+    const pair = [request.anchorSchedules[0], { ...untimed.anchorSchedules[1] }];
+    assert.deepEqual(anchors(await generate({ ...request, anchorSchedules: order.map(i => pair[i]) })), [['12:00', '점심 예약']]);
+  }
+  assert.equal(mergedSameDayVisits(request.anchorSchedules), false, 'two different times are two appointments');
+  assert.equal(mergedSameDayVisits(untimed.anchorSchedules), true);
+  assert.equal(mergedSameDayVisits([request.anchorSchedules[0], untimed.anchorSchedules[1]]), true);
+  assert.equal(mergedSameDayVisits([request.anchorSchedules[0], { ...untimed.anchorSchedules[1], day: 2 }]), false);
 });

@@ -1409,3 +1409,14 @@ test('Back from the phone result sheet lands focus on the trip list heading, not
  await expect(page).toHaveURL(/\/profile\/trips$/);
  await expect.poll(()=>page.evaluate(()=>{const host=document.activeElement;return host?.tagName==='PROFILE-VIEW'?host.shadowRoot.activeElement?.tagName:host?.tagName;})).toMatch(/^H[12]$/);
 });
+
+test('the review says when one place on one day will be a single visit, but not for two appointments at different times', async ({page}) => {
+ const visit=(name,time,endTime)=>({name,day:1,time,endTime,location:place});
+ const note=form=>form.locator('#review-panel .review-merged');
+ let form=await openExitTestForm(page,{anchorSchedules:[visit('Lunch','12:00','13:00'),visit('Dinner','17:00','18:00')]});
+ await form.locator('button[type=submit].primary-btn').click();
+ await expect(form.locator('#review-panel')).toBeVisible();await expect(note(form)).toHaveCount(0);
+ form=await openExitTestForm(page,{anchorSchedules:[visit('Lunch','12:00','13:00'),{...visit('Again','',''),flexible:true}]});
+ await form.locator('button[type=submit].primary-btn').click();
+ await expect(note(form)).toHaveText('같은 날 같은 장소가 두 번 들어 있어요. 서로 다른 시간을 정한 약속이 아니면 일정에는 한 번만 들어가요.');
+});

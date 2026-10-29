@@ -18,7 +18,7 @@ import { showErrorToast } from '../../../utils/toast.js';
 import { todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank, missingAnchorFields } from '../services/anchor-validation.mjs';
 import { findMissingLocation, REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
-import { getLocationName, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
+import { getLocationName, mergedSameDayVisits, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
 import { airportArrivalTime, tripStartAfterLanding } from '../services/flight-arrival.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
@@ -950,7 +950,8 @@ export default class TravelForm extends HTMLElement {
       +section('flowTravelDate',`<p>${line(this.shadowRoot.getElementById('trip-destination').value)}</p><p>${line(draft.date[0])} → ${line(draft.date.at(-1))}</p>`)
       +section('tripStartLocation',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p>${tripTimes}`)
       +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
-      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join(''))
+      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join('')
+        +(mergedSameDayVisits(draft.anchorSchedules) ? `<p class="review-merged" role="note">${t('reviewMergedVisits')}</p>` : ''))
       +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
       +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
       +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
