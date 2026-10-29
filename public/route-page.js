@@ -8,6 +8,27 @@ document.querySelectorAll('.copy-address').forEach(button => {
 });
 document.getElementById('copy-link')?.addEventListener('click', () => void copy(document.querySelector('link[rel=canonical]').href));
 document.getElementById('print-route')?.addEventListener('click', () => window.print());
+// Many hosts' tools (Word, Canva, Instagram) take PNG, not SVG, so draw the same-origin SVG onto a canvas.
+document.getElementById('download-qr')?.addEventListener('click', event => {
+  const { qr, name } = event.currentTarget.dataset;
+  const image = new Image();
+  image.onload = () => { try {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 760;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff'; context.fillRect(0, 0, 760, 760);
+    context.drawImage(image, 0, 0, 760, 760);
+    canvas.toBlob(blob => {
+      if (!blob) { status.textContent = 'The PNG could not be made. Use the SVG download instead.'; return; }
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob); link.download = `${name}.png`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }, 'image/png');
+  } catch { status.textContent = 'The PNG could not be made. Use the SVG download instead.'; } };
+  image.onerror = () => { status.textContent = 'The QR code could not be loaded. Check your connection and try again.'; };
+  image.src = qr;
+});
 document.getElementById('plan-route')?.addEventListener('click', event => {
   const startLocation = document.getElementById('start-location').value.trim();
   try {

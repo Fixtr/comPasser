@@ -22,10 +22,13 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
   await page.goto('/share/abc123');
   await expect(page.locator('main.flow-page')).toContainText('오프라인');
   await expect(page.locator('itinerary-view,map-view')).toHaveCount(0);
+  // Public pages must not display a cached copy after the owner unpublishes; offline they explain why.
+  // (Checked before /privacy: a failed navigation leaves the tab on Chrome's error page.)
+  await page.goto('/en/routes/curated-seoul');
+  await expect(page.getByRole('heading', { name: 'You are offline' })).toBeVisible();
+  await expect(page.getByText('Gyeongbokgung')).toHaveCount(0);
   // The privacy policy is not part of the app, so offline it must not open the app's not-found page.
   await expect(page.goto('/privacy')).rejects.toThrow();
-  // Public pages must not display a cached copy after the owner unpublishes.
-  await expect(page.goto('/en/routes/curated-seoul')).rejects.toThrow();
 });
 
 test('본인 오프라인 일정은 앱 재실행 후 주소와 시각을 열람하며 저장 해제 후 사라진다', async ({page,context,baseURL},testInfo)=>{

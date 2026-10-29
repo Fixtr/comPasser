@@ -266,6 +266,32 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation)).toBe(draft.startLocation);
 });
 
+test('영문 루트 페이지는 PNG QR을 내려받고, 다크 모드를 따르고, /en 오타 주소를 영어로 안내한다', async ({ page }) => {
+  await page.goto('/en/routes/curated-seoul');
+  await page.getByRole('link', { name: 'Start planning' }).click();
+  await expect(page).toHaveURL(/#plan$/);
+  await expect(page.getByLabel('Start near your accommodation (optional)')).toBeInViewport();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download QR (PNG)' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('compasser-curated-seoul.png');
+  const bytes = await (await import('node:fs/promises')).readFile(await file.path());
+  expect([...bytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  expect(await background()).toBe('rgb(18, 18, 17)');
+  // The theme chosen in the app wins over the system setting, as in the app.
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
+  expect(await background()).toBe('rgb(244, 244, 241)');
+  await page.goto('/en');
+  await expect(page).toHaveURL(/\/en\/routes$/);
+  const typo = await page.goto('/en/rout');
+  expect(typo.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: 'We could not find this page' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+});
+
 test('영문 루트 목록은 도시로 바로 이동하고 카드 어디를 눌러도 그 루트가 열린다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/routes');

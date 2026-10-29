@@ -27,6 +27,12 @@ const SHELL_URL = '/';
 
 const PRECACHE_ASSETS = self.__PRECACHE_ASSETS__ || [];
 const NAVIGATION_TIMEOUT_MS = 3000;
+// Route pages are never cached (an unpublished route must not come back from a cache), so offline they get this.
+const ROUTE_OFFLINE_HTML = '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+  + '<title>You are offline | ComPasser</title><style>body{margin:0;padding:24px;font:17px/1.65 system-ui,sans-serif;background:#f4f4f1;color:#17201c}'
+  + '@media (prefers-color-scheme:dark){body{background:#121211;color:#EDEDE9}}main{max-width:850px;margin:auto}</style></head>'
+  + '<body><main><h1>You are offline</h1><p>Route pages need a connection, so they always show whether the route is still public.</p>'
+  + '<p>Reconnect and reload this page. To keep a route for the street, print it or save it as a PDF while you are online.</p></main></body></html>';
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -79,7 +85,13 @@ self.addEventListener('fetch', (event) => {
 
   // Public route pages must never restore an unpublished snapshot from offline caches.
   // The privacy policy is not an app screen, so offline the browser's own error beats the app's not-found page.
-  if (url.pathname.startsWith('/en/routes') || url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt' || /^\/privacy(?:\.html|\/)?$/.test(url.pathname)) return;
+  if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt' || /^\/privacy(?:\.html|\/)?$/.test(url.pathname)) return;
+  if (url.pathname === '/en' || url.pathname.startsWith('/en/')) {
+    if (request.mode === 'navigate') {
+      event.respondWith(fetch(request).catch(() => new Response(ROUTE_OFFLINE_HTML, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } })));
+    }
+    return;
+  }
 
   // 서비스 워커 자신은 캐시하지 않는다(업데이트가 막힌다).
   if (url.pathname === '/sw.js') return;
