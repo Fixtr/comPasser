@@ -159,3 +159,42 @@ test('the route directory groups routes by city with jump links, distinct titles
   assert.match(renderPublicRoute({ ...travelers[0], title: '서울 산책', titleEn: '2024' }, origin), /<h1>서울 산책<\/h1>/);
   assert.ok(html.indexOf('id="city-seoul"') < html.indexOf('id="city-tokyo"') && html.indexOf('id="city-tokyo"') < html.indexOf('id="travelers"'));
 });
+
+test('route pages link every stop to maps and directions, jump to planning from the top, and follow dark mode', () => {
+  const seoul = renderPublicRoute(curatedRoute('curated-seoul'), origin);
+  const stops = curatedRoute('curated-seoul').stops;
+  assert.equal(seoul.match(/>Open in Google Maps</g).length, 2);
+  assert.match(seoul, new RegExp(`https://map\\.naver\\.com/p/search/${encodeURIComponent(stops[0].location).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.equal(seoul.match(/>Directions from /g).length, 1, 'only stops after the first get directions');
+  assert.match(seoul, /maps\/dir\/\?api=1&amp;origin=[^"]+&amp;destination=[^"]+&amp;travelmode=transit/);
+  const tokyo = renderPublicRoute(curatedRoute('curated-tokyo'), origin);
+  assert.doesNotMatch(tokyo, /Naver Map/);
+  assert.match(tokyo, />Directions from Sensoji Temple</);
+  // Planning is reachable without scrolling two screens: a top link to the planning section.
+  assert.ok(seoul.indexOf('href="#plan"') < seoul.indexOf('<article>'));
+  assert.match(seoul, /<section class="start" id="plan">/);
+  assert.match(seoul, /prefers-color-scheme:dark/); assert.match(seoul, /:root\[data-theme=dark\]/);
+  // Print forces the light palette over both dark rules; the stored theme applies before first paint.
+  assert.match(seoul, /@media print\{:root,:root\[data-theme\]\{color-scheme:light;/);
+  assert.ok(seoul.indexOf('<script src="/route-theme.js') < seoul.indexOf('<style>'));
+  assert.match(seoul, /outline:3px solid var\(--focus\)/);
+  assert.match(seoul, /id="download-qr"[^>]+data-qr="\/en\/routes\/curated-seoul\/qr\.svg"/);
+  assert.match(seoul, /class="action" href="\/en\/routes\/curated-seoul\/qr\.svg\?download=1">Download QR \(SVG\)/);
+  // Traveler names are escaped inside the directions link text.
+  const traveler = renderPublicRoute({ id: 'trip1', title: 'Walk', stops: [{ name: '<b>A</b>', location: 'A', stayMinutes: 30 }, { name: 'B', location: 'B', stayMinutes: 30 }] }, origin);
+  assert.match(traveler, /Directions from &lt;b&gt;A&lt;\/b&gt;/);
+});
+
+test('/en alone goes to the directory and other /en pages get an English not-found page', async () => {
+  const qr = await (await worker.fetch(request('/en/routes/curated-seoul/qr.svg'), env)).text();
+  assert.match(qr, /^<svg [^>]*width="\d+px" height="\d+px"/, 'an intrinsic size lets browsers draw it onto the PNG canvas');
+  const bare = await worker.fetch(request('/en'), env);
+  assert.equal(bare.headers.get('Strict-Transport-Security'), 'max-age=31536000');
+  assert.equal(bare.status, 301); assert.equal(bare.headers.get('Location'), '/en/routes');
+  assert.equal((await worker.fetch(request('/en/'), env)).headers.get('Location'), '/en/routes');
+  const typo = await worker.fetch(request('/en/rout'), env);
+  assert.equal(typo.status, 404);
+  const html = await typo.text();
+  assert.match(html, /<html lang="en">/); assert.match(html, /We could not find this page/); assert.match(html, /noindex/);
+  assert.match(await (await worker.fetch(request('/en/routes/curated-missing'), env)).text(), /may no longer be public, or the address may be mistyped/);
+});

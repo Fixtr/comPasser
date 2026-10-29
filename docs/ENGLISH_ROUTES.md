@@ -14,6 +14,14 @@ Curated stops abroad have no street address in the catalogue, only a
 "Open in Google Maps" search link, and their second name line is the local name
 (Japanese and French catalogue ids, `lang` set) or nothing, never the Korean
 name the app's planner imports.
+Every stop links to a Google Maps search (Korean stops also to Naver Map), and
+every stop after the first to Google Maps transit directions from the previous
+stop; there is no embedded map or measured travel time. A "Start planning" link
+under the title jumps to the planning section. Pages follow the system dark
+mode, or the theme stored by the app (`route-page.js` sets `data-theme`). The QR
+downloads as PNG (drawn from the SVG in the browser) or SVG.
+`/en` redirects to `/en/routes`; any other `/en/...` that is not a route gets an
+English not-found page from the worker (`_routes.json` sends all of `/en/*` to it).
 The optional starting place stays in the visitor's session, not the shared URL.
 
 Owners can add an English title, public creator name/original post link, English
@@ -30,7 +38,9 @@ credentials are used. The server reads only `public_courses` using public
 Firestore rules, and masks responses to route fields. Deploy `firestore.rules`
 before releasing optional metadata support.
 
-Pages and QR are `no-store` and bypass the PWA cache. A removed public document
+Pages and QR are `no-store` and bypass the PWA cache; offline, the service worker
+answers route-page navigations with a short 'You are offline' page (503), never a
+cached copy. A removed public document
 returns 404; an upstream failure returns 503 rather than old public content.
 `robots.txt`, canonical links and `sitemap.xml` enable indexing; actual search
 indexing is controlled by search engines. The sitemap includes curated routes

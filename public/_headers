@@ -1,5 +1,5 @@
 # Clickjacking guard only. A fuller CSP would have to list every Firebase, Maps, Kakao, Naver and GA origin.
-# /en/routes*, /sitemap.xml and /robots.txt are served by _worker.js, which sets its own stricter CSP.
+# /en, /en/*, /sitemap.xml and /robots.txt are served by _worker.js, which sets its own stricter CSP and HSTS.
 /*
   Content-Security-Policy: frame-ancestors 'self'
   Strict-Transport-Security: max-age=31536000

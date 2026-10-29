@@ -72,7 +72,9 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
 
   // sw.js 를 그대로 실행
   const fn = new Function('self', 'caches', 'fetch', 'URL', 'Response', 'Promise', 'console', SW_SOURCE);
-  fn(self, caches, fetchImpl, URL, { error: () => makeResponse('error', false) }, Promise, console);
+  // `new Response(...)` builds a real one (the offline route page); Response.error() stays a marked fake.
+  const FakeResponse = Object.assign(function FakeResponse(body, init) { return new Response(body, init); }, { error: () => makeResponse('error', false) });
+  fn(self, caches, fetchImpl, URL, FakeResponse, Promise, console);
 
   /** fetch 이벤트를 흘리고 respondWith 결과를 돌려준다. undefined 면 SW 가 관여하지 않은 것. */
   const dispatchFetch = (request) => {
@@ -204,6 +206,17 @@ test('a server error on navigation shows the cached shell, or the error page whe
   // A redirect is the server's answer, not a failure.
   const redirect = runServiceWorker({ network: () => Promise.resolve({ ...makeResponse('', false, false, 0), type: 'opaqueredirect' }), cached: { 'compasser-shell-v1': { '/': 'shell' } } });
   assert.equal((await redirect.dispatchFetch(req('https://app.example/index.html', { mode: 'navigate' }))).type, 'opaqueredirect');
+});
+
+test('route pages always come from the network, and offline get an explanation instead of a cached copy', async () => {
+  const online = runServiceWorker({ cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  assert.match((await online.dispatchFetch(req('https://app.example/en/routes/curated-seoul', { mode: 'navigate' }))).body, /^network:/);
+  assert.equal(online.dispatchFetch(req('https://app.example/en/routes/curated-seoul/qr.svg')), undefined, 'the QR image is left to the browser');
+  const offline = runServiceWorker({ networkFails: true, cached: { 'compasser-shell-v1': { '/': 'shell' } } });
+  const page = await offline.dispatchFetch(req('https://app.example/en/routes/curated-seoul', { mode: 'navigate' }));
+  assert.equal(page.status, 503);
+  assert.match(await page.text(), /You are offline/);
+  assert.equal([...offline.store.values()].some(entries => [...entries.keys()].some(url => url.includes('/en/'))), false, 'nothing under /en is cached');
 });
 
 test('navigations to real files and the privacy page never get the app shell', () => {

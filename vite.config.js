@@ -19,7 +19,7 @@ export default defineConfig({
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split('?')[0] || '/';
-        if (!/^\/en\/routes(?:\/|$)/.test(path) && path !== '/sitemap.xml' && path !== '/robots.txt') return next();
+        if (!/^\/en(?:\/|$)/.test(path) && path !== '/sitemap.xml' && path !== '/robots.txt') return next();
         try {
           const result = await publicRoutesWorker.fetch(
             new Request(`http://127.0.0.1${request.url}`, { method: request.method }),
@@ -66,7 +66,7 @@ export default defineConfig({
       });
       writeFileSync(resolve(directory, '_routes.json'), JSON.stringify({
         version: 1,
-        include: ['/en/routes', '/en/routes/*', '/sitemap.xml', '/robots.txt'],
+        include: ['/en', '/en/*', '/sitemap.xml', '/robots.txt'],
         exclude: []
       }));
     },

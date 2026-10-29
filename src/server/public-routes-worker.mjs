@@ -28,7 +28,9 @@ async function publicDocuments(project, id, pageSize = 18) {
   return id ? convert(data) : (data.documents || []).map(convert);
 }
 
+// Pages does not apply public/_headers to worker responses, so the worker sends HSTS itself.
 const securityHeaders = {
+  'Strict-Transport-Security': 'max-age=31536000',
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -58,8 +60,10 @@ export default {
       try { publicCourses = await publicDocuments(project); } catch { /* Curated routes remain available without Firestore. */ }
       return response(renderRouteDirectory([...curated, ...publicCourses], origin));
     }
+    // '/en' alone is a trimmed route address; anything else under /en/ is an English page that does not exist.
+    if (/^\/en\/?$/.test(url.pathname)) return new Response(null, { status: 301, headers: { ...securityHeaders, Location: '/en/routes' } });
     const match = url.pathname.match(/^\/en\/routes\/([^/]+)(\/qr\.svg)?\/?$/);
-    if (!match) return url.pathname.startsWith('/en/routes/')
+    if (!match) return url.pathname.startsWith('/en/')
       ? response(renderRouteError(404, origin), 404) : env.ASSETS.fetch(request);
     const [, id, qr] = match;
     if (!PUBLIC_ROUTE_ID.test(id)) return response(renderRouteError(404, origin), 404);
@@ -68,7 +72,7 @@ export default {
       if (!course) return response(renderRouteError(404, origin), 404);
       if (qr) {
         const code = qrcode(0, 'M'); code.addData(publicRouteUrl(id, origin)); code.make();
-        return response(code.createSvgTag({ cellSize: 4, margin: 16, scalable: true }), 200, 'image/svg+xml',
+        return response(code.createSvgTag({ cellSize: 4, margin: 16 }), 200, 'image/svg+xml',
           url.searchParams.has('download') ? { 'Content-Disposition': `attachment; filename="compasser-${id}.svg"` } : {});
       }
       return response(renderPublicRoute(course, origin));
