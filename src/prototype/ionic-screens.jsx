@@ -178,12 +178,15 @@ export function PlanScreen({ user, settings }) {
   const [stage, setStage] = useState('draft');
   const retry = useRef(null);
   const run = useRef(0);
+  const creditsUid = useRef();
 
   useEffect(() => {
     if (pathname !== '/plan') return undefined;
     setPhase('form');
     plannerDraftStore.update({ step: search.includes('review=1') ? '/plan?review=1' : '/plan' });
     const element = form.current;
+    // Another account's balance (a zero blocks the button) must not show while this one loads; the element is defined after its lazy import.
+    if (creditsUid.current !== user?.uid) { creditsUid.current = user?.uid; element?.setGenerationCredits?.(undefined); }
     let generate;
     let loadCredits = () => {};
     let cancelled = false;
@@ -223,7 +226,7 @@ export function PlanScreen({ user, settings }) {
         navigate('/view');
       } catch (cause) {
         if (request === run.current) {
-          setError(cause?.message || t('generationFail'));
+          setError(cause?.outcomeUnknown && element.generationCredits === 'unlimited' ? t('generationOutcomeUnknownUnlimited') : cause?.message || t('generationFail'));
           setRetryable(cause?.retryable === true);
           setPhase('error');
         }
@@ -243,7 +246,7 @@ export function PlanScreen({ user, settings }) {
       if (search.includes('review=1')) element?.showReview();
       element?.renderPreferenceBadges();
       element?.syncDateFloor();
-      loadCredits = () => service.getGenerationCredits().then(balance => element?.setGenerationCredits(balance)).catch(() => element?.setGenerationCredits(null));
+      loadCredits = () => service.getGenerationCredits().then(balance => { if (!cancelled) element?.setGenerationCredits(balance); }).catch(() => { if (!cancelled) element?.setGenerationCredits(null); });
       loadCredits();
       element?.addEventListener('generate-itinerary', onGenerate);
     });

@@ -150,8 +150,14 @@ test('저장 중 편집한 최신 일정은 저장 시작 시점의 사본으로
   assert.deepEqual(await saving, { status: 'saved-earlier-version', id: 'oldSnapshot123' });
   assert.equal(calls.saves[0][1].days[0].scheduleItems[0].title, '경복궁');
   assert.equal(state.current.plan.days[0].scheduleItems[0].title, '편집한 장소');
-  assert.equal(state.current.source.kind, 'draft');
-  assert.equal(notifications, 0);
+  // The screen now shows the new trip with the later edit unsaved, so saving again updates it instead of creating a second trip.
+  assert.deepEqual(state.current.source, { kind: 'private', id: 'oldSnapshot123', ownerId: 'owner' });
+  assert.equal(state.current.unsaved, true);
+  assert.equal(state.activateDraft(), null);
+  assert.equal(notifications, 1);
+  assert.deepEqual(await actions.save(), { status: 'saved', id: 'oldSnapshot123' });
+  assert.equal(calls.saves.length, 1);
+  assert.equal(state.current.unsaved, false);
 });
 
 test('저장 중 계정이 바뀌면 새 계정의 일정과 화면을 건드리지 않는다', async () => {
@@ -172,15 +178,30 @@ test('저장 중 계정이 바뀌면 새 계정의 일정과 화면을 건드리
   assert.equal(notifications, 0);
 });
 
-test('저장 중 다른 날짜나 일정으로 이동하면 완료 후 이전 화면으로 되돌리지 않는다', async () => {
-  for (const move of ['day', 'document', 'leave']) {
+test('저장 중 다른 날만 고르면 그 일정이 저장본이 되고 고른 날을 유지한다', async () => {
+  const pending = deferred();
+  const { state, actions } = fixture({ save: () => pending.promise });
+  state.open(plan());
+  let notifications = 0;
+  const saving = actions.save({ onSaved: () => notifications++ });
+  state.selectDay(1);
+  pending.resolve('saved123');
+
+  assert.deepEqual(await saving, { status: 'saved', id: 'saved123' });
+  assert.deepEqual(state.current.source, { kind: 'private', id: 'saved123', ownerId: 'owner' });
+  assert.equal(state.current.dayIndex, 1);
+  assert.equal(state.current.unsaved, false);
+  assert.equal(notifications, 1);
+});
+
+test('저장 중 다른 일정으로 이동하면 완료 후 이전 화면으로 되돌리지 않는다', async () => {
+  for (const move of ['document', 'leave']) {
     const pending = deferred();
     const { state, actions } = fixture({ save: () => pending.promise });
     state.open(plan());
     let notifications = 0;
     const saving = actions.save({ onSaved: () => notifications++ });
-    if (move === 'day') state.selectDay(1);
-    else if (move === 'document') state.open(plan(), { kind: 'private', id: 'other123' });
+    if (move === 'document') state.open(plan(), { kind: 'private', id: 'other123' });
     else state.deactivate();
     const active = state.current;
     const before = state.snapshot();

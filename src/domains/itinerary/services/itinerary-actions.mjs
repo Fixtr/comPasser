@@ -23,6 +23,7 @@ export function createItineraryActions({
       if (!user) return { status: 'login-required' };
       if (!state.current?.plan || state.current.plan.isFallback) return { status: 'unavailable' };
 
+      const entry = state.current;
       const snapshot = state.snapshot();
       const revision = state.revision;
       // 저장한 개인 일정은 같은 문서를 고친다. 초안과 공유본은 새 개인 문서를 만든다.
@@ -39,7 +40,13 @@ export function createItineraryActions({
         id = await create();
       }
       if (getCurrentUser()?.uid !== user.uid) return { status: 'account-changed' };
-      if (revision !== state.revision) return { status: 'saved-earlier-version', id };
+      if (revision !== state.revision) {
+        // A new trip the screen still shows becomes that trip, so saving again updates it instead of creating a second one.
+        const opened = !updating && state.adoptSaved(entry, id, snapshot.plan);
+        if (!opened) return { status: 'saved-earlier-version', id };
+        onSaved(id);
+        return { status: opened.unsaved ? 'saved-earlier-version' : 'saved', id };
+      }
 
       if (updating) state.markSaved();
       else {

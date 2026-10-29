@@ -1293,9 +1293,11 @@ for (const [credits,shown,blocked] of [[0,'0장',true],['unlimited','무제한',
   const generate=review.locator('#final-generate');
   if (blocked) {
    await expect(generate).toBeDisabled();await expect(review.locator('.credit-empty')).toBeVisible();
+   // The reason the button is off is read with the button.
+   await expect(generate).toHaveAccessibleDescription(/생성권이 없어/);
    await generate.click({force:true});expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
    await review.locator('[data-review-edit]').first().click();await expect(form.locator('#start-time')).toHaveValue('09:00');
-  } else await expect(generate).toBeEnabled();
+  } else { await expect(generate).toBeEnabled();await expect(generate).not.toHaveAttribute('aria-describedby',/./); }
  });
 }
 

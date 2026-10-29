@@ -261,6 +261,8 @@ export default class TravelForm extends HTMLElement {
     // A listed review issue or a known zero blocks; an unknown balance (loading, offline, failure) leaves the decision to the server.
     const generate = this.shadowRoot?.getElementById('final-generate');
     if (generate) generate.disabled = credits === 0 || this.reviewBlocked === true || this.isSubmitting === true;
+    if (credits === 0) generate?.setAttribute('aria-describedby', 'review-credit-empty');
+    else generate?.removeAttribute('aria-describedby');
   }
 
   render() {
@@ -954,7 +956,7 @@ export default class TravelForm extends HTMLElement {
         +(mergedSameDayVisits(draft.anchorSchedules) ? `<p class="review-merged" role="note">${t('reviewMergedVisits')}</p>` : ''))
       +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
       +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
-      +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
+      +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" id="review-credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
     this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;
     root.querySelectorAll('[data-review-edit]').forEach(button=>button.onclick=()=>{ this.hideReview();if(button.dataset.reviewEdit==='style')window.navigate('/preference/2', { state: { returnTo: '/plan' } }); });
     root.querySelector('#final-generate').onclick=()=> { if(this.isSubmitting)return; const form=this.shadowRoot.getElementById('travel-form'); if(!form.reportValidity())return; form.dispatchEvent(new Event('submit',{cancelable:true})); };

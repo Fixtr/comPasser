@@ -534,7 +534,13 @@ class ProfileView extends HTMLElement {
 
         const commit = async () => {
             const next = input.value.trim();
-            if (!next || next === currentTitle) return restore();
+            if (!next) {
+                input.setCustomValidity(t('tripNameRequired'));
+                input.reportValidity();
+                input.addEventListener('input', () => input.setCustomValidity(''), { once: true });
+                return;
+            }
+            if (next === currentTitle) return restore();
 
             const saveBtn = row.querySelector('.btn-rename-save');
             saveBtn.disabled = true;
