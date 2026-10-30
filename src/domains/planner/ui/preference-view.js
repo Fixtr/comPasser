@@ -11,6 +11,7 @@ import { destinationById } from '../services/travel-destinations.mjs';
 
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { preferenceStyles } from './preference-style.js';
+import { stepProgressStyles, setStepProgress } from './step-progress.js';
 import { icons } from '../../../ui/icons.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 
@@ -51,13 +52,14 @@ export default class PreferenceView extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         ${preferenceStyles}
+        ${stepProgressStyles}
       </style>
 
       <div class="preference-header">
         <div class="progress-track">
-          <div id="progress-bar" class="progress-fill" style="width: 50%;"></div>
+          <div id="progress-bar" class="progress-fill"></div>
         </div>
-        <span class="step-badge" id="step-badge">Step 1 / 2</span>
+        <span class="step-badge" id="step-badge"></span>
         <h2 data-i18n="prefStyleTitle">${t('prefStyleTitle')}</h2>
         <p><span data-i18n="prefStyleSubtitle1">${t('prefStyleSubtitle1')}</span><br><span data-i18n="prefStyleSubtitle2">${t('prefStyleSubtitle2')}</span></p>
       </div>
@@ -521,14 +523,12 @@ export default class PreferenceView extends HTMLElement {
       step1.style.display = 'block';
       step2.style.display = 'none';
       this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowTravelDate');
-      if (badge) badge.textContent = '4 / 7';
-      if (progress) progress.style.width = '50%';
+      setStepProgress(progress, badge, 4);
     } else {
       step1.style.display = 'none';
       step2.style.display = 'block';
       this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowStyle');
-      if (badge) badge.textContent = '5 / 7';
-      if (progress) progress.style.width = '100%';
+      setStepProgress(progress, badge, 5);
     }
   }
 

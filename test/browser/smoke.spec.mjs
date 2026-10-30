@@ -60,6 +60,7 @@ for (const [title, file] of [
   ['recommended place verification and persistence', 'recommendation-place-smoke.js'],
   ['partial route fitting and immutable saved times', 'time-snapshot-smoke.js'],
   ['selected place replacement and persistence', 'place-replacement-smoke.js'],
+  ['inserted place comes from the place search', 'place-insert-smoke.js'],
   ['opening-hours conflict and unknown information', 'itinerary-hours-smoke.js'],
   ['backtracking suggestion, confirmation and persistence', 'route-order-smoke.js'],
   ['visit time editing and earliest-start preservation', 'visit-time-smoke.js'],

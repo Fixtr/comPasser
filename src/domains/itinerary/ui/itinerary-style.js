@@ -118,26 +118,8 @@ export const itineraryStyles = `
           border-color: var(--cp-ink);
           color: var(--cp-ink);
         }
-        .insert-form {
-          display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
-          background: var(--cp-surface); border: 1px solid var(--cp-ink);
-          border-radius: 0; padding: 0.6rem 0.75rem;
-        }
-        .insert-input {
-          flex: 1; min-width: 9rem; padding: 0.4rem 0.6rem;
-          border: 1px solid var(--cp-rule); border-radius: 0;
-          font-family: inherit; font-size: 0.88rem;
-        }
         .insert-stay { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--cp-ink-2); }
         .insert-stay-select { padding: 0.35rem 0.4rem; border: 1px solid var(--cp-rule); border-radius: 0; font-family: inherit; font-size: 0.82rem; }
-        .insert-confirm {
-          background: var(--cp-ink); color: var(--cp-surface); border: none;
-          border-radius: 0; padding: 0.4rem 0.85rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;
-        }
-        .insert-cancel {
-          background: transparent; color: var(--cp-ink-2); border: 1px solid var(--cp-rule);
-          border-radius: 0; padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
-        }
         /* 왼쪽 띠 자리는 고정 일정이 쓰므로, 사용자가 추가한 항목은
            점선 테두리로 구분한다. 같은 자리에 두 뜻을 겹치지 않는다. */
         .schedule-card[data-added="true"] {
@@ -194,19 +176,21 @@ export const itineraryStyles = `
           background: var(--cp-danger-bg); color: var(--cp-danger); border-color: var(--cp-danger);
         }
 
+        /* Every new result shows these; the warning colour read as if the plan had a problem. */
         .end-time-fix-btn {
           display: inline-block;
           margin-left: 0.6rem;
-          background: var(--cp-warn);
-          color: var(--cp-surface);
-          border: none;
+          background: var(--cp-surface);
+          color: var(--cp-ink);
+          border: 1px solid var(--cp-rule);
           border-radius: 0;
           padding: 0.35rem 0.8rem;
           font-size: 0.85rem;
           font-weight: 700;
           cursor: pointer;
         }
-        .end-time-fix-btn:hover { background: var(--cp-warn); }
+        .end-time-fix-btn:hover { background: var(--cp-sunken); }
+        .end-time-fix-btn:disabled { opacity: .5; cursor: not-allowed; }
 
         .cost-summary {
           background: var(--cp-sunken);
@@ -538,7 +522,7 @@ export const itineraryStyles = `
         }
 
         /* ====== Action Links & Nav Button ====== */
-        .action-links[hidden], #recalculate-times-btn[hidden], #improve-route-btn[hidden] { display: none; }
+        .action-links[hidden], #recalculate-times-btn[hidden], #improve-route-btn[hidden], .insert-slot-btn[hidden] { display: none; }
         .action-links {
           margin-top: 1rem;
           display: flex;
@@ -1025,16 +1009,13 @@ export const itineraryStyles = `
 
           .nav-btn,
           .action-link-badge,
-          .insert-slot-btn,
-          .insert-confirm,
-          .insert-cancel {
+          .insert-slot-btn {
             min-height: 44px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
           }
 
-          .insert-input,
           .insert-stay-select {
             min-height: 44px;
           }

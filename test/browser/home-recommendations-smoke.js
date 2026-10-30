@@ -86,10 +86,10 @@ async (page) => {
   check(await cards.locator('.selected-list button').count() === 1, 'A hidden selected place must be removable from the summary');
   await cards.locator('button[data-filter=all]').click();
   await cards.locator('button[data-place=island]').click();
-  check((await cards.locator('button[data-place=forest]').textContent()).includes('필수 방문지로 선택됨'), 'First place must be a required visit');
-  check((await cards.locator('button[data-place=island]').textContent()).includes('필수 방문지로 선택됨'), 'Second place must be a required visit');
+  check((await cards.locator('button[data-place=forest]').textContent()).includes('꼭 갈 장소로 선택됨'), 'First place must be a required visit');
+  check((await cards.locator('button[data-place=island]').textContent()).includes('꼭 갈 장소로 선택됨'), 'Second place must be a required visit');
   await cards.locator('button[data-place=palace]').click();
-  check((await cards.locator('button[data-place=palace]').textContent()).includes('필수 방문지로 선택됨'), 'Third place must also be a required visit');
+  check((await cards.locator('button[data-place=palace]').textContent()).includes('꼭 갈 장소로 선택됨'), 'Third place must also be a required visit');
   await cards.locator('#discover-plan').click();
   await page.waitForURL('**/login?next=%2Fpreference%2F1');
   await page.reload();

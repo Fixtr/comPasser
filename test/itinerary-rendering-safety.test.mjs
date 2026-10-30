@@ -7,6 +7,7 @@ import { createItineraryState } from '../src/domains/itinerary/services/itinerar
 import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
 import { isEditableItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { isTransportEstimatedCost } from '../src/domains/itinerary/services/itinerary-cost.mjs';
+import { suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
 const attributePayload = '" autofocus onfocus="alert(1)';
@@ -40,7 +41,7 @@ function viewHarness({ user = null } = {}) {
     customElements: { define() {} },
     document: { createElement: element, getElementById: () => null },
     window: { dispatchEvent() {} }, CustomEvent: class {},
-    getCurrentUser: () => user, escapeHtml, safeHttpUrl, normalizeData, isEditableItem, isTransportEstimatedCost, createItineraryState,
+    getCurrentUser: () => user, escapeHtml, safeHttpUrl, normalizeData, isEditableItem, isTransportEstimatedCost, createItineraryState, suggestRouteOrder,
     createItineraryActions, saveItinerary() {}, updateItinerary() {}, offlineTrips: { get: () => null, save() {} }, createSharedItinerary() {}, getSharedItineraryUrl() {},
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),

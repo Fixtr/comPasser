@@ -45,7 +45,7 @@ test('invalid local input stops before creating or invoking a callable and never
 test('server invalid-argument is a translated failure, not mock success', async () => {
   setLang('en');
   const app = fixture({ code: 'functions/invalid-argument', message: 'untrusted server text', details: { reason: 'anchor-bounds', day: 2 } });
-  await assert.rejects(app.run(valid()), /\[Day 2\] An anchor must stay within/);
+  await assert.rejects(app.run(valid()), /\[Day 2\] A must-visit place must stay within/);
   assert.deepEqual(app.calls, ['functions', 'call']);
   setLang('ko');
 });

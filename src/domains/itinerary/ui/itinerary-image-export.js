@@ -43,6 +43,8 @@ export function createItineraryImageExporter({
       sheet.textContent = boardingPassStyles;
       const ticket = renderTicket(pass, {
         fixedLabel: labels.fixedLabel || '확정',
+        fromLabel: labels.fromLabel || 'FROM',
+        toLabel: labels.toLabel || 'TO',
         transitLabel: labels.transitLabel || '이동',
         costLabel: labels.costLabel || '비용',
         moreLabel: n => language === 'en' ? `+ ${n} more` : `+ ${n}곳 더`,

@@ -97,7 +97,7 @@ test('날짜와 일차로 결정되는 일련번호 — 같은 입력이면 같�
   assert.equal(a.code, b.code);
   assert.match(a.code, /^CP[0-9A-Z-]+$/);
   assert.equal(a.dateLabel, '2026.08.25');
-  assert.equal(a.dayLabel, 'DAY 1');
+  assert.equal(a.dayLabel, '1일차');
 });
 
 test('한 장에 담기지 않으면 잘라내되 몇 곳이 빠졌는지 남긴다', () => {
@@ -141,4 +141,17 @@ test('an arrival at an unset stay shows its label on the ticket, not the destina
     { type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', location: 'Seoul, South Korea', stayUnsetLabel: '숙소 미정 (서울 중심)', time: '18:00' },
   ] }] };
   assert.equal(buildBoardingPass({ plan: unsetPlan, dayIndex: 0, title: '서울 여행' }).to, '숙소 미정 (서울 중심)');
+});
+
+test('자동 배치한 꼭 갈 장소는 확정이 아니다 — 시간을 정한 곳만 확정으로 표시한다', () => {
+  const flexible = { days: [{ ...day, scheduleItems: day.scheduleItems.map(item =>
+    item.type === 'AnchorSchedule' ? { ...item, flexible: true } : item) }] };
+  const pass = buildBoardingPass({ plan: flexible, dayIndex: 0 });
+  assert.deepEqual(pass.rows.map(r => r.anchor), [false, false, false]);
+  assert.equal(pass.anchorCount, 0);
+});
+
+test('일차는 티켓 언어로 적는다', () => {
+  assert.equal(buildBoardingPass({ plan, dayIndex: 0 }).dayLabel, '1일차');
+  assert.equal(buildBoardingPass({ plan, dayIndex: 0, language: 'en' }).dayLabel, 'DAY 1');
 });

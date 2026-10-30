@@ -163,14 +163,16 @@ export const DEFAULT_STAY_MINUTES = 60;
  *
  * @param {Array} scheduleItems
  * @param {number} insertAt 새 항목이 들어갈 위치(0 이면 맨 앞)
- * @param {{title: string, location: string, stayMinutes?: number}} place
+ * Like replacement, the place must come from the place search: typed text alone
+ * would leave the map to guess the venue and its travel times.
+ *
+ * @param {{selectedPlace: object, stayMinutes?: number}} place
  * @returns {{items: Array, inserted: object|null}}
  */
 export function insertScheduleItem(scheduleItems, insertAt, place) {
   const items = Array.isArray(scheduleItems) ? scheduleItems.map(item => ({ ...item })) : [];
-  const title = typeof place?.title === 'string' ? place.title.trim() : '';
-  const location = typeof place?.location === 'string' ? place.location.trim() : '';
-  if (!title && !location) return { items: scheduleItems, inserted: null };
+  const selectedPlace = normalizeSelectedPlace(place?.selectedPlace);
+  if (!selectedPlace) return { items: scheduleItems, inserted: null };
 
   // 출발 앞이나 도착 뒤에는 넣을 수 없다. 그 둘은 사용자가 폼에서 정한 경계다.
   const index = clampInsertIndex(items, insertAt);
@@ -185,12 +187,16 @@ export function insertScheduleItem(scheduleItems, insertAt, place) {
     time: formatMinutes(start),
     endTime: formatMinutes(start + stay),
     type: 'attraction',
-    title: title || location,
+    title: selectedPlace.displayName,
     description: '',
-    location: location || title,
+    location: selectedPlace.formattedAddress,
+    selectedPlace,
+    latLng: { lat: selectedPlace.lat, lng: selectedPlace.lng },
+    resolvedName: selectedPlace.displayName,
+    resolvedAddress: selectedPlace.formattedAddress,
     duration: `${Math.floor(stay / 60) ? `${Math.floor(stay / 60)}시간 ` : ''}${stay % 60 ? `${stay % 60}분` : ''}`.trim() || `${stay}분`,
     officialWebsiteUrl: '',
-    googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location || title)}`,
+    googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPlace.displayName)}&query_place_id=${encodeURIComponent(selectedPlace.placeId)}`,
     transitInfo: '',
     // 사용자가 직접 넣은 항목임을 남긴다. 화면에서 구분해 표시할 수 있다.
     addedByUser: true

@@ -62,7 +62,7 @@ export const boardingPassStyles = `
   }
   .bp-when {
     margin-top: 6px;
-    font-family: var(--cp-mono);
+    font-family: var(--cp-font);
     font-size: 13px;
     letter-spacing: 0.14em;
     color: var(--cp-muted);
@@ -80,7 +80,7 @@ export const boardingPassStyles = `
   .bp-leg-end { flex: 1; min-width: 0; }
   .bp-leg-end.to { text-align: right; }
   .bp-leg-label {
-    font-family: var(--cp-mono);
+    font-family: var(--cp-font);
     font-size: 11px;
     letter-spacing: 0.18em;
     color: var(--cp-muted);
@@ -150,14 +150,17 @@ export const boardingPassStyles = `
   }
   .bp-row-fixed {
     flex-shrink: 0;
-    font-family: var(--cp-mono);
+    font-family: var(--cp-font);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.12em;
     color: var(--cp-anchor);
     border: 1px solid var(--cp-anchor);
     border-radius: var(--cp-radius);
-    padding: 2px 7px;
+    padding: 4px 7px;
+    /* Sized by its own box, not the row's baseline: html2canvas drew the text at the pill's top. */
+    line-height: 1;
+    align-self: center;
   }
   .bp-more {
     padding: 12px 0 0 14px;
@@ -179,7 +182,7 @@ export const boardingPassStyles = `
     flex-wrap: wrap;
   }
   .bp-total-label {
-    font-family: var(--cp-mono);
+    font-family: var(--cp-font);
     font-size: 11px;
     letter-spacing: 0.18em;
     color: var(--cp-muted);

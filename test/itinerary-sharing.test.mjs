@@ -250,7 +250,7 @@ test('같은 날짜 편집 후에는 새 요청 번호만 받고 계산 입력�
   const plan = samplePlan();
   app.view.showResults(plan);
   const old = latestMapRequest(app);
-  app.view.insertPlaceAt(2, { title: '새 장소', location: '새 장소', stayMinutes: 20 });
+  app.view.insertPlaceAt(2, { selectedPlace: { placeId: 'p-new', displayName: '새 장소', formattedAddress: '서울 새 장소', lat: 37.55, lng: 126.99 }, stayMinutes: 20 });
   const current = latestMapRequest(app);
   assert.equal(current.context.dayIndex, old.context.dayIndex);
   assert.notEqual(current.context.requestId, old.context.requestId);
@@ -407,7 +407,7 @@ test('저장한 개인 일정을 고쳐 저장하면 같은 문서를 갱신하�
   assert.equal(button.textContent, 'savedStateBtn');
   assert.equal(button.disabled, true);
 
-  app.view.insertPlaceAt(2, { title: '새 장소', location: '새 장소', stayMinutes: 20 });
+  app.view.insertPlaceAt(2, { selectedPlace: { placeId: 'p-new', displayName: '새 장소', formattedAddress: '서울 새 장소', lat: 37.55, lng: 126.99 }, stayMinutes: 20 });
   assert.equal(button.textContent, 'saveChangesBtn');
   assert.equal(button.disabled, false);
   await app.save();
@@ -432,7 +432,7 @@ test('로그인해도 공유본의 삽입·삭제·이동·시간 단축 핸들�
   slot.innerHTML = '원래 추가 버튼';
 
   app.view.openInsertForm(slot, 2);
-  app.view.insertPlaceAt(2, { title: '새 장소', location: '새 장소', stayMinutes: 30 });
+  app.view.insertPlaceAt(2, { selectedPlace: { placeId: 'p-new', displayName: '새 장소', formattedAddress: '서울 새 장소', lat: 37.55, lng: 126.99 }, stayMinutes: 30 });
   await app.view.handleItemEdit('remove', 1);
   await app.view.handleItemEdit('down', 1);
   app.view.trimActiveDayToEndTime();
@@ -467,7 +467,7 @@ test('편집한 개인 일정에 돌아오면 다시 조회하거나 보정하�
   const app = itineraryView({ user: { uid: 'owner' }, load: async () => ({ access: 'private', itineraryPlan: plan }) });
   await app.view.loadItineraryById('trip');
   app.view.selectDay(1);
-  app.view.insertPlaceAt(2, { title: '편집한 장소', location: '새 장소', stayMinutes: 20 });
+  app.view.insertPlaceAt(2, { selectedPlace: { placeId: 'p-new', displayName: '편집한 장소', formattedAddress: '서울 새 장소', lat: 37.55, lng: 126.99 }, stayMinutes: 20 });
   const expected = structuredClone(app.view.currentItinerary);
   app.view.showResults(samplePlan(), { access: 'shared', id: 'public123' });
   app.view.cancelPendingLoad();
@@ -513,7 +513,7 @@ test('저장 중 추가 편집이 발생하면 요청 시점 사본만 저장하
   const app = itineraryView({ user: { uid: 'owner' }, save: () => new Promise(resolve => { finish = resolve; }) });
   app.view.showResults(samplePlan());
   const saving = app.save();
-  app.view.insertPlaceAt(2, { title: '저장 중 추가', location: '새 장소', stayMinutes: 20 });
+  app.view.insertPlaceAt(2, { selectedPlace: { placeId: 'p-new', displayName: '저장 중 추가', formattedAddress: '서울 새 장소', lat: 37.55, lng: 126.99 }, stayMinutes: 20 });
   finish('saved123');
   await saving;
   assert.equal(app.calls.saves[0][1].days[0].scheduleItems.length, 4);
@@ -563,7 +563,7 @@ test('이미지 내보내기에는 선택 날짜의 사본을 전달하고 대�
   assert.equal(button.textContent, 'generatingImage');
   assert.equal(input.dayIndex, 1);
   assert.equal(input.language, 'ko');
-  assert.deepEqual(input.labels, { fixedLabel: 'anchorBadge', transitLabel: 'transitTotalLabel', costLabel: 'costLabel' });
+  assert.deepEqual(input.labels, { fixedLabel: 'anchorBadge', fromLabel: 'ticketFromLabel', toLabel: 'ticketToLabel', transitLabel: 'transitTotalLabel', costLabel: 'costLabel' });
   assert.deepEqual(input.plan, app.view.currentItinerary);
   assert.notEqual(input.plan, app.view.currentItinerary);
   app.view.state.replaceDayItems(1, []);
@@ -607,14 +607,14 @@ test('이미지 내보내기가 실패하면 오류를 알리고 다시 시도�
 const exportCopy = {
   ko: {
     generating: '이미지 만드는 중...', idle: '티켓 이미지로 저장·공유',
-    labels: { fixedLabel: '확정', transitLabel: '이동', costLabel: '1인 비용' },
+    labels: { fixedLabel: '확정', fromLabel: '출발', toLabel: '도착', transitLabel: '이동', costLabel: '1인 비용' },
     shared: '티켓을 공유했습니다.', downloaded: '티켓 이미지를 저장했습니다.',
     empty: '아직 공유할 일정이 없습니다.',
     failed: '티켓 이미지를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.',
   },
   en: {
     generating: 'Creating image...', idle: 'Save or share as a ticket image',
-    labels: { fixedLabel: 'FIXED', transitLabel: 'Travel time', costLabel: 'Cost per person' },
+    labels: { fixedLabel: 'FIXED', fromLabel: 'FROM', toLabel: 'TO', transitLabel: 'Travel time', costLabel: 'Cost per person' },
     shared: 'Ticket image shared.', downloaded: 'Ticket image saved.',
     empty: 'There is no itinerary to share yet.',
     failed: 'Could not create the ticket image. Please try again.',

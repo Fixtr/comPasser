@@ -93,8 +93,11 @@ test('items with malformed times are handled without throwing', () => {
   assert.doesNotThrow(() => moveScheduleItem(broken, 0, 1));
 });
 
+// The insert form takes a place only from the place search, like replacement.
+const pick = name => ({ selectedPlace: { placeId: `p-${name}`, displayName: name, formattedAddress: `서울 ${name}`, lat: 37.55, lng: 126.99 } });
+
 test('a new stop is inserted at the chosen position and pushes the rest back', () => {
-  const { items, inserted } = insertScheduleItem(day(), 2, { title: '남산타워', location: '서울 남산타워' });
+  const { items, inserted } = insertScheduleItem(day(), 2, pick('남산타워'));
 
   assert.equal(inserted.title, '남산타워');
   assert.deepEqual(titles(items), ['출발', 'A', '남산타워', 'B', 'C', '도착']);
@@ -104,30 +107,36 @@ test('a new stop is inserted at the chosen position and pushes the rest back', (
 });
 
 test('an inserted stop is marked so the UI can distinguish it', () => {
-  const { inserted } = insertScheduleItem(day(), 2, { title: '남산타워', location: '서울 남산타워' });
+  const { inserted } = insertScheduleItem(day(), 2, pick('남산타워'));
   assert.equal(inserted.addedByUser, true);
   assert.equal(inserted.type, 'attraction');
-  assert.ok(inserted.googleMapsUrl.includes(encodeURIComponent('서울 남산타워')));
+  // It carries the chosen place's identity, so the map does not guess it from a name.
+  assert.equal(inserted.location, '서울 남산타워');
+  assert.deepEqual(inserted.latLng, { lat: 37.55, lng: 126.99 });
+  assert.equal(inserted.selectedPlace.placeId, 'p-남산타워');
+  assert.ok(inserted.googleMapsUrl.includes('query_place_id=p-'));
 });
 
 test('a custom stay length is honoured', () => {
-  const { items } = insertScheduleItem(day(), 2, { title: 'X', location: 'X', stayMinutes: 30 });
+  const { items } = insertScheduleItem(day(), 2, { ...pick('X'), stayMinutes: 30 });
   assert.equal(items[2].time, '11:00');
   assert.equal(items[2].endTime, '11:30');
 });
 
 test('inserting before departure or after arrival is clamped inside the boundaries', () => {
   // 출발/도착은 사용자가 폼에서 정한 경계라 그 밖에는 넣을 수 없다.
-  const before = insertScheduleItem(day(), 0, { title: 'X', location: 'X' });
+  const before = insertScheduleItem(day(), 0, pick('X'));
   assert.equal(before.items.findIndex(i => i.title === 'X'), 1, '출발 뒤로 밀려 들어간다');
 
-  const after = insertScheduleItem(day(), 99, { title: 'Y', location: 'Y' });
+  const after = insertScheduleItem(day(), 99, pick('Y'));
   assert.equal(after.items.at(-1).type, 'arrival', '도착은 항상 마지막에 남는다');
   assert.equal(after.items.at(-2).title, 'Y');
 });
 
-test('an empty place is rejected without changing anything', () => {
+test('an empty or typed-only place is rejected without changing anything', () => {
   const original = day();
+  assert.equal(insertScheduleItem(original, 2, { title: '남산타워', location: '서울 남산타워' }).inserted, null);
+  assert.equal(insertScheduleItem(original, 2, { selectedPlace: { displayName: '남산타워' } }).inserted, null);
   assert.equal(insertScheduleItem(original, 2, { title: '  ', location: '' }).inserted, null);
   assert.equal(insertScheduleItem(original, 2, {}).inserted, null);
   assert.equal(insertScheduleItem(original, 2, null).inserted, null);
@@ -137,6 +146,6 @@ test('an empty place is rejected without changing anything', () => {
 test('inserting never mutates the input array', () => {
   const original = day();
   const snapshot = JSON.parse(JSON.stringify(original));
-  insertScheduleItem(original, 2, { title: 'X', location: 'X' });
+  insertScheduleItem(original, 2, pick('X'));
   assert.deepEqual(original, snapshot);
 });

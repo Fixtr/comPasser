@@ -8,6 +8,7 @@ import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { travelFormStyles } from './travel-form-style.js';
+import { stepProgressStyles, stepProgressHtml } from './step-progress.js';
 import { icons } from '../../../ui/icons.js';
 import { animateScreen } from '../../../ui/screen-motion.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
@@ -236,6 +237,10 @@ export default class TravelForm extends HTMLElement {
       if (btn) { btn.dataset.i18n='flowReview'; btn.textContent=t('flowReview'); }
     }
     if (this.reviewing) this.showReview();
+    // Day labels are built in code ('1일차' / 'Day 1'), so a language switch rewrites them here.
+    this.shadowRoot.querySelectorAll('[data-day-n]').forEach(label => {
+      label.textContent = t('day_n').replace('{0}', label.dataset.dayN) + (label.dataset.daySuffix || '');
+    });
     this.shadowRoot.querySelectorAll('[data-night]').forEach(label => {
       label.textContent = t(label.dataset.i18n).replace('{0}', label.dataset.night);
       this.shadowRoot.getElementById(label.htmlFor)?.setAttribute('aria-label', label.textContent);
@@ -269,6 +274,7 @@ export default class TravelForm extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         ${travelFormStyles}
+        ${stepProgressStyles}
         [hidden] { display: none !important; }
         :host([handoff-flow]) { max-width: 700px; margin: 0 auto; padding: 0; border: 0; background: transparent; }
         :host([handoff-flow]) .form-section, #review-panel section { padding: 18px; border: 1px solid var(--cp-rule); border-radius: 10px; background: var(--cp-surface); margin-bottom: 16px; }
@@ -336,6 +342,7 @@ export default class TravelForm extends HTMLElement {
       </dialog>
       <section id="review-panel" tabindex="-1" hidden></section>
       <form id="travel-form">
+        ${this.hasAttribute('handoff-flow') ? stepProgressHtml(6) : ''}
         <p class="credit-balance" role="status">
           <span data-i18n="generationCreditsLabel">${t('generationCreditsLabel')}</span>:
           <strong id="generation-credit-balance">${t('generationCreditsLoading')}</strong>
@@ -429,7 +436,7 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         <div class="form-section" id="flights-section">
-          <h2><span data-i18n="flightsTitle">Flights</span> <span class="optional-note">(Optional)</span></h2>
+          <h2><span data-i18n="flightsTitle">${t('flightsTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2>
           <p class="subtitle" data-i18n="flightsSubtitle"></p>
           <div class="flight-entry" id="arrival-flight" hidden>
             <div class="location-heading">
@@ -486,12 +493,12 @@ export default class TravelForm extends HTMLElement {
         </div>
 
         <div class="form-section">
-          <h2><span data-i18n="anchorTitle">Anchor Schedules</span> <span class="optional-note">(Optional)</span></h2>
+          <h2><span data-i18n="anchorTitle">${t('anchorTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2>
           <p class="subtitle" data-i18n="anchorSubtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
           
           <div id="anchors-container"></div>
           
-          <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="addAnchor">+ Add Anchor Schedule</button>
+          <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="${this.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor'}">${t(this.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor')}</button>
         </div>
 
         
@@ -554,10 +561,10 @@ export default class TravelForm extends HTMLElement {
 
     let daySelectorHTML = '';
     if (daysCount > 1) {
-      const options = Array.from({ length: daysCount }, (_, i) => `<option value="${i + 1}">Day ${i + 1}</option>`).join('');
+      const options = Array.from({ length: daysCount }, (_, i) => `<option value="${i + 1}" data-day-n="${i + 1}">${t('day_n').replace('{0}', i + 1)}</option>`).join('');
       daySelectorHTML = `
         <div class="form-group">
-          <label data-i18n="anchorDayLabel">일정 일차 (Day)</label>
+          <label data-i18n="anchorDayLabel">${t('anchorDayLabel')}</label>
           <select class="anchor-day" required>
             ${options}
           </select>
@@ -761,7 +768,7 @@ export default class TravelForm extends HTMLElement {
             dRow.className = 'daily-time-row';
             dRow.dataset.day = dayNum;
             dRow.innerHTML = `
-              <div class="daily-time-header">Day ${dayNum}</div>
+              <div class="daily-time-header" data-day-n="${dayNum}">${t('day_n').replace('{0}', dayNum)}</div>
               <div class="row-2">
                 <div class="form-group">
                   <label data-i18n="startTime">Start Time</label>
@@ -870,7 +877,8 @@ export default class TravelForm extends HTMLElement {
         <div class="form-group"><label for="daily-end-location-${index + 1}" data-i18n="dailyArrival"></label>
           <gmp-place-autocomplete id="daily-end-location-${index + 1}" class="daily-end-location"></gmp-place-autocomplete></div>
         </div>`;
-      row.querySelector('h3').textContent = `Day ${index + 1} · ${date}`;
+      Object.assign(row.querySelector('h3').dataset, { dayN: index + 1, daySuffix: ` · ${date}` });
+      row.querySelector('h3').textContent = `${t('day_n').replace('{0}', index + 1)} · ${date}`;
       container.appendChild(row);
       for (const kind of ['start', 'end']) {
         const input = row.querySelector(`.daily-${kind}-location`);
@@ -894,7 +902,7 @@ export default class TravelForm extends HTMLElement {
       for (const kind of ['start', 'end']) {
         const input = row.querySelector(`.daily-${kind}-location`);
         input.setAttribute('placeholder', t('dailyLocationInherit'));
-        input.setAttribute('aria-label', `Day ${index + 1} ${t(kind === 'start' ? 'dailyDeparture' : 'dailyArrival')}`);
+        input.setAttribute('aria-label', `${t('day_n').replace('{0}', index + 1)} ${t(kind === 'start' ? 'dailyDeparture' : 'dailyArrival')}`);
       }
     });
     const transfers = [];
@@ -903,7 +911,7 @@ export default class TravelForm extends HTMLElement {
       const from = getLocationName(day.endLocation), to = getLocationName(next.startLocation);
       const same = day.endLocation?.placeId && next.startLocation?.placeId
         ? day.endLocation.placeId === next.startLocation.placeId : from === to;
-      if (from && to && !same) transfers.push(`Day ${day.day} ${from} → Day ${next.day} ${to}`);
+      if (from && to && !same) transfers.push(`${t('day_n').replace('{0}', day.day)} ${from} → ${t('day_n').replace('{0}', next.day)} ${to}`);
     });
     const notice = this.shadowRoot.getElementById('daily-locations-notice');
     notice.hidden = transfers.length === 0;
@@ -946,16 +954,16 @@ export default class TravelForm extends HTMLElement {
     const draft=this.draft;
     const line=value => escapeHtml(String(value || t('locationUnset')));
     const time=value => escapeHtml(value || t('timeUnset'));
-    const tripTimes=draft.dailyTimes?.some(day=>day.isCustom) ? draft.dailyTimes.map(day=>`<p>Day ${day.day} · ${time(day.startTime)} – ${time(day.endTime)}</p>`).join('') : `<p>${time(draft.startTime)} – ${time(draft.endTime)}</p>`;
+    const tripTimes=draft.dailyTimes?.some(day=>day.isCustom) ? draft.dailyTimes.map(day=>`<p>${t('day_n').replace('{0}', day.day)} · ${time(day.startTime)} – ${time(day.endTime)}</p>`).join('') : `<p>${time(draft.startTime)} – ${time(draft.endTime)}</p>`;
     const section=(key,content,target='details') => `<section><h3>${t(key)}</h3>${content}<button type="button" data-review-edit="${target}">${t('flowEdit')}</button></section>`;
-    root.innerHTML=`<h2>${t('flowReviewTitle')}</h2>`
+    root.innerHTML=(this.hasAttribute('handoff-flow') ? stepProgressHtml(7) : '')+`<h2>${t('flowReviewTitle')}</h2>`
       +section('flowTravelDate',`<p>${line(this.shadowRoot.getElementById('trip-destination').value)}</p><p>${line(draft.date[0])} → ${line(draft.date.at(-1))}</p>`)
-      +section('tripStartLocation',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p>${tripTimes}`)
+      +section('reviewEndpoints',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p>${tripTimes}`)
       +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
-      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>Day ${anchor.day} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join('')
+      +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>${t('day_n').replace('{0}', anchor.day)} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join('')
         +(mergedSameDayVisits(draft.anchorSchedules) ? `<p class="review-merged" role="note">${t('reviewMergedVisits')}</p>` : ''))
       +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
-      +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>Day ${day.day} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
+      +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>${t('day_n').replace('{0}', day.day)} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
       +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" id="review-credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
     this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;
     root.querySelectorAll('[data-review-edit]').forEach(button=>button.onclick=()=>{ this.hideReview();if(button.dataset.reviewEdit==='style')window.navigate('/preference/2', { state: { returnTo: '/plan' } }); });
@@ -980,14 +988,14 @@ export default class TravelForm extends HTMLElement {
     for (const control of root.getElementById('travel-form').elements) {
       if (control.matches('.stay-checkin, .stay-checkout')) continue; // stayIssue below covers stay dates
       const day=control.closest('.daily-time-row')?.dataset.day;
-      if (control.willValidate && !control.validity.valid) add(control, (day ? `[Day ${day}] ` : '') + invalidFieldMessage(control));
+      if (control.willValidate && !control.validity.valid) add(control, (day ? `[${t('day_n').replace('{0}', day)}] ` : '') + invalidFieldMessage(control));
     }
     const pastDate=[request.date].flat().find(date => date < localTravelDate(new Date(), travelRegion(request).timeZone));
     if (pastDate) add(root.getElementById('reselect-date-btn'), t('pastDateValidationError').replace('{0}', pastDate));
     for (const day of request.dailyTimes?.some(entry => entry.isCustom) ? request.dailyTimes : [{ ...request, day: 0 }]) {
       if (!day.startTime || !day.endTime || day.startTime < day.endTime) continue;
       add(day.day ? root.querySelector(`.daily-time-row[data-day="${day.day}"] .daily-end-time`) : root.getElementById('end-time'),
-        (day.day ? `[Day ${day.day}] ` : '') + t('basicTimeValidationError'));
+        (day.day ? `[${t('day_n').replace('{0}', day.day)}] ` : '') + t('basicTimeValidationError'));
     }
     const flights={};
     for (const kind of ['arrival', 'departure']) {
@@ -1265,7 +1273,7 @@ export default class TravelForm extends HTMLElement {
         await import('./home-recommendations.js');
         citySelect.replaceChildren(new Option(t('chooseCity'), ''), ...cities.map(city => new Option(t(city.key), city.id)));
         const days = this.shadowRoot.getElementById('discovery-day');
-        days.replaceChildren(...this.draft.date.map((date, index) => new Option(`Day ${index + 1} · ${date}`, String(index + 1))));
+        days.replaceChildren(...this.draft.date.map((date, index) => new Option(`${t('day_n').replace('{0}', index + 1)} · ${date}`, String(index + 1))));
         clearRouteResults();
         routeControls.hidden = true;
         cityGroup.hidden = false;

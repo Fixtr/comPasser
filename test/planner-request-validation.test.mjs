@@ -119,7 +119,7 @@ test('safe reason codes translate in both languages and untrusted details are no
     setLang(lang);
     for (const reason of new Set(cases.map(([, , reason]) => reason))) {
       const text = plannerValidationMessage({ reason, day: 2 });
-      assert.match(text, /^\[Day 2\] /);
+      assert.match(text, lang === 'en' ? /^\[Day 2\] / : /^\[2일차\] /);
       assert.doesNotMatch(text, /Error$|ValidationError$|^planner/);
     }
     const message = plannerValidationMessage({ reason: '<script>private-input</script>', day: 999 });

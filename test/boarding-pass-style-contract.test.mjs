@@ -79,3 +79,10 @@ test('막대는 난수가 아니라 코드에서 결정된다', () => {
   assert.ok(!/Math\.random|Date\.now|new Date\(\s*\)/.test(body),
     '같은 일정은 몇 번을 저장해도 같은 티켓이어야 한다');
 });
+
+test('한글이 들어가는 라벨은 모노 글꼴을 쓰지 않는다 — 캡처에서 글자마다 기준선이 어긋난다', () => {
+  for (const selector of ['.bp-when', '.bp-leg-label', '.bp-row-fixed', '.bp-total-label']) {
+    const rule = new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    assert.match(rule, /font-family\s*:\s*var\(--cp-font\)/, `${selector} 는 본문 글꼴이어야 한다`);
+  }
+});

@@ -317,7 +317,21 @@ class ProfileView extends HTMLElement {
 
         if (this.itineraries.length === 0) {
             listContainer.textContent = '';
-            listContainer.append(stateBlock('empty-state', t(navigator.onLine === false ? 'offlineEmpty' : 'noSavedItineraries')));
+            const offline = navigator.onLine === false;
+            const empty = stateBlock('empty-state', t(offline ? 'offlineEmpty' : 'noSavedItineraries'));
+            // Translated again on a language switch, like the button below.
+            empty.dataset.i18n = offline ? 'offlineEmpty' : 'noSavedItineraries';
+            listContainer.append(empty);
+            // An empty list starts a trip from the same place as home's 일정 만들기.
+            if (!offline) {
+                const start = document.createElement('button');
+                start.type = 'button';
+                start.className = 'btn-view btn-new-trip';
+                start.dataset.i18n = 'viewNewPlanBtn';
+                start.textContent = t('viewNewPlanBtn');
+                start.addEventListener('click', () => window.navigate ? window.navigate('/recommend') : (window.location.href = '/recommend'));
+                listContainer.append(start);
+            }
             return;
         }
 
