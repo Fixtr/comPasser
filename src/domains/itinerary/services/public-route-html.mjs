@@ -26,6 +26,7 @@ const styles = `
   .qr{width:190px;background:#fff}.share code{display:block;overflow-wrap:anywhere}footer{font-size:.9rem}
   .cities{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none}.cities a{display:inline-block;padding:8px 12px;min-height:44px;border:1px solid var(--rule);background:var(--card);text-decoration:none}
   .card{position:relative}.card h3 a::after{content:"";position:absolute;inset:0}
+  header a,.links a,article>a{display:inline-flex;align-items:center;min-height:44px}
   @media print{:root,:root[data-theme]{color-scheme:light;--ink:#17201c;--card:#fff;--rule:#c8ccc5;--muted:#515b54}header,.actions,.links,.start,footer,button{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
 `;
 
@@ -64,14 +65,15 @@ export function renderPublicRoute(course, origin) {
     const where = abroad
       // With a local name the place line is that name plus the city; numbered stops' lines are English.
       ? `<p class="address"${stop.localName ? lang : ''}>${e(stop.location)}</p>
-      <button type="button" class="copy-address" data-address="${e(stop.location)}">Copy place name</button>`
+      <button type="button" class="copy-address" data-address="${e(stop.location)}" aria-label="Copy place name for ${e(english)}">Copy place name</button>`
       : `${stop.englishAddress ? `<p>${e(stop.englishAddress)}</p>` : ''}<p class="address"${lang}>${e(stop.location)}</p>
-      <button type="button" class="copy-address" data-address="${e(stop.location)}">Copy local address</button>`;
+      <button type="button" class="copy-address" data-address="${e(stop.location)}" aria-label="Copy local address for ${e(english)}">Copy local address</button>`;
     const previous = course.stops[index - 1];
-    const external = (href, text) => `<a href="${e(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    // Each stop repeats the same link words; the name adds the stop so a list of links tells them apart.
+    const external = (href, text, label) => `<a href="${e(href)}" target="_blank" rel="noopener noreferrer"${label ? ` aria-label="${label}"` : ''}>${text}</a>`;
     // Google Maps directions are weak in Korea, so Korean stops also get Naver Map.
-    const maps = `<p class="links">${external(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.location)}`, 'Open in Google Maps')}
-      ${country === 'KOR' ? external(`https://map.naver.com/p/search/${encodeURIComponent(stop.location)}`, 'Open in Naver Map') : ''}
+    const maps = `<p class="links">${external(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.location)}`, 'Open in Google Maps', `Open in Google Maps: ${e(english)}`)}
+      ${country === 'KOR' ? external(`https://map.naver.com/p/search/${encodeURIComponent(stop.location)}`, 'Open in Naver Map', `Open in Naver Map: ${e(english)}`) : ''}
       ${previous ? external(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(previous.location)}&destination=${encodeURIComponent(stop.location)}&travelmode=transit`, `Directions from ${e(previous.englishName || previous.name)}`) : ''}</p>`;
     // Curated stops carry no checked menu or reservation data, so 'Not checked' twice per beach is only noise.
     const checked = source ? `<p>English menu: ${e(menu[info.englishMenu] || 'Not checked')}<br>
@@ -85,7 +87,7 @@ export function renderPublicRoute(course, origin) {
       ${where}
       ${maps}
       ${checked}
-      ${safeHttpUrl(stop.guideUrl) ? `<a href="${e(safeHttpUrl(stop.guideUrl))}" target="_blank" rel="noopener noreferrer">Official visitor guide</a>` : ''}</article>`;
+      ${safeHttpUrl(stop.guideUrl) ? `<a href="${e(safeHttpUrl(stop.guideUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Official visitor guide for ${e(english)}">Official visitor guide</a>` : ''}</article>`;
   }).join('');
   const credit = course.credit;
   const creditHtml = credit?.name ? `<p>Shared by ${safeHttpUrl(credit.url) ? `<a href="${e(safeHttpUrl(credit.url))}" target="_blank" rel="noopener noreferrer">${e(credit.name)}</a>` : e(credit.name)}</p>` : '';

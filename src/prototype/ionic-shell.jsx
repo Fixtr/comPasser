@@ -142,7 +142,7 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
 
     {showTabs && <IonTabBar slot="bottom" aria-label={t('tabBarLabel')}>
       {TABS.map((tab, index) => <IonTabButton key={tab.id} tab={tab.id} href={tab.path} selected={selectedTab === tab.id}>
-        <IonIcon icon={icons[index]} /><IonLabel>{labels[index]}</IonLabel>
+        <IonIcon icon={icons[index]} aria-hidden="true" /><IonLabel>{labels[index]}</IonLabel>
       </IonTabButton>)}
     </IonTabBar>}
   </IonTabs>;

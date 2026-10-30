@@ -20,7 +20,7 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
   await page.reload();
   await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
   await page.goto('/share/abc123');
-  await expect(page.locator('main.flow-page')).toContainText('오프라인');
+  await expect(page.locator('.flow-page')).toContainText('오프라인');
   await expect(page.locator('itinerary-view,map-view')).toHaveCount(0);
   // Public pages must not display a cached copy after the owner unpublishes; offline they explain why.
   // (Checked before /privacy: a failed navigation leaves the tab on Chrome's error page.)
@@ -50,10 +50,10 @@ test('본인 오프라인 일정은 앱 재실행 후 주소와 시각을 열람
   await context.setOffline(true);await page.goto('/profile/trips');
   await expect(page.locator('profile-view:visible .trip-title')).toHaveText('오프라인 파리 여행',{timeout:15000});
   await page.locator('profile-view:visible .btn-view').click();
-  await expect(page.locator('main.flow-page')).toContainText('Rue de Rivoli');await expect(page.locator('main.flow-page')).toContainText('10:00 – 12:00');
+  await expect(page.locator('.flow-page')).toContainText('Rue de Rivoli');await expect(page.locator('.flow-page')).toContainText('10:00 – 12:00');
   await expect(page.locator('itinerary-view,map-view')).toHaveCount(0);
-  await page.reload();await expect(page.locator('main.flow-page')).toContainText('Rue de Rivoli');
+  await page.reload();await expect(page.locator('.flow-page')).toContainText('Rue de Rivoli');
   await expect(page.getByText('초안을 기기에 저장하지 못했습니다.',{exact:false})).toHaveCount(0);
   await page.screenshot({path:testInfo.outputPath('own-trip-offline-reload.png'),fullPage:true});
-  await page.evaluate(()=>localStorage.removeItem('compasser.offline.v1'));await page.reload();await expect(page.locator('main.flow-page')).toContainText('저장한 일정이');
+  await page.evaluate(()=>localStorage.removeItem('compasser.offline.v1'));await page.reload();await expect(page.locator('.flow-page')).toContainText('저장한 일정이');
 });

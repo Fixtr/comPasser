@@ -198,3 +198,12 @@ test('/en alone goes to the directory and other /en pages get an English not-fou
   assert.match(html, /<html lang="en">/); assert.match(html, /We could not find this page/); assert.match(html, /noindex/);
   assert.match(await (await worker.fetch(request('/en/routes/curated-missing'), env)).text(), /may no longer be public, or the address may be mistyped/);
 });
+
+test('route page controls have distinct names and phone-sized tap targets', () => {
+  const html = renderPublicRoute(curatedRoute('curated-seoul'), origin);
+  const names = [...html.matchAll(/<(a|button)\b([^>]*)>([\s\S]*?)<\/\1>/g)].map(([, , attrs, text]) =>
+    attrs.match(/aria-label="([^"]*)"/)?.[1] ?? text.replace(/<[^>]+>/g, '').trim());
+  const repeated = names.filter((name, index) => names.indexOf(name) !== index);
+  assert.deepEqual(repeated, []);
+  assert.match(html, /header a,\s*\.links a,\s*article>a\{[^}]*min-height:44px/);
+});

@@ -44,7 +44,7 @@ export const authStyles = `
           margin-bottom: 2rem;
         }
 
-        h2 {
+        h1 {
           font-size: 1.9rem;
           font-weight: 800;
           color: var(--cp-ink);
@@ -114,6 +114,17 @@ export const authStyles = `
           display: flex;
           flex-direction: column;
           position: relative;
+        }
+
+        /* 칸 이름은 플레이스홀더가 아니라 늘 보이는 라벨이다. 입력을 시작해도
+           사라지지 않는다. 일정 폼 라벨과 같은 표기(자간 없음, 대문자). */
+        .auth-label {
+          margin-bottom: 0.4rem;
+          text-align: left;
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          color: var(--cp-ink-2);
         }
 
         .auth-input {

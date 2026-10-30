@@ -55,12 +55,12 @@ class AccountDeletionStatusView extends HTMLElement {
                 li { margin: 1rem 0; line-height: 1.6; }
                 a { color: var(--cp-ink); }
             </style>
-            <main class="card">
+            <div class="card">
                 <h1>${t('accountDeletionStatusTitle')}</h1>
                 <p>${t('accountDeletionStatusIntro')}</p>
                 <div id="statuses" role="status" aria-live="polite"></div>
                 <a href="/login">${t('accountDeletionBackToLogin')}</a>
-            </main>
+            </div>
         `;
         const box = this.shadowRoot.getElementById('statuses');
         if (!this.states) {

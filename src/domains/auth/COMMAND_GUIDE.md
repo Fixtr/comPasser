@@ -12,6 +12,12 @@
 - An email account that is not verified yet never owns the planner draft: the shell keeps the guest owner for it and signs it out with `logout({ keepLocalData: true })`, so signing up by email keeps the guest's picks. Every other `logout()` call still clears local travel data.
 - Signup and login link to the privacy policy at its public address (`PRIVACY_POLICY_URL`, `https://hackerton-48w.pages.dev/privacy`) in a new tab, because a bare `/privacy` falls back to `index.html` inside the native app. The policy is Korean only, so the English link says so. `public/sw.js` leaves `/privacy` to the network, so offline the browser shows its own error instead of the app's not-found page.
 
+## Form Accessibility
+
+- `/login` and `/join` lead with an `h1`, and each email or password field has a visible `<label>` (the `emailPlaceholder` / `passwordPlaceholder` strings) instead of a placeholder, so the field keeps its name while the user types. The fields are `required` inside a `<form novalidate>`: Enter or the phone's Go key submits, screen readers say the field is required, and the app's own messages (`emailPasswordRequired`, `pwTooShort`) still replace the browser's bubbles.
+- Email login and signup run on the form's `submit` event, never on the button's `click`: with both, one click would run the handler and also submit the form natively. Social buttons, the forgot-password link and the join/login links sit outside the form; join's eye toggle is `type="button"`.
+- The Naver button keeps white on #03C75A (2.25:1). `src/styles/tokens.css` pins provider colours to each brand guide; changing it is the owner's call.
+
 ## Password Reset
 
 - Firebase's email action URL is project-wide and points at this app's `/verify` (checked 2026-10-27: `https://hackerton-48w.pages.dev/verify`), so verification **and** reset links land there. `verify-view.js` branches on `mode=resetPassword` (new password → `resetPassword`); every other mode still goes to `verifyEmailCode`. Moving the site to another domain means updating that URL in the Firebase console.

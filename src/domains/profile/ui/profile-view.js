@@ -781,7 +781,7 @@ class ProfileView extends HTMLElement {
             <div class="profile-wrapper">
                 <nav class="sidebar" data-i18n-aria="profileMenuAria" aria-label="${t('profileMenuAria')}">
                     <button id="btn-back-home" class="btn-back-home">
-                        <span>←</span> <span data-i18n="backHome">${t('backHome')}</span>
+                        <span aria-hidden="true">←</span> <span data-i18n="backHome">${t('backHome')}</span>
                     </button>
                     <button type="button" class="nav-item active" data-tab="personal" aria-current="page">
                         <span class="nav-icon" aria-hidden="true">${icons.user}</span> <span data-i18n="navPersonal">${t('navPersonal')}</span>
@@ -794,7 +794,7 @@ class ProfileView extends HTMLElement {
                     </button>
                 </nav>
 
-                <main class="main-content">
+                <div class="main-content">
                     <div class="header-banner">
                         <img id="user-photo-hero" class="photo-hero" src="" alt="Profile" />
                         <h1 id="header-name" data-i18n="profileGreetingPlain">${t('profileGreetingPlain')}</h1>
@@ -880,7 +880,7 @@ class ProfileView extends HTMLElement {
                             <p id="account-deletion-status" role="status" aria-live="polite"></p>
                         </div>
                     </div>
-                </main>
+                </div>
             </div>
 
             <div id="delete-modal" class="modal-overlay">

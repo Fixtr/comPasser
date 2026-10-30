@@ -11,7 +11,7 @@ test('course screen reports a failed UI module and recovers after reload', async
   await page.unroute('**/src/domains/planner/ui/home-courses.js');
   await page.getByRole('button', { name: '화면 다시 불러오기' }).click();
   await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'tokyo');
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-course-city=kyoto]').click();
   await expect(page.locator('home-courses article')).toHaveCount(3);
   expect(errors).toEqual([]);
@@ -28,7 +28,7 @@ test('delayed domestic map setup keeps the list usable and ignores the previous 
   await page.locator('[data-recommend-city=busan]').click();
   await expect(page.locator('.flow-place-row')).toHaveCount(6);
   await expect(page.getByRole('button',{name:'장소 선택 없이 다음',exact:true})).toBeEnabled();
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-recommend-city=jeju]').click();
   await page.evaluate(()=>window.releaseMaps());
   await expect(page.locator('.flow-place-row')).toHaveCount(6);
@@ -49,7 +49,7 @@ test('failed map setup keeps international places visible and selection recovera
   await page.locator('.flow-place-row button').first().click();
   await expect(page.locator('.flow-place-row button').first()).toBeEnabled();
   expect(errors).toEqual([]);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.locator('[data-recommend-city=paris]')).toBeVisible();
 });
 
@@ -71,19 +71,19 @@ test('Japan city changes preserve the Ionic page and work through cached home na
     expect(await heading.evaluate(node => node.closest('.ion-page') === window.originalRecommendPage
       && node.closest('ion-content') === window.originalRecommendContent)).toBe(true);
     await expect(page.locator('.flow-place-row')).toHaveCount(3);
-    await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '뒤로', exact: true }).click();
   }
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.getByRole('button', { name: '코스 둘러보기', exact: true }).click();
   await page.locator('[data-course-country=JPN]').click();
   for (const city of ['tokyo', 'kyoto']) {
     await page.locator(`[data-course-city=${city}]`).click();
     await expect(page.locator('home-courses article')).toHaveCount(3);
-    await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '뒤로', exact: true }).click();
   }
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.getByRole('button', { name: '일정 만들기', exact: true }).click();
   await page.locator('[data-recommend-country=JPN]').click();
   await page.locator('[data-recommend-city=tokyo]').click();
@@ -113,9 +113,9 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
     await page.locator('[data-course-country=JPN]').click();
     await page.locator('[data-course-city=tokyo]').click();
     await expect(page.locator('home-courses article')).toHaveCount(3);
-    await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-    await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-    await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '뒤로', exact: true }).click();
     await page.getByRole('button', { name: '일정 만들기', exact: true }).click();
     await page.locator('[data-recommend-country=JPN]').click();
     await page.locator('[data-recommend-city=kyoto]').click();
@@ -124,11 +124,11 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
     if (reducedMotion === 'reduce') expect(motions).toEqual([]);
     else {
       expect(motions.filter(motion => motion.page).length).toBeGreaterThanOrEqual(3);
-      expect(motions.filter(motion => motion.tag === 'MAIN').length).toBeGreaterThanOrEqual(7);
+      expect(motions.filter(motion => motion.tag === 'SECTION').length).toBeGreaterThanOrEqual(7);
       expect(motions.every(motion => motion.duration === 220)).toBe(true);
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.id === 'compasser-screen').length)).toBe(0);
-      await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+      await page.getByRole('button', { name: '뒤로', exact: true }).click();
       expect(await page.evaluate(() => window.screenMotions.length)).toBe(motions.length);
     }
   });
@@ -142,8 +142,8 @@ test('destination step animations preserve the draft and page identity on back',
   await expect(page.locator('.flow-place-row')).toHaveCount(3);
   const content = page.locator('ion-content').first();
   await content.evaluate(element => { window.destinationContent = element; });
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.getByRole('button', { name: '파리', exact: true })).toBeVisible();
   expect(await content.evaluate(element => element === window.destinationContent)).toBe(true);
-  expect(await page.evaluate(() => window.screenMotions.filter(motion => motion.tag === 'MAIN').length)).toBeGreaterThanOrEqual(3);
+  expect(await page.evaluate(() => window.screenMotions.filter(motion => motion.tag === 'SECTION').length)).toBeGreaterThanOrEqual(3);
 });

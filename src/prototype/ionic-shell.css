@@ -6,6 +6,10 @@
 .shell-kicker { color: var(--cp-ink-2); font-size: .8rem; font-weight: 700; letter-spacing: .08em; }
 ion-tab-bar { --background: var(--cp-surface); --color: var(--cp-ink-2); --color-selected: var(--cp-ink); border-top: 1px solid var(--cp-rule-hard); }
 ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-height: 56px; }
+/* Ionic's own keyboard focus is a faint fill; use the same ink ring as the rest of the app. */
+ion-tab-button::part(native):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: -3px; }
+/* Phone-sized targets: Ionic's back button and small buttons are 32px and 27px tall. */
+ion-back-button { --min-height: 44px; --min-width: 44px; }
 .ionic-settings { position: static; display: flex; gap: 8px; }
 .ionic-settings button { min-height: 44px; padding: 0 12px; border: 1px solid var(--cp-rule-hard); border-radius: 8px; background: var(--cp-surface); color: var(--cp-ink); font: inherit; font-weight: 600; }
 .ionic-settings button:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
@@ -28,7 +32,7 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 .ionic-result-desktop .ionic-map-content { height: 100%; }
 .ionic-map-content { --background: var(--cp-sunken); }
 .ionic-map-content map-view { display: block; width: 100%; height: 100%; }
-.ionic-result-back, .ionic-result-edit { position: absolute; top: max(14px, env(safe-area-inset-top)); z-index: 2; --background: var(--cp-surface); --color: var(--cp-ink); --box-shadow: 0 1px 4px #17252250; }
+.ionic-result-back, .ionic-result-edit { position: absolute; top: max(14px, env(safe-area-inset-top)); z-index: 2; min-height: 44px; --background: var(--cp-surface); --color: var(--cp-ink); --box-shadow: 0 1px 4px #17252250; }
 .ionic-result-back { left: 14px; }
 .ionic-result-edit { right: 14px; }
 .ionic-result-sheet { --width: 100%; --height: 100%; --border-radius: 22px 22px 0 0; --background: var(--cp-surface); }
@@ -38,7 +42,11 @@ ion-tab-button { --color: var(--cp-ink-2); --color-selected: var(--cp-ink); min-
 @media (max-width: 899px) {
   .ionic-result-sheet { --border-radius: 18px 18px 0 0; }
   .ionic-result-sheet::part(handle) { width: 48px; height: 6px; background: var(--cp-ink); opacity: 1; }
+  /* The bar stays thin; its tap area fills the sheet's top 44px band (Ionic centres a 13px one on the bar). */
+  .ionic-result-sheet::part(handle)::before { top: -5px; left: 50%; height: 44px; padding: 0 4px; transform: translateX(-50%); }
 }
+/* Below 380px the language button reaches the middle, under the handle's tap band; start the row below it. */
+@media (max-width: 379px) { .ionic-sheet-settings { padding-top: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
 :root { --ion-color-primary: var(--cp-ink); --ion-color-primary-contrast: var(--cp-surface); }
 .shell-content { --padding-top: max(16px, env(safe-area-inset-top)); }
