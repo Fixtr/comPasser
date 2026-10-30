@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { getSafeReturnPath } from '../src/app/route-decision.mjs';
 
 // 실제 화면의 이벤트 핸들러를 실행하되 DOM과 외부 인증만 작은 가짜로 대체한다.
-function authView(file, className, search = '') {
+function authView(file, className, search = '', { authError } = {}) {
   const elements = new Map();
   const element = (id) => {
     if (!elements.has(id)) elements.set(id, {
@@ -16,6 +16,7 @@ function authView(file, className, search = '') {
   };
   const navigations = [];
   const signups = [];
+  const toasts = [];
   const messages = new Map();
   const session = new Map();
   const location = { origin: 'https://app.example', pathname: '/login', search };
@@ -45,15 +46,16 @@ function authView(file, className, search = '') {
     loadKakaoSdk: async () => ({ Auth: { login: ({ success }) => success({ access_token: 'test-token' }) } }),
     // 인증 성공 직후 전역 구독이 URL을 바꾼 상황을 재현한다.
     loginWithCustomToken: async () => { location.search = ''; },
-    signUpWithEmail: async (...args) => { signups.push(args); location.search = ''; },
-    showToast() {},
+    signUpWithEmail: async (...args) => { if (authError) throw authError; signups.push(args); location.search = ''; },
+    loginWithEmail: async () => { if (authError) throw authError; },
+    showToast: message => toasts.push(message), showErrorToast: message => toasts.push(message), showSuccessToast: message => toasts.push(message),
     setInterval: () => 1, clearInterval() {}, console,
   });
   const view = new View();
   if (file === 'verify-view.js') view.render();
   else view.setupListeners();
   return {
-    location, navigations, messages, session, signups,
+    location, navigations, messages, session, signups, toasts, element,
     input: (id, value) => { element(id).value = value; },
     click: (id) => element(id).listeners.click({ preventDefault() {} }),
     submit: (id) => element(id).listeners.submit({ preventDefault() {} }),
@@ -145,4 +147,25 @@ test('인증 화면의 잘못된 복귀 주소는 무시한다', async () => {
     await view.click('go-login-btn');
     assert.deepEqual(view.navigations, ['/login']);
   }
+});
+
+test('로그인·가입 결과 문구는 사전을 거쳐 영어 화면에서도 번역된다', async () => {
+  const failure = code => Object.assign(new Error(code), { code });
+  const login = authView('login-view.js', 'LoginView', '', { authError: failure('auth/wrong-password') });
+  login.input('email-input', 'traveler@example.com');
+  login.input('password-input', 'wrong');
+  await login.submit('login-form');
+  assert.deepEqual(login.toasts, ['loginWrongPassword']);
+
+  const taken = authView('join-view.js', 'JoinView', '', { authError: failure('auth/email-already-in-use') });
+  taken.input('email-input', 'traveler@example.com');
+  taken.input('password-input', 'test-password');
+  await taken.submit('join-form');
+  assert.equal(taken.element('error-msg').textContent, 'joinEmailInUse');
+
+  const joined = authView('join-view.js', 'JoinView');
+  joined.input('email-input', 'traveler@example.com');
+  joined.input('password-input', 'test-password');
+  await joined.submit('join-form');
+  assert.deepEqual(joined.toasts, ['joinVerificationSent']);
 });

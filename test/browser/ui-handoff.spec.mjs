@@ -1431,13 +1431,15 @@ test('the planner counts 4/7 to 7/7 with a matching bar and speaks one term for 
  const preference=page.locator('preference-view:visible');
  const bar=()=>preference.evaluate(view=>{const fill=view.shadowRoot.getElementById('progress-bar');return Math.round(fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*7);});
  await expect(preference.locator('#step-badge')).toHaveText('4 / 7');await expect.poll(bar).toBe(4);
+ await expect(preference.getByRole('heading',{level:1,name:'여행 날짜'})).toBeVisible();
  await preference.locator('#custom-date-input').fill('2030-10-17');await preference.locator('#custom-date-input').dispatchEvent('change');await preference.locator('[data-duration="3"]').click();
  await preference.locator('#next-step-btn').click();
  const style=page.locator('preference-view').filter({has:page.locator('#step2-container:visible')});
- await expect(style.locator('#step-badge')).toHaveText('5 / 7');await expect.poll(()=>style.evaluate(view=>{const fill=view.shadowRoot.getElementById('progress-bar');return Math.round(fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*7);})).toBe(5);
+ await expect(style.locator('#step-badge')).toHaveText('5 / 7');await expect(style.getByRole('heading',{level:1,name:'여행 스타일'})).toBeVisible();await expect.poll(()=>style.evaluate(view=>{const fill=view.shadowRoot.getElementById('progress-bar');return Math.round(fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*7);})).toBe(5);
  await style.locator('#theme-grid [data-value=food]').click();await style.locator('#budget-grid [data-value=standard]').click();await style.locator('#submit-btn').click();
  const form=page.locator('travel-form:visible');
  await expect(form.locator('#travel-form .step-badge')).toHaveText('6 / 7');
+ await expect(form.locator('#travel-form').getByRole('heading',{level:1,name:/일정 상세 설정하기/})).toBeVisible();
  await expect(form.locator('#travel-form')).not.toContainText(/Anchor|Optional|\(Day\)|Day \d/);
  await expect(form.getByRole('heading',{name:/^꼭 갈 장소/})).toBeVisible();
  await expect(form.locator('#add-anchor-btn')).toHaveText('꼭 갈 장소 추가하기');
@@ -1455,6 +1457,7 @@ test('the planner counts 4/7 to 7/7 with a matching bar and speaks one term for 
  await form.locator('button[type=submit].primary-btn').click();
  const review=form.locator('#review-panel');await expect(review).toBeVisible();
  await expect(review.locator('.step-badge')).toHaveText('7 / 7');
+ await expect(review.getByRole('heading',{level:1,name:'일정 생성 전 최종 확인'})).toBeVisible();
  await expect(review.getByRole('heading',{name:'출발·도착',exact:true})).toBeVisible();
  await expect(review).not.toContainText(/Day \d/);
 });

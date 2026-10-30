@@ -220,7 +220,8 @@ class PublicCourses extends HTMLElement {
       this.cards.append(article);
       if (course.id === this.openReviewId) {
         this.openReviewId = null;
-        void reviews.click(); article.scrollIntoView({ block: 'center' });
+        // Scroll once the panel is attached, so a landscape phone sees it, not just the short card.
+        void reviews.onclick().then(() => article.scrollIntoView({ block: 'start' }));
       } else if (course.id === this.keepOpenId) {
         this.keepOpenId = null;
         void reviews.click();

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { courseCities, curatedRoute, checkedVisitorInfo, preparePublicRouteExtras, publicRouteUrl } from '../src/domains/itinerary/services/public-route.mjs';
 import { renderPublicRoute, renderRouteDirectory } from '../src/domains/itinerary/services/public-route-html.mjs';
 import { addCourseToDraft } from '../src/domains/planner/services/course-draft.mjs';
@@ -221,4 +222,12 @@ test('curated routes without a written reason name their own stops, and a route 
   assert.ok(reviews.size > 70, `only ${reviews.size} distinct route descriptions`);
   const tokyo = curatedRoute('curated-tokyo');
   assert.match(tokyo.review, new RegExp(tokyo.stops[0].englishName || tokyo.stops[0].name));
+});
+
+test('the plan link waits for the page script, so a start typed before it loads is not dropped', () => {
+  const html = renderPublicRoute(curatedRoute('curated-seoul'), origin);
+  assert.match(html, /<a[^>]*id="plan-route"[^>]*aria-disabled="true"/);
+  assert.match(html, /#plan-route\[aria-disabled\]\{pointer-events:none/);
+  const script = readFileSync(new URL('../public/route-page.js', import.meta.url), 'utf8');
+  assert.match(script, /getElementById\('plan-route'\)\?\.removeAttribute\('aria-disabled'\)/);
 });

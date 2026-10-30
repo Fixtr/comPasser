@@ -46,8 +46,8 @@
     {
       "name": "새 일정 만들기",
       "short_name": "새 일정",
-      "description": "고정 일정을 먼저 정하고 동선을 짭니다.",
-      "url": "/plan",
+      "description": "여행지와 꼭 갈 장소를 고르고 동선을 짭니다.",
+      "url": "/recommend",
       "icons": [
         {
           "src": "/icon-192.png",

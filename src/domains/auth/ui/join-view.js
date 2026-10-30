@@ -95,7 +95,7 @@ export default class JoinView extends HTMLElement {
       </div>
 
       <div class="login-link">
-        <span data-i18n="joinHaveAccount">${t('joinHaveAccount')}</span> <a id="go-to-login" data-i18n="joinGoToLogin">${t('joinGoToLogin')}</a>
+        <span data-i18n="joinHaveAccount">${t('joinHaveAccount')}</span> <a href="#" id="go-to-login" data-i18n="joinGoToLogin">${t('joinGoToLogin')}</a>
       </div>
     `;
   }
@@ -110,7 +110,8 @@ export default class JoinView extends HTMLElement {
     const goToLogin = this.shadowRoot.getElementById('go-to-login');
 
     // Goto Login View
-    goToLogin.addEventListener('click', () => {
+    goToLogin.addEventListener('click', (e) => {
+      e.preventDefault();
       const next = getSafeReturnPath(new URLSearchParams(window.location.search).get('next'));
       window.navigate(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
     });
@@ -175,14 +176,14 @@ export default class JoinView extends HTMLElement {
       try {
         await signUpWithEmail(email, password, returnTo);
         // Do not redirect, just alert user as requested.
-        showToast('이메일로 인증 링크가 발송되었습니다.', { tone: 'success' });
+        showToast(t('joinVerificationSent'), { tone: 'success' });
         passwordInput.value = '';
         emailInput.value = '';
         passwordStrength.textContent = '';
       } catch (err) {
         console.error(err);
-        let msg = '회원가입에 실패했습니다: ' + err.message;
-        if (err.code === 'auth/email-already-in-use') msg = '이미 가입된 이메일입니다.';
+        let msg = t('joinFailedWith').replace('{0}', err.message);
+        if (err.code === 'auth/email-already-in-use') msg = t('joinEmailInUse');
         errorMsg.textContent = msg;
         errorMsg.style.display = 'block';
       } finally {

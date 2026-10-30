@@ -30,7 +30,7 @@ export const travelFormStyles = `
           }
         }
 
-        h2 {
+        h1, h2 {
           font-size: 1.25rem;
           font-weight: 700;
           letter-spacing: -0.01em;

@@ -23,7 +23,7 @@ const source = readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.
 function fakeElement() {
   return {
     style: {}, dataset: {}, disabled: false, hidden: false,
-    innerHTML: '', textContent: '', listeners: {},
+    innerHTML: '', textContent: '', listeners: {}, classList: { toggle() {} },
     getAttribute(name) { return name === 'data-i18n' ? this.dataset.i18n : null; },
     children: [], appendChild(child) { this.children.push(child); },
     addEventListener(type, handler) { this.listeners[type] = handler; },
@@ -346,6 +346,8 @@ test('옛 주소에서 공유본이 없으면 로그인 후 그 주소로 복귀
   assert.equal(await shared.view.loadItineraryById('missing123', { sharedOnly: true }), false);
   assert.deepEqual(shared.calls.navigations, []);
   assert.match(shared.control('timeline-container').innerHTML, /viewNotFoundTitle/);
+  // A new trip starts where home's 일정 만들기 does, not at the details form.
+  assert.match(shared.control('timeline-container').innerHTML, /navigate\('\/recommend'\)/);
   assert.ok(shared.calls.events.some(event => event.type === 'itinerary-missing'));
   // A guest sent to sign in is not a missing trip.
   assert.equal(legacy.calls.events.some(event => event.type === 'itinerary-missing'), false);

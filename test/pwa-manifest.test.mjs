@@ -79,6 +79,8 @@ test('바로가기는 실제로 있는 경로만 가리킨다', () => {
   // 없는 주소를 가리키는 바로가기는 없느니만 못하다.
   const shortcuts = manifest.shortcuts || [];
   assert.ok(shortcuts.length > 0, '바로가기가 없다 — 설치한 앱을 길게 누를 때 나온다');
+  // A new trip starts where home's 일정 만들기 does, not at the details form.
+  assert.equal(shortcuts.find(s => s.short_name === '새 일정')?.url, '/recommend');
   for (const s of shortcuts) {
     assert.ok(s.name, '바로가기에 name 이 없다');
     assert.ok(s.url && s.url.startsWith(manifest.scope),

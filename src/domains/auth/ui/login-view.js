@@ -363,20 +363,20 @@ export default class LoginView extends HTMLElement {
       } catch (err) {
         console.error(err);
         if (err.message === 'EMAIL_NOT_VERIFIED') {
-          showErrorToast('이메일 인증이 완료되지 않았습니다. 메일함을 확인해주세요.');
+          showErrorToast(t('loginEmailNotVerified'));
         } else {
           switch (err.code) {
             case 'auth/user-not-found':
-              showErrorToast("가입되지 않은 이메일입니다.");
+              showErrorToast(t('loginUserNotFound'));
               break;
             case 'auth/wrong-password':
-              showErrorToast("비밀번호가 틀립니다.");
+              showErrorToast(t('loginWrongPassword'));
               break;
             case 'auth/invalid-credential':
-              showErrorToast("이메일 또는 비밀번호가 올바르지 않습니다.");
+              showErrorToast(t('loginInvalidCredential'));
               break;
             case 'auth/too-many-requests':
-              showErrorToast("비밀번호를 여러 번 틀려 계정이 잠겼습니다. 나중에 다시 시도하거나 비밀번호를 재설정해주세요.", { duration: 5000 });
+              showErrorToast(t('loginTooManyAttempts'), { duration: 5000 });
               break;
             default:
               errorMsg.textContent = t('loginFailedWith').replace('{0}', err.message);

@@ -43,6 +43,10 @@ document.getElementById('plan-route')?.addEventListener('click', event => {
     const draft = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
     // The app restores its saved copy when it starts, so that copy needs the same start.
     const saved = JSON.parse(localStorage.getItem('compasser.planner.v1') || 'null');
+    // The app may drop both copies when it finds another account's saved draft, so it also gets the start directly.
+    // Every click sets or clears it, so a start from an earlier, failed import never reaches this one.
+    if (startLocation) sessionStorage.setItem('compasser.routeStart', startLocation);
+    else sessionStorage.removeItem('compasser.routeStart');
     // An empty field clears only a start left by another city's route, judged on the copy the app builds on.
     if (!startLocation && (saved?.draft || draft).destination?.id === event.currentTarget.dataset.city) return;
     sessionStorage.setItem('currentFormData', JSON.stringify({ ...draft, startLocation }));
@@ -53,3 +57,5 @@ document.getElementById('plan-route')?.addEventListener('click', event => {
     status.textContent = 'Your browser could not keep the starting place. Clear it to continue and enter it on the planning screen.';
   }
 });
+// The link is inert until this handler exists, so a start typed before the script loaded is never skipped.
+document.getElementById('plan-route')?.removeAttribute('aria-disabled');

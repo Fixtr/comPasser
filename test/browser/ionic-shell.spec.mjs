@@ -511,11 +511,10 @@ test('휴대폰 결과 시트는 결과 화면에서는 닫히지 않고, 화면
   await page.goto('/share/abc123');
   await expect(sheet).toBeVisible();
   expect(await sheet.evaluate(modal => modal.dismiss())).toBe(false);
+  // A new trip starts where home's 일정 만들기 does.
   await sheet.getByRole('button', { name: '새 일정 만들기' }).click();
-  await expect(page).toHaveURL(/\/login\?next=%2Fplan$/);
-  await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('일정을 만들고 저장하려면 로그인이 필요해요.');
+  await expect(page).toHaveURL(/\/recommend$/);
   await expect(sheet).toBeHidden();
-  await page.locator('login-view #email-input').last().click();
   await page.goBack();
   await expect(page).toHaveURL(/\/share\/abc123$/);
   await expect(sheet).toBeVisible();
@@ -545,6 +544,14 @@ test('휴대폰 결과 시트는 오프라인에서 돌아와도 일정이 다�
   await page.context().setOffline(true);
   await expect(page.getByText('오프라인 읽기 전용', { exact: false })).toBeVisible();
   await page.context().setOffline(false);
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  // Crossing 900px while offline still leaves the right layout once back online.
+  await page.context().setOffline(true);
+  await expect(page.getByText('오프라인 읽기 전용', { exact: false })).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.context().setOffline(false);
+  await expect(page.locator('.ionic-desktop-schedule').getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
 });
 
@@ -1033,6 +1040,7 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await expect(page.locator('itinerary-view')).toBeVisible();
   await expect(page.locator('itinerary-view #next-stop')).toBeVisible();
   await expect(page.locator('itinerary-view #next-stop-title')).toHaveText('경복궁');
+  await expect(page.locator('ion-modal.ionic-result-sheet itinerary-view').getByRole('heading', { level: 1 })).toContainText('2026-09-27');
   await page.screenshot({ path: testInfo.outputPath('result-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(page.locator('.ionic-desktop-schedule')).toBeVisible();
@@ -1116,11 +1124,14 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
     export async function getMyCourseReview() { return null; }
     export async function saveCourseReview() {} export async function deleteCourseReview() {}
   ` }));
+  // A landscape phone: the panel must still be on screen once it attaches, even when its code is slow.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.route('**/course-reviews.js*', async route => { await new Promise(resolve => setTimeout(resolve, 400)); await route.continue(); });
   await page.goto('/courses?review=reviewRoute&lang=en');
   const courses = page.locator('public-courses:visible');
   await expect(page.getByRole('heading', { name: 'Explore short routes', exact: true })).toBeVisible();
   await expect(courses.getByRole('button', { name: 'Read or write traveler reviews', expanded: true })).toBeVisible();
-  await expect(courses.locator('course-reviews').getByRole('heading', { name: 'Traveler experience reviews' })).toBeVisible();
+  await expect(courses.locator('course-reviews').getByRole('heading', { name: 'Traveler experience reviews' })).toBeInViewport();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.locator('[data-course-city]')).toHaveCount(2);
   await page.goto('/courses?review=missingRoute');
@@ -1190,6 +1201,11 @@ test('로그인·가입 칸은 보이는 이름표가 있고 Enter 로 제출되
   await expect(join.getByRole('heading', { level: 1, name: '회원가입' })).toBeVisible();
   await expect(join.getByLabel('이메일 주소')).toHaveAttribute('required', '');
   await expect(join.getByLabel('비밀번호', { exact: true })).toHaveAttribute('required', '');
+  // The '로그인' link is a real link: it takes keyboard focus and Enter follows it.
+  await join.getByRole('link', { name: '로그인', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/join');
 
   await page.goto('/login?next=%2Fprofile%2Fsecurity');
   const login = page.locator('login-view:visible');
@@ -1253,6 +1269,8 @@ test('휴대폰 결과 시트는 이름이 있고 손잡이를 한국어로 말�
   // A missing trip says so as the page's heading and is announced.
   await expect(sheet.getByRole('heading', { level: 1, name: '일정을 찾을 수 없거나 접근 권한이 없습니다.' })).toBeVisible();
   await expect(sheet.locator('itinerary-view').getByRole('alert')).toContainText('일정을 찾을 수 없거나 접근 권한이 없습니다.');
+  // The timeline's rail line belongs to stops, not to a notice card.
+  expect(await sheet.locator('itinerary-view').evaluate(view => getComputedStyle(view.shadowRoot.getElementById('timeline-container'), '::before').display)).toBe('none');
   // A missing trip opens the sheet to full height. It then covers the map and Ionic traps focus there, so it is modal.
   await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
   await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'true');
@@ -1376,4 +1394,57 @@ test('없는 공유 일정은 빈 지도 없이 안내 카드가 화면을 차�
   await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
   await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
   await expect(sheet.getByRole('button', { name: '뒤로', exact: true })).toBeVisible();
+});
+
+test('여러 날 일정의 결과 화면도 h1 제목이 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({
+    contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true }"),
+  }));
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function getGenerationCredits() { return 1; }
+    export async function generateOptimizedItinerary() {
+      const day = (n, date) => ({ day: n, date, scheduleItems: [
+        { type: 'departure', title: '광화문', time: '09:00', location: '광화문' }, { type: 'arrival', title: '경복궁', time: '10:00', location: '경복궁' } ] });
+      return { days: [day(1, '2026-09-27'), day(2, '2026-09-28')] };
+    }
+  ` }));
+  await page.goto('/plan');
+  await page.locator('travel-form:visible').first().evaluate(element => {
+    element.dispatchEvent(new CustomEvent('generate-itinerary', { detail: {}, bubbles: true, composed: true }));
+  });
+  await expect(page).toHaveURL(/\/view$/);
+  const heading = page.locator('ion-modal.ionic-result-sheet itinerary-view').getByRole('heading', { level: 1 });
+  await expect(heading).toContainText('2026-09-27');
+  await expect(heading).toContainText('2026-09-28');
+});
+
+test('영문 페이지 스크립트가 오기 전에 누른 출발지도, 다른 계정의 저장 사본이 있어도 게스트의 출발지가 남는다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  // The plan link stays inert until the page script attaches its handler.
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/route-page.js*', async route => { await held; await route.continue(); });
+  await page.goto('/en/routes/curated-seoul', { waitUntil: 'commit' });
+  await expect(page.getByRole('link', { name: 'Plan with these places' })).toHaveAttribute('aria-disabled', 'true');
+  release();
+  await expect(page.getByRole('link', { name: 'Plan with these places' })).not.toHaveAttribute('aria-disabled', /./);
+  // Another account signed in on this device earlier and left its saved copy.
+  await page.evaluate(() => localStorage.setItem('compasser.planner.v1', JSON.stringify({ owner: 'old-user', draft: {
+    destination: { id: 'seoul', country: 'KOR', name: 'Seoul, South Korea' }, startLocation: 'Old hotel', anchorSchedules: [{ day: 1, name: 'Old pick', location: 'Old pick' }] } })));
+  await page.getByLabel('Start near your accommodation (optional)').fill('Myeongdong Station');
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  expect(draft.startLocation).toBe('Myeongdong Station');
+  expect(draft.anchorSchedules.map(stop => stop.name)).not.toContain('Old pick');
+  // A start left over from an earlier import that never finished does not reach a route for another city.
+  await page.goto('/en/routes/curated-busan');
+  await page.evaluate(() => sessionStorage.setItem('compasser.routeStart', 'Stale hotel'));
+  await page.getByRole('link', { name: 'Plan with these places' }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
+  const busan = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
+  expect(busan.destination).toMatchObject({ id: 'busan' });
+  expect(busan.startLocation).toBe('');
+  expect(await page.evaluate(() => sessionStorage.getItem('compasser.routeStart'))).toBeNull();
 });

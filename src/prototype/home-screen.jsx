@@ -33,6 +33,10 @@ export function HomeScreen({ authSettled, settings }) {
     // The saved draft is restored when auth settles; importing earlier would overwrite it in a new tab.
     if (!authSettled) return;
     let cancelled = false;
+    // The English route page hands over the typed start directly, in case another account's draft was dropped.
+    // Taken before the lookup, so a failed or missing import does not leave it for a later one.
+    let start = null;
+    try { start = sessionStorage.getItem('compasser.routeStart'); sessionStorage.removeItem('compasser.routeStart'); } catch { /* storage blocked: keep the draft's start */ }
     void (async () => {
       try {
         const course = curatedRoute(id) || await (await import('../domains/itinerary/services/public-course-service.js')).getPublicCourse(id);
@@ -40,7 +44,8 @@ export function HomeScreen({ authSettled, settings }) {
         if (!course) { setImportStatus('publicRouteGone'); return; }
         // Traveler courses store no city; take the catalogue city their stops match.
         const city = !course.destination && destinations.find(item => item.id === courseCity(course));
-        plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), city ? { ...course, destination: cityDestination(city) } : course, 'en'));
+        const draft = addCourseToDraft(plannerDraftStore.read(), city ? { ...course, destination: cityDestination(city) } : course, 'en');
+        plannerDraftStore.save(start ? { ...draft, startLocation: start } : draft);
         navigate('/login?next=%2Fpreference%2F1', { replace: true });
       } catch { if (!cancelled) setImportStatus('publicRouteImportFailed'); }
     })();

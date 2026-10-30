@@ -153,7 +153,7 @@ test('저장 실패는 기존 값·입력 상태를 유지하고 실패 알림�
   assert.deepEqual(app.view.userData, createEmptyProfile());
   assert.equal(app.view.editingField, 'birthday');
   assert.deepEqual(app.calls.extended, []);
-  assert.deepEqual(app.calls.toasts, [['저장에 실패했습니다.']]);
+  assert.deepEqual(app.calls.toasts, [['profileSaveFailed']]);
   assert.equal(app.calls.errors[0][1], failure);
 });
 
