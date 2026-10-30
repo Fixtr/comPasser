@@ -247,6 +247,11 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   await expect(page.getByText('English menu: Not checked')).toHaveCount(0);
   await page.getByRole('button', { name: 'Copy local address' }).first().click();
   expect(await page.evaluate(() => window.copiedAddress)).toContain('서울');
+  // The share box's status line is far away, so the tapped button itself says it worked.
+  await expect(page.locator('.copy-address').first()).toHaveText('Copied');
+  // A second tap inside the 2 s does not leave the button stuck on 'Copied'.
+  await page.locator('.copy-address').first().click();
+  await expect(page.locator('.copy-address').first()).toHaveText('Copy local address', { timeout: 5000 });
   expect(await page.locator('.qr').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   const qrResponse = await page.request.get('/en/routes/curated-seoul/qr.svg?download=1');
   expect(qrResponse.headers()['content-disposition']).toContain('attachment');
@@ -1105,7 +1110,8 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
     export async function listPublicCourses() { return { courses: [], hasMore: false }; }
     export async function getPublicCourse(id) { return id === 'reviewRoute' ? { ownerId: 'another-user', title: 'Temple morning', review: '', stops: [
       { name: 'Sensoji', location: '浅草寺, Tokyo', stayMinutes: 60 }, { name: 'Tower', location: '東京タワー, Tokyo', stayMinutes: 60 }
-    ] } : null; }
+    ] } : id === 'brokenRoute' ? Promise.reject(new Error('offline'))
+      : id === 'elsewhereRoute' ? { ownerId: 'another-user', title: 'Village walk', review: '', stops: [{ name: 'A', location: 'Somewhere', stayMinutes: 60 }] } : null; }
     export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
     export async function getMyCourseReview() { return null; }
     export async function saveCourseReview() {} export async function deleteCourseReview() {}
@@ -1120,6 +1126,19 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
   await page.goto('/courses?review=missingRoute');
   await expect(page.getByRole('heading', { name: 'Choose a country to browse routes', exact: true })).toBeVisible();
   await expect(page.locator('public-courses')).toHaveCount(0);
+  // The picker no longer appears silently: the link says why it did not open the route.
+  await expect(page.getByRole('status').filter({ hasText: 'This route is no longer public.' })).toBeVisible();
+  // Picking a country and coming back clears it.
+  await page.locator('[data-course-country=KOR]').click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.locator('[data-course-country=KOR]')).toBeVisible();
+  await expect(page.getByText('This route is no longer public.')).toHaveCount(0);
+  // A public course outside the catalogue cities is not called 'no longer public'.
+  await page.goto('/courses?review=elsewhereRoute');
+  await expect(page.locator('[data-course-country=KOR]')).toBeVisible();
+  await expect(page.getByText('This route is no longer public.')).toHaveCount(0);
+  await page.goto('/courses?review=brokenRoute');
+  await expect(page.getByRole('status').filter({ hasText: 'This route cannot be opened right now.' })).toBeVisible();
 });
 
 test('후기 링크의 코스 조회가 늦게 끝나도 사용자가 먼저 고른 도시를 바꾸지 않는다', async ({ page }) => {
@@ -1234,20 +1253,19 @@ test('휴대폰 결과 시트는 이름이 있고 손잡이를 한국어로 말�
   // A missing trip says so as the page's heading and is announced.
   await expect(sheet.getByRole('heading', { level: 1, name: '일정을 찾을 수 없거나 접근 권한이 없습니다.' })).toBeVisible();
   await expect(sheet.locator('itinerary-view').getByRole('alert')).toContainText('일정을 찾을 수 없거나 접근 권한이 없습니다.');
-  const back = page.locator('.ionic-result-back:visible');
-  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
-  // The map's Back stays usable beside the sheet, so the sheet does not tell screen readers everything else is inert.
-  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'false');
+  // A missing trip opens the sheet to full height. It then covers the map and Ionic traps focus there, so it is modal.
+  await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
+  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'true');
   // The visual bar stays thin, but the sheet's whole top 44px band in the middle hits the handle.
   const handleAt = async (x, y) => sheet.evaluate((modal, point) => modal.shadowRoot.elementFromPoint(point.x, point.y)?.className, { x, y });
   const box = await page.locator('ion-modal.ionic-result-sheet .modal-handle').boundingBox();
   const top = box.y - 5;
   for (const [dx, dy] of [[0, 1], [0, 42], [-21, 1], [21, 42]]) expect(await handleAt(box.x + box.width / 2 + dx, top + dy)).toContain('modal-handle');
-  // At full height the sheet covers the map and Ionic traps focus there, so it becomes modal.
-  await page.getByRole('button', { name: '일정 시트 크기 바꾸기' }).click();
-  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'true');
+  // Below full height the map's Back stays usable beside the sheet, so the sheet does not tell screen readers everything else is inert.
   await page.getByRole('button', { name: '일정 시트 크기 바꾸기' }).click();
   await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'false');
+  const back = page.locator('.ionic-result-back:visible');
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await page.getByRole('button', { name: 'English' }).last().click();
   await expect(page.getByRole('dialog', { name: 'Itinerary' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Resize itinerary sheet' })).toBeVisible();
@@ -1290,4 +1308,72 @@ test('빈 내 일정 목록에서 바로 새 일정을 시작할 수 있다', as
   await profile.getByRole('button', { name: '새 일정 만들기' }).click();
   // The same entry as home's 일정 만들기.
   await expect(page).toHaveURL(/\/recommend$/);
+});
+
+test('여행자 코스 목록은 불러오는 중을 말하고, 검색 결과 수를 알리고, 더 불러올 코스가 있을 때만 그 안내를 한다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses(options) {
+      await new Promise(resolve => { window.releaseCourses = resolve; });
+      return { courses: ['Palace walk', 'Market night'].map((title, index) => ({ id: 'c' + index, title, stops: [{ name: title, location: 'Seoul', stayMinutes: 60 }] })), hasMore: window.moreCourses === true };
+    }
+    export async function getPublicCourse() { return null; }
+  ` }));
+  await page.goto('/courses?country=KOR&city=seoul');
+  const courses = page.locator('public-courses:visible');
+  await expect(courses.getByText('여행자 코스를 불러오는 중…')).toBeVisible();
+  await expect(courses.getByText('공개 상태 확인 중…')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => typeof window.releaseCourses)).toBe('function');
+  await page.evaluate(() => window.releaseCourses());
+  const status = courses.getByRole('status');
+  await expect(status).toHaveText('코스 2개');
+  await expect(courses).not.toContainText('더 많은 코스는 아래에서 불러오세요.');
+  await courses.getByRole('searchbox').fill('없는 장소');
+  await expect(status).toHaveText('조건에 맞는 코스가 없습니다.');
+  await courses.getByRole('button', { name: '조건 초기화' }).click();
+  await expect(status).toHaveText('코스 2개');
+  await expect(courses.getByRole('searchbox')).toHaveValue('');
+  await expect(courses.getByRole('button', { name: '조건 초기화' })).toBeHidden();
+  // The button hid itself, so keyboard focus moves to the search, not the page body.
+  await expect(courses.getByRole('searchbox')).toBeFocused();
+  // A city with no traveler routes has nothing to clear, so no reset button.
+  await page.goto('/courses?country=KOR&city=busan');
+  await expect.poll(() => page.evaluate(() => typeof window.releaseCourses)).toBe('function');
+  await page.evaluate(() => window.releaseCourses());
+  await expect(courses.getByRole('status')).toHaveText('조건에 맞는 코스가 없습니다.');
+  await expect(courses.getByRole('button', { name: '조건 초기화' })).toBeHidden();
+  await page.goto('/courses?country=KOR&city=seoul');
+  // With another page to load, the hint points to the load-more button that is there.
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => typeof window.releaseCourses)).toBe('function');
+  await page.evaluate(() => { window.moreCourses = true; window.releaseCourses(); });
+  await expect(courses).toContainText('더 많은 코스는 아래에서 불러오세요.');
+  await expect(courses.getByRole('button', { name: '코스 더 불러오기' })).toBeVisible();
+});
+
+test('영어 앱의 코스 카드 링크는 공유용 영문 페이지라고 말하고 앱 글자색을 쓴다', async ({ page }) => {
+  await page.goto('/courses?country=KOR&city=seoul&lang=en');
+  const link = page.locator('home-courses article').first().getByRole('link', { name: /^Open shareable page: / });
+  await expect(link).toBeVisible();
+  const [color, ink] = await link.evaluate(a => [getComputedStyle(a).color, getComputedStyle(a.closest('article')).color]);
+  expect(color).toBe(ink);
+});
+
+test('없는 공유 일정은 빈 지도 없이 안내 카드가 화면을 차지하고 그 안에 뒤로 버튼이 있다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/share/abc123');
+  const aside = page.locator('.ionic-desktop-schedule');
+  await expect(aside.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expect(page.locator('.ionic-map-content:visible')).toHaveCount(0);
+  expect((await aside.boundingBox()).width).toBeGreaterThan(1200);
+  await aside.getByRole('button', { name: '뒤로', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/share/abc123');
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
+  await expect(sheet.getByRole('button', { name: '뒤로', exact: true })).toBeVisible();
 });

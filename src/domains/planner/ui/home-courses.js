@@ -42,7 +42,7 @@ class HomeCourses extends HTMLElement {
       h2 { margin:0 0 16px; font-size:clamp(1.4rem,4vw,1.8rem); }
       .cards { display:grid; grid-template-columns:repeat(3,minmax(0,280px)); gap:12px; }
       article { display:flex; flex-direction:column; border:1px solid var(--cp-rule); background:var(--cp-surface); padding:10px; min-width:0; overflow-wrap:anywhere; }
-      article a { display:flex; align-items:center; min-height:44px; font-size:12px; }
+      article a { display:flex; align-items:center; min-height:44px; font-size:12px; color:var(--cp-ink); text-underline-offset:3px; }
       h3 { flex:1; margin:0 0 8px; font-size:1rem; }
       button { min-height:44px; padding:8px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-size:13px; font-weight:700; }
       @media (max-width:600px) { .cards { gap:8px; } article { padding:8px; } h3 { font-size:13px; } button { font-size:12px; } }

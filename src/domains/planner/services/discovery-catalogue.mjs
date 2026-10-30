@@ -3,7 +3,7 @@
 export const cities = [
   { id: 'seoul', key: 'discoverSeoul', pair: ['palace', 'seochon'], pairReason: 'discoverSeoulPairReason', places: [
     { id: 'palace', key: 'discoverPalace', kind: 'discoverLandmark', stay: '60–120', guide: 'https://english.visitseoul.net/PalaceArea/Gyeongbokgung/ENP000072' },
-    { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul%20Forest/ENP001838' },
+    { id: 'forest', key: 'discoverForest', kind: 'discoverWalk', stay: '60–90', guide: 'https://english.visitseoul.net/nature/Seoul-Forest/ENP001838' },
     { id: 'island', key: 'discoverIsland', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitseoul.net/attractions/SeonyudoPark/ENP000378' },
     { id: 'seochon', key: 'discoverSeochon', kind: 'discoverFind', stay: '60–90', guide: 'https://english.visitseoul.net/attractions/SeochonHanokVillage/ENPhyd9ee' },
     { id: 'namsan', key: 'discoverNamsan', searchAliases: ['N서울타워'], kind: 'discoverLandmark', stay: '60–90', guide: 'https://english.visitseoul.net/mvp/IfyouvisitSeoulforthefirsttime_/43817' },

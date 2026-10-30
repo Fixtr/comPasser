@@ -608,7 +608,7 @@ export default class ItineraryView extends HTMLElement {
       if (version !== this._loadVersion) return false;
 
       if (document?.deleted) {
-        this.setError(`<div class="state-block" role="alert"><h1 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h1></div>`);
+        this.showMissing(`<div class="state-block" role="alert"><h1 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h1></div>`);
         return false;
       }
 
@@ -619,7 +619,7 @@ export default class ItineraryView extends HTMLElement {
           window.navigate('/login?next=' + encodeURIComponent('/view/' + id));
           return false;
         }
-        this.setError(`
+        this.showMissing(`
           <div class="state-block" role="alert">
              <div class="state-icon">${icons.search}</div>
              <h1 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h1>
@@ -647,7 +647,7 @@ export default class ItineraryView extends HTMLElement {
       if (version !== this._loadVersion) return false;
       this.clear();
       console.error('🔥 렌더링 치명적 오류:', error);
-      this.setError(`
+      this.showMissing(`
         <div class="state-block danger" role="alert">
            <div class="state-icon">${icons.warn}</div>
            <h1 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h1>
@@ -1448,6 +1448,12 @@ export default class ItineraryView extends HTMLElement {
    * 예전에는 여기서 다시 <p style="color:red"> 로 감싸서, 빈 상태 카드가
    * 빨간 글씨 문단 안에 들어가 있었다.
    */
+  // A deleted, missing or unreadable trip: the shell listens so it can give the card the whole screen.
+  showMissing(msg) {
+    this.setError(msg);
+    this.dispatchEvent(new CustomEvent('itinerary-missing'));
+  }
+
   setError(msg) {
     this.setLoading(false);
     const nextStop = this.shadowRoot.getElementById('next-stop');

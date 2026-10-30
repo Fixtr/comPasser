@@ -104,7 +104,7 @@ class PublicCourses extends HTMLElement {
       article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
       article > button[data-course] { margin-top:auto; }
       article > button + button { margin-top:8px; }
-      article > a { display:flex; align-items:center; min-height:44px; margin-top:2px; font-size:12px; }
+      article > a { display:flex; align-items:center; min-height:44px; margin-top:2px; font-size:12px; color:var(--cp-ink); text-underline-offset:3px; }
       h3 { margin:8px 0; font-size:1.15rem; overflow-wrap:anywhere; }
       .stops, .review { overflow-wrap:anywhere; }
       button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
@@ -113,13 +113,15 @@ class PublicCourses extends HTMLElement {
       label { display:grid; gap:6px; flex:1 1 150px; }
       input,select { width:100%; box-sizing:border-box; min-height:44px; padding:10px; font:inherit; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
       .more { margin-top:16px; }
+      .result-status { margin:0 0 12px; word-break:keep-all; }
+      .result-status + button { margin:-4px 0 12px; }
     `;
     const heading = document.createElement('h2'); heading.textContent = t('publicCoursesTitle');
     const intro = document.createElement('p'); intro.textContent = t('publicCoursesIntro');
     root.append(style, heading, intro);
     if (this.error || !this.courses.length) {
       const message = document.createElement('p');
-      message.textContent = t(this.error ? (this.offline ? (this.courses.length ? 'publicCoursesOfflineCached' : 'courseOffline') : 'publicCoursesError') : this.loaded ? 'publicCoursesEmpty' : 'publicCourseLoading');
+      message.textContent = t(this.error ? (this.offline ? (this.courses.length ? 'publicCoursesOfflineCached' : 'courseOffline') : 'publicCoursesError') : this.loaded ? 'publicCoursesEmpty' : 'publicCoursesLoading');
       root.append(message);
       // Offline it reloads by itself on the 'online' event, so a retry button would only fail again.
       if (this.error && !this.offline) {
@@ -150,16 +152,28 @@ class PublicCourses extends HTMLElement {
       const control = document.createElement(options ? 'select' : 'input');
       control.name = key;
       if (options) for (const [value, text] of options) { const option = document.createElement('option'); option.value = value; option.textContent = t(text); control.append(option); }
-      else control.type = 'search';
+      else { control.type = 'search'; control.placeholder = t('courseSearchPlaceholder'); }
       control.value = this.filters[key];
       control.addEventListener(options ? 'change' : 'input', () => { this.filters[key] = control.value; this.renderCards(); });
       label.append(control); filters.append(label);
     }
-    const hint = document.createElement('p'); hint.textContent = t('courseSearchScope');
+    // Only point to 'load more' when there is a next page to load.
+    const canLoadMore = this.hasMore && !(this.error && this.offline);
+    const hint = document.createElement('p'); hint.textContent = canLoadMore ? `${t('courseSearchScope')} ${t('courseSearchLoadMore')}` : t('courseSearchScope');
+    // Filtering changes the list in place, so a polite status says how many routes are left.
+    this.status = document.createElement('p'); this.status.className = 'result-status'; this.status.setAttribute('role', 'status');
+    this.reset = document.createElement('button'); this.reset.type = 'button'; this.reset.textContent = t('courseFiltersReset');
+    this.reset.onclick = () => {
+      this.filters = { search: '', city: this.getAttribute('city') || '', duration: '' };
+      filters.querySelectorAll('input,select').forEach(control => { control.value = this.filters[control.name]; });
+      this.renderCards();
+      // The button hides itself once results return; keep keyboard focus on the search.
+      filters.querySelector('input')?.focus();
+    };
     this.cards = document.createElement('div'); this.cards.className = 'cards';
-    root.append(filters, hint, this.cards);
+    root.append(filters, hint, this.status, this.reset, this.cards);
     this.renderCards();
-    if (this.hasMore && !(this.error && this.offline)) {
+    if (canLoadMore) {
       const more = document.createElement('button'); more.className = 'more'; more.textContent = t('courseLoadMore');
       more.onclick = () => { more.disabled = true; void this.load(true); }; root.append(more);
     }
@@ -168,7 +182,9 @@ class PublicCourses extends HTMLElement {
   renderCards() {
     this.cards.replaceChildren();
     const filtered = filterCourses(this.courses, { ...this.filters, city: this.getAttribute('city') || this.filters.city });
-    if (!filtered.length) { const empty = document.createElement('p'); empty.textContent = t('courseSearchEmpty'); this.cards.append(empty); }
+    this.status.textContent = filtered.length ? t('courseResultCount').replace('{0}', filtered.length) : t('courseSearchEmpty');
+    // Offered only when a filter the user set is what empties the list.
+    this.reset.hidden = filtered.length > 0 || (!this.filters.search && !this.filters.duration && (this.hasAttribute('city') || !this.filters.city));
     for (const course of filtered) {
       const article = document.createElement('article');
       const label = document.createElement('span'); label.textContent = t('publicCoursesLabel');

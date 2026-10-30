@@ -207,3 +207,18 @@ test('route page controls have distinct names and phone-sized tap targets', () =
   assert.deepEqual(repeated, []);
   assert.match(html, /header a,\s*\.links a,\s*article>a\{[^}]*min-height:44px/);
 });
+
+test('curated routes without a written reason name their own stops, and a route never repeats a guide link', () => {
+  const reviews = new Set();
+  for (const city of courseCities) for (const suffix of ['', '-2', '-3']) {
+    const route = curatedRoute(`curated-${city.id}${suffix}`);
+    reviews.add(route.review);
+    const html = renderPublicRoute(route, origin);
+    const guides = [...html.matchAll(/href="([^"]+)"[^>]*aria-label="Official visitor guide/g)].map(match => match[1]);
+    assert.equal(new Set(guides).size, guides.length, `${route.id} repeats a guide link`);
+  }
+  // 76 routes; before, every route without a written reason shared one generic sentence.
+  assert.ok(reviews.size > 70, `only ${reviews.size} distinct route descriptions`);
+  const tokyo = curatedRoute('curated-tokyo');
+  assert.match(tokyo.review, new RegExp(tokyo.stops[0].englishName || tokyo.stops[0].name));
+});

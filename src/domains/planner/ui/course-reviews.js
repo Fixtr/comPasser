@@ -71,7 +71,7 @@ class CourseReviews extends HTMLElement {
     if (this.busy || this.error) {
       const status = document.createElement('p'); status.setAttribute('role', 'status');
       // Loading failed: say so, not 'couldn't process', which reads like a submit failed.
-      status.textContent = t(this.error ? (this.offline ? 'courseOffline' : 'courseReviewsLoadError') : 'publicCourseLoading'); root.append(status);
+      status.textContent = t(this.error ? (this.offline ? 'courseOffline' : 'courseReviewsLoadError') : 'courseReviewsLoading'); root.append(status);
       if (this.error && !this.offline) { const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry'); retry.onclick = () => void this.load(); root.append(retry); }
       return;
     }
