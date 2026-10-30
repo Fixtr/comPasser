@@ -1,12 +1,19 @@
 const status = document.getElementById('route-status');
-async function copy(text) {
-  try { await navigator.clipboard.writeText(text); status.textContent = 'Copied.'; }
-  catch { status.textContent = 'Copy is unavailable. Select the address or link above and copy it.'; }
+// The status line sits in the share box, far from a stop's button, so the tapped button also says it worked.
+async function copy(text, button) {
+  try {
+    await navigator.clipboard.writeText(text); status.textContent = 'Copied.';
+    // Keep the first label, so a second tap within 2 s cannot make 'Copied' the label it restores.
+    button.dataset.label ??= button.textContent;
+    button.textContent = 'Copied';
+    clearTimeout(button.copiedTimer);
+    button.copiedTimer = setTimeout(() => { button.textContent = button.dataset.label; }, 2000);
+  } catch { status.textContent = 'Copy is unavailable. Select the address or link above and copy it.'; }
 }
 document.querySelectorAll('.copy-address').forEach(button => {
-  button.addEventListener('click', () => void copy(button.dataset.address));
+  button.addEventListener('click', () => void copy(button.dataset.address, button));
 });
-document.getElementById('copy-link')?.addEventListener('click', () => void copy(document.querySelector('link[rel=canonical]').href));
+document.getElementById('copy-link')?.addEventListener('click', event => void copy(document.querySelector('link[rel=canonical]').href, event.currentTarget));
 document.getElementById('print-route')?.addEventListener('click', () => window.print());
 // Many hosts' tools (Word, Canva, Instagram) take PNG, not SVG, so draw the same-origin SVG onto a canvas.
 document.getElementById('download-qr')?.addEventListener('click', event => {

@@ -44,7 +44,7 @@ export const destinations = [
     { id: 'singapore-3', name: '싱가포르 보타닉 가든', englishName: 'Singapore Botanic Gardens', location: 'Singapore Botanic Gardens, Singapore', stayMinutes: 90, guide: 'https://www.visitsingapore.com/content/visitsingapore/en/travel-tips/travelling-to-singapore/itineraries/7-days-in-singapore' },
   ] },
   { id: 'rome', key: 'cityRome', country: 'ITA', places: [
-    { id: 'rome-1', name: '콜로세움', englishName: 'Colosseum', location: 'Colosseum, Rome', stayMinutes: 90, guide: 'https://www.turismoroma.it/en/places/parco-archeologico-del-colosseo' },
+    { id: 'rome-1', name: '콜로세움', englishName: 'Colosseum', location: 'Colosseum, Rome', stayMinutes: 90, guide: 'https://www.turismoroma.it/en/places/flavian-amphitheatre-colosseum' },
     { id: 'rome-2', name: '포로 로마노', englishName: 'Roman Forum', location: 'Roman Forum, Rome', stayMinutes: 90, guide: 'https://turismoroma.it/en/places/roman-forum-and-palatine' },
     { id: 'rome-3', name: '팔라티노 언덕', englishName: 'Palatine Hill', location: 'Palatine Hill, Rome', stayMinutes: 60, guide: 'https://turismoroma.it/en/places/roman-forum-and-palatine' },
   ] },

@@ -27,12 +27,12 @@ const styles = `
   .cities{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none}.cities a{display:inline-block;padding:8px 12px;min-height:44px;border:1px solid var(--rule);background:var(--card);text-decoration:none}
   .card{position:relative}.card h3 a::after{content:"";position:absolute;inset:0}
   header a,.links a,article>a{display:inline-flex;align-items:center;min-height:44px}
-  @media print{:root,:root[data-theme]{color-scheme:light;--ink:#17201c;--card:#fff;--rule:#c8ccc5;--muted:#515b54}header,.actions,.links,.start,footer,button{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
+  @media print{:root,:root[data-theme]{color-scheme:light;--ink:#17201c;--card:#fff;--rule:#c8ccc5;--muted:#515b54}header,.actions,.links,.start,footer,button,#route-status{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
 `;
 
 // shortcut: bump ?v= when route-page.js or route-theme.js changes with the HTML; an old service worker
 // serves these from its cache by full URL, so a stale script would miss new buttons until it updates.
-const ROUTE_SCRIPTS = { theme: '/route-theme.js?v=1', page: '/route-page.js?v=2' };
+const ROUTE_SCRIPTS = { theme: '/route-theme.js?v=1', page: '/route-page.js?v=3' };
 
 function shell(title, description, canonical, body, { noindex = false, script = `<script src="${ROUTE_SCRIPTS.page}" defer></script>` } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -87,7 +87,7 @@ export function renderPublicRoute(course, origin) {
       ${where}
       ${maps}
       ${checked}
-      ${safeHttpUrl(stop.guideUrl) ? `<a href="${e(safeHttpUrl(stop.guideUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Official visitor guide for ${e(english)}">Official visitor guide</a>` : ''}</article>`;
+      ${safeHttpUrl(stop.guideUrl) && !course.stops.slice(0, index).some(prev => prev.guideUrl === stop.guideUrl) ? `<a href="${e(safeHttpUrl(stop.guideUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Official visitor guide for ${e(english)}">Official visitor guide</a>` : ''}</article>`;
   }).join('');
   const credit = course.credit;
   const creditHtml = credit?.name ? `<p>Shared by ${safeHttpUrl(credit.url) ? `<a href="${e(safeHttpUrl(credit.url))}" target="_blank" rel="noopener noreferrer">${e(credit.name)}</a>` : e(credit.name)}</p>` : '';

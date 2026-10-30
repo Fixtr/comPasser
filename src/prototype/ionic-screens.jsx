@@ -59,11 +59,13 @@ export function CoursesScreen({ settings }) {
   const { country, city, pick: pickPlace, back: backPlace } = usePlacePick('/courses');
   const navigate = useNavigate();
   const [loadState, setLoadState] = useState('loading');
+  // A review link whose course is gone or cannot be read says so above the country picker.
+  const [reviewNotice, setReviewNotice] = useState('');
   const stageRef = useStageTransition(city?.id || country || 'country');
   const courseCities = destinations;
   // Once the user picks or goes back, a late review-link lookup must not move them.
   const picked = useRef(false);
-  const pick = next => { picked.current = true; pickPlace(next); };
+  const pick = next => { picked.current = true; setReviewNotice(''); pickPlace(next); };
   useEffect(() => {
     let active = true;
     void Promise.all([
@@ -78,13 +80,16 @@ export function CoursesScreen({ settings }) {
       .then(service => service.getPublicCourse(reviewId))
       .then(course => {
         const match = course && destinations.find(item => item.id === courseCity(course));
+        // Only a course that is gone says so; a public course outside the catalogue cities still opens nothing, quietly.
+        if (active && !course && !picked.current) setReviewNotice('courseReviewMissing');
         if (active && match && !picked.current && window.location.pathname === '/courses') navigate(`/courses?${new URLSearchParams({ country: match.country, city: match.id, review: reviewId })}`, { replace: true });
       })
-      .catch(error => console.error('Review course unavailable:', error));
+      .catch(error => { console.error('Review course unavailable:', error); if (active && !picked.current) setReviewNotice('courseReviewUnavailable'); });
     return () => { active = false; };
   }, []);
   const back = () => {
     picked.current = true;
+    setReviewNotice('');
     backPlace();
   };
   return <IonPage><IonContent className="ion-padding shell-content">
@@ -94,6 +99,7 @@ export function CoursesScreen({ settings }) {
     </div>
     <section ref={stageRef} className="flow-page">
       <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'courseCountryTitle')}</h1>
+      {!country && reviewNotice && <p role="status">{t(reviewNotice)}</p>}
       {!country && <CountryPicker kind="course" onSelect={next => pick({ country: next })} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
       {city && <div key={city.id}>
@@ -279,6 +285,8 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   if (ready && (desktop || offlineMode)) setReady(false);
   const [loaded, setLoaded] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  // A missing or failed trip has no map to show: the card takes the full width and carries its own Back.
+  const [missing, setMissing] = useState(false);
   const navigate = useNavigate();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sheet = useRef(null);
@@ -294,6 +302,17 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     root?.querySelector('.modal-handle')?.setAttribute('aria-label', t('sheetResize'));
   };
   useEffect(nameSheet);
+  // The view reports a deleted, missing or unreadable trip, also when a later recheck finds it gone.
+  useEffect(() => {
+    const view = itinerary.current;
+    const onMissing = () => setMissing(true);
+    view?.addEventListener('itinerary-missing', onMissing);
+    return () => view?.removeEventListener('itinerary-missing', onMissing);
+  }, [loaded, desktop, offlineMode]);
+  // A page kept in the outlet must not carry the last trip's state into the next one.
+  useEffect(() => { if (!active) setMissing(false); }, [active]);
+  // On a phone the missing-trip card opens to full height instead of leaving an empty map above it.
+  useEffect(() => { if (missing && ready && active && !desktop) void sheet.current?.setCurrentBreakpoint(1); }, [missing, ready, active, desktop]);
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 900px)');
@@ -320,6 +339,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     view.setSessionUser(user?.uid || null);
     let cancelled = false;
     setShowEdit(false);
+    setMissing(false);
     const match = path.match(/^\/(view|share)\/([a-zA-Z0-9]+)$/);
     if (match) void view.loadItineraryById(match[2], { sharedOnly: match[1] === 'share', userId: user?.uid })
       .then(() => { if (!cancelled) setShowEdit(view.canEdit()); });
@@ -369,7 +389,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       <IonButton className="ionic-result-back" size="small" onClick={() => void back()}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
     </IonContent>;
-  const schedule = <><div className="ionic-sheet-settings">{settings}</div>{loaded === false && <p className="ionic-result-loading" role="status">{t('resultLoading')}</p>}{loaded === null && <div role="alert"><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>}<itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;
+  const schedule = <><div className="ionic-sheet-settings">{missing && <button className="ionic-result-missing-back" onClick={() => void back()}><span aria-hidden="true">←</span> {t('shellBack')}</button>}{settings}</div>{loaded === false && <p className="ionic-result-loading" role="status">{t('resultLoading')}</p>}{loaded === null && <div role="alert"><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>}<itinerary-view ref={itinerary} day-editing="" mobile-summary={desktop ? undefined : ''} /></>;
 
   if (offlineMode) {
     const id=path.match(/^\/view\/([a-zA-Z0-9]+)$/)?.[1];
@@ -380,7 +400,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     </section></IonContent></IonPage>;
   }
   return <IonPage className="ionic-result-page">
-    {desktop ? <div className="ionic-result-desktop">
+    {desktop ? <div className={`ionic-result-desktop${missing ? ' ionic-result-missing' : ''}`}>
       <aside className="ionic-desktop-schedule" aria-label={t('shellResult')}>{schedule}</aside>
       {map}
     </div> : <>

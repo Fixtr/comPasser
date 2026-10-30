@@ -43,6 +43,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   const listeners = new Map();
   const dependencies = {
     HTMLElement: class {
+      dispatchEvent(event) { calls.events.push({ type: event.type, on: 'view' }); }
       attachShadow() { this.shadowRoot = {
         getElementById: id => controls.get(id) || null,
         querySelectorAll: selector => selector === '[data-i18n]' ? [...controls.values()].filter(el => el.dataset.i18n) : [],
@@ -136,6 +137,8 @@ test('공유 재방문은 메모리 사본을 쓰지 않고 삭제 상태를 다
   assert.equal(app.calls.loads.length,2);
   assert.equal(app.view.currentItinerary,null);
   assert.match(app.control('timeline-container').innerHTML,/이 일정은 삭제된 일정입니다/);
+  // The shell drops the empty map when the view reports a missing trip.
+  assert.ok(app.calls.events.some(event => event.type === 'itinerary-missing' && event.on === 'view'));
   assert.equal(app.control('day-title-header').textContent,'');
   assert.equal(app.control('actions-primary').hidden,true);
   assert.equal(app.control('share-itinerary-btn').style.display,'none');
@@ -343,6 +346,9 @@ test('옛 주소에서 공유본이 없으면 로그인 후 그 주소로 복귀
   assert.equal(await shared.view.loadItineraryById('missing123', { sharedOnly: true }), false);
   assert.deepEqual(shared.calls.navigations, []);
   assert.match(shared.control('timeline-container').innerHTML, /viewNotFoundTitle/);
+  assert.ok(shared.calls.events.some(event => event.type === 'itinerary-missing'));
+  // A guest sent to sign in is not a missing trip.
+  assert.equal(legacy.calls.events.some(event => event.type === 'itinerary-missing'), false);
   assert.equal(shared.control('actions-primary').hidden, true);
   assert.equal(shared.calls.events.some(event => event.type === 'render-map-route'), false);
 });
