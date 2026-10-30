@@ -60,7 +60,7 @@ export default class PreferenceView extends HTMLElement {
           <div id="progress-bar" class="progress-fill"></div>
         </div>
         <span class="step-badge" id="step-badge"></span>
-        <h2 data-i18n="prefStyleTitle">${t('prefStyleTitle')}</h2>
+        <h1 data-i18n="prefStyleTitle">${t('prefStyleTitle')}</h1>
         <p><span data-i18n="prefStyleSubtitle1">${t('prefStyleSubtitle1')}</span><br><span data-i18n="prefStyleSubtitle2">${t('prefStyleSubtitle2')}</span></p>
       </div>
 
@@ -522,12 +522,12 @@ export default class PreferenceView extends HTMLElement {
     if (step === 1) {
       step1.style.display = 'block';
       step2.style.display = 'none';
-      this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowTravelDate');
+      this.shadowRoot.querySelector('.preference-header h1').textContent = t('flowTravelDate');
       setStepProgress(progress, badge, 4);
     } else {
       step1.style.display = 'none';
       step2.style.display = 'block';
-      this.shadowRoot.querySelector('.preference-header h2').textContent = t('flowStyle');
+      this.shadowRoot.querySelector('.preference-header h1').textContent = t('flowStyle');
       setStepProgress(progress, badge, 5);
     }
   }

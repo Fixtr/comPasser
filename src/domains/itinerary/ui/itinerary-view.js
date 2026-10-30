@@ -373,14 +373,18 @@ export default class ItineraryView extends HTMLElement {
       this.refreshCostSummary?.();
     }
 
-    if (this.currentItinerary && this.currentItinerary.days && this.currentItinerary.days.length > 0) {
-      const dayData = this.currentItinerary.days[0];
-      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
-      const headerEl = this.shadowRoot.getElementById('day-title-header');
-      if (headerEl) {
-        headerEl.textContent = headerFormat.replace('{0}', dayData.date);
-      }
-    }
+    if (this.currentItinerary?.days?.length > 0) this.renderPageHeading(this.currentItinerary.days);
+  }
+
+  // The page's h1. A single day shows it; several days keep it for screen readers only, above their day tabs.
+  renderPageHeading(days) {
+    const headerEl = this.shadowRoot.getElementById('day-title-header');
+    if (!headerEl) return;
+    const several = days.length > 1;
+    const dates = several ? `${days[0]?.date || ''} – ${days.at(-1)?.date || ''}` : days[0]?.date || '';
+    headerEl.textContent = (t('itineraryHeader') || '{0}').replace('{0}', dates);
+    headerEl.classList.toggle('visually-hidden', several);
+    headerEl.style.display = 'block';
   }
 
   canEdit() {
@@ -624,7 +628,7 @@ export default class ItineraryView extends HTMLElement {
              <div class="state-icon">${icons.search}</div>
              <h1 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h1>
              <p class="state-desc"><span data-i18n="viewNotFoundDesc1">${t('viewNotFoundDesc1')}</span><br><span data-i18n="viewNotFoundDesc2">${t('viewNotFoundDesc2')}</span></p>
-             <button class="state-action" onclick="window.navigate('/plan')" data-i18n="viewNewPlanBtn">${t('viewNewPlanBtn')}</button>
+             <button class="state-action" onclick="window.navigate('/recommend')" data-i18n="viewNewPlanBtn">${t('viewNewPlanBtn')}</button>
           </div>
         `);
         return false;
@@ -693,7 +697,7 @@ export default class ItineraryView extends HTMLElement {
           showGlobalToast(t('shareSuccessAlert') || "공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
         } catch (error) {
           console.error("Share error:", error);
-          this.showToast("링크 생성 중 오류가 발생했습니다.", true);
+          this.showToast(t('shareLinkFailed'), true);
         } finally {
           shareBtn.textContent = originalText;
           shareBtn.disabled = false;
@@ -720,7 +724,7 @@ export default class ItineraryView extends HTMLElement {
           await itineraryShareDelivery.shareToKakao(shareUrl);
         } catch (error) {
           console.error("Kakao Share error:", error);
-          this.showToast("카카오톡 공유 중 오류가 발생했습니다.", true);
+          this.showToast(t('kakaoShareFailed'), true);
         } finally {
           kakaoBtn.textContent = originalText;
           kakaoBtn.disabled = false;
@@ -1401,7 +1405,7 @@ export default class ItineraryView extends HTMLElement {
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
-          <h2 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h2>
+          <h1 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h1>
           <div id="day-tabs-container" class="day-tabs-container" style="display: none;">
             <!-- Tabs injected dynamically -->
           </div>
@@ -1479,7 +1483,7 @@ export default class ItineraryView extends HTMLElement {
     const container = this.shadowRoot.getElementById('timeline-container');
     if (container) container.innerHTML = '';
     const dayTitle = this.shadowRoot.getElementById('day-title-header');
-    if (dayTitle) dayTitle.textContent = '';
+    if (dayTitle) { dayTitle.textContent = ''; dayTitle.style.display = 'none'; }
     const dayTabs = this.shadowRoot.getElementById('day-tabs-container');
     if (dayTabs) dayTabs.innerHTML = '';
     const primaryBar = this.shadowRoot.getElementById('actions-primary');
@@ -1585,13 +1589,8 @@ export default class ItineraryView extends HTMLElement {
       });
     } else {
       tabsContainer.style.display = 'none';
-      const headerFormat = t('itineraryHeader') || '{0} 여행 일정';
-      const headerEl = this.shadowRoot.getElementById('day-title-header');
-      if (headerEl) {
-        headerEl.textContent = headerFormat.replace('{0}', safePlan.days[0]?.date || '');
-        headerEl.style.display = 'block';
-      }
     }
+    this.renderPageHeading(safePlan.days);
   }
 
   renderActiveDay(safePlan) {

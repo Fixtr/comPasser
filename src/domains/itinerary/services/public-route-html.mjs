@@ -27,12 +27,16 @@ const styles = `
   .cities{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none}.cities a{display:inline-block;padding:8px 12px;min-height:44px;border:1px solid var(--rule);background:var(--card);text-decoration:none}
   .card{position:relative}.card h3 a::after{content:"";position:absolute;inset:0}
   header a,.links a,article>a{display:inline-flex;align-items:center;min-height:44px}
+  #plan-route[aria-disabled]{pointer-events:none;opacity:.6}
   @media print{:root,:root[data-theme]{color-scheme:light;--ink:#17201c;--card:#fff;--rule:#c8ccc5;--muted:#515b54}header,.actions,.links,.start,footer,button,#route-status{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
 `;
 
 // shortcut: bump ?v= when route-page.js or route-theme.js changes with the HTML; an old service worker
 // serves these from its cache by full URL, so a stale script would miss new buttons until it updates.
-const ROUTE_SCRIPTS = { theme: '/route-theme.js?v=1', page: '/route-page.js?v=3' };
+const ROUTE_SCRIPTS = { theme: '/route-theme.js?v=1', page: '/route-page.js?v=4' };
+// shortcut: #plan-route starts aria-disabled (pointer-events: none; Enter still follows it) until route-page.js
+// attaches its handler, so a start typed early is never skipped. If that script fails to load the link stays dimmed;
+// a GET form carrying the start would remove that limit if it ever shows up.
 
 function shell(title, description, canonical, body, { noindex = false, script = `<script src="${ROUTE_SCRIPTS.page}" defer></script>` } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -96,7 +100,7 @@ export function renderPublicRoute(course, origin) {
     <div class="actions"><a class="action" href="#plan">Start planning</a></div>${stopHtml}
     <section class="start" id="plan"><label for="start-location">Start near your accommodation (optional)</label>
     <input id="start-location" maxlength="200" placeholder="Enter a hotel, station or address"></section>
-    <div class="actions"><a class="action" id="plan-route" href="/home?course=${e(course.id)}&amp;lang=en" data-city="${e(course.destination?.id || courseCity(course) || '')}">Plan with these places</a>
+    <div class="actions"><a class="action" id="plan-route" aria-disabled="true" href="/home?course=${e(course.id)}&amp;lang=en" data-city="${e(course.destination?.id || courseCity(course) || '')}">Plan with these places</a>
       ${course.curated ? '' : `<a href="/courses?review=${e(course.id)}&amp;lang=en">Traveler reviews</a>`}</div>
     <p class="muted">Building the itinerary needs an account. Places become required visits. Check travel times and opening hours in your generated itinerary.</p>
     <section class="share"><h2>Share this route</h2><p>Use this link in a video, travel post or accommodation guide.</p>

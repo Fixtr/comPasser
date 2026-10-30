@@ -34,7 +34,9 @@ export const itineraryStyles = `
           transform: translateY(0);
         }
 
-        h2 {
+        .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+        #day-title-header {
           font-size: 1.5rem;
           color: var(--cp-ink);
           margin-bottom: 1.5rem;
@@ -221,6 +223,8 @@ export const itineraryStyles = `
           width: 2px;
           background: var(--cp-rule);
         }
+        /* A notice card (missing trip, empty day) has no stops for the rail to join. */
+        .timeline:has(> .state-block)::before { display: none; }
 
         .timeline-item {
           display: flex;

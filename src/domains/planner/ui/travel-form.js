@@ -350,7 +350,7 @@ export default class TravelForm extends HTMLElement {
         </p>
         
         <div class="form-section">
-          <h2 class="section-head">
+          <h1 class="section-head">
             <div class="section-head-main">
               <span data-i18n="flowDetails"></span>
               <div class="preference-chips" id="preference-chips-container"></div>
@@ -359,7 +359,7 @@ export default class TravelForm extends HTMLElement {
               <button type="button" id="reselect-date-btn" class="link-btn handoff-field" data-i18n="reselectTravelDates"></button>
               <button type="button" id="reselect-preference-btn" class="link-btn" data-i18n="reselectPreference">테마/예산 다시 선택하기</button>
             </div>
-          </h2>
+          </h1>
           <div class="form-group handoff-field">
             <div class="location-heading">
               <label for="trip-destination" data-i18n="flowDestination"></label>
@@ -956,7 +956,7 @@ export default class TravelForm extends HTMLElement {
     const time=value => escapeHtml(value || t('timeUnset'));
     const tripTimes=draft.dailyTimes?.some(day=>day.isCustom) ? draft.dailyTimes.map(day=>`<p>${t('day_n').replace('{0}', day.day)} · ${time(day.startTime)} – ${time(day.endTime)}</p>`).join('') : `<p>${time(draft.startTime)} – ${time(draft.endTime)}</p>`;
     const section=(key,content,target='details') => `<section><h3>${t(key)}</h3>${content}<button type="button" data-review-edit="${target}">${t('flowEdit')}</button></section>`;
-    root.innerHTML=(this.hasAttribute('handoff-flow') ? stepProgressHtml(7) : '')+`<h2>${t('flowReviewTitle')}</h2>`
+    root.innerHTML=(this.hasAttribute('handoff-flow') ? stepProgressHtml(7) : '')+`<h1>${t('flowReviewTitle')}</h1>`
       +section('flowTravelDate',`<p>${line(this.shadowRoot.getElementById('trip-destination').value)}</p><p>${line(draft.date[0])} → ${line(draft.date.at(-1))}</p>`)
       +section('reviewEndpoints',`<p>${line(getLocationName(draft.startLocation))} → ${line(getLocationName(draft.endLocation))}</p>${tripTimes}`)
       +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
@@ -1522,8 +1522,7 @@ export default class TravelForm extends HTMLElement {
       await Promise.all(Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete'))
         .map(element => element.placeSelectionPending));
       if (Array.from(this.shadowRoot.querySelectorAll('gmp-place-autocomplete')).some(element => element.placeSelectionError)) {
-        showErrorToast(getLang() === 'ko' ? '선택한 장소 정보를 가져오지 못했습니다. 장소를 다시 선택해 주세요.'
-          : 'Could not load the selected place. Please select it again.');
+        showErrorToast(t('flowPlaceFailed'));
         this._resetSubmitButton(btn);
         this.isSubmitting = false;
         return;

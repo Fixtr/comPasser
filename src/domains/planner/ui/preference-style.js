@@ -37,7 +37,7 @@ export const preferenceStyles = `
           margin-bottom: 2.5rem;
         }
 
-        .preference-header h2 {
+        .preference-header h1 {
           font-size: 1.6rem;
           font-weight: 800;
           color: var(--cp-ink);
@@ -374,7 +374,7 @@ export const preferenceStyles = `
             padding: 1.5rem 1rem 2.5rem;
           }
 
-          .preference-header h2 {
+          .preference-header h1 {
             font-size: 1.35rem;
           }
 

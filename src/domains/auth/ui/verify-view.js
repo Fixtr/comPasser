@@ -138,7 +138,7 @@ export default class VerifyView extends HTMLElement {
       say(subtitleText, 'verifyFailedDesc');
       let msg = err.message;
       if (err.code === 'auth/invalid-action-code') {
-        msg = '이미 만료되었거나 사용된 인증 코드입니다.';
+        msg = t('verifyCodeInvalid');
       }
       errorMsg.textContent = msg;
       errorMsg.style.display = 'block';

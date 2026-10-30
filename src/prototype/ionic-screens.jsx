@@ -314,12 +314,14 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   // On a phone the missing-trip card opens to full height instead of leaving an empty map above it.
   useEffect(() => { if (missing && ready && active && !desktop) void sheet.current?.setCurrentBreakpoint(1); }, [missing, ready, active, desktop]);
 
+  // One subscription for the page's life: re-subscribing on each offline switch missed a resize made in between.
   useEffect(() => {
     const media = window.matchMedia('(min-width: 900px)');
     const update = () => setDesktop(media.matches);
+    update();
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
-  }, [offlineMode]);
+  }, []);
 
   useEffect(() => {
     if (offlineMode) return undefined;

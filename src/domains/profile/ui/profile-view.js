@@ -274,7 +274,7 @@ class ProfileView extends HTMLElement {
             this.updateExtendedProfileUI();
         } catch (error) {
             console.error("Failed to save data:", error);
-            showErrorToast("저장에 실패했습니다.");
+            showErrorToast(t('profileSaveFailed'));
         }
     }
 
@@ -614,7 +614,7 @@ class ProfileView extends HTMLElement {
                     if (this.itineraries.length === 0) this.renderItineraries();
                 }, 300);
             } catch (error) {
-                showErrorToast("일정 삭제에 실패했습니다.");
+                showErrorToast(t('tripDeleteFailed'));
             }
         }
     }

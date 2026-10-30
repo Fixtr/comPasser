@@ -213,7 +213,8 @@ test('쓰이는 data-i18n 키가 두 사전에 모두 있다', () => {
  * `createTextNode`·`setAttribute('aria-label'|'title'|'placeholder')`)에 한국어
  * 리터럴이 있으면 걸러 낸다. `t(` 가 같은 줄에 있으면 사전을 거친 것으로 본다.
  */
-const WRITE_SITES = /(createTextNode|textContent|innerText|innerHTML|\.setAttribute\(\s*['"](?:aria-label|title|placeholder)['"])/;
+// Toasts are written text too: English users saw Korean login errors through them.
+const WRITE_SITES = /(createTextNode|textContent|innerText|innerHTML|\.setAttribute\(\s*['"](?:aria-label|title|placeholder)['"]|show(?:Error|Success)?Toast\()/;
 
 function scriptedKorean(source) {
   const found = [];
