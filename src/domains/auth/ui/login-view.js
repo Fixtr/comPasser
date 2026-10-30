@@ -111,21 +111,23 @@ export default class LoginView extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${authStyles}</style>
 
-      <div class="header-section"><h2 data-i18n="authLoginHeading">${t('authLoginHeading')}</h2><p class="subtitle" data-i18n="authLoginSubtitle">${t('authLoginSubtitle')}</p></div>
+      <div class="header-section"><h1 data-i18n="authLoginHeading">${t('authLoginHeading')}</h1><p class="subtitle" data-i18n="authLoginSubtitle">${t('authLoginSubtitle')}</p></div>
       
-      <div class="auth-form">
+      <form class="auth-form" id="login-form" novalidate>
         <div class="input-group">
-          <input type="email" id="email-input" class="auth-input" data-i18n-placeholder="emailPlaceholder" placeholder="${t('emailPlaceholder')}" autocomplete="email" />
+          <label for="email-input" class="auth-label" data-i18n="emailPlaceholder">${t('emailPlaceholder')}</label>
+          <input type="email" id="email-input" class="auth-input" autocomplete="email" required />
         </div>
         <div class="input-group">
-          <input type="password" id="password-input" class="auth-input" data-i18n-placeholder="passwordPlaceholder" placeholder="${t('passwordPlaceholder')}" autocomplete="current-password" />
+          <label for="password-input" class="auth-label" data-i18n="passwordPlaceholder">${t('passwordPlaceholder')}</label>
+          <input type="password" id="password-input" class="auth-input" autocomplete="current-password" required />
         </div>
         <div class="btn-group">
           <button id="email-login-btn" class="auth-btn login-btn" data-i18n="authEmailLoginBtn">${t('authEmailLoginBtn')}</button>
           
         </div>
         <div id="error-msg" role="alert"></div>
-      </div>
+      </form>
 
       <div class="join-link">
         <a href="#" id="forgot-password" data-i18n="loginForgotPassword">${t('loginForgotPassword')}</a>
@@ -340,7 +342,8 @@ export default class LoginView extends HTMLElement {
       showSuccessToast(t('resetEmailSent').replace('{0}', email), { duration: 5000 });
     });
 
-    emailLoginBtn.addEventListener('click', async () => {
+    this.shadowRoot.getElementById('login-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
       if (checkInApp()) return;
 
       const email = emailInput.value.trim();

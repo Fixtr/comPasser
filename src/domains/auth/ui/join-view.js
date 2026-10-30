@@ -66,18 +66,20 @@ export default class JoinView extends HTMLElement {
       <style>${authStyles}</style>
 
       <div class="header-section">
-        <h2 data-i18n="joinTitle">${t('joinTitle')}</h2>
+        <h1 data-i18n="joinTitle">${t('joinTitle')}</h1>
         <p class="subtitle" data-i18n="joinSubtitle">${t('joinSubtitle')}</p>
       </div>
       
-      <div class="auth-form">
+      <form class="auth-form" id="join-form" novalidate>
         <div class="input-group">
-          <input type="email" id="email-input" class="auth-input" data-i18n-placeholder="emailPlaceholder" placeholder="${t('emailPlaceholder')}" autocomplete="email" />
+          <label for="email-input" class="auth-label" data-i18n="emailPlaceholder">${t('emailPlaceholder')}</label>
+          <input type="email" id="email-input" class="auth-input" autocomplete="email" required />
         </div>
         
         <div class="input-group">
+          <label for="password-input" class="auth-label" data-i18n="passwordPlaceholder">${t('passwordPlaceholder')}</label>
           <div class="password-wrapper">
-            <input type="password" id="password-input" class="auth-input" data-i18n-placeholder="passwordPlaceholder" placeholder="${t('passwordPlaceholder')}" autocomplete="new-password" />
+            <input type="password" id="password-input" class="auth-input" autocomplete="new-password" required />
             <button type="button" id="toggle-password-btn" class="toggle-password" data-i18n-aria="togglePassword" aria-label="${t('togglePassword')}">${icons.eye}</button>
           </div>
           <div id="password-strength" class="strength-indicator"></div>
@@ -86,7 +88,7 @@ export default class JoinView extends HTMLElement {
         <div id="error-msg"></div>
 
         <button id="email-signup-btn" class="auth-btn" data-i18n="joinWithEmail">${t('joinWithEmail')}</button>
-      </div>
+      </form>
 
       <div class="login-link">
         <a href="${PRIVACY_POLICY_URL}" target="_blank" rel="noopener noreferrer" data-i18n="authPrivacyLink">${t('authPrivacyLink')}</a>
@@ -148,7 +150,8 @@ export default class JoinView extends HTMLElement {
       return false;
     };
 
-    emailSignupBtn.addEventListener('click', async () => {
+    this.shadowRoot.getElementById('join-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
       if (checkInApp()) return;
       const returnTo = getSafeReturnPath(new URLSearchParams(window.location.search).get('next'));
 

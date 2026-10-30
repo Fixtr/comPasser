@@ -92,8 +92,8 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
     else navigate(editingPlan ? '/plan' : '/home');
   };
   const content = <>
-    {!embedded && <div className="ionic-page-nav"><button onClick={back}>← {t('shellBack')}</button>{settings}</div>}
-    <main ref={stageRef} className="flow-page">
+    {!embedded && <div className="ionic-page-nav"><button onClick={back}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div>}
+    <section ref={stageRef} className="flow-page">
       <h1>{t(city ? 'flowPlaces' : country ? 'flowCity' : 'flowCountry')}</h1>
       {!country && <CountryPicker kind="destination" onSelect={chooseCountry} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{destinations.filter(city => city.country === country).map(city => <button key={city.id} onClick={() => chooseCity(city)}>{t(city.key)}</button>)}</div>}
@@ -118,7 +118,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         {selected.map((anchor, index) => <button className="flow-place-chip" key={index} onClick={() => save({ anchorSchedules: selected.filter((_, i) => i !== index) })}>{anchor.name} ×</button>)}
         <button className="flow-primary" disabled={busy} onClick={() => { const next = editingPlan ? '/plan' : '/preference/1'; save({ step: next }); navigate(next); }}>{selected.length ? t('flowNextPlaces').replace('{0}', selected.length) : t('flowSkipPlaces')}</button>
       </>}
-    </main>
+    </section>
   </>;
   return embedded ? content : <IonPage><IonContent className="ion-padding shell-content">{content}</IonContent></IonPage>;
 }

@@ -104,7 +104,7 @@ class PublicCourses extends HTMLElement {
       article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
       article > button[data-course] { margin-top:auto; }
       article > button + button { margin-top:8px; }
-      article > a { margin-top:8px; font-size:12px; }
+      article > a { display:flex; align-items:center; min-height:44px; margin-top:2px; font-size:12px; }
       h3 { margin:8px 0; font-size:1.15rem; overflow-wrap:anywhere; }
       .stops, .review { overflow-wrap:anywhere; }
       button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
@@ -178,7 +178,11 @@ class PublicCourses extends HTMLElement {
       const review = document.createElement('p'); review.className = 'review'; review.textContent = course.review || '';
       const action = document.createElement('button'); action.type = 'button';
       action.dataset.course = course.id; action.textContent = t('courseCopyButton');
+      // Every card repeats the same words; the name adds the course so a list of controls tells them apart.
+      const named = (control, key) => control.setAttribute('aria-label', `${t(key)}: ${course.title}`);
+      named(action, 'courseCopyButton');
       const reviews = document.createElement('button'); reviews.type = 'button'; reviews.textContent = t('courseReviewsButton'); reviews.setAttribute('aria-expanded', 'false');
+      named(reviews, 'courseReviewsButton');
       reviews.onclick = async () => {
         const old = article.querySelector('course-reviews');
         if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); article.classList.remove('reviewing'); return; }
@@ -190,12 +194,12 @@ class PublicCourses extends HTMLElement {
           if (!article.isConnected) return;
           const panel = document.createElement('course-reviews'); panel.course = course;
           article.append(panel); reviews.setAttribute('aria-expanded', 'true'); article.classList.add('reviewing');
-        } catch { reviews.textContent = t('courseReviewsError'); }
+        } catch { reviews.textContent = t('courseReviewsError'); named(reviews, 'courseReviewsError'); }
         finally { reviews.removeAttribute('aria-busy'); }
       };
       article.append(label, title, stops, review, action, reviews);
       const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);
-      englishPage.textContent = t('courseEnglishLink'); englishPage.style.display = 'block';
+      englishPage.textContent = t('courseEnglishLink'); named(englishPage, 'courseEnglishLink');
       article.append(englishPage);
       this.cards.append(article);
       if (course.id === this.openReviewId) {

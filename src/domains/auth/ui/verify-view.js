@@ -28,7 +28,7 @@ export default class VerifyView extends HTMLElement {
       <div id="status-icon" class="status-icon"></div>
 
       <div class="header-section">
-        <h2 id="title-text" data-i18n="verifyPendingTitle">${t('verifyPendingTitle')}</h2>
+        <h1 id="title-text" data-i18n="verifyPendingTitle">${t('verifyPendingTitle')}</h1>
         <p id="subtitle-text" class="subtitle" data-i18n="verifyPendingDesc">${t('verifyPendingDesc')}</p>
       </div>
       

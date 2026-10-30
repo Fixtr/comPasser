@@ -64,19 +64,19 @@ test('코스는 나라와 도시를 고른 뒤 해당 도시만 표시하고 이
   await expect(page.locator('home-courses article')).toHaveCount(3);
   await page.locator('public-courses').scrollIntoViewIfNeeded();await expect(page.locator('public-courses article')).toHaveCount(1);
   await expect(page.locator('public-courses article')).toContainText('Seoul course');
-  await expect(page.locator('home-courses article').first().getByRole('link',{name:'이 코스 영어로 보기',exact:true})).toHaveAttribute('href',/\/en\/routes\/curated-seoul$/);
-  await expect(page.locator('public-courses article').getByRole('link',{name:'이 코스 영어로 보기',exact:true})).toHaveAttribute('href',/\/en\/routes\/city0$/);
+  await expect(page.locator('home-courses article').first().getByRole('link',{name:/^이 코스 영어로 보기: /})).toHaveAttribute('href',/\/en\/routes\/curated-seoul$/);
+  await expect(page.locator('public-courses article').getByRole('link',{name:/^이 코스 영어로 보기: /})).toHaveAttribute('href',/\/en\/routes\/city0$/);
   await page.screenshot({ path: testInfo.outputPath('courses-seoul-320.png'), fullPage: true });
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.locator('public-courses')).toHaveCount(0);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await chooseCourseCity(page, 'tokyo', 'JPN');
   await expect(page.locator('home-courses article')).toHaveCount(3);
   await page.locator('public-courses').scrollIntoViewIfNeeded();await expect(page.locator('public-courses article')).toHaveCount(1);
   await expect(page.locator('public-courses article')).toContainText('Tokyo course');
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.locator('[data-course-city]')).toHaveCount(2);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await chooseCourseCity(page, 'nice', 'FRA');
   await page.locator('public-courses').scrollIntoViewIfNeeded();
   await expect(page.locator('public-courses article')).toHaveCount(0);
@@ -92,7 +92,7 @@ test('코스·추천에서 고른 나라와 도시는 주소에 남아 뒤로가
   await chooseCourseCity(page);
   await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).focus();
+  await page.getByRole('button', { name: '뒤로', exact: true }).focus();
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
   await page.reload();
@@ -104,9 +104,9 @@ test('코스·추천에서 고른 나라와 도시는 주소에 남아 뒤로가
   await page.goForward();
   await page.goForward();
   await expect(page.locator('home-courses:visible')).toHaveAttribute('city', 'seoul');
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page).toHaveURL(/\/courses\?country=KOR$/);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page).toHaveURL(/\/courses$/);
 
   await page.goto('/recommend?country=JPN&city=seoul');
@@ -119,7 +119,7 @@ test('코스·추천에서 고른 나라와 도시는 주소에 남아 뒤로가
   await page.reload();
   await expect(page.locator('[data-recommend-city]')).toHaveCount(0);
   await expect(page).toHaveURL(/city=seoul$/);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.locator('[data-recommend-city]')).toHaveCount(6);
   await page.goBack();
   await expect(page).toHaveURL(/\/recommend\?country=nope$/);
@@ -162,12 +162,12 @@ test('화면과 단계가 바뀌면 새 제목으로 포커스가 가고 탭 제
   await expect(page.getByRole('heading', { name: '꼭 갈 장소', exact: true })).toBeFocused();
   await expect(page).toHaveTitle('부산 · 일정 만들기 · ComPasser');
   // Domain views keep their heading in a shadow root; route changes still land there.
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).focus();
+  await page.getByRole('button', { name: '뒤로', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/recommend\?country=KOR$/);
-  await expect(page.getByRole('button', { name: '← 뒤로', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '뒤로', exact: true })).toBeFocused();
   await page.evaluate(() => window.navigate('/login'));
-  await expect(page.locator('login-view:visible h2').first()).toBeFocused();
+  await expect(page.locator('login-view:visible h1').first()).toBeFocused();
   await expect(page).toHaveTitle('로그인 · ComPasser');
   // Before the user does anything, even a redirect (guest deep link to trips → login) keeps the
   // starting focus. Playwright's Chromium reports earlier activity from the start, so the new tab
@@ -176,7 +176,7 @@ test('화면과 단계가 바뀌면 새 제목으로 포커스가 가고 탭 제
   await fresh.addInitScript(() => Object.defineProperty(navigator, 'userActivation', { value: { hasBeenActive: false } }));
   await fresh.goto('/profile/trips');
   await expect(fresh).toHaveURL(/\/login\?next=/);
-  await expect(fresh.locator('login-view:visible h2').first()).toBeVisible();
+  await expect(fresh.locator('login-view:visible h1').first()).toBeVisible();
   await fresh.waitForTimeout(1200);
   expect(await fresh.evaluate(() => document.activeElement === document.body)).toBe(true);
   await page.goto('/no-such-page?lang=en');
@@ -229,7 +229,7 @@ test('알림은 화면 위쪽에 하나만 떠서 아래쪽 버튼도 위쪽 뒤
   await expect(toast).toHaveText('두 번째 오류');
   // The container, not the toast: the toast slides in, so its box moves for 0.2s.
   const box = await page.locator('#app-toast-container').boundingBox();
-  const back = await page.getByRole('button', { name: '← 뒤로', exact: true }).boundingBox();
+  const back = await page.getByRole('button', { name: '뒤로', exact: true }).boundingBox();
   expect(box.y).toBeLessThan(844 / 4);
   expect(box.y).toBeGreaterThanOrEqual(back.y + back.height);
 });
@@ -255,7 +255,7 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   await page.getByLabel('Start near your accommodation (optional)').fill('My hostel near Seoul Station');
   await page.getByRole('link', { name: 'Plan with these places' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fpreference%2F1$/);
-  await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await expect(page.locator('login-view h1').last()).toHaveText('Log in');
   await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('Your places in Seoul (2) are still here. Log in to keep planning.');
   const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')));
   expect(draft.startLocation).toBe('My hostel near Seoul Station');
@@ -473,7 +473,7 @@ test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주�
   await toggle.click();
   await expect(courses.locator('course-reviews')).toHaveCount(0);
   await page.context().setOffline(true);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-course-city=seoul]').click();
   await expect(courses.getByText('오프라인이라 이미 불러온 코스를 보여 주고 있어요.', { exact: false })).toBeVisible();
   await expect(courses.getByText('Palace walk')).toBeVisible();
@@ -657,7 +657,7 @@ test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.getByRole('heading', { name: 'AI plans your trip, day by day' })).toBeVisible();
   await page.goto('/login');
-  await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await expect(page.locator('login-view h1').last()).toHaveText('Log in');
   await page.goto('/share/abc123');
   await expect(page.locator('.ionic-desktop-schedule .ionic-settings')).toBeVisible();
   await page.locator('.ionic-desktop-schedule').getByRole('button', { name: 'Light mode' }).click();
@@ -675,7 +675,7 @@ test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=k
   expect((await page.getByRole('button', { name: '다크 모드', exact: true }).boundingBox()).x).toBeGreaterThan(200);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/login');
-  await expect(page.locator('login-view h2').last()).toHaveText('로그인');
+  await expect(page.locator('login-view h1').last()).toHaveText('로그인');
   // A plain visit to the login page needs no reason line.
   await expect(page.locator('.ionic-auth-reason:visible')).toHaveCount(0);
   const privacy = page.locator('login-view a[data-i18n="authPrivacyLink"]').last();
@@ -683,7 +683,7 @@ test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=k
   await expect(privacy).toHaveAttribute('href', 'https://hackerton-48w.pages.dev/privacy');
   await expect(privacy).toHaveAttribute('target', '_blank');
   await page.getByRole('button', { name: 'English', exact: true }).click();
-  await expect(page.locator('login-view h2').last()).toHaveText('Log in');
+  await expect(page.locator('login-view h1').last()).toHaveText('Log in');
   await expect(privacy).toHaveText('Privacy Policy (English translation below the Korean)');
   await page.goto('/join');
   const joinPrivacy = page.locator('join-view a[data-i18n="authPrivacyLink"]').last();
@@ -786,8 +786,8 @@ test('다른 도시를 둘러보거나 다른 도시 코스를 담으면 이전 
   await page.locator('[data-recommend-city=seoul]').click();
   await page.locator('.flow-place-row').nth(1).locator('button').click();
   await expect(page.locator('.flow-place-chip')).toHaveText(['서울숲 ×']);
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
-  await page.getByRole('button', { name: '← 뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
+  await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-recommend-country=JPN]').click();
   await page.locator('[data-recommend-city=tokyo]').click();
   await expect(page.locator('.flow-place-row')).toHaveCount(3);
@@ -1115,7 +1115,7 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
   await expect(page.getByRole('heading', { name: 'Explore short routes', exact: true })).toBeVisible();
   await expect(courses.getByRole('button', { name: 'Read or write traveler reviews', expanded: true })).toBeVisible();
   await expect(courses.locator('course-reviews').getByRole('heading', { name: 'Traveler experience reviews' })).toBeVisible();
-  await page.getByRole('button', { name: '← Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.locator('[data-course-city]')).toHaveCount(2);
   await page.goto('/courses?review=missingRoute');
   await expect(page.getByRole('heading', { name: 'Choose a country to browse routes', exact: true })).toBeVisible();
@@ -1163,3 +1163,114 @@ test('여행자 코스 후기 창은 휴대폰을 가로로 들어도, 태블릿
   }
 });
 
+
+test('로그인·가입 칸은 보이는 이름표가 있고 Enter 로 제출되며 화면 제목은 h1 이다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.goto('/join');
+  const join = page.locator('join-view:visible');
+  await expect(join.getByRole('heading', { level: 1, name: '회원가입' })).toBeVisible();
+  await expect(join.getByLabel('이메일 주소')).toHaveAttribute('required', '');
+  await expect(join.getByLabel('비밀번호', { exact: true })).toHaveAttribute('required', '');
+
+  await page.goto('/login?next=%2Fprofile%2Fsecurity');
+  const login = page.locator('login-view:visible');
+  await expect(login.getByRole('heading', { level: 1, name: '로그인' })).toBeVisible();
+  await expect(login.getByText('이메일 주소', { exact: true })).toBeVisible();
+  await login.getByLabel('이메일 주소').fill('test@example.com');
+  await login.getByLabel('비밀번호').fill('password');
+  await expect(login.getByText('이메일 주소', { exact: true })).toBeVisible();
+  await login.getByLabel('비밀번호').press('Enter');
+  await expect(page).toHaveURL(/\/profile\/security$/);
+});
+
+test('화면마다 main 은 하나이고 탭 아이콘은 이름 없는 그림으로 읽히지 않으며 탭 바 포커스가 보인다', async ({ page }) => {
+  for (const path of ['/', '/courses', '/recommend', '/destination']) {
+    await page.goto(path);
+    await expect(page.locator('.ion-page:visible').first()).toBeVisible();
+    await expect(page.getByRole('main')).toHaveCount(1);
+  }
+  await page.goto('/');
+  await expect(page.locator('ion-tab-bar ion-icon')).toHaveCount(3);
+  await expect(page.locator('ion-tab-bar ion-icon:not([aria-hidden="true"])')).toHaveCount(0);
+  await page.locator('ion-tab-button').first().locator('a').focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  expect(await page.evaluate(() => getComputedStyle(document.activeElement.shadowRoot.activeElement).outlineStyle)).toBe('solid');
+  // The back arrow is decoration; the button is read as just '뒤로'.
+  await page.goto('/courses');
+  await expect(page.getByRole('button', { name: '뒤로', exact: true })).toBeVisible();
+});
+
+test('코스 카드의 버튼과 링크는 코스 이름으로 구별되고 휴대폰에서 누르기 충분히 크다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [{ id: 'one', title: 'Seoul course', stops: [{name:'Walk',location:'Seoul',stayMinutes:60}] }, { id: 'two', title: 'Seoul night', stops: [{name:'Walk',location:'Seoul',stayMinutes:60}] }], hasMore: false }; }
+    export async function getPublicCourse() { return null; }
+  ` }));
+  await page.goto('/courses?country=KOR&city=seoul');
+  await expect(page.locator('home-courses article')).toHaveCount(3);
+  await page.locator('public-courses').scrollIntoViewIfNeeded();
+  await expect(page.locator('public-courses article')).toHaveCount(2);
+  const names = await page.locator('home-courses, public-courses').evaluateAll(hosts => hosts.flatMap(host =>
+    [...host.shadowRoot.querySelectorAll('article a, article button')].map(el => el.getAttribute('aria-label') || el.textContent.trim())));
+  expect(names.length).toBeGreaterThan(6);
+  expect(new Set(names).size).toBe(names.length);
+  await expect(page.locator('public-courses').getByRole('button', { name: '여행자 후기 보기·작성: Seoul night' })).toHaveCount(1);
+  for (const link of await page.locator('home-courses article a, public-courses article > a').all()) {
+    expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('휴대폰 결과 시트는 이름이 있고 손잡이를 한국어로 말하며 지도의 뒤로 버튼을 가리지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  await page.goto('/share/abc123');
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '일정 보기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '일정 시트 크기 바꾸기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Activate to adjust/ })).toHaveCount(0);
+  // A missing trip says so as the page's heading and is announced.
+  await expect(sheet.getByRole('heading', { level: 1, name: '일정을 찾을 수 없거나 접근 권한이 없습니다.' })).toBeVisible();
+  await expect(sheet.locator('itinerary-view').getByRole('alert')).toContainText('일정을 찾을 수 없거나 접근 권한이 없습니다.');
+  const back = page.locator('.ionic-result-back:visible');
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  // The map's Back stays usable beside the sheet, so the sheet does not tell screen readers everything else is inert.
+  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'false');
+  // The visual bar stays thin, but the sheet's whole top 44px band in the middle hits the handle.
+  const handleAt = async (x, y) => sheet.evaluate((modal, point) => modal.shadowRoot.elementFromPoint(point.x, point.y)?.className, { x, y });
+  const box = await page.locator('ion-modal.ionic-result-sheet .modal-handle').boundingBox();
+  const top = box.y - 5;
+  for (const [dx, dy] of [[0, 1], [0, 42], [-21, 1], [21, 42]]) expect(await handleAt(box.x + box.width / 2 + dx, top + dy)).toContain('modal-handle');
+  // At full height the sheet covers the map and Ionic traps focus there, so it becomes modal.
+  await page.getByRole('button', { name: '일정 시트 크기 바꾸기' }).click();
+  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'true');
+  await page.getByRole('button', { name: '일정 시트 크기 바꾸기' }).click();
+  await expect(page.getByRole('dialog', { name: '일정 보기' })).toHaveAttribute('aria-modal', 'false');
+  await page.getByRole('button', { name: 'English' }).last().click();
+  await expect(page.getByRole('dialog', { name: 'Itinerary' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resize itinerary sheet' })).toBeVisible();
+});
+
+test('좁은 휴대폰에서 시트 손잡이의 터치 영역이 언어 버튼을 가리지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  await page.goto('/share/abc123');
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  for (const button of [sheet.getByRole('button', { name: 'English' }), sheet.getByRole('button', { name: /다크 모드|라이트 모드/ })]) {
+    const box = await button.boundingBox();
+    const hit = await sheet.evaluate((modal, point) => modal.shadowRoot.elementFromPoint(point.x, point.y)?.className || '', { x: box.x + 2, y: box.y + 2 });
+    expect(hit).not.toContain('modal-handle');
+  }
+});
+
+test('찾을 수 없음 화면의 위쪽 뒤로 버튼도 휴대폰에서 44px 이상이다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/no-such-page');
+  const back = page.locator('.ion-page:visible ion-back-button');
+  await expect(back).toBeVisible();
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
+});

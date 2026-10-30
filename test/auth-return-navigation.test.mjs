@@ -56,6 +56,7 @@ function authView(file, className, search = '') {
     location, navigations, messages, session, signups,
     input: (id, value) => { element(id).value = value; },
     click: (id) => element(id).listeners.click({ preventDefault() {} }),
+    submit: (id) => element(id).listeners.submit({ preventDefault() {} }),
   };
 }
 
@@ -86,7 +87,7 @@ test('가입을 시작할 때 공유 복귀 주소를 메일 인증 서비스에
   join.location.search = '?next=%2Fshare%2Fabc123';
   join.input('email-input', 'traveler@example.com');
   join.input('password-input', 'test-password');
-  await join.click('email-signup-btn');
+  await join.submit('join-form');
   assert.deepEqual(join.signups, [['traveler@example.com', 'test-password', '/share/abc123']]);
   assert.equal(join.location.search, '');
 });
@@ -95,7 +96,7 @@ test('가입 메일에 외부 목적지를 전달하지 않는다', async () => 
   const join = authView('join-view.js', 'JoinView', '?next=https%3A%2F%2Fevil.example');
   join.input('email-input', 'traveler@example.com');
   join.input('password-input', 'test-password');
-  await join.click('email-signup-btn');
+  await join.submit('join-form');
   assert.deepEqual(join.signups, [['traveler@example.com', 'test-password', null]]);
 });
 

@@ -604,7 +604,7 @@ export default class ItineraryView extends HTMLElement {
       if (version !== this._loadVersion) return false;
 
       if (document?.deleted) {
-        this.setError(`<div class="state-block"><h3 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h3></div>`);
+        this.setError(`<div class="state-block" role="alert"><h1 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h1></div>`);
         return false;
       }
 
@@ -616,9 +616,9 @@ export default class ItineraryView extends HTMLElement {
           return false;
         }
         this.setError(`
-          <div class="state-block">
+          <div class="state-block" role="alert">
              <div class="state-icon">${icons.search}</div>
-             <h3 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h3>
+             <h1 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h1>
              <p class="state-desc"><span data-i18n="viewNotFoundDesc1">${t('viewNotFoundDesc1')}</span><br><span data-i18n="viewNotFoundDesc2">${t('viewNotFoundDesc2')}</span></p>
              <button class="state-action" onclick="window.navigate('/plan')" data-i18n="viewNewPlanBtn">${t('viewNewPlanBtn')}</button>
           </div>
@@ -644,9 +644,9 @@ export default class ItineraryView extends HTMLElement {
       this.clear();
       console.error('🔥 렌더링 치명적 오류:', error);
       this.setError(`
-        <div class="state-block danger">
+        <div class="state-block danger" role="alert">
            <div class="state-icon">${icons.warn}</div>
-           <h3 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h3>
+           <h1 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h1>
            <p class="state-desc" data-i18n="sharedLoadRetry">${t('sharedLoadRetry')}</p>
         </div>
       `);

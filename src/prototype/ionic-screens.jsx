@@ -44,14 +44,14 @@ export function RecommendScreen({ settings }) {
   const recommendationCities = destinations;
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
-      <button onClick={back}>← {t('shellBack')}</button>
+      <button onClick={back}><span aria-hidden="true">←</span> {t('shellBack')}</button>
       {settings}
     </div>
-    {city ? <DestinationScreen key={city.id} browseCity={city} embedded /> : <main ref={stageRef} className="flow-page">
+    {city ? <DestinationScreen key={city.id} browseCity={city} embedded /> : <section ref={stageRef} className="flow-page">
       {!city && <h1>{t(country ? 'flowCity' : 'flowCountry')}</h1>}
       {!country && <CountryPicker kind="recommend" onSelect={next => pick({ country: next })} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{recommendationCities.map(city => city.country === country ? <button key={city.id} data-recommend-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
-    </main>}
+    </section>}
   </IonContent></IonPage>;
 }
 
@@ -89,10 +89,10 @@ export function CoursesScreen({ settings }) {
   };
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav">
-      <button onClick={back}>← {t('shellBack')}</button>
+      <button onClick={back}><span aria-hidden="true">←</span> {t('shellBack')}</button>
       {settings}
     </div>
-    <main ref={stageRef} className="flow-page">
+    <section ref={stageRef} className="flow-page">
       <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'courseCountryTitle')}</h1>
       {!country && <CountryPicker kind="course" onSelect={next => pick({ country: next })} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
@@ -102,7 +102,7 @@ export function CoursesScreen({ settings }) {
         {loadState === 'error' && <div role="alert"><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>}
         {loadState === 'ready' && <><home-courses city={city.id} /><public-courses city={city.id} /></>}
       </div>}
-    </main>
+    </section>
   </IonContent></IonPage>;
 }
 
@@ -162,7 +162,7 @@ export function PreferenceScreen({ step, settings, active }) {
     });
     return () => { cancelled = true; };
   }, [step, navigate, active, editingDates]);
-  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => navigate(editingDates ? '/plan' : step === 1 ? '/destination' : '/preference/1')}>← {t('shellBack')}</button>{settings}</div><preference-view ref={view} /></IonContent></IonPage>;
+  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => navigate(editingDates ? '/plan' : step === 1 ? '/destination' : '/preference/1')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div><preference-view ref={view} /></IonContent></IonPage>;
 }
 
 const GENERATION_STAGES = [['draft', 'shellStageDraft'], ['places', 'shellStagePlaces'], ['routes', 'shellStageRoutes']];
@@ -254,7 +254,7 @@ export function PlanScreen({ user, settings }) {
   }, [navigate, pathname, search, user?.uid]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
-    <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}>← {t('shellBack')}</button>{settings}</div><div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
+    <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div><div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
     {phase !== 'form' && <div ref={phaseRef} className="ionic-generation" role="status" aria-live="polite">
       {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2>
         <ol className="ionic-generation-steps" aria-hidden="true">{GENERATION_STAGES.map(([key, label]) => <li key={key} aria-current={key === stage ? 'step' : undefined}>{t(label)}</li>)}</ol>
@@ -281,6 +281,19 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   const [showEdit, setShowEdit] = useState(false);
   const navigate = useNavigate();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sheet = useRef(null);
+  const fullSheet = useRef(false);
+  // Ionic leaves the sheet unnamed and its handle in English, with no prop for either, so set them in its shadow root
+  // after every render (a language switch re-renders). Below full height the map's Back and Edit stay usable beside it,
+  // so it is modal only at full height, where Ionic covers the map and traps focus.
+  const nameSheet = () => {
+    const root = sheet.current?.shadowRoot;
+    const dialog = root?.querySelector('[role=dialog]');
+    dialog?.setAttribute('aria-label', t('shellResult'));
+    dialog?.setAttribute('aria-modal', String(fullSheet.current));
+    root?.querySelector('.modal-handle')?.setAttribute('aria-label', t('sheetResize'));
+  };
+  useEffect(nameSheet);
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 900px)');
@@ -361,10 +374,10 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   if (offlineMode) {
     const id=path.match(/^\/view\/([a-zA-Z0-9]+)$/)?.[1];
     const saved=offlineTrips.get(user?.uid,id);
-    return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={()=>navigate(window.history.state?.idx > 0 ? -1 : '/profile/trips')}>← {t('shellBack')}</button>{settings}</div><main className="flow-page">
+    return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={()=>navigate(window.history.state?.idx > 0 ? -1 : '/profile/trips')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div><section className="flow-page">
       <h1>{saved?.title || t('tabTrips')}</h1><p role="status">{t('offlineNotice')}</p>
       {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{(!item.stayUnsetLabel && item.resolvedName) || item.title}</h3><p>{item.stayUnsetLabel || item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
-    </main></IonContent></IonPage>;
+    </section></IonContent></IonPage>;
   }
   return <IonPage className="ionic-result-page">
     {desktop ? <div className="ionic-result-desktop">
@@ -372,9 +385,10 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
       {map}
     </div> : <>
       {map}
-      <IonModal className="ionic-result-sheet" canDismiss={!active} isOpen={active} animated={!reducedMotion}
+      <IonModal ref={sheet} className="ionic-result-sheet" canDismiss={!active} isOpen={active} animated={!reducedMotion}
       breakpoints={[0.3, 0.62, 1]} initialBreakpoint={0.62} backdropBreakpoint={0.62}
-      handle handleBehavior="cycle" expandToScroll={false} onDidPresent={() => setReady(true)} onDidDismiss={() => setReady(false)}>
+      handle handleBehavior="cycle" expandToScroll={false} onDidPresent={() => { nameSheet(); setReady(true); }}
+      onIonBreakpointDidChange={event => { fullSheet.current = event.detail.breakpoint > 0.62; nameSheet(); }} onDidDismiss={() => setReady(false)}>
         <IonContent className="ionic-result-sheet-content">{schedule}</IonContent>
       </IonModal>
     </>}

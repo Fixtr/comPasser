@@ -205,7 +205,7 @@ test('pending AI requests cannot apply after the visit date changes or cached na
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toBeVisible();
  await expect(widget.getByRole('button',{name:'산책',exact:true})).toHaveAttribute('aria-pressed','true');
  expect(await page.evaluate(()=>window.aiRequests.map(request=>request.interest))).toEqual(['walk','walk']);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();await page.locator('[data-recommend-city=busan]').click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();await page.locator('[data-recommend-city=busan]').click();
  await expect(widget.getByRole('button',{name:'상관없음',exact:true})).toHaveAttribute('aria-pressed','true');
  expect(await page.evaluate(()=>window.aiRequests.length)).toBe(2);
 });
@@ -316,7 +316,7 @@ test('removing the only recommended place restores skip, while the plan add dial
  await row.locator('button').click(); await expect(button).toBeEnabled(); await expect(button).toHaveText('장소 선택 없이 다음');
  await page.evaluate(async()=>{
   await import('/src/domains/planner/ui/home-recommendations.js');
-  const element=document.createElement('home-recommendations');element.setAttribute('planner-pick','');document.querySelector('main.flow-page').append(element);
+  const element=document.createElement('home-recommendations');element.setAttribute('planner-pick','');document.querySelector('.flow-page').append(element);
  });
  const cards=page.locator('home-recommendations'); const add=cards.locator('#discover-plan');
  await expect(add).toHaveText('내 일정에 추가'); await expect(add).toBeDisabled();
@@ -348,7 +348,7 @@ test('travel dates show the chosen city as text and a translated change button o
   // /destination loads its code on first visit; until it shows, the preference page and its own Back are still the visible ones.
   await expect(page.getByRole('heading',{name:'Must-visit places',exact:true})).toBeVisible();
   expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read().date)).toEqual(['2030-10-17']);
-  await page.getByRole('button',{name:'← Back',exact:true}).click();
+  await page.getByRole('button',{name:'Back',exact:true}).click();
   await page.getByRole('button',{name:'Busan',exact:true}).click();
   await page.locator('.flow-primary').click(); await expect(page).toHaveURL(/\/preference\/1$/);
   await expect(view.locator('.destination-summary p')).toHaveText('Destination · Busan');
@@ -416,7 +416,7 @@ test('leaving domestic recommendations during place lookup never saves late resu
  await page.locator('.flow-place-row').first().locator('button').click();
  await expect(page.locator('.flow-primary')).toBeDisabled();
  await expect.poll(()=>page.evaluate(()=>window.catalogueRequests?.length)).toBe(1);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await expect(page.locator('[data-recommend-city=seoul]')).toBeVisible();
  await expect(page.locator('.flow-place-row')).toHaveCount(0);
  await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,600)));
@@ -456,7 +456,7 @@ test('country cards share region groups and responsive columns across discovery 
   expect((await cityGrid.locator('button').first().boundingBox()).height).toBe(52);
   await expect(cityGrid.locator('button').first()).toHaveText('서울');
   expect(await cityGrid.locator('button').first().evaluate(element=>getComputedStyle(element).textAlign)).toBe('center');
-  await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+  await page.getByRole('button',{name:'뒤로',exact:true}).click();
  }
  await page.setViewportSize({width:1200,height:900});await page.screenshot({path:testInfo.outputPath('country-cards-desktop.png'),fullPage:true});
  await page.setViewportSize({width:320,height:760});await page.evaluate(async()=>{const {setLang}=await import('/src/utils/i18n.js');setLang('en')});
@@ -574,17 +574,17 @@ test('recommend waits for country and city, scopes Korean landmarks, and reuses 
  await expect(rows).toContainText(['해운대해수욕장','동백섬','광안리해수욕장','감천문화마을','자갈치시장','태종대']);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);
  await page.screenshot({path:testInfo.outputPath('recommend-busan-320.png'),fullPage:true});
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await expect(page.locator('home-recommendations')).toHaveCount(0);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await page.locator('[data-recommend-country=JPN]').click();
  await expect(page.locator('[data-recommend-city]')).toHaveCount(2);
  await page.locator('[data-recommend-city=tokyo]').click();
  await expect(page.locator('.flow-place-list')).toContainText('센소지');
  await expect(page.locator('home-recommendations')).toHaveCount(0);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await expect(page.locator('[data-recommend-city=kyoto]')).toBeVisible();
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await page.locator('[data-recommend-country=FRA]').click();await page.locator('[data-recommend-city=paris]').click();
  await expect(page.locator('.flow-place-list')).toContainText('루브르 박물관');
  expect(await page.evaluate(()=>sessionStorage.getItem('currentFormData'))).toBe(draft);
@@ -649,7 +649,7 @@ test('online own trip stays editable, undo is per day, and only changed day is r
  await view.evaluate(element=>element.selectDay(0));await view.locator('#undo-deletion-btn').click();await expect(view.locator('#timeline-container')).toContainText('Museum 1');
  await page.evaluate(()=>{window.mapDays=[]});await view.locator('#recalculate-times-btn').click();await expect(view.locator('#recalculate-times-btn')).toBeDisabled();expect(await page.evaluate(()=>window.mapDays.every(day=>day===0))).toBe(true);
  await page.evaluate(()=>{Object.defineProperty(navigator,'onLine',{configurable:true,value:false});window.dispatchEvent(new Event('offline'))});
- await expect(page.locator('main.flow-page')).toContainText('Paris, France');await expect(page.locator('itinerary-view')).toHaveCount(0);await expect(page.locator('main.flow-page')).toContainText('인터넷');
+ await expect(page.locator('.flow-page')).toContainText('Paris, France');await expect(page.locator('itinerary-view')).toHaveCount(0);await expect(page.locator('.flow-page')).toContainText('인터넷');
 });
 
 test('saved trip edits update the same trip; the button shows unsaved and saved states',async({page})=>{
@@ -764,9 +764,9 @@ test('all catalogue countries and cities expose both places and three courses', 
      await expect(page.locator('home-courses article')).toHaveCount(3);
      for(const suffix of ['', '-2', '-3']) await expect(page.locator(`home-courses button[data-course=curated-${city.id}${suffix}]`)).toBeVisible();
     } else await expect(page.locator('.flow-place-row')).toHaveCount(city.places.length);
-    await page.getByRole('button',{name:'← 뒤로',exact:true}).click();await expect(page.locator(`[data-${kind}-city=${city.id}]`)).toBeVisible();
+    await page.getByRole('button',{name:'뒤로',exact:true}).click();await expect(page.locator(`[data-${kind}-city=${city.id}]`)).toBeVisible();
    }
-   await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+   await page.getByRole('button',{name:'뒤로',exact:true}).click();
   }
  }
 });
@@ -912,7 +912,7 @@ test('browser Back from plan restores the URL on No and leaves cleanly on Yes', 
 
 test('plan back button requests confirmation; Escape keeps inputs', async ({page}) => {
  const form=await openExitTestForm(page);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await expect(page.getByRole('alertdialog')).toBeVisible();await page.keyboard.press('Escape');await expect(page).toHaveURL(/plan$/);
  await expect(form.locator('#start-time')).toHaveValue('09:00');
 });
@@ -937,7 +937,7 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
   await page.goBack();await expect(page).toHaveURL(/plan$/);await expect(form).toBeVisible();await expect(form.locator('#start-time')).toHaveValue('10:30');
   await form.locator('#change-trip-destination').click();await expect(page).toHaveURL(/destination$/);
   await expect(page.getByRole('heading',{name:'꼭 갈 장소',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+  await page.getByRole('button',{name:'뒤로',exact:true}).click();
   await page.getByRole('button',{name:'니스',exact:true}).click();
   await page.locator('.flow-primary').click();await expect(page).toHaveURL(/plan$/);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
@@ -1125,7 +1125,7 @@ test('date edit warns on page Back, browser Back, reload and tab close; cancelli
  const form=await openExitTestForm(page);
  await form.locator('#reselect-date-btn').click();await expect(page.locator('preference-view:visible #step1-container')).toBeVisible();
  const before=await page.evaluate(()=>sessionStorage.getItem('currentFormData'));
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  const dialog=page.getByRole('alertdialog');await expect(dialog).toContainText('이 창을 나가면 입력값이 삭제됩니다. 나가시겠습니까?');
  await dialog.getByRole('button',{name:'아니오',exact:true}).click();await expect(page).toHaveURL(/preference\/1$/);
  await page.evaluate(()=>history.back());await expect(dialog).toBeVisible();await expect(page).toHaveURL(/preference\/1$/);await page.keyboard.press('Escape');
@@ -1187,7 +1187,7 @@ for (const back of ['button','history']) {
  test(`Back during generation asks to stop instead of deleting inputs: ${back}`, async ({page}) => {
   await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
   const form=await openExitTestForm(page);await startGeneration(page,form);
-  const goBack=()=>back==='button'?page.getByRole('button',{name:'← 뒤로',exact:true}).click():page.evaluate(()=>history.back());
+  const goBack=()=>back==='button'?page.getByRole('button',{name:'뒤로',exact:true}).click():page.evaluate(()=>history.back());
   await goBack();const dialog=page.getByRole('alertdialog');
   await expect(dialog).toContainText('일정 만들기를 멈출까요?');await expect(dialog).not.toContainText('삭제');await expect(page).toHaveURL(/plan$/);
   await dialog.getByRole('button',{name:'계속 기다리기',exact:true}).click();
@@ -1215,14 +1215,14 @@ test('a stopped generation ignores its late result even after leaving the planne
 test('the stop question leaves out credits for an unlimited account', async ({page}) => {
  await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration.replace('getGenerationCredits=async()=>3','getGenerationCredits=async()=>"unlimited"')}));
  const form=await openExitTestForm(page);await expect(form.locator('#travel-form > .credit-balance')).toContainText('무제한');await startGeneration(page,form);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();
  await expect(page.getByRole('alertdialog')).toContainText('입력한 내용은 그대로 남아요');await expect(page.getByRole('alertdialog')).not.toContainText('생성권');
 });
 
 test('a result that arrives while the stop question is open still opens it', async ({page}) => {
  await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:slowGeneration}));
  const form=await openExitTestForm(page);await startGeneration(page,form);
- await page.getByRole('button',{name:'← 뒤로',exact:true}).click();await expect(page.getByRole('alertdialog')).toBeVisible();
+ await page.getByRole('button',{name:'뒤로',exact:true}).click();await expect(page.getByRole('alertdialog')).toBeVisible();
  await page.evaluate(()=>window.releaseGeneration());
  await expect(page).toHaveURL(/view$/);await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
