@@ -35,6 +35,11 @@
 
 - Each night offers `find-stay`: a native dialog builds a Booking.com search link from an explicit area, guest count and that night's dates (all nights in consecutive-stay mode). It does not fetch live prices or book rooms. Selecting a property uses the existing place snapshot and applies only to the selected night, or all consecutive nights; cancel/search never replace lodging.
 
+## Wording and Step Count
+
+- One user-facing term names the anchor list everywhere a user picks or edits it: '꼭 갈 장소' / 'must-visit place' (form section, add buttons, errors, discovery and course copy). '고정 일정' / 'fixed visit' stays only where it means a visit with a fixed time (overlap and travel-time warnings, anchor conflicts, public-course notices). Day numbers come from `t('day_n')` ('1일차' / 'Day 1') in the form, review and validation prefixes; elements built in code carry `data-day-n` so `updateTexts` rewrites them on a language switch.
+- The planner is seven steps (country, city and places on `/destination`, then dates, style, details, review). `ui/step-progress.js` draws the counter and the bar from the same count: 4/7 and 5/7 on `/preference/1` and `/2`, 6/7 on the handoff form and 7/7 on its review.
+
 ## Input Validation Boundary
 
 - `functions/planner-request-validation.mjs` is the dependency-free canonical `dailyData` validator shared by the form, optimizer and server. It lives under `functions/` so Firebase packaging includes it; the browser imports only this pure module, never server SDKs or prompts. The server's configured Node 24 runtime can require this synchronous ES module from CommonJS.

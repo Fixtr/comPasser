@@ -23,5 +23,5 @@ export function plannerValidationMessage(issue) {
     'anchor-bounds': 'plannerAnchorBoundsError'
   };
   const message = t(Object.hasOwn(keys, issue?.reason) ? keys[issue.reason] : 'invalidPlannerRequestError');
-  return Number.isInteger(issue?.day) && issue.day >= 1 && issue.day <= 4 ? `[Day ${issue.day}] ${message}` : message;
+  return Number.isInteger(issue?.day) && issue.day >= 1 && issue.day <= 4 ? `[${t('day_n').replace('{0}', issue.day)}] ${message}` : message;
 }

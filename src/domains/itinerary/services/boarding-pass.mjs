@@ -84,6 +84,8 @@ function formatDate(value) {
  */
 const placeOf = item => String(item?.stayUnsetLabel || item?.location || item?.title || '').trim();
 const nameOf = item => String(item?.title || item?.location || '').trim();
+// A must-visit the planner placed itself (flexible) has no booked time, so it is not 'confirmed'.
+const isFixed = item => item?.type === 'AnchorSchedule' && item?.flexible !== true;
 
 /**
  * 하루치 일정을 티켓 한 장의 값으로 정리한다.
@@ -115,7 +117,7 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
     time: String(item?.time || '').trim(),
     name: nameOf(item),
     duration: String(item?.duration || '').trim(),
-    anchor: item?.type === 'AnchorSchedule',
+    anchor: isFixed(item),
   }));
 
   // 이동 시간은 전체를 더한다. 잘라낸 뒤의 것도 실제로는 이동하므로
@@ -134,7 +136,7 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
     brand: 'COMPASSER',
     code,
     route: String(title || '').trim(),
-    dayLabel: `DAY ${dayIndex + 1}`,
+    dayLabel: language === 'en' ? `DAY ${dayIndex + 1}` : `${dayIndex + 1}일차`,
     dateLabel,
     from,
     to,
@@ -143,6 +145,6 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
     transit: formatMinutes(transitMinutes, language),
     cost,
     costNote,
-    anchorCount: stops.filter(item => item?.type === 'AnchorSchedule').length,
+    anchorCount: stops.filter(isFixed).length,
   };
 }

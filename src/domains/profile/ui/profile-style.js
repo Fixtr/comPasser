@@ -408,6 +408,8 @@ export const profileStyles = `
                     transition: background 0.12s linear, color 0.12s linear;
                 }
 
+                .btn-new-trip { display: block; min-height: 44px; margin: 0.75rem auto 0; }
+
                 .btn-view:hover,
                 .btn-view:focus-visible {
                     background: var(--cp-surface);

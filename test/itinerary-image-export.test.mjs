@@ -161,7 +161,7 @@ test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변�
   const h = harness({ theme: null, routeTheme: 'custom-route' });
   const input = plan();
   const before = structuredClone(input);
-  const labels = { fixedLabel: 'FIXED', transitLabel: 'Transit', costLabel: 'Cost' };
+  const labels = { fixedLabel: 'FIXED', fromLabel: 'FROM', toLabel: 'TO', transitLabel: 'Transit', costLabel: 'Cost' };
   assert.equal(await h.exportImage({ plan: input, dayIndex: 1, language: 'en', labels }), 'downloaded');
   const { pass, labels: renderedLabels } = h.calls.render[0];
   assert.equal(pass.dayLabel, 'DAY 2');
@@ -192,7 +192,7 @@ test('기기 공유가 성공하면 PNG 파일과 일정 설명을 전달하고 
   assert.equal(payload.files[0].type, 'image/png');
   assert.deepEqual(payload.files[0].parts, [h.blob]);
   assert.equal(payload.title, '9월 8일~9월 9일 · 1박 2일');
-  assert.equal(payload.text, 'DAY 2 · 부산역 → 호텔');
+  assert.equal(payload.text, '2일차 · 부산역 → 호텔');
   assert.equal(h.calls.urls.length, 0);
   assert.equal(h.calls.clicks.length, 0);
   h.assertClean();

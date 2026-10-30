@@ -37,43 +37,6 @@ export const preferenceStyles = `
           margin-bottom: 2.5rem;
         }
 
-        /* 진도 표시. 예전에는 보라 그라디언트 알약이었다. */
-        .progress-track {
-          max-width: 200px;
-          height: 4px;
-          margin: 0 auto 1.25rem;
-          background: var(--cp-sunken);
-          border: var(--cp-hair) solid var(--cp-rule);
-          border-radius: var(--cp-radius);
-          overflow: hidden;
-        }
-
-        .progress-fill {
-          height: 100%;
-          background: var(--cp-ink);
-          transition: width 0.25s linear;
-        }
-
-        .step-badge {
-          display: inline-block;
-          background: transparent;
-          color: var(--cp-muted);
-          border: var(--cp-hair) solid var(--cp-rule);
-          border-radius: var(--cp-pill);
-          font-family: inherit;
-          font-size: 0.68rem;
-          font-weight: 600;
-          padding: 0.25rem 0.75rem;
-          /* 자간을 주지 않는다. 대문자 라틴 라벨에는 어울리는 장식이지만
-             한글에는 **음절 사이가 벌어지고 띄어쓰기가 두 칸처럼** 보인다
-             ("시작 시간" 이 "시작  시간" 으로 읽혔다). 이 앱의 기본 언어가
-             한국어라 여기서는 자간을 빼는 쪽이 맞다. 모노·대문자 표기는
-             그대로 두어 "라벨"이라는 성격은 유지한다. */
-          letter-spacing: normal;
-          text-transform: uppercase;
-          margin-bottom: 1rem;
-        }
-
         .preference-header h2 {
           font-size: 1.6rem;
           font-weight: 800;

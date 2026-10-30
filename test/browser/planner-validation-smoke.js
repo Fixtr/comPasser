@@ -26,7 +26,7 @@ async page => {
   await populate(request);
   await blocked();
   check(await page.locator('travel-form .anchor-time').getAttribute('aria-invalid') === 'true', 'Wrong-day anchor time must be highlighted');
-  check((await page.locator('body').innerText()).includes('해당 일차'), 'Korean bounds feedback must be visible');
+  check((await page.locator('body').innerText()).includes('그날 여행 시작·종료 시간'), 'Korean bounds feedback must be visible');
   results.push('PASS custom-day anchor bounds: no generation, visible feedback, focused field, unlocked button');
 
   await populate({ ...request, anchorSchedules: [], overnightLocations: [''] });
@@ -55,7 +55,7 @@ async page => {
   await populate({ ...request, anchorSchedules: Array.from({ length: 11 }, () => ({ ...request.anchorSchedules[0], time: '11:00' })) });
   await page.evaluate(async () => { const { setLang } = await import('/src/utils/i18n.js'); setLang('en'); });
   await blocked();
-  check((await page.locator('body').innerText()).includes('up to 10 anchors'), 'English anchor-limit feedback must be visible');
+  check((await page.locator('body').innerText()).includes('up to 10 must-visit places'), 'English anchor-limit feedback must be visible');
   results.push('PASS anchor limit prevents silent truncation and shows English feedback');
 
   await populate(noAnchors);

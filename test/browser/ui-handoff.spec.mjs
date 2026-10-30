@@ -1246,7 +1246,7 @@ test('the review lists every blocking field at once and keeps 일정 생성하�
  const review=form.locator('#review-panel'),issues=review.locator('#review-issues');
  await expect(review).toContainText('시간 미입력 – 시간 미입력');
  await expect(issues.locator('p')).toHaveCount(5);await expect(issues.getByRole('button',{name:'수정',exact:true})).toHaveCount(5);
- for (const text of ['시작 시간','종료 시간','출발지','도착지','1번째 고정 일정']) await expect(issues).toContainText(text);
+ for (const text of ['시작 시간','종료 시간','출발지','도착지','1번째 꼭 갈 장소']) await expect(issues).toContainText(text);
  await expect(review.locator('#final-generate')).toBeDisabled();
  await issues.getByRole('button',{name:'수정',exact:true}).nth(3).click();
  await expect(form.locator('#travel-form')).toBeVisible();await expect(form.locator('#end-location')).toHaveAttribute('aria-invalid','true');
@@ -1421,4 +1421,40 @@ test('the review says when one place on one day will be a single visit, but not 
  form=await openExitTestForm(page,{anchorSchedules:[visit('Lunch','12:00','13:00'),{...visit('Again','',''),flexible:true}]});
  await form.locator('button[type=submit].primary-btn').click();
  await expect(note(form)).toHaveText('같은 날 같은 장소가 두 번 들어 있어요. 서로 다른 시간을 정한 약속이 아니면 일정에는 한 번만 들어가요.');
+});
+
+test('the planner counts 4/7 to 7/7 with a matching bar and speaks one term for must-visit places, without developer words',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.goto('/destination');
+ await page.getByRole('button',{name:'프랑스',exact:true}).click();await page.getByRole('button',{name:'파리',exact:true}).click();
+ await page.getByRole('button',{name:'장소 선택 없이 다음',exact:true}).click();
+ const preference=page.locator('preference-view:visible');
+ const bar=()=>preference.evaluate(view=>{const fill=view.shadowRoot.getElementById('progress-bar');return Math.round(fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*7);});
+ await expect(preference.locator('#step-badge')).toHaveText('4 / 7');await expect.poll(bar).toBe(4);
+ await preference.locator('#custom-date-input').fill('2030-10-17');await preference.locator('#custom-date-input').dispatchEvent('change');await preference.locator('[data-duration="3"]').click();
+ await preference.locator('#next-step-btn').click();
+ const style=page.locator('preference-view').filter({has:page.locator('#step2-container:visible')});
+ await expect(style.locator('#step-badge')).toHaveText('5 / 7');await expect.poll(()=>style.evaluate(view=>{const fill=view.shadowRoot.getElementById('progress-bar');return Math.round(fill.getBoundingClientRect().width/fill.parentElement.getBoundingClientRect().width*7);})).toBe(5);
+ await style.locator('#theme-grid [data-value=food]').click();await style.locator('#budget-grid [data-value=standard]').click();await style.locator('#submit-btn').click();
+ const form=page.locator('travel-form:visible');
+ await expect(form.locator('#travel-form .step-badge')).toHaveText('6 / 7');
+ await expect(form.locator('#travel-form')).not.toContainText(/Anchor|Optional|\(Day\)|Day \d/);
+ await expect(form.getByRole('heading',{name:/^꼭 갈 장소/})).toBeVisible();
+ await expect(form.locator('#add-anchor-btn')).toHaveText('꼭 갈 장소 추가하기');
+ await form.locator('#add-anchor-btn').click();
+ await expect(form.locator('#add-anchor-btn')).toHaveText('꼭 갈 장소 더 추가하기');
+ await expect(form.locator('.anchor-day option').first()).toHaveText('1일차');
+ // Day labels built in code follow a language switch, then switch back.
+ await page.locator('.ion-page:visible').getByRole('button',{name:'English',exact:true}).click();
+ await expect(form.locator('.anchor-day option').first()).toHaveText('Day 1');
+ await page.locator('.ion-page:visible').getByRole('button',{name:'한국어',exact:true}).click();
+ await expect(form.locator('.anchor-day option').first()).toHaveText('1일차');
+ await expect(form.locator('#travel-form')).not.toContainText(/Anchor|Optional|\(Day\)|Day \d/);
+ await selectPlace(form.locator('#start-location'),'Paris Airport');await selectPlace(form.locator('#end-location'),'Paris Airport');
+ await form.locator('#start-time').fill('09:00');await form.locator('#end-time').fill('18:00');
+ await form.locator('button[type=submit].primary-btn').click();
+ const review=form.locator('#review-panel');await expect(review).toBeVisible();
+ await expect(review.locator('.step-badge')).toHaveText('7 / 7');
+ await expect(review.getByRole('heading',{name:'출발·도착',exact:true})).toBeVisible();
+ await expect(review).not.toContainText(/Day \d/);
 });

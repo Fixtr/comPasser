@@ -1274,3 +1274,20 @@ test('찾을 수 없음 화면의 위쪽 뒤로 버튼도 휴대폰에서 44px �
   await expect(back).toBeVisible();
   expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
 });
+
+test('빈 내 일정 목록에서 바로 새 일정을 시작할 수 있다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
+  await page.route('**/src/lib/firestore-lazy.mjs', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function loadFirestore() { return { db: {}, doc: () => ({}), getDoc: async () => ({ exists: () => false }) }; }' }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  await page.goto('/profile/trips');
+  const profile = page.locator('profile-view:visible');
+  await expect(profile.getByText('저장된 일정이 없습니다.', { exact: false })).toBeVisible();
+  // The message and the button switch language together.
+  await page.locator('.ion-page:visible').getByRole('button', { name: 'English', exact: true }).click();
+  await expect(profile.getByRole('button', { name: 'Create a new itinerary' })).toBeVisible();
+  await expect(profile.getByText('저장된 일정이 없습니다.', { exact: false })).toHaveCount(0);
+  await page.locator('.ion-page:visible').getByRole('button', { name: '한국어', exact: true }).click();
+  await profile.getByRole('button', { name: '새 일정 만들기' }).click();
+  // The same entry as home's 일정 만들기.
+  await expect(page).toHaveURL(/\/recommend$/);
+});

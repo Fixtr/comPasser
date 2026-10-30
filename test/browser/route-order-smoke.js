@@ -23,6 +23,8 @@ async page => {
   await page.locator('#app-confirm-host .confirm-ok').click();
   await page.waitForFunction(()=>document.querySelector('itinerary-view').shadowRoot.querySelectorAll('.schedule-title')[1]?.textContent==='P1');
   if(JSON.stringify(await order())!==JSON.stringify(['P0','P1','P2','P3','P4','P5'])) throw Error('Order not applied');
+  // Once the order is the improvement, there is nothing left to offer, so the button goes away.
+  await page.locator('itinerary-view #improve-route-btn').waitFor({state:'hidden'});
   await page.evaluate(()=>{
     const v=document.querySelector('itinerary-view');
     const anchor=v.currentItinerary.days[0].scheduleItems[4];

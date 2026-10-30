@@ -12,7 +12,7 @@
 - CSS classes should use the ubiquitous language (e.g., `schedule-card` instead of `event-card`).
 - The component receives an `ItineraryPlan` and renders the list of `ScheduleItem`s, intertwining them with `TransitRoute` events.
 - All map requests go through `requestMapRoute()` with an itinerary version, day index, and request ID. Only results matching the active request may update the timeline or saved itinerary data. Showing a new itinerary, changing days, or editing stops starts a new request; leaving the screen invalidates it.
-- `place-replacement.js` reuses the planner's Google selection binding. Replacement requires a complete selected-place JSON identity; free text is not accepted. Async selection cannot commit into a detached form or a changed plan/day/item. Shared plans and fixed boundaries/anchors cannot use this replacement control.
+- `place-replacement.js` reuses the planner's Google selection binding. Replacement requires a complete selected-place JSON identity; free text is not accepted. Async selection cannot commit into a detached form or a changed plan/day/item. Shared plans and fixed boundaries/anchors cannot use this replacement control. '+ 여기에 장소 추가' opens the same panel (`openPlaceReplacement` with insert labels, the stay select as `extra`, `onCancel` to restore the slot; Escape cancels): `insertScheduleItem` takes only a normalized `selectedPlace` and copies the same identity fields as replacement, so an inserted stop is never a typed guess.
 - `replaceSchedulePlace()` preserves the visit slot and clears old venue-specific claims. Store the selected ID, canonical name/address and coordinates, then refresh routes. This is not an opening-hours or cost verification.
 
 ## Local State and Persistence

@@ -325,6 +325,8 @@ export default class ItineraryView extends HTMLElement {
       if (!this.isCurrentMapResult(e.detail)) return;
       this.lastResolvedPlaces = Array.isArray(e.detail.places) ? e.detail.places : [];
       this.applyResolvedPlaces(this.lastResolvedPlaces);
+      // Map coordinates can reveal a shorter order for stops without a saved identity.
+      this.refreshAccessControls();
       // If no adjacent route exists, transit-info-ready may never fire. Remove
       // definitively missing optional stops here so the map can try the new neighbors.
       if (this.lastResolvedPlaces.some(place => ['filtered', 'no-results'].includes(place.unresolvedReason))) {
@@ -496,7 +498,9 @@ export default class ItineraryView extends HTMLElement {
     const undo=this.shadowRoot.getElementById('undo-deletion-btn');if(undo)undo.hidden=!this.canEdit()||!this.state.current?.undoByDay?.[this.activeDayIndex];
     const dirty=this.shadowRoot.getElementById('day-modified');if(dirty)dirty.hidden=!this.state.current?.dirtyDays?.includes(this.activeDayIndex);
     const improveBtn = this.shadowRoot.getElementById('improve-route-btn');
-    if (improveBtn) improveBtn.hidden = !hasPlan || !this.canEdit();
+    // Offered only when the current day has a shorter order; the check is local and needs no network.
+    if (improveBtn) improveBtn.hidden = !hasPlan || !this.canEdit() ||
+      !suggestRouteOrder(this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems, this.lastResolvedPlaces).changed;
     if (editBtn) {
       editBtn.style.display = hasPlan && this.canEdit() ? '' : 'none';
       editBtn.disabled = !hasPlan || !this.canEdit();
@@ -752,6 +756,8 @@ export default class ItineraryView extends HTMLElement {
         language: getLang(),
         labels: {
           fixedLabel: t('anchorBadge'),
+          fromLabel: t('ticketFromLabel'),
+          toLabel: t('ticketToLabel'),
           transitLabel: t('transitTotalLabel'),
           costLabel: t('costLabel'),
         },
@@ -978,66 +984,49 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
-   * 삽입 자리를 입력 폼으로 바꾼다.
-   *
-   * 장소는 폼과 같은 Google 자동완성을 쓰고 싶지만, 이 컴포넌트는 Shadow DOM
-   * 안이라 gmp-place-autocomplete 를 새로 붙이면 초기화 타이밍이 얽힌다.
-   * 지금은 이름만 받고 지오코딩은 지도가 하도록 맡긴다 — 사용자가 적은
-   * 이름 그대로 지도가 좌표를 찾고, 못 찾으면 이미 있는 "이동시간 미확인"
-   * 안내가 그 사실을 알려 준다.
+   * 삽입 자리에 교체와 같은 장소 검색을 연다. 이름만 적어서는 넣을 수 없다 —
+   * 지도가 이름으로 장소와 이동시간을 짐작하게 되기 때문이다.
    */
   openInsertForm(slot, insertAt) {
     if (!this.canEdit()) return;
     if (slot.dataset.editing === 'true') return;
     slot.dataset.editing = 'true';
-    const original = slot.innerHTML;
+    const button = slot.querySelector('.insert-slot-btn');
+    if (button) button.hidden = true;
 
-    slot.innerHTML = `
-      <div class="insert-form">
-        <input class="insert-input" type="text" maxlength="60"
-               placeholder="${t('addStopPlaceholder') || '장소 이름 (예: 남산서울타워)'}"
-               aria-label="${t('addStopPlaceholder') || '추가할 장소 이름'}">
-        <label class="insert-stay">
-          <span>${t('addStopStay') || '체류'}</span>
-          <select class="insert-stay-select" aria-label="${t('addStopStay') || '체류 시간'}">
-            <option value="30" data-i18n="stay30m">${t('stay30m')}</option>
-            <option value="60" selected data-i18n="stay1h">${t('stay1h')}</option>
-            <option value="90" data-i18n="stay1h30m">${t('stay1h30m')}</option>
-            <option value="120" data-i18n="stay2h">${t('stay2h')}</option>
-          </select>
-        </label>
-        <button type="button" class="insert-confirm">${t('addStopConfirm') || '추가'}</button>
-        <button type="button" class="insert-cancel">${t('cancelBtn') || '취소'}</button>
-      </div>
-    `;
+    const stay = document.createElement('label');
+    stay.className = 'insert-stay';
+    stay.innerHTML = `
+      <span>${t('addStopStay')}</span>
+      <select class="insert-stay-select" aria-label="${t('addStopStay')}">
+        <option value="30" data-i18n="stay30m">${t('stay30m')}</option>
+        <option value="60" selected data-i18n="stay1h">${t('stay1h')}</option>
+        <option value="90" data-i18n="stay1h30m">${t('stay1h30m')}</option>
+        <option value="120" data-i18n="stay2h">${t('stay2h')}</option>
+      </select>`;
 
-    const input = slot.querySelector('.insert-input');
-    input.focus();
-
+    const entry = this.state.current;
+    const day = this.activeDayIndex;
+    const items = this.normalizeData(this.currentItinerary)?.days?.[day]?.scheduleItems;
+    const isCurrent = () => this.canEdit() && this.state.current === entry && this.activeDayIndex === day &&
+      this.normalizeData(this.currentItinerary)?.days?.[day]?.scheduleItems === items;
     const restore = () => {
-      slot.innerHTML = original;
       slot.dataset.editing = 'false';
-      slot.querySelector('.insert-slot-btn')
-        ?.addEventListener('click', () => this.openInsertForm(slot, insertAt));
+      if (button) { button.hidden = false; button.focus(); }
     };
-
-    const commit = () => {
-      const name = input.value.trim();
-      if (!name) {
-        showGlobalToast(t('addStopEmpty') || '장소 이름을 입력해 주세요.', { tone: 'warning' });
-        input.focus();
-        return;
-      }
-      const stayMinutes = Number(slot.querySelector('.insert-stay-select').value) || 60;
-      this.insertPlaceAt(insertAt, { title: name, location: name, stayMinutes });
-    };
-
-    slot.querySelector('.insert-confirm').addEventListener('click', commit);
-    slot.querySelector('.insert-cancel').addEventListener('click', restore);
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); commit(); }
-      if (e.key === 'Escape') { e.preventDefault(); restore(); }
+    const opened = openPlaceReplacement(slot, {
+      isCurrent,
+      labels: { search: 'addStopPlaceholder', confirm: 'addStopConfirm', select: 'addStopSelect' },
+      extra: stay,
+      onCancel: restore,
+      onSelect: place => {
+        if (!isCurrent()) return;
+        this.insertPlaceAt(insertAt, { selectedPlace: place, stayMinutes: Number(stay.querySelector('select').value) || 60 });
+      },
     });
+    // The add button just hid itself; keep keyboard focus in the panel it opened.
+    stay.querySelector('select').focus();
+    return opened;
   }
 
   /**
@@ -1058,7 +1047,7 @@ export default class ItineraryView extends HTMLElement {
     this.state.editDayItems(this.activeDayIndex, items);
     this.requestMapRoute();
     this.refreshAccessControls();
-    showGlobalToast(`"${inserted.title}"을 일정에 추가했습니다.`, { tone: 'success' });
+    showGlobalToast(t('addStopDone').replace('{0}', inserted.title), { tone: 'success' });
 
   }
 
