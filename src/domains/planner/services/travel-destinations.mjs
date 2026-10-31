@@ -39,7 +39,7 @@ export const destinations = [
     { id: 'hanoi-3', name: '하노이 문묘', englishName: 'Temple of Literature', location: 'Temple of Literature, Hanoi', stayMinutes: 60, guide: 'https://vietnam.travel/node/1463' },
   ] },
   { id: 'singapore', key: 'citySingapore', country: 'SGP', places: [
-    { id: 'singapore-1', name: '머라이언 파크', englishName: 'Merlion Park', location: 'Merlion Park, Singapore', stayMinutes: 30, guide: 'https://www.visitsingapore.com/id_id/neighbourhood/featured-neighbourhood/marina-bay/merlion-park/' },
+    { id: 'singapore-1', name: '머라이언 파크', englishName: 'Merlion Park', location: 'Merlion Park, Singapore', stayMinutes: 30, guide: 'https://www.visitsingapore.com/neighbourhood/featured-neighbourhood/marina-bay/merlion-park/' },
     { id: 'singapore-2', name: '가든스 바이 더 베이', englishName: 'Gardens by the Bay', location: 'Gardens by the Bay, Singapore', stayMinutes: 120, guide: 'https://www.visitsingapore.com/content/visitsingapore/en/travel-tips/travelling-to-singapore/itineraries/7-days-in-singapore' },
     { id: 'singapore-3', name: '싱가포르 보타닉 가든', englishName: 'Singapore Botanic Gardens', location: 'Singapore Botanic Gardens, Singapore', stayMinutes: 90, guide: 'https://www.visitsingapore.com/content/visitsingapore/en/travel-tips/travelling-to-singapore/itineraries/7-days-in-singapore' },
   ] },

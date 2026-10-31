@@ -321,9 +321,62 @@ test('저장·공개 확인·공개 쓰기 오류는 호출자에게 전달하�
   }
 });
 
-test('새 초안은 원본 삭제를 추적할 수 있도록 저장 후 공유를 요구한다', async () => {
+const shareDraft = (actions, overrides = {}) => actions.getShareLink({
+  confirmPublicShare: () => { throw Error('a draft asks once, with the save confirm'); },
+  confirmSaveAndShare: async () => true,
+  saveBeforeShare: () => actions.save(),
+  ...overrides,
+});
+
+test('새 초안은 한 번 확인한 뒤 저장하고 그 저장본을 공유한다', async () => {
   const { state, actions, calls } = fixture();
   state.open(plan());
-  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { throw Error('must not confirm'); } }), { status: 'save-required' });
+  assert.deepEqual(await shareDraft(actions), { status: 'ready', url: 'https://app.example/share/published123' });
+  assert.equal(calls.saves.length, 1);
+  assert.equal(calls.shares.length, 1);
+  assert.deepEqual({ kind: state.current.source.kind, id: state.current.source.id }, { kind: 'private', id: 'saved123' });
+});
+
+test('새 초안의 저장·공유 확인을 취소하면 아무것도 저장하지 않는다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  assert.deepEqual(await shareDraft(actions, { confirmSaveAndShare: async () => false }), { status: 'cancelled' });
+  assert.deepEqual(calls.saves, []);
   assert.deepEqual(calls.shares, []);
+  assert.equal(state.current.source.kind, 'draft');
+});
+
+test('새 초안의 저장이 끝나지 않았거나 다른 버전이면 공유 링크를 만들지 않는다', async () => {
+  for (const saved of [{ status: 'failed' }, { status: 'left' }, { status: 'account-changed' }]) {
+    const { state, actions, calls } = fixture();
+    state.open(plan());
+    assert.deepEqual(await shareDraft(actions, { saveBeforeShare: async () => saved }), { status: 'cancelled' }, saved.status);
+    assert.deepEqual(calls.shares, [], saved.status);
+  }
+});
+
+test('새 초안을 저장하는 중 내용이 바뀌면 링크를 만들지 않고 그 사실을 알린다', async () => {
+  const { state, actions, calls } = fixture({ save: () => { state.resolvePlaces(0, [{ index: 0, name: 'Real', address: 'addr' }]); return 'saved123'; } });
+  state.open(plan());
+  assert.deepEqual(await shareDraft(actions), { status: 'not-shared' });
+  assert.deepEqual(calls.shares, []);
+  assert.equal(state.current.source.id, 'saved123');
+});
+
+test('저장 중 계정이 바뀌면 새 초안의 공유 링크를 만들지 않는다', async () => {
+  const { state, session, actions, calls } = fixture();
+  state.open(plan());
+  const result = await shareDraft(actions, { saveBeforeShare: async () => {
+    const saved = await actions.save();
+    session.user = { uid: 'other' };
+    return saved;
+  } });
+  assert.deepEqual(result, { status: 'cancelled' });
+  assert.deepEqual(calls.shares, []);
+});
+
+test('게스트의 새 초안은 저장 확인 없이 로그인을 요구한다', async () => {
+  const { state, actions } = fixture({ user: null });
+  state.open(plan());
+  assert.deepEqual(await shareDraft(actions, { confirmSaveAndShare: () => { throw Error('must not confirm'); } }), { status: 'login-required' });
 });

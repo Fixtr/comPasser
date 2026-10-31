@@ -63,6 +63,7 @@ for (const [title, file] of [
   ['inserted place comes from the place search', 'place-insert-smoke.js'],
   ['opening-hours conflict and unknown information', 'itinerary-hours-smoke.js'],
   ['backtracking suggestion, confirmation and persistence', 'route-order-smoke.js'],
+  ['sharing an unsaved draft saves it after one confirm', 'share-before-save-smoke.js'],
   ['visit time editing and earliest-start preservation', 'visit-time-smoke.js'],
   ['shared source deletion hides content and preserves independent copies', 'shared-deletion-smoke.js'],
   ['measured transit is authoritative over AI prose and fare', 'transit-authority-smoke.js'],
