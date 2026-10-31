@@ -50,9 +50,11 @@ export function createItineraryActions({
       }
 
       if (updating) state.markSaved();
+      // 초안은 그 자리에서 저장본이 된다. 되돌리기가 남고, 남은 초안을 다시 저장할 수 없다.
+      else if (snapshot.source.kind !== 'shared') state.adoptSaved(entry, id, snapshot.plan);
       else {
         // 공유 원본은 수정하지 않고, 저장 요청 당시의 사본을 개인 일정으로 연다.
-        state.open(snapshot.plan, { kind: 'private', id, savedFromDraft: snapshot.source.kind === 'draft' });
+        state.open(snapshot.plan, { kind: 'private', id });
         state.selectDay(snapshot.dayIndex);
       }
       onSaved(id);

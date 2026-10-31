@@ -234,6 +234,31 @@ function renderScheduleCard(scheduleItem, idx, editable) {
   `;
 }
 
+// Firestore finishes a queued write once the connection returns, so failing it here and retrying would write twice.
+const STALLED_WRITE_MS = 15000;
+const noticeStalledWrite = write => async (...args) => {
+  const path = window.location.pathname;
+  const userId = getCurrentUser()?.uid;
+  let timer;
+  const stop = () => {
+    clearTimeout(timer);
+    window.removeEventListener('offline', warn);
+  };
+  // A write queued for another account never settles while that account is out, and "keep this screen open" means nothing once it is gone.
+  function warn() {
+    if (window.location.pathname === path && getCurrentUser()?.uid === userId) showGlobalToast(t('writeWaitingForConnection'), { tone: 'warning' });
+    else stop();
+  }
+  if (navigator.onLine === false) warn();
+  timer = setTimeout(warn, STALLED_WRITE_MS);
+  window.addEventListener('offline', warn);
+  try {
+    return await write(...args);
+  } finally {
+    stop();
+  }
+};
+
 // Outlives the view: saving a draft moves to /view/<id>, which remounts it before a retry.
 const undeliveredShare = {};
 
@@ -247,7 +272,8 @@ export default class ItineraryView extends HTMLElement {
     });
     this.actions = createItineraryActions({
       undeliveredShare,
-      state: this.state, getCurrentUser, saveItinerary, updateItinerary, createSharedItinerary, getSharedItineraryUrl,
+      state: this.state, getCurrentUser, getSharedItineraryUrl,
+      saveItinerary: noticeStalledWrite(saveItinerary), updateItinerary: noticeStalledWrite(updateItinerary), createSharedItinerary: noticeStalledWrite(createSharedItinerary),
     });
     this._loadVersion = 0;
     this._itineraryVersion = 0;
