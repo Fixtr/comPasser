@@ -1497,12 +1497,12 @@ test('a failed auth download offers a reload and keeps the owner draft', async (
   expect(saved.draft.startLocation).toBe('Kept start');
 });
 
-test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주소와 공유 버튼이 그대로다', async ({ page }) => {
+async function openUnsavedDraft(page, waitForShare = '') {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
   await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
     export async function saveItinerary() { return 'saved1'; }
-    export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; await new Promise(done => { window.finishShare = done; }); return 'public1'; }
+    export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
     export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
     export async function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
@@ -1524,7 +1524,11 @@ test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주
   });
   await expect(page).toHaveURL(/\/view$/);
   await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
-  const share = page.locator('itinerary-view:visible #share-itinerary-btn');
+  return page.locator('itinerary-view:visible #share-itinerary-btn');
+}
+
+test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주소와 공유 버튼이 그대로다', async ({ page }) => {
+  const share = await openUnsavedDraft(page, "await new Promise(done => { window.finishShare = done; });");
   await share.click();
   await page.locator('#app-confirm-host .confirm-ok').click();
   await page.waitForFunction(() => window.shares === 1);
@@ -1533,5 +1537,24 @@ test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주
   await page.evaluate(() => window.finishShare());
   await expect(page).toHaveURL(/\/view\/saved1$/);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('/share/public1');
+  expect(await page.evaluate(() => window.shares)).toBe(1);
+});
+
+test('복사가 실패한 뒤 주소가 바뀌어도 다시 공유하면 같은 링크를 쓴다', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.addInitScript(() => {
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    let failures = 1;
+    navigator.clipboard.writeText = text => (failures-- > 0 ? Promise.reject(new Error('denied')) : write(text));
+  });
+  const share = await openUnsavedDraft(page);
+  await share.click();
+  await page.locator('#app-confirm-host .confirm-ok').click();
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await expect(page.locator('itinerary-view:visible #share-itinerary-btn')).toBeEnabled();
+  await page.locator('itinerary-view:visible #share-itinerary-btn').click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('/share/public1');
+  await expect(page.locator('#app-confirm-host .confirm-ok')).toHaveCount(0);
   expect(await page.evaluate(() => window.shares)).toBe(1);
 });

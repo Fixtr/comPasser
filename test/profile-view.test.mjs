@@ -304,3 +304,9 @@ test('이전 계정의 재로그인 오류로 같은 UID의 새 계정을 로그
   pending.resolve(); await deleting;
   assert.equal(app.calls.logouts, 0); assert.deepEqual(app.calls.toasts, []);
 });
+
+test('프로필 화면의 문구는 코드에 한국어로 박혀 있지 않고 사전을 거친다', () => {
+  const code = readFileSync(new URL('../src/domains/profile/ui/profile-view.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /[가-힣]/);
+});
