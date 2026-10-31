@@ -1507,18 +1507,24 @@ test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주
     export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
     export async function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
   ` }));
-  await page.goto('/share/abc123');
-  await page.waitForFunction(() => document.querySelector('itinerary-view')?.state);
-  await page.evaluate(() => {
-    const view = document.querySelector('itinerary-view');
-    view.state.open({ days: [{ day: 1, date: '2026-09-17', scheduleItems: [{ title: 'First stop', type: 'attraction', time: '09:00', endTime: '10:00', location: '서울' }] }] });
-    window.navigate('/view');
-    view.renderCurrentState();
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
+    contentType: 'text/javascript', body: `
+      export async function getGenerationCredits() { return 1; }
+      export async function generateOptimizedItinerary() {
+        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: [
+          { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+          { type: 'arrival', title: '경복궁', time: '10:00', location: '경복궁' },
+        ] }] };
+      }
+    `,
+  }));
+  await page.goto('/plan');
+  await page.locator('travel-form:visible').first().evaluate(element => {
+    element.dispatchEvent(new CustomEvent('generate-itinerary', { detail: {}, bubbles: true, composed: true }));
   });
-  // Ionic keeps the /share screen in its stack; it stays visible until the route transition ends.
+  await expect(page).toHaveURL(/\/view$/);
+  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
   const share = page.locator('itinerary-view:visible #share-itinerary-btn');
-  await expect(share).toHaveCount(1);
-  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: 'First stop' })).toBeVisible();
   await share.click();
   await page.locator('#app-confirm-host .confirm-ok').click();
   await page.waitForFunction(() => window.shares === 1);
