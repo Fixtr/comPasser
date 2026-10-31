@@ -11,12 +11,10 @@ import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
 import { decideRoute, getSafeReturnPath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
-import { destinationById } from '../domains/planner/services/travel-destinations.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { showErrorToast } from '../utils/toast.js';
 import { installPageTransitions } from './screen-transition.js';
 import { usePlanExitGuard } from './plan-exit-guard.js';
-import { logout, missingFirebaseConfig, subscribeToAuthChanges } from '../domains/auth/services/firebase-auth.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
 import { HomeScreen } from './home-screen.jsx';
 
@@ -33,6 +31,9 @@ import './ionic-shell.css';
 // CloseWatcher turns Escape into Ionic's hardware Back, which left the page from anywhere on desktop.
 // Only Android has a system Back for it to handle; elsewhere overlays still close on Escape by themselves.
 setupIonicReact({ experimentalCloseWatcher: isPlatform('android') });
+
+// About 60 KB gzip of Firebase; home paints first and sign-in restores behind it.
+const authService = () => import('../domains/auth/services/firebase-auth.js');
 
 // Home is the only screen needed for the first paint; the rest load when their route first shows.
 const lazyScreen = (load, name) => lazy(() => load().then(module => ({ default: module[name] })));
@@ -85,7 +86,8 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
 
   let screen;
   if (path === '/' || path === '/home') screen = <HomeScreen authSettled={authSettled} settings={settings} />;
-  else if (path === '/destination') screen = <DestinationScreen settings={settings} />;
+  // Keyed: the saved draft is restored when auth settles, and this screen reads it at mount.
+  else if (path === '/destination') screen = <DestinationScreen key={authSettled ? 'settled' : 'pending'} settings={settings} />;
   else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
   else if (path === '/courses') screen = <CoursesScreen settings={settings} />;
   else if (path === '/login' || path === '/join' || path.startsWith('/verify')) screen = <AuthScreen kind={path === '/join' ? 'join' : path.startsWith('/verify') ? 'verify' : 'login'} search={search} settings={settings} />;
@@ -118,9 +120,14 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
     const key = route && !(route[0].endsWith('/:id') && !getSafeReturnPath(location.pathname)) ? route[1] : 'shellNotFound';
     // Picked city steps name the city, so tabs and history entries can be told apart; same check as usePlacePick.
     const query = new URLSearchParams(location.search);
-    const city = ['/recommend', '/courses'].includes(location.pathname) && destinationById(query.get('city'));
-    const cityName = city && city.country === query.get('country') ? `${t(city.key)} · ` : '';
-    document.title = key === 'heroTitle' ? 'ComPasser' : `${cityName}${t(key)} · ComPasser`;
+    document.title = key === 'heroTitle' ? 'ComPasser' : `${t(key)} · ComPasser`;
+    if (!['/recommend', '/courses'].includes(location.pathname) || !query.get('city')) return undefined;
+    let stale = false;
+    void import('../domains/planner/services/travel-destinations.mjs').then(({ destinationById }) => {
+      const city = destinationById(query.get('city'));
+      if (!stale && city?.country === query.get('country')) document.title = `${t(city.key)} · ${t(key)} · ComPasser`;
+    }).catch(() => { /* The title just stays without the city. */ });
+    return () => { stale = true; };
   }, [location.pathname, location.search, lang]);
   useEffect(() => {
     const previous = window.navigate;
@@ -149,7 +156,7 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
 }
 
 function Shell() {
-  const [auth, setAuth] = useState({ user: null, settled: !!missingFirebaseConfig.length });
+  const [auth, setAuth] = useState({ user: null, settled: false, failed: false });
   const [lang, setLanguage] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get('lang');
     // The address bar is untrusted, and setLang would accept inherited names such as 'constructor'.
@@ -189,12 +196,19 @@ function Shell() {
     try { localStorage.setItem('theme', next); } catch { /* Keep the current session usable. */ }
   };
   useEffect(() => {
-    if (missingFirebaseConfig.length) { plannerDraftStore.setUser(null); offlineTrips.setUser(null); return undefined; }
-    return subscribeToAuthChanges(user => { plannerDraftStore.setUser(unverifiedEmail(user) ? null : user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true }); });
+    let stopped = false, unsubscribe;
+    authService().then(({ missingFirebaseConfig, subscribeToAuthChanges }) => {
+      if (stopped) return;
+      if (missingFirebaseConfig.length) { plannerDraftStore.setUser(null); offlineTrips.setUser(null); setAuth({ user: null, settled: true, failed: false }); return; }
+      unsubscribe = subscribeToAuthChanges(user => { plannerDraftStore.setUser(unverifiedEmail(user) ? null : user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true, failed: false }); });
+    // Not treated as signed out, which would wipe the owner's local draft and trips; nearly every screen needs this chunk too.
+    }).catch(() => { if (!stopped) setAuth({ user: null, settled: false, failed: true }); });
+    return () => { stopped = true; unsubscribe?.(); };
   }, []);
   useEffect(() => {
-    if (unverifiedEmail(auth.user)) void logout({ keepLocalData: true });
+    if (unverifiedEmail(auth.user)) void authService().then(({ logout }) => logout({ keepLocalData: true }));
   }, [auth.user]);
+  if (auth.failed) return <div className="boot" role="alert"><strong>ComPasser</strong><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>;
   return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
 }
 

@@ -1,5 +1,6 @@
 import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
+import { getLocationName } from './location-name.mjs';
 import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { isAirportName } from './flight-arrival.mjs';
 import { destinationById } from './travel-destinations.mjs';
@@ -18,18 +19,7 @@ function asNonEmptyString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-/**
- * Returns the user-facing name for either a plain autocomplete string or a
- * structured Google Place value.
- */
-export function getLocationName(location) {
-  if (typeof location === 'string') return location.trim();
-  if (!location || typeof location !== 'object') return '';
-
-  return asNonEmptyString(location.displayName)
-    || asNonEmptyString(location.formattedAddress)
-    || asNonEmptyString(location.address);
-}
+export { getLocationName };
 
 export function formatLocationForPrompt(location) {
   if (typeof location === 'string') return location.trim();

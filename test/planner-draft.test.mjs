@@ -233,3 +233,23 @@ test('untimed picks with no day inside the trip go to the day with the fewest an
     assert.equal(spreadVisitDays(toPlannerDraft({ date, anchorSchedules: [pick('A')] })).anchorSchedules[0].day, undefined);
   }
 });
+
+test('a save before sign-in restores cannot replace the signed-in recovery draft', () => {
+  const values = new Map([['compasser.planner.v1', JSON.stringify({ owner: 'u', draft: { startLocation: 'Kept' } })]]);
+  const recovery = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const stored = new Map();
+  const session = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) };
+  const store = createPlannerDraftStore({ getStorage: () => session, getRecoveryStorage: () => recovery });
+  store.update({ country: 'JPN' });
+  assert.equal(JSON.parse(values.get('compasser.planner.v1')).owner, 'u');
+  store.setUser('u');
+  assert.equal(store.read().startLocation, 'Kept');
+});
+
+test('before sign-in restores, a guest draft keeps being saved', () => {
+  const values = new Map();
+  const recovery = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const store = createPlannerDraftStore({ getStorage: () => ({ getItem: () => null, setItem() {}, removeItem() {} }), getRecoveryStorage: () => recovery });
+  store.update({ country: 'JPN' });
+  assert.equal(JSON.parse(values.get('compasser.planner.v1')).draft.country, 'JPN');
+});

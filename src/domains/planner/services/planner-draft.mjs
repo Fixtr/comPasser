@@ -1,5 +1,5 @@
 import { TRAVEL_REGIONS } from '../../../../functions/travel-region.mjs';
-import { getLocationName } from './planner-constraints.mjs';
+import { getLocationName } from './location-name.mjs';
 import { nightlyStays } from './trip-stays.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { FLIGHT_BUFFER_MINUTES } from './flight-arrival.mjs';
@@ -132,7 +132,9 @@ export function createPlannerDraftStore({ getStorage = () => null, getRecoverySt
         lastStored = JSON.stringify([raw, pref]);
         acceptStored = true;
       }
-      getRecoveryStorage()?.setItem(recoveryKey, JSON.stringify({ owner: owner || null, draft: current }));
+      // Until sign-in restores, the owner is unknown; a signed-in copy must not be replaced by this one.
+      const recovery = getRecoveryStorage();
+      if (owner !== undefined || !parseObject(recovery?.getItem(recoveryKey))?.owner) recovery?.setItem(recoveryKey, JSON.stringify({ owner: owner || null, draft: current }));
     } catch { onStorageError(); }
     return structuredClone(current);
   };

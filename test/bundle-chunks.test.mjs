@@ -20,6 +20,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 const config = (await import('../vite.config.js')).default;
 const manualChunks = config.build.rollupOptions.output.manualChunks;
@@ -35,9 +37,8 @@ test('Firestore 전용 의존성은 첫 로드 청크에 들어가지 않는다'
   );
 });
 
-test('인증이 쓰는 것은 그대로 첫 로드 청크에 남는다', () => {
-  // idb: @firebase/app 의 dependencies. indexedDBLocalPersistence 가 쓰므로
-  // 첫 화면 일이 맞다. 위 규칙이 여기까지 번지면 안 된다.
+test('idb 는 Firestore 규칙에 끌려가지 않고 catch-all 에 남는다', () => {
+  // idb: @firebase/app 의 dependencies. Auth itself now loads after first paint, but idb still shares the catch-all.
   assert.equal(manualChunks(idFor('idb')), 'vendor');
 });
 
@@ -75,4 +76,28 @@ test('Capacitor 코어는 첫 로드 청크에 남는다', () => {
   // isNativePlatform() 은 로그인 분기에서 매번 부르므로 첫 화면 일이 맞다.
   // 위 규칙이 여기까지 번지면 안 된다.
   assert.equal(manualChunks(idFor('@capacitor/core')), 'vendor');
+});
+
+test('Ionic stays unnamed and side-effect free, so its unused components drop out of the first load', () => {
+  // Any named chunk reaching @ionic pulls in every component it re-exports (468 -> 313 KB gzip without one).
+  for (const pkg of ['@ionic/core', '@ionic/react', '@ionic/react-router', 'ionicons', '@stencil/react-output-target', '@lit/react']) assert.equal(manualChunks(idFor(pkg)), undefined, pkg);
+  const sideEffects = config.build.rollupOptions.treeshake.moduleSideEffects;
+  assert.equal(sideEffects(idFor('@ionic/core')), false);
+  assert.equal(sideEffects(idFor('ionicons')), false);
+  assert.equal(sideEffects(idFor('@ionic/react')), true);
+  assert.equal(sideEffects('/repo/src/prototype/ionic-shell.jsx'), true);
+});
+
+test('the entry statically imports neither auth nor the planner and course catalogues', () => {
+  const seen = new Set();
+  const walk = file => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const source = readFileSync(file, 'utf8');
+    for (const [, target] of source.matchAll(/^(?:import|export)\s[^'"]*?from\s+['"](\.[^'"]+)['"]/gm)) walk(resolve(dirname(file), target));
+  };
+  walk(resolve('src/prototype/ionic-shell.jsx'));
+  const reached = [...seen].map(file => file.split('/').pop());
+  assert.ok(reached.includes('home-screen.jsx') && reached.includes('planner-draft.mjs'), 'the walk follows the entry');
+  for (const name of ['firebase-auth.js', 'planner-constraints.mjs', 'travel-destinations.mjs', 'public-route.mjs', 'course-draft.mjs', 'course-community.mjs']) assert.ok(!reached.includes(name), name);
 });
