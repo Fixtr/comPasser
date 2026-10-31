@@ -1515,7 +1515,10 @@ test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주
     window.navigate('/view');
     view.renderCurrentState();
   });
+  // Ionic keeps the /share screen in its stack; it stays visible until the route transition ends.
   const share = page.locator('itinerary-view:visible #share-itinerary-btn');
+  await expect(share).toHaveCount(1);
+  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: 'First stop' })).toBeVisible();
   await share.click();
   await page.locator('#app-confirm-host .confirm-ok').click();
   await page.waitForFunction(() => window.shares === 1);
