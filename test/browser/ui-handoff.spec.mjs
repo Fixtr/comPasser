@@ -352,7 +352,11 @@ test('travel dates show the chosen city as text and a translated change button o
   await page.getByRole('button',{name:'Busan',exact:true}).click();
   await page.locator('.flow-primary').click(); await expect(page).toHaveURL(/\/preference\/1$/);
   await expect(view.locator('.destination-summary p')).toHaveText('Destination · Busan');
-  await page.evaluate(async()=> (await import('/src/utils/i18n.js')).setLang('ko'));
+  // A signed-in copy left here would win over the next round's save if that save lands before sign-in restores.
+  await page.evaluate(async()=>{
+   (await import('/src/utils/i18n.js')).setLang('ko');
+   (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear();
+  });
  }
 });
 
