@@ -16,6 +16,19 @@ test('설치한 모바일 PWA는 모든 자체 JS/CSS와 공유 화면을 오프
   const assets = cached.filter(path => /^\/assets\/.*\.(?:js|css)$/.test(path));
   expect(assets.length).toBeGreaterThan(20);
 
+  // Tree shaking only applies to builds, so this production run guards what the dev-server suite cannot.
+  const built = await page.evaluate(async paths => (await Promise.all(paths.map(path => fetch(path).then(response => response.text())))).join(''), assets.filter(path => path.endsWith('.js')));
+  expect(built).not.toContain('ion-toggle');
+  const firstLoad = await (await page.request.get('/')).text();
+  expect(firstLoad).not.toMatch(/vendor-auth|vendor-firebase-core/);
+  // Wrappers define their element on first render, so check the screen that renders the toolbar parts.
+  await page.goto('/no-such-page');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  for (const tag of ['ion-app', 'ion-content', 'ion-header', 'ion-toolbar', 'ion-title', 'ion-buttons', 'ion-back-button']) {
+    expect(await page.evaluate(name => !!customElements.get(name), tag), tag).toBe(true);
+  }
+  await page.goto('/');
+
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
@@ -56,4 +69,18 @@ test('본인 오프라인 일정은 앱 재실행 후 주소와 시각을 열람
   await expect(page.getByText('초안을 기기에 저장하지 못했습니다.',{exact:false})).toHaveCount(0);
   await page.screenshot({path:testInfo.outputPath('own-trip-offline-reload.png'),fullPage:true});
   await page.evaluate(()=>localStorage.removeItem('compasser.offline.v1'));await page.reload();await expect(page.locator('.flow-page')).toContainText('저장한 일정이');
+});
+
+test('the result sheet still opens and moves between its stops in the tree-shaken build', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/share/abc123XYZ');
+  const sheet = page.locator('ion-modal');
+  await expect(sheet).toBeVisible();
+  // The missing-trip effect also moves the sheet as it opens, so let that finish before driving it.
+  await expect.poll(() => sheet.evaluate(element => element.getCurrentBreakpoint())).toBeGreaterThan(0);
+  await page.waitForTimeout(1000);
+  for (const target of [0.3, 1]) {
+    await sheet.evaluate(async (element, value) => { await element.setCurrentBreakpoint(value); }, target);
+    await expect.poll(() => sheet.evaluate(element => element.getCurrentBreakpoint())).toBe(target);
+  }
 });

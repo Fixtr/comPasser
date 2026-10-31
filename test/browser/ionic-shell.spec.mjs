@@ -1448,3 +1448,51 @@ test('영문 페이지 스크립트가 오기 전에 누른 출발지도, 다른
   expect(busan.startLocation).toBe('');
   expect(await page.evaluate(() => sessionStorage.getItem('compasser.routeStart'))).toBeNull();
 });
+
+test('a city picked on the globe before sign-in restores keeps the signed-in draft', async ({ page }) => {
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', async route => {
+    await held;
+    await route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") });
+  });
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      sessionStorage.setItem('seeded', '1');
+      localStorage.setItem('compasser.planner.v1', JSON.stringify({ owner: 'test-user', draft: { startLocation: 'Kept start' } }));
+    }
+  });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.locator('svg path[data-country=KOR]').click();
+  await page.locator('.globe-selection button').click();
+  await expect(page.getByRole('status').filter({ hasText: '불러오는' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  release();
+  await expect(page).toHaveURL(/\/destination$/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1')));
+  expect(saved.owner).toBe('test-user');
+  expect(saved.draft.startLocation).toBe('Kept start');
+  expect(saved.draft.country).toBe('KOR');
+});
+
+test('/destination shows a draft restored after it mounted', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule
+    .replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };")
+    .replace('setTimeout(() => callback(currentUser), 0);', 'setTimeout(() => callback(currentUser), 1500);') }));
+  await page.addInitScript(() => localStorage.setItem('compasser.planner.v1', JSON.stringify({ owner: 'test-user', draft: { country: 'KOR', destinationStage: 'city' } })));
+  await page.goto('/destination');
+  await expect(page.getByRole('heading', { name: '어느 나라로 떠날까요?', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '어느 도시가 끌리나요?', exact: true })).toBeVisible();
+});
+
+test('a failed auth download offers a reload and keeps the owner draft', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.abort());
+  await page.addInitScript(() => localStorage.setItem('compasser.planner.v1', JSON.stringify({ owner: 'test-user', draft: { startLocation: 'Kept start' } })));
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('화면을 불러오지 못했습니다');
+  await expect(page.getByRole('button', { name: '화면 다시 불러오기' })).toBeVisible();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('compasser.planner.v1')));
+  expect(saved.owner).toBe('test-user');
+  expect(saved.draft.startLocation).toBe('Kept start');
+});

@@ -76,6 +76,8 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: resolve('ionic-shell.html'),
+      // @ionic/react imports every component; these modules only define elements on use, so unused ones can go.
+      treeshake: { moduleSideEffects: id => !/node_modules\/(?:@ionic\/core|ionicons)\//.test(id) },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
@@ -83,6 +85,8 @@ export default defineConfig({
           if (id.includes('@capacitor-firebase')) return undefined;
           // Only the home globe uses these; unnamed, they ride in its lazy chunk instead of the first-load vendor.
           if (/node_modules\/(?:d3-|internmap|topojson-client)/.test(id)) return undefined;
+          // A named chunk reaching Ionic keeps every component (Rollup follows its static imports), so it stays unnamed.
+          if (/node_modules\/(?:@ionic\/|ionicons|@stencil\/|@lit\/)/.test(id)) return undefined;
           if (id.includes('@firebase/firestore') || id.includes('firebase/firestore') || id.includes('re2js')) return 'vendor-firestore';
           if (id.includes('@firebase/functions') || id.includes('firebase/functions')) return 'vendor-functions';
           if (id.includes('@firebase/auth') || id.includes('firebase/auth')) return 'vendor-auth';
