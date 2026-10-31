@@ -351,7 +351,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
         generatedPlan = null;
       } else {
         generatedPlan = null;
-        if (!view.restoreDraft()) navigate('/plan', { replace: true });
+        if (!view.restoreDraft()) navigate(view.state.savedDraftId ? `/view/${view.state.savedDraftId}` : '/plan', { replace: true });
       }
       setShowEdit(view.canEdit());
     }

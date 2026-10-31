@@ -1497,11 +1497,11 @@ test('a failed auth download offers a reload and keeps the owner draft', async (
   expect(saved.draft.startLocation).toBe('Kept start');
 });
 
-async function openUnsavedDraft(page, waitForShare = '') {
+async function openUnsavedDraft(page, waitForShare = '', waitForSave = '') {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
   await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
-    export async function saveItinerary() { return 'saved1'; }
+    export async function saveItinerary() { ${waitForSave} return 'saved1'; }
     export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
     export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
@@ -1557,4 +1557,45 @@ test('복사가 실패한 뒤 주소가 바뀌어도 다시 공유하면 같은 
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('/share/public1');
   await expect(page.locator('#app-confirm-host .confirm-ok')).toHaveCount(0);
   expect(await page.evaluate(() => window.shares)).toBe(1);
+});
+
+test('저장 중 다른 화면으로 떠났다면 연결 안내를 띄우지 않는다', async ({ page }) => {
+  await openUnsavedDraft(page, '', 'await new Promise(done => { window.finishSave = done; });');
+  const save = page.locator('itinerary-view:visible #save-itinerary-btn');
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/elsewhere');
+    window.dispatchEvent(new Event('offline'));
+    window.history.replaceState({}, '', '/view');
+  });
+  await expect(page.getByText('연결이 불안정해요', { exact: false })).toHaveCount(0);
+  await page.evaluate(() => window.finishSave());
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+});
+
+test('저장 중 연결이 끊기면 알려 주고, 다시 연결되어 끝나면 저장한 일정으로 간다', async ({ page }) => {
+  await openUnsavedDraft(page, '', 'await new Promise(done => { window.finishSave = done; });');
+  const save = page.locator('itinerary-view:visible #save-itinerary-btn');
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await expect(page.getByText('연결이 불안정해요', { exact: false })).toBeVisible();
+  await expect(save).toBeDisabled();
+  await page.evaluate(() => window.finishSave());
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await expect(page.getByText('연결이 불안정해요', { exact: false })).toHaveCount(0);
+});
+
+test('초안을 저장해 주소가 바뀌어도 되돌리기가 남고, 빈 /view에는 초안이 없다', async ({ page }) => {
+  await openUnsavedDraft(page);
+  await page.locator('itinerary-view:visible').evaluate(view => view.state.editDayItems(0, view.state.current.plan.days[0].scheduleItems.slice(0, 1), { undo: true }));
+  await page.locator('itinerary-view:visible #save-itinerary-btn').click();
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  await expect(page.locator('itinerary-view:visible #undo-deletion-btn')).toBeVisible();
+  const entries = await page.evaluate(() => JSON.parse(sessionStorage.getItem('compasser.itineraries.v1')).entries.map(entry => entry.source.kind));
+  expect(entries).toEqual(['private']);
+  await page.goto('/view');
+  await expect(page).toHaveURL(/\/view\/saved1$/);
 });
