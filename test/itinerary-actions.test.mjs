@@ -424,3 +424,33 @@ test('전달에 실패한 링크를 다른 계정에 다시 주지 않는다', a
   await actions.getShareLink({ confirmPublicShare: async () => true });
   assert.equal(calls.shares.length, 2);
 });
+
+test('초안을 저장하면 초안 사본이 남지 않아 빈 /view에서 다시 저장할 수 없다', async () => {
+  const { state, actions } = fixture();
+  state.open(plan());
+  await actions.save();
+  assert.equal(state.activateDraft(), null);
+  assert.equal(state.current.source.id, 'saved123');
+});
+
+test('초안을 저장해도 되돌리기와 수정 표시가 남는다', async () => {
+  const { state, actions } = fixture();
+  state.open(plan());
+  const [first, second] = state.current.plan.days[0].scheduleItems.concat(plan().days[1].scheduleItems);
+  state.editDayItems(0, [second], { undo: true });
+  await actions.save();
+  assert.deepEqual(state.current.dirtyDays, [0]);
+  assert.equal(state.current.unsaved, false);
+  assert.ok(state.undoDeletion(0));
+  assert.deepEqual(state.current.plan.days[0].scheduleItems, [first]);
+});
+
+test('다른 기기에서 지운 일정을 새로 저장해도 되돌리기가 남고 지운 일정의 사본은 사라진다', async () => {
+  const { state, actions } = fixture({ update: () => { throw Object.assign(Error('gone'), { code: 'not-found' }); } });
+  state.open(plan(), { kind: 'private', id: 'gone1' });
+  state.editDayItems(0, [], { undo: true });
+  await actions.save();
+  assert.equal(state.current.source.id, 'saved123');
+  assert.ok(state.current.undoByDay[0]);
+  assert.equal(state.activateDocument('gone1', { userId: 'owner' }), null);
+});

@@ -129,6 +129,11 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
 
     deactivate() { activeKey = null; revision++; },
 
+    /** The trip the last draft became, for a /view whose draft is already saved. */
+    get savedDraftId() {
+      return [...entries.values()].reverse().find(entry => entry.savedFromDraft && entry.source.kind === 'private')?.source.id || null;
+    },
+
     forgetDocument(id) {
       let removed = false;
       for (const [key, entry] of entries) {
