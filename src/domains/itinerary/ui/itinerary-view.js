@@ -514,36 +514,51 @@ export default class ItineraryView extends HTMLElement {
   setupSaveListener() {
     const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
     if (saveBtn) {
-      saveBtn.addEventListener('click', async () => {
+      saveBtn.addEventListener('click', () => {
         trackEvent('save_itinerary_click');
-        try {
-          this._saving = true;
-          saveBtn.disabled = true;
-          saveBtn.textContent = t('savingStateBtn') || '저장 중...';
-          const result = await this.actions.save({
-            language: getLang(),
-            onSaved: id => {
-              // Toast first: an offline-copy warning from refreshOfflineCopy then replaces it instead of being hidden.
-              this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
-              this.refreshOfflineCopy(id);
-              this.renderCurrentState();
-              // Replace the pre-save /view or /share entry so Back can't reopen a copy that offers Save again.
-              if (window.navigate) window.navigate('/view/' + id, { replace: true });
-            },
-          });
-          if (result.status === 'login-required') {
-            this.loginToSave();
-          } else if (result.status === 'saved-earlier-version') {
-            this.showToast(t('itinerarySavedEarlierVersion'));
-          }
-        } catch (error) {
-          console.error("Save error:", error);
-          this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
-        } finally {
-          this._saving = false;
-          this.refreshAccessControls();
-        }
+        const path = window.location.pathname;
+        return this.saveCurrent({ onSavedId: id => this.openSavedTrip(id, path) });
       });
+    }
+  }
+
+  // Replace the pre-save /view or /share entry so Back can't reopen a copy that offers Save again.
+  // A user who already left keeps the page they went to.
+  openSavedTrip(id, path) {
+    if (window.navigate && window.location.pathname === path) window.navigate('/view/' + id, { replace: true });
+  }
+
+  async saveCurrent({ onSavedId }) {
+    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
+    try {
+      this._saving = true;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = t('savingStateBtn') || '저장 중...';
+      }
+      const result = await this.actions.save({
+        language: getLang(),
+        onSaved: id => {
+          // Toast first: an offline-copy warning from refreshOfflineCopy then replaces it instead of being hidden.
+          this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
+          this.refreshOfflineCopy(id);
+          this.renderCurrentState();
+          onSavedId(id);
+        },
+      });
+      if (result.status === 'login-required') {
+        this.loginToSave();
+      } else if (result.status === 'saved-earlier-version') {
+        this.showToast(t('itinerarySavedEarlierVersion'));
+      }
+      return result;
+    } catch (error) {
+      console.error("Save error:", error);
+      this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
+      return { status: 'failed' };
+    } finally {
+      this._saving = false;
+      this.refreshAccessControls();
     }
   }
 
@@ -665,18 +680,54 @@ export default class ItineraryView extends HTMLElement {
   }
 
   async getShareUrl() {
-    const result = await this.actions.getShareLink({
-      confirmPublicShare: () => showConfirm({
-        title: t('sharePublicTitle'),
-        message: t('sharePublicNotice'),
-        confirmText: t('sharePublicConfirm'),
-        cancelText: t('cancelBtn'),
-        destructive: false,
-      }),
-    });
-    if (result.status === 'login-required') this.loginToSave();
-    if (result.status === 'save-required') showGlobalToast(t('shareSaveFirst'), { tone: 'warning' });
-    return result.status === 'ready' ? result.url : null;
+    // A running save or share would otherwise write a second trip or public document.
+    if (this._saving || this._sharing) {
+      showGlobalToast(t('creatingLink'), { tone: 'warning' });
+      return null;
+    }
+    // Firestore writes wait forever without a connection, which would leave the button stuck.
+    if (navigator.onLine === false) {
+      this.showToast(t('shareLinkFailed'), true);
+      return null;
+    }
+    const path = window.location.pathname;
+    const leaving = new AbortController();
+    const onLeave = () => leaving.abort();
+    window.addEventListener('popstate', onLeave);
+    let savedId = null;
+    this._sharing = true;
+    try {
+      const result = await this.actions.getShareLink({
+        confirmPublicShare: () => showConfirm({
+          title: t('sharePublicTitle'),
+          message: t('sharePublicNotice'),
+          confirmText: t('sharePublicConfirm'),
+          cancelText: t('cancelBtn'),
+          destructive: false,
+          signal: leaving.signal,
+        }),
+        confirmSaveAndShare: () => showConfirm({
+          title: t('shareSaveAndPublicTitle'),
+          message: `${t('shareSaveAndPublicIntro')} ${t('sharePublicNotice')}`,
+          confirmText: t('shareSaveAndPublicConfirm'),
+          cancelText: t('cancelBtn'),
+          destructive: false,
+          signal: leaving.signal,
+        }),
+        saveBeforeShare: async () => {
+          // The address moves only after the link exists: a route change remounts this view and its busy buttons.
+          const saved = await this.saveCurrent({ onSavedId: id => { savedId = id; } });
+          return window.location.pathname === path ? saved : { status: 'left' };
+        },
+      });
+      if (result.status === 'login-required') this.loginToSave();
+      if (result.status === 'not-shared') showGlobalToast(t('shareNotCreatedAfterSave'), { tone: 'warning' });
+      return result.status === 'ready' ? result.url : null;
+    } finally {
+      this._sharing = false;
+      window.removeEventListener('popstate', onLeave);
+      if (savedId) this.openSavedTrip(savedId, path);
+    }
   }
 
   setupShareListener() {

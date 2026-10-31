@@ -111,7 +111,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
           const canonicalName = typeof place === 'string' ? place : place.englishName || tFor(`${place.key}Name`, 'ko');
           const chosen = selected.find(anchor => anchor.suggestionId === (typeof place === 'string' ? place : place.id) || anchor.location?.displayName === canonicalName);
           return <div className="flow-place-row" key={typeof place === 'string' ? place : place.id}>
-            <details><summary>{name}<small>{t(city.key)}</small></summary><p>{typeof place === 'string' ? name : place.name ? place.location : t(`${place.key}Description`)}</p>{typeof place !== 'string' && place.guide && <a href={place.guide} target="_blank" rel="noopener noreferrer">{t('courseVisitorSourceLink')}</a>}</details>
+            <details><summary>{name}<small>{t(city.key)}</small></summary><p>{typeof place === 'string' ? name : place.name ? place.location : t(`${place.key}Description`)}</p>{typeof place !== 'string' && place.guide && <a href={place.guide} target="_blank" rel="noopener noreferrer">{t(place.guideKorean ? 'discoverGuideKorean' : 'discoverGuide')}</a>}</details>
             <button disabled={busy} aria-pressed={!!chosen} aria-label={t(chosen ? 'flowRemovePlace' : 'flowAddPlace') + ': ' + name} onClick={() => chosen ? save({ anchorSchedules: selected.filter(anchor => anchor !== chosen) }) : addSuggestion(place)}>{chosen ? '✓' : '+'}</button>
           </div>;
         })}</div></details>

@@ -1496,3 +1496,42 @@ test('a failed auth download offers a reload and keeps the owner draft', async (
   expect(saved.owner).toBe('test-user');
   expect(saved.draft.startLocation).toBe('Kept start');
 });
+
+test('저장 안 한 일정을 공유하면 링크가 만들어질 때까지 주소와 공유 버튼이 그대로다', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function saveItinerary() { return 'saved1'; }
+    export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; await new Promise(done => { window.finishShare = done; }); return 'public1'; }
+    export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
+    export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
+    export async function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
+  ` }));
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
+    contentType: 'text/javascript', body: `
+      export async function getGenerationCredits() { return 1; }
+      export async function generateOptimizedItinerary() {
+        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: [
+          { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+          { type: 'arrival', title: '경복궁', time: '10:00', location: '경복궁' },
+        ] }] };
+      }
+    `,
+  }));
+  await page.goto('/plan');
+  await page.locator('travel-form:visible').first().evaluate(element => {
+    element.dispatchEvent(new CustomEvent('generate-itinerary', { detail: {}, bubbles: true, composed: true }));
+  });
+  await expect(page).toHaveURL(/\/view$/);
+  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  const share = page.locator('itinerary-view:visible #share-itinerary-btn');
+  await share.click();
+  await page.locator('#app-confirm-host .confirm-ok').click();
+  await page.waitForFunction(() => window.shares === 1);
+  await expect(page).toHaveURL(/\/view$/);
+  await expect(share).toBeDisabled();
+  await page.evaluate(() => window.finishShare());
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('/share/public1');
+  expect(await page.evaluate(() => window.shares)).toBe(1);
+});

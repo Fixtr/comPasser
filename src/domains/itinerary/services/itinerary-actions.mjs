@@ -58,7 +58,7 @@ export function createItineraryActions({
       return { status: 'saved', id };
     },
 
-    async getShareLink({ confirmPublicShare }) {
+    async getShareLink({ confirmPublicShare, confirmSaveAndShare, saveBeforeShare }) {
       const entry = state.current;
       if (!entry?.plan || entry.plan.isFallback) return { status: 'unavailable' };
       // 공개 공유본의 재공유에는 로그인, 확인창, 새로운 쓰기가 필요 없다.
@@ -67,14 +67,22 @@ export function createItineraryActions({
       }
       const userId = getCurrentUser()?.uid;
       if (!userId) return { status: 'login-required' };
-      if (entry.source.kind !== 'private' || !entry.source.id) return { status: 'save-required' };
-
-      const confirmed = await confirmPublicShare();
+      // 공유본은 원본 삭제를 추적하므로 개인 문서가 먼저 있어야 한다. 새 초안은 한 번 확인받고 저장한다.
+      const needsSave = entry.source.kind !== 'private' || !entry.source.id;
+      const confirmed = await (needsSave ? confirmSaveAndShare : confirmPublicShare)();
       if (!confirmed || entry !== state.current || userId !== getCurrentUser()?.uid) {
         return { status: 'cancelled' };
       }
+      if (needsSave) {
+        const saved = await saveBeforeShare();
+        // 저장 중 편집이나 계정 변경이 있었다면 확인받은 일정이 아니므로 공개하지 않는다.
+        if (saved?.status === 'saved-earlier-version') return { status: 'not-shared' };
+        if (saved?.status !== 'saved' || state.current?.unsaved || state.current?.source.id !== saved.id || userId !== getCurrentUser()?.uid) {
+          return { status: 'cancelled' };
+        }
+      }
       // 같은 일정의 편집은 확인 이후의 최신 사본을 공유한다.
-      const id = await createSharedItinerary(state.snapshot().plan, entry.source.id);
+      const id = await createSharedItinerary(state.snapshot().plan, state.current.source.id);
       return { status: 'ready', url: getSharedItineraryUrl(id) };
     },
   };

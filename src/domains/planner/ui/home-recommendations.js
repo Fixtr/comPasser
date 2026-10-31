@@ -277,7 +277,7 @@ class HomeRecommendations extends HTMLElement {
         <p class="description"><strong>${t('discoverReason')} · </strong>${t(`${place.key}Description`)}</p>
         <p class="stay">${t('discoverStay').replace('{0}', place.stay)}</p>
         <a class="guide" href="${place.guide}" target="_blank" rel="noopener noreferrer" aria-labelledby="${place.id}-guide ${place.id}-name">
-          <span id="${place.id}-guide" data-i18n="discoverGuide"></span>
+          <span id="${place.id}-guide" data-i18n="${place.guideKorean ? 'discoverGuideKorean' : 'discoverGuide'}"></span>
         </a>
         </details>
         <button type="button" data-place="${place.id}" aria-pressed="false" aria-labelledby="${place.id}-start ${place.id}-name">

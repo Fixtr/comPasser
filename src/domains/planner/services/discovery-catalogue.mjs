@@ -13,7 +13,7 @@ export const cities = [
     { id: 'haeundae', key: 'discoverHaeundae', kind: 'discoverLandmark', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=111053' },
     { id: 'dongbaek', key: 'discoverDongbaek', kind: 'discoverFind', stay: '45–90', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=81541' },
     { id: 'gwangalli', key: 'discoverGwangalli', kind: 'discoverWalk', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?menuSn=219&vcontsId=228475' },
-    { id: 'gamcheon', key: 'discoverGamcheon', kind: 'discoverFind', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/hdrdslt/hdrdsltView.do?crsSn=965&lang=LABNDR__FRAH' },
+    { id: 'gamcheon', key: 'discoverGamcheon', kind: 'discoverFind', stay: '60–90', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=72894' },
     { id: 'jagalchi', key: 'discoverJagalchi', kind: 'discoverFind', stay: '45–75', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=224679' },
     { id: 'taejongdae', key: 'discoverTaejongdae', kind: 'discoverWalk', stay: '90–120', guide: 'https://visitbusan.net/kr/index.do?menuCd=DOM_000000201001001000&uc_seq=258&lang_cd=en' },
   ] },
@@ -46,7 +46,7 @@ export const cities = [
     { id: 'expo', searchAliases: ["대전 엑스포 과학공원"], key: 'discoverExpo', kind: 'discoverLandmark', stay: '45–75', guide: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=95423' },
     { id: 'yuseong', searchAliases: ["유성온천 족욕체험장"], key: 'discoverYuseong', kind: 'discoverFind', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=139940' },
     { id: 'science', key: 'discoverScience', kind: 'discoverLandmark', stay: '90–120', guide: 'https://www.science.go.kr/eps/index.do' },
-    { id: 'ppuri', key: 'discoverPpuri', kind: 'discoverWalk', stay: '45–90', guide: 'https://daejeon.go.kr/its/ItsdjNormalboardView.do?boardGubun=itsdj01&boardSeq=3894&menuSeq=5934&pageIndex=1' },
+    { id: 'ppuri', key: 'discoverPpuri', kind: 'discoverWalk', stay: '45–90', guide: 'https://daejeon.go.kr/its/ItsdjNormalboardView.do?boardGubun=itsdj01&boardSeq=3894&menuSeq=5934&pageIndex=1', guideKorean: true },
     { id: 'daecheong', key: 'discoverDaecheong', kind: 'discoverWalk', stay: '60–120', guide: 'https://www.daejeon.go.kr/english/EngContentsHtmlView.do?menuSeq=7051' },
   ] },
 ];
