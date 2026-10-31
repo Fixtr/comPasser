@@ -11,6 +11,7 @@ export function createItineraryActions({
   updateItinerary,
   createSharedItinerary,
   getSharedItineraryUrl,
+  undeliveredShare = {},
 }) {
   return {
     /**
@@ -67,6 +68,12 @@ export function createItineraryActions({
       }
       const userId = getCurrentUser()?.uid;
       if (!userId) return { status: 'login-required' };
+      // 복사나 카카오 전달이 실패한 링크는 이미 동의받은 같은 내용이므로 공개 문서를 또 만들지 않는다.
+      // shortcut: a trip deleted on another device still returns its now unreadable link, read the source first if that shows up.
+      const kept = undeliveredShare.link;
+      if (kept && kept.userId === userId && kept.sourceId === entry.source.id && kept.plan === JSON.stringify(entry.plan)) {
+        return { status: 'ready', url: kept.url };
+      }
       // 공유본은 원본 삭제를 추적하므로 개인 문서가 먼저 있어야 한다. 새 초안은 한 번 확인받고 저장한다.
       const needsSave = entry.source.kind !== 'private' || !entry.source.id;
       const confirmed = await (needsSave ? confirmSaveAndShare : confirmPublicShare)();
@@ -82,8 +89,15 @@ export function createItineraryActions({
         }
       }
       // 같은 일정의 편집은 확인 이후의 최신 사본을 공유한다.
-      const id = await createSharedItinerary(state.snapshot().plan, state.current.source.id);
-      return { status: 'ready', url: getSharedItineraryUrl(id) };
+      const { plan } = state.snapshot();
+      const sourceId = state.current.source.id;
+      const url = getSharedItineraryUrl(await createSharedItinerary(plan, sourceId));
+      undeliveredShare.link = { userId, sourceId, plan: JSON.stringify(plan), url };
+      return { status: 'ready', url };
+    },
+
+    linkDelivered(url) {
+      if (undeliveredShare.link?.url === url) undeliveredShare.link = null;
     },
   };
 }

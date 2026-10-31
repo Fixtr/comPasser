@@ -69,6 +69,7 @@ class ProfileView extends HTMLElement {
             applyTranslations(this.shadowRoot);
             this.shadowRoot.getElementById('profile-language').value = getLang();
             const user = getCurrentUser(); if (user) this.updateBasicAuthUI(user);
+            if (this.userData && !this.editingField) this.updateExtendedProfileUI();
             this.renderDeletionStatus(); this.renderGenerationCredits(); if (this.itineraries.length) this.renderItineraries();
         };
         window.addEventListener('i18n-changed', this._i18nHandler);
@@ -220,7 +221,7 @@ class ProfileView extends HTMLElement {
         if (!container) return;
 
         const isEditing = this.editingField === field;
-        const displayValue = value || '설정되지 않음';
+        const displayValue = value || t('profileFieldNotSet');
         const hasValue = !!value;
 
         if (isEditing) {
@@ -569,7 +570,7 @@ class ProfileView extends HTMLElement {
                 console.error('Rename failed:', error);
                 saveBtn.disabled = false;
                 saveBtn.textContent = t('saveBtn');
-                input.setCustomValidity(error.message || '이름을 바꾸지 못했습니다.');
+                input.setCustomValidity(t('tripRenameFailed'));
                 input.reportValidity();
                 setTimeout(() => input.setCustomValidity(''), 0);
             }
@@ -596,10 +597,10 @@ class ProfileView extends HTMLElement {
         if (navigator.onLine === false) return;
         const userId = getCurrentUser()?.uid;
         const ok = await showConfirm({
-            title: '일정 삭제',
-            message: '정말로 이 여행 일정을 삭제하시겠습니까? 삭제한 일정은 되돌릴 수 없습니다. 공개 코스도 목록에서 삭제되고, 이 일정에 연결된 공유 링크에서도 내용을 볼 수 없게 됩니다. 다른 사람이 저장한 사본과 원본 연결이 없는 구버전 공유본은 유지됩니다.',
-            confirmText: '삭제',
-            cancelText: '취소'
+            title: t('tripDeleteTitle'),
+            message: t('tripDeleteMessage'),
+            confirmText: t('deleteBtn'),
+            cancelText: t('cancelBtn')
         });
         if (ok && userId && getCurrentUser()?.uid === userId) {
             try {

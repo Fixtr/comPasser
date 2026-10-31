@@ -380,3 +380,47 @@ test('게스트의 새 초안은 저장 확인 없이 로그인을 요구한다'
   state.open(plan());
   assert.deepEqual(await shareDraft(actions, { confirmSaveAndShare: () => { throw Error('must not confirm'); } }), { status: 'login-required' });
 });
+
+test('전달에 실패한 링크는 내용이 그대로면 확인이나 새 공개 문서 없이 다시 쓴다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  const first = await shareDraft(actions);
+  let asked = 0;
+  const confirm = async () => { asked++; return true; };
+  const retry = await actions.getShareLink({ confirmPublicShare: confirm, confirmSaveAndShare: confirm });
+  assert.deepEqual(retry, first);
+  assert.equal(asked, 0);
+  assert.equal(calls.shares.length, 1);
+});
+
+test('전달에 성공한 뒤 다시 공유하면 지금처럼 확인받고 새 공개 문서를 만든다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  const { url } = await shareDraft(actions);
+  actions.linkDelivered(url);
+  let asked = 0;
+  await actions.getShareLink({ confirmPublicShare: async () => { asked++; return true; } });
+  assert.equal(asked, 1);
+  assert.equal(calls.shares.length, 2);
+});
+
+test('전달에 실패한 뒤 일정을 고치면 고친 내용으로 확인받고 새 공개 문서를 만든다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  await shareDraft(actions);
+  state.current.plan.days[0].scheduleItems[0].title = '창덕궁';
+  let asked = 0;
+  await actions.getShareLink({ confirmPublicShare: async () => { asked++; return true; } });
+  assert.equal(asked, 1);
+  assert.equal(calls.shares.length, 2);
+  assert.equal(calls.shares[1].days[0].scheduleItems[0].title, '창덕궁');
+});
+
+test('전달에 실패한 링크를 다른 계정에 다시 주지 않는다', async () => {
+  const { state, session, actions, calls } = fixture();
+  state.open(plan());
+  await shareDraft(actions);
+  session.user = { uid: 'other' };
+  await actions.getShareLink({ confirmPublicShare: async () => true });
+  assert.equal(calls.shares.length, 2);
+});
