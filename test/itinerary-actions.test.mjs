@@ -14,9 +14,14 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function fixture({ user = { uid: 'owner' }, save, share, update } = {}) {
+function memoryStorage() {
+  const data = new Map();
+  return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value), removeItem: key => data.delete(key) };
+}
+
+function fixture({ user = { uid: 'owner' }, save, share, update, read, storage = memoryStorage() } = {}) {
   const session = { user };
-  const state = createItineraryState();
+  const state = createItineraryState({ getStorage: () => storage });
   state.setUser(user?.uid);
   const calls = { saves: [], shares: [], urls: [] };
   const updates = [];
@@ -40,6 +45,7 @@ function fixture({ user = { uid: 'owner' }, save, share, update } = {}) {
       calls.urls.push(id);
       return `https://app.example/share/${id}`;
     },
+    readSharedItinerary: async id => (read ? read(id) : plan()),
   });
   return { state, session, calls, updates, actions };
 }
@@ -397,7 +403,7 @@ test('전달에 성공한 뒤 다시 공유하면 지금처럼 확인받고 새 
   const { state, actions, calls } = fixture();
   state.open(plan());
   const { url } = await shareDraft(actions);
-  actions.linkDelivered(url);
+  await actions.linkDelivered(url);
   let asked = 0;
   await actions.getShareLink({ confirmPublicShare: async () => { asked++; return true; } });
   assert.equal(asked, 1);
@@ -453,4 +459,107 @@ test('다른 기기에서 지운 일정을 새로 저장해도 되돌리기가 �
   assert.equal(state.current.source.id, 'saved123');
   assert.ok(state.current.undoByDay[0]);
   assert.equal(state.activateDocument('gone1', { userId: 'owner' }), null);
+});
+
+const neverAsked = { confirmPublicShare: () => { throw Error('a retry must not ask again'); } };
+const askedAndDeclined = () => {
+  const asked = { count: 0 };
+  return { asked, confirmPublicShare: async () => { asked.count++; return false; } };
+};
+
+test('장소 표시 이름만 채워졌으면 전달 실패한 링크를 그대로 쓴다', async () => {
+  const { state, actions, calls } = fixture();
+  state.open(plan());
+  const first = await shareDraft(actions);
+  state.resolvePlaces(0, [{ index: 0, name: '경복궁', address: '서울' }]);
+  assert.deepEqual(await actions.getShareLink(neverAsked), first);
+  assert.equal(calls.shares.length, 1);
+});
+
+test('지도 재계산으로 시각이나 정류지가 바뀌면 받는 화면과 달라지므로 새로 확인받는다', async () => {
+  const { state, actions } = fixture();
+  state.open(plan());
+  await shareDraft(actions);
+  state.replaceDayItems(0, [{ title: '경복궁', time: '09:20' }]);
+  const decline = askedAndDeclined();
+  await actions.getShareLink(decline);
+  assert.equal(decline.asked.count, 1);
+});
+
+test('공개 문서를 쓰는 중에 고친 일정에는 그 링크를 재시도에 쓰지 않는다', async () => {
+  const pending = deferred();
+  const { state, actions, calls } = fixture({ share: () => pending.promise });
+  state.open(plan());
+  const sharing = shareDraft(actions);
+  while (!calls.shares.length) await new Promise(setImmediate);
+  state.editDayItems(0, [{ title: '창덕궁', time: '09:00' }]);
+  pending.resolve('published123');
+  await sharing;
+  const decline = askedAndDeclined();
+  await actions.getShareLink(decline);
+  assert.equal(decline.asked.count, 1);
+});
+
+test('재사용한 링크는 전달 전에 서버를 읽지 않고, 전달 뒤 열리지 않으면 실패로 알리고 잊는다', async () => {
+  let reads = 0;
+  const { state, actions } = fixture({ read: () => { reads++; return null; } });
+  state.open(plan());
+  const { url } = await shareDraft(actions);
+  await actions.getShareLink(neverAsked);
+  assert.equal(reads, 0);
+  assert.equal(await actions.linkDelivered(url), false);
+  assert.equal(reads, 1);
+  const decline = askedAndDeclined();
+  await actions.getShareLink(decline);
+  assert.equal(decline.asked.count, 1);
+});
+
+test('처음 만든 링크의 전달은 서버를 다시 읽지 않고, 재사용 링크의 읽기 오류는 실패로 치지 않는다', async () => {
+  let reads = 0;
+  const { state, actions } = fixture({ read: () => { reads++; throw Object.assign(Error('offline'), { code: 'unavailable' }); } });
+  state.open(plan());
+  const { url } = await shareDraft(actions);
+  await actions.getShareLink(neverAsked);
+  assert.equal(await actions.linkDelivered(url), true);
+  assert.equal(reads, 1);
+
+  const fresh = fixture({ read: () => { throw Error('must not read'); } });
+  fresh.state.open(plan());
+  const first = await shareDraft(fresh.actions);
+  assert.equal(await fresh.actions.linkDelivered(first.url), true);
+});
+
+test('전달 실패한 링크는 새로고침 뒤 복원한 일정에서도 다시 쓰고, 다른 뷰가 저장해도 남는다', async () => {
+  const storage = memoryStorage();
+  const first = fixture({ storage });
+  first.state.open(plan());
+  const link = await shareDraft(first.actions);
+
+  const stacked = fixture({ storage });
+  stacked.state.open(plan(), { kind: 'private', id: 'other123' });
+  stacked.state.selectDay(1);
+
+  const reloaded = fixture({ storage });
+  reloaded.state.open(first.state.snapshot().plan, { kind: 'private', id: 'saved123' });
+  assert.deepEqual(await reloaded.actions.getShareLink(neverAsked), link);
+  assert.equal(reloaded.calls.shares.length, 0);
+});
+
+test('로그아웃하거나 계정이 바뀌면 저장해 둔 전달 실패 링크를 지운다', async () => {
+  const storage = memoryStorage();
+  const { state, actions } = fixture({ storage });
+  state.open(plan());
+  await shareDraft(actions);
+  state.setUser(null);
+  assert.equal(state.undeliveredLink, null);
+});
+
+test('파손된 전달 실패 링크 사본은 무시한다', async () => {
+  const storage = memoryStorage();
+  const { state, actions } = fixture({ storage });
+  state.open(plan(), { kind: 'private', id: 'saved123' });
+  storage.setItem('compasser.undeliveredShare.v1', '{broken');
+  const decline = askedAndDeclined();
+  await actions.getShareLink(decline);
+  assert.equal(decline.asked.count, 1);
 });

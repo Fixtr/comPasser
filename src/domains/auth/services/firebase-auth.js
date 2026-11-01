@@ -142,6 +142,7 @@ export async function logout({ keepLocalData = false } = {}) {
         sessionStorage.removeItem('savedItineraryData');
         sessionStorage.removeItem('userPreference');
         sessionStorage.removeItem('compasser.itineraries.v1');
+        sessionStorage.removeItem('compasser.undeliveredShare.v1');
         } catch (error) { console.warn('Local travel cleanup failed', error); }
         await signOut(requireAuth());
 
@@ -260,6 +261,7 @@ export async function deleteCurrentUser(expectedUserId) {
         sessionStorage.removeItem('savedItineraryData');
         sessionStorage.removeItem('userPreference');
         sessionStorage.removeItem('compasser.itineraries.v1');
+        sessionStorage.removeItem('compasser.undeliveredShare.v1');
         } catch (error) { console.warn('Local travel cleanup failed', error); }
     }
 }
