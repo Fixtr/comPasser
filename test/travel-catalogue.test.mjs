@@ -128,3 +128,12 @@ test('US city time zones honor DST while Honolulu remains on Hawaii time', () =>
   assert.equal(TRAVEL_REGIONS.USA.timeZone,'America/New_York');
   assert.equal(travelRegion({destination:{country:'JPN',id:'honolulu'}}).timeZone,'Asia/Tokyo');
 });
+
+test('fetched places link to their own guide page, not a shared landing page', () => {
+  const generic = /gotokyo\.org\/en\/see-and-do\/attractions|kyoto\.travel\/en\/itineraries|explorenicecotedazur\.com\/en\/$|spaces-of-interest|bcnshop\.barcelonaturisme|7-days-in-singapore|IfyouvisitSeoul|vcontsId=(228475|224679)|menu_id=00000050|2019_daegu_city_tour|EN010709\/2228575|CNTS_200000000011713|boardSeq=3894|nama\/planyourvisit\/placestogo|choosechicago\.com\/things-to-do\/tours-attractions|articles\/bucket-list|articles\/tours-and-attractions\/page|free-things-to-do-in-las-vegas|picture-perfect-getaway|venice-meets-vegas|ten-things-you-must-do|discover-la-your-way|discoverlosangeles\.com\/things-to-do$/;
+  const places = destinations.flatMap(city => city.places);
+  assert.deepEqual(places.filter(place => generic.test(place.guide)).map(place => place.id), []);
+  // Hosts still shared by several places: bot-blocked pages left as they are, Hanoi's list article, and Rome's Forum and Palatine page.
+  const shared = Object.entries(Object.groupBy(places, place => place.guide)).filter(([, group]) => group.length > 1).map(([url]) => new URL(url).host);
+  assert.deepEqual([...new Set(shared)].sort(), ['parisjetaime.com', 'travel.taipei', 'turismoroma.it', 'vietnam.travel', 'www.gohawaii.com', 'www.sftravel.com', 'www.visitlondon.com']);
+});

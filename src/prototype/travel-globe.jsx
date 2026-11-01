@@ -9,6 +9,8 @@ const supported = new Set(destinationCountries);
 // Rebuilding 177 country paths every frame kept a slow phone's main thread 100% busy and made taps
 // wait about 1 s, so the automatic turn is a short intro: it stops after this long or at the first touch.
 const AUTO_TURN_MS = 10000;
+// Under 24 px each way at full size, or missing from the 110m map (Singapore), so they get a marker to tap.
+const MARKERS = { KOR: [127.8, 36.4], TWN: [121, 23.7], SGP: [103.82, 1.35] };
 
 export function TravelGlobe({ active, onChooseCity }) {
   const svg = useRef(null), rotation = useRef([-127, -30, 0]), drag = useRef(null), velocity = useRef([0,0]);
@@ -22,6 +24,8 @@ export function TravelGlobe({ active, onChooseCity }) {
   const [angle, setAngle] = useState(rotation.current);
   const projection = geoOrthographic().scale(128 * zoom).translate([130,130]).rotate(angle);
   const path = geoPath(projection);
+  // path() is null on the far side of the globe, which hides the marker.
+  const markers = Object.entries(MARKERS).filter(([, place]) => path({ type:'Point', coordinates:place })).map(([code, place]) => [code, projection(place)]);
   const zoomBy = factor => setZoom(value => Math.max(.65, Math.min(4, value * factor)));
   const distance = () => {
     const [a,b] = [...pointers.current.values()];
@@ -114,7 +118,10 @@ export function TravelGlobe({ active, onChooseCity }) {
       onKeyDown={event => { const move={ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,12],ArrowDown:[0,-12]}[event.key]; if(move){event.preventDefault(); rotate(...move);} else if(['+','=','-'].includes(event.key)){event.preventDefault();zoomBy(event.key==='-' ? 1/1.2 : 1.2);} }}
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={event => pointerEnd(event,true)} onLostPointerCapture={event => pointerEnd(event,true)}>
       <circle cx="130" cy="130" r={128 * zoom} className="globe-ocean" />
+      {/* The tap area sits under the country shapes, so it only widens over the sea and never takes a neighbour's tap: 40 units, 44 px on a 288 px globe. */}
+      {markers.map(([code, [x, y]]) => <circle key={code} data-country={code} className="globe-marker-area" cx={x} cy={y} r="20" />)}
       {countries.map(country => <path key={country.properties.id} data-country={country.properties.id} d={path(country) || ''} className={selected===country.properties.id ? 'globe-selected' : ''}><title>{countryName(country.properties.id)}</title></path>)}
+      {markers.map(([code, [x, y]]) => <circle key={code} data-country={code} className={`globe-marker${selected===code ? ' globe-selected' : ''}`} cx={x} cy={y} r="3"><title>{countryName(code)}</title></circle>)}
     </svg>
     {/* The label names the action, so no aria-pressed: both together read as 'stop rotation, pressed'. */}
     <button className="globe-auto" onClick={() => { userTurned.current = !turning; setTurning(!turning); }} aria-label={t(turning ? 'globePause' : 'globePlay')} title={t(turning ? 'globePause' : 'globePlay')}><span aria-hidden="true">{turning ? '❚❚' : '▶'}</span></button>

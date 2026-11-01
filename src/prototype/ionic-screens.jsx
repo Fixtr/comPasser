@@ -59,7 +59,7 @@ export function CoursesScreen({ settings }) {
   const { country, city, pick: pickPlace, back: backPlace } = usePlacePick('/courses');
   const navigate = useNavigate();
   const [loadState, setLoadState] = useState('loading');
-  // A review link whose course is gone or cannot be read says so above the country picker.
+  // A review link that cannot open its course says why, on whichever step the address shows.
   const [reviewNotice, setReviewNotice] = useState('');
   const stageRef = useStageTransition(city?.id || country || 'country');
   const courseCities = destinations;
@@ -76,15 +76,23 @@ export function CoursesScreen({ settings }) {
     // Review links (route pages, post-login return) open the course's city; public-courses then opens its panel.
     const query = new URLSearchParams(window.location.search);
     const reviewId = query.get('review');
-    if (/^[a-zA-Z0-9]+$/.test(reviewId || '') && !query.get('city')) void import('../domains/itinerary/services/public-course-service.js')
+    if (/^[a-zA-Z0-9]+$/.test(reviewId || '')) void import('../domains/itinerary/services/public-course-service.js')
       .then(service => service.getPublicCourse(reviewId))
       .then(course => {
-        const match = course && destinations.find(item => item.id === courseCity(course));
-        // Only a course that is gone says so; a public course outside the catalogue cities still opens nothing, quietly.
-        if (active && !course && !picked.current) setReviewNotice('courseReviewMissing');
-        if (active && match && !picked.current && window.location.pathname === '/courses') navigate(`/courses?${new URLSearchParams({ country: match.country, city: match.id, review: reviewId })}`, { replace: true });
+        if (!active || picked.current || window.location.pathname !== '/courses') return;
+        if (!course) {
+          setReviewNotice('courseReviewMissing');
+          query.delete('review');
+          navigate(`/courses${query.toString() ? `?${query}` : ''}`, { replace: true });
+          return;
+        }
+        // An address that already names a city stays there; public-courses opens the panel.
+        if (city) return;
+        const match = destinations.find(item => item.id === courseCity(course));
+        if (match) navigate(`/courses?${new URLSearchParams({ country: match.country, city: match.id, review: reviewId })}`, { replace: true });
+        else setReviewNotice('courseReviewOutsideCatalogue');
       })
-      .catch(error => { console.error('Review course unavailable:', error); if (active && !picked.current) setReviewNotice('courseReviewUnavailable'); });
+      .catch(error => { console.error('Review course unavailable:', error); if (active && !picked.current && !city) setReviewNotice('courseReviewUnavailable'); });
     return () => { active = false; };
   }, []);
   const back = () => {
@@ -99,7 +107,8 @@ export function CoursesScreen({ settings }) {
     </div>
     <section ref={stageRef} className="flow-page">
       <h1>{t(city ? 'courseBrowseTitle' : country ? 'flowCity' : 'courseCountryTitle')}</h1>
-      {!country && reviewNotice && <p role="status">{t(reviewNotice)}</p>}
+      {/* Always mounted: a live region that appears together with its text may never be announced. */}
+      <p role="status" className="course-review-notice">{reviewNotice && t(reviewNotice)}</p>
       {!country && <CountryPicker kind="course" onSelect={next => pick({ country: next })} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{courseCities.map(city => city.country === country ? <button key={city.id} data-course-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}
       {city && <div key={city.id}>

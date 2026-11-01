@@ -5,7 +5,6 @@ import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { COURSE_CITIES, courseMinutes, filterCourses } from '../../itinerary/services/course-community.mjs';
 import { formatMinutes } from '../../itinerary/services/boarding-pass.mjs';
-import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { addCourseToDraft, cityDestination } from '../services/course-draft.mjs';
 import { destinations } from '../services/travel-destinations.mjs';
 
@@ -105,7 +104,6 @@ class PublicCourses extends HTMLElement {
       article > button { display:block; box-sizing:border-box; width:100%; min-width:0; padding:8px; white-space:normal; overflow-wrap:anywhere; font-size:13px; }
       article > button[data-course] { margin-top:auto; }
       article > button + button { margin-top:8px; }
-      article > a { display:flex; align-items:center; min-height:44px; margin-top:2px; font-size:12px; color:var(--cp-ink); text-underline-offset:3px; }
       h3 { margin:8px 0; font-size:1.15rem; overflow-wrap:anywhere; }
       .stops, .review { overflow-wrap:anywhere; }
       .duration { margin-top:0; font-size:13px; }
@@ -223,9 +221,6 @@ class PublicCourses extends HTMLElement {
       if (duration) article.append(visit);
       if (course.review) article.append(review);
       article.append(action, reviews);
-      const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);
-      englishPage.textContent = t('courseEnglishLink'); named(englishPage, 'courseEnglishLink');
-      article.append(englishPage);
       this.cards.append(article);
       if (course.id === this.openReviewId) {
         this.openReviewId = null;
