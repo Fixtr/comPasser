@@ -4,6 +4,9 @@ import { buildItineraryTitle } from './itinerary-title.mjs';
  * 일정 저장·공개 공유의 규칙. DOM, 라우팅, 번역, Firebase SDK를 알지 않는다.
  * 데이터 접근은 주입하고, 최신 일정과 선택 날짜는 기존 state 한 곳에서 관리한다.
  */
+// 받는 화면은 시각을 다시 계산하지 않으므로 내용이 다르면 새로 동의받는다. 장소 표시 이름은 받는 화면도 직접 찾는다.
+const publishedContent = plan => JSON.stringify(plan, (key, value) => (key === 'resolvedName' || key === 'resolvedAddress' ? undefined : value));
+
 export function createItineraryActions({
   state,
   getCurrentUser,
@@ -11,7 +14,7 @@ export function createItineraryActions({
   updateItinerary,
   createSharedItinerary,
   getSharedItineraryUrl,
-  undeliveredShare = {},
+  readSharedItinerary,
 }) {
   return {
     /**
@@ -71,9 +74,9 @@ export function createItineraryActions({
       const userId = getCurrentUser()?.uid;
       if (!userId) return { status: 'login-required' };
       // 복사나 카카오 전달이 실패한 링크는 이미 동의받은 같은 내용이므로 공개 문서를 또 만들지 않는다.
-      // shortcut: a trip deleted on another device still returns its now unreadable link, read the source first if that shows up.
-      const kept = undeliveredShare.link;
-      if (kept && kept.userId === userId && kept.sourceId === entry.source.id && kept.plan === JSON.stringify(entry.plan)) {
+      const kept = state.undeliveredLink;
+      if (kept && kept.userId === userId && kept.sourceId === entry.source.id && kept.plan === publishedContent(entry.plan)) {
+        state.keepUndeliveredLink({ ...kept, reused: true });
         return { status: 'ready', url: kept.url };
       }
       // 공유본은 원본 삭제를 추적하므로 개인 문서가 먼저 있어야 한다. 새 초안은 한 번 확인받고 저장한다.
@@ -93,13 +96,26 @@ export function createItineraryActions({
       // 같은 일정의 편집은 확인 이후의 최신 사본을 공유한다.
       const { plan } = state.snapshot();
       const sourceId = state.current.source.id;
-      const url = getSharedItineraryUrl(await createSharedItinerary(plan, sourceId));
-      undeliveredShare.link = { userId, sourceId, plan: JSON.stringify(plan), url };
+      const id = await createSharedItinerary(plan, sourceId);
+      const url = getSharedItineraryUrl(id);
+      state.keepUndeliveredLink({ userId, sourceId, id, plan: publishedContent(plan), url });
       return { status: 'ready', url };
     },
 
-    linkDelivered(url) {
-      if (undeliveredShare.link?.url === url) undeliveredShare.link = null;
+    /**
+     * False when a reused link turned out unreadable because the trip was deleted elsewhere.
+     * The check follows delivery: a read before it would expire the tap Safari requires for the clipboard.
+     */
+    async linkDelivered(url) {
+      const kept = state.undeliveredLink;
+      if (kept?.url !== url) return true;
+      state.keepUndeliveredLink(null);
+      if (!kept.reused) return true;
+      try {
+        return Boolean(await readSharedItinerary(kept.id));
+      } catch {
+        return true; // Only a successful read proves the link is dead.
+      }
     },
   };
 }

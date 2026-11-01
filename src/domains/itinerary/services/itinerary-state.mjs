@@ -3,6 +3,7 @@ import { isFixedPlace, recommendationFields } from '../../map/services/recommend
 
 export const ITINERARY_SESSION_KEY = 'compasser.itineraries.v1';
 const LEGACY_DRAFT_KEY = 'savedItineraryData';
+const UNDELIVERED_LINK_KEY = 'compasser.undeliveredShare.v1';
 const validPlan = plan => {
   const days = normalizeData(plan)?.days;
   return Array.isArray(days) && days.length > 0 && days.every(day => Array.isArray(day?.scheduleItems));
@@ -93,6 +94,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
         } else {
           target.removeItem(ITINERARY_SESSION_KEY);
           target.removeItem(LEGACY_DRAFT_KEY);
+          target.removeItem(UNDELIVERED_LINK_KEY);
         }
       });
       if (userId) persist();
@@ -223,6 +225,21 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
         updated = true;
       }
       if (updated) changed();
+    },
+
+    /** A key of its own: each mounted view rewrites the entries key with only the trips it knows. */
+    get undeliveredLink() {
+      let link = null;
+      storage(target => {
+        try { link = JSON.parse(target.getItem(UNDELIVERED_LINK_KEY)); } catch { /* 파손된 사본은 쓰지 않는다. */ }
+      });
+      return link;
+    },
+    keepUndeliveredLink(link) {
+      storage(target => {
+        if (link) target.setItem(UNDELIVERED_LINK_KEY, JSON.stringify(link));
+        else target.removeItem(UNDELIVERED_LINK_KEY);
+      });
     },
 
     snapshot() {

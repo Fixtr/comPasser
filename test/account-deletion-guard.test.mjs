@@ -106,7 +106,13 @@ test('Firebase 인증 삭제가 실패하면 로컬 저장소도 먼저 비우�
 test('Firebase 인증 삭제 성공 후에만 로컬 상태를 정리한다', async () => {
   const app=authFixture();
   await app.api.deleteCurrentUser('owner');
-  assert.deepEqual(app.calls,[['delete','owner'],['local','hasSeenTutorial'],['local','compasser.offline.v1'],['local','compasser.planner.v1'],['session','currentFormData'],['session','savedItineraryData'],['session','userPreference'],['session','compasser.itineraries.v1']]);
+  assert.deepEqual(app.calls,[['delete','owner'],['local','hasSeenTutorial'],['local','compasser.offline.v1'],['local','compasser.planner.v1'],['session','currentFormData'],['session','savedItineraryData'],['session','userPreference'],['session','compasser.itineraries.v1'],['session','compasser.undeliveredShare.v1']]);
+});
+
+test('로그아웃하면 전달 실패한 공유 링크 사본도 지운다', async () => {
+  const app=authFixture();
+  await app.api.logout();
+  assert.ok(app.calls.some(call=>call[0]==='session'&&call[1]==='compasser.undeliveredShare.v1'));
 });
 
 test('가입 직후 인증 전 계정을 내보낼 때는 게스트의 여행 계획을 지우지 않는다', async () => {
