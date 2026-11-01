@@ -93,8 +93,13 @@ button { font: inherit; cursor: pointer; }
 .flow-place-row small { display: block; color: var(--cp-muted); margin-top: 4px; }
 .flow-place-row button { width: 44px; flex: none; font-size: 20px; }
 .flow-place-row button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
+.course-review-notice { word-break: keep-all; }
+.course-review-notice:empty { margin: 0; }
 .flow-page .flow-place-chip { margin: 8px 6px 0 0; font-size: 12px; max-width: 100%; overflow-wrap: anywhere; }
 .flow-place-actions { position: sticky; bottom: 0; z-index: 2; padding: 0 0 calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--cp-paper); border-top: 1px solid var(--cp-rule); }
+/* Sticky stops at the scroller's padding edge, and a margin below the page would leave a gap at the end: remove both so the bar reaches the screen bottom. */
+.shell-content:has(.flow-place-actions) { --padding-bottom: 0; }
+.flow-page:has(.flow-place-actions) { margin-bottom: 0; }
 /* The padding keeps each chip's 6px focus ring inside the scroll box, which would clip it. */
 .flow-place-chips { max-height: 110px; margin-inline: -6px; padding: 0 6px 6px; overflow-y: auto; }
 .flow-page .flow-place-actions .flow-primary { margin-top: 8px; }
@@ -142,6 +147,11 @@ button { font: inherit; cursor: pointer; }
 .globe-stage path { fill: var(--cp-surface); stroke: var(--cp-rule); stroke-width: .5; cursor: pointer; transition: fill 200ms ease-out; }
 :root[data-theme="dark"] .globe-stage path, :root[data-theme="dark"] .globe-ocean { stroke: var(--cp-muted); }
 .globe-stage path.globe-selected { fill: var(--cp-anchor); }
+.globe-marker-area { fill: transparent; cursor: pointer; }
+.globe-marker { fill: var(--cp-ink); cursor: pointer; }
+/* Singapore has no shape of its own on the 110m map, so its dot alone claims a little land: too small to reach Thailand or Vietnam. */
+.globe-marker[data-country=SGP] { stroke: transparent; stroke-width: 16; }
+.globe-marker.globe-selected { fill: var(--cp-anchor); }
 .globe-auto { position: absolute; right: 0; bottom: 0; width: 44px; height: 44px; padding: 0; background: transparent; border: 0; border-radius: 0; font-size: 16px; cursor: pointer; }
 .globe-selection { display: flex; gap: 12px; justify-content: center; align-items: center; margin-top: 12px; animation: globe-enter 180ms ease-out; }
 .globe-selection button { min-height: 32px; padding: 5px 10px; font-size: 12px; position: relative; }

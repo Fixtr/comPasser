@@ -484,7 +484,7 @@ test('all added countries offer places and curated courses, and US selections ke
   await expect.poll(()=>page.locator('gmp-place-autocomplete').evaluate(element=>element.includedRegionCodes?.[0])).toBe({TWN:'TW',THA:'TH',VNM:'VN',SGP:'SG',ITA:'IT',ESP:'ES',GBR:'GB',USA:'US'}[country]);
   await page.goto('/courses');await page.locator(`[data-course-country=${country}]`).click();await page.locator(`[data-course-city=${city}]`).click();
   await expect(page.locator('home-courses article')).toHaveCount(3);await expect(page.locator('home-courses article').first()).toContainText(name);
-  await expect(page.locator('home-courses article a').first()).toHaveAttribute('href',new RegExp(`/en/routes/curated-${city}$`));
+  await expect(page.locator('home-courses a')).toHaveAttribute('href',new RegExp(`/en/routes#city-${city}$`));
  }
  expect(await page.evaluate(()=>sessionStorage.getItem('currentFormData'))).toBe(initial);
  await page.locator('public-courses').scrollIntoViewIfNeeded();await expect(page.locator('public-courses article')).toHaveCount(1);await expect(page.locator('public-courses article')).toContainText('NYC walk');
@@ -516,7 +516,7 @@ test('all added countries offer places and curated courses, and US selections ke
 
 test('globe wheel and native two-finger pinch zoom without scrolling, rotating or selecting a country',async({page,context})=>{
  await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/home');
- const globe=page.locator('.globe-stage svg'),ocean=globe.locator('circle');await expect(ocean).toHaveAttribute('r','128');
+ const globe=page.locator('.globe-stage svg'),ocean=globe.locator('.globe-ocean');await expect(ocean).toHaveAttribute('r','128');
  // Reduced motion never turns the globe, so its control starts paused (and has no aria-pressed).
  const toggle=page.locator('.globe-stage .globe-auto');await expect(toggle).toHaveAttribute('aria-label','자동 회전 시작');await expect(toggle).not.toHaveAttribute('aria-pressed',/./);
  expect(await toggle.evaluate(element=>{const style=getComputedStyle(element);return [style.right,style.bottom,style.borderWidth,style.backgroundColor]})).toEqual(['0px','0px','0px','rgba(0, 0, 0, 0)']);
@@ -865,7 +865,7 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('/home');
   await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.update({step:'/preference/2',country:'FRA',date:['2030-10-17']}));
-  await page.locator('svg path[data-country=KOR]').click();
+  await page.locator('svg .globe-marker[data-country=KOR]').click();
   await expect(page.locator('.globe-selection')).toContainText('대한민국');
   await page.locator('.globe-selection button').click();
   await expect(page).toHaveURL(/destination$/);
