@@ -24,14 +24,14 @@ export const destinations = [
     { id: 'Vieux Nice', searchAliases: ["old nice"], name: '니스 구시가지', englishName: 'Old Town of Nice', location: 'Vieux Nice, Nice', stayMinutes: 60, guide: 'https://www.explorenicecotedazur.com/en/service-provider/le-vieux-nice/' },
   ] },
   { id: 'taipei', key: 'cityTaipei', country: 'TWN', places: [
-    { id: 'taipei-1', searchAliases: ["Chiang Kai-shek Memorial Hall"], name: '중정기념당', englishName: 'National Chiang Kai-shek Memorial Hall', location: 'National Chiang Kai-shek Memorial Hall, Taipei', stayMinutes: 60, guide: 'https://travel.taipei/en/must-visit/attractions' },
-    { id: 'taipei-2', name: '용산사', englishName: 'Longshan Temple', location: 'Longshan Temple, Taipei', stayMinutes: 45, guide: 'https://travel.taipei/en/attraction?page=1' },
-    { id: 'taipei-3', name: '타이베이 101', englishName: 'Taipei 101', location: 'Taipei 101, Taipei', stayMinutes: 90, guide: 'https://travel.taipei/en/must-visit/attractions' },
+    { id: 'taipei-1', searchAliases: ["Chiang Kai-shek Memorial Hall"], name: '중정기념당', englishName: 'National Chiang Kai-shek Memorial Hall', location: 'National Chiang Kai-shek Memorial Hall, Taipei', stayMinutes: 60, guide: 'https://www.cksmh.gov.tw/en/' },
+    { id: 'taipei-2', name: '용산사', englishName: 'Longshan Temple', location: 'Longshan Temple, Taipei', stayMinutes: 45, guide: 'https://www.travel.taipei/en/attraction/details/487' },
+    { id: 'taipei-3', name: '타이베이 101', englishName: 'Taipei 101', location: 'Taipei 101, Taipei', stayMinutes: 90, guide: 'https://www.taipei-101.com.tw/en' },
   ] },
   { id: 'bangkok', key: 'cityBangkok', country: 'THA', places: [
     { id: 'bangkok-1', name: '방콕 왕궁', englishName: 'The Grand Palace', location: 'The Grand Palace, Bangkok', stayMinutes: 120, guide: 'https://www.tourismthailand.org/Attraction/the-grand-palace' },
-    { id: 'bangkok-2', searchAliases: ["Wat Phra Chetuphon Wimon Mangkhalaram Rajwaramahawihan"], name: '왓 포', englishName: 'Wat Pho', location: 'Wat Pho, Bangkok', stayMinutes: 60, guide: 'https://www.tourismthailand.org/Destinations/Provinces/Bangkok/219' },
-    { id: 'bangkok-3', name: '왓 아룬', englishName: 'Wat Arun', location: 'Wat Arun, Bangkok', stayMinutes: 60, guide: 'https://www.tourismthailand.org/Destinations/Provinces/Bangkok/219' },
+    { id: 'bangkok-2', searchAliases: ["Wat Phra Chetuphon Wimon Mangkhalaram Rajwaramahawihan"], name: '왓 포', englishName: 'Wat Pho', location: 'Wat Pho, Bangkok', stayMinutes: 60, guide: 'https://watpho.com/en/home' },
+    { id: 'bangkok-3', name: '왓 아룬', englishName: 'Wat Arun', location: 'Wat Arun, Bangkok', stayMinutes: 60, guide: 'https://www.tourismthailand.org/Attraction/wat-arun-ratchawararam-ratchawaramahawihan' },
   ] },
   { id: 'hanoi', key: 'cityHanoi', country: 'VNM', places: [
     { id: 'hanoi-1', searchAliases: ["Hoàn Kiếm Lake"], name: '호안끼엠 호수', englishName: 'Hoan Kiem Lake', location: 'Hoan Kiem Lake, Hanoi', stayMinutes: 60, guide: 'https://vietnam.travel/things-to-do/11-must-see-attractions-ha-noi' },
@@ -72,7 +72,7 @@ export const destinations = [
     { id: "losangeles-3", searchAliases: ["The Getty"], name: "게티 센터", englishName: "The Getty Center", location: "The Getty Center, Los Angeles, CA", stayMinutes: 120, guide: "https://www.getty.edu/visit/center/" },
     { id: "losangeles-4", name: "산타모니카 피어", englishName: "Santa Monica Pier", location: "Santa Monica Pier, Santa Monica, CA", stayMinutes: 90, guide: "https://www.discoverlosangeles.com/things-to-do/santa-monica-pier" },
     { id: "losangeles-5", name: "할리우드 사인", englishName: "Hollywood Sign", location: "Hollywood Sign, Los Angeles, CA", stayMinutes: 60, guide: "https://www.hollywoodsign.org/" },
-    { id: "losangeles-6", name: "월트 디즈니 콘서트 홀", englishName: "Walt Disney Concert Hall", location: "Walt Disney Concert Hall, Los Angeles, CA", stayMinutes: 45, guide: "https://www.laphil.com/visit/plan-your-visit" },
+    { id: "losangeles-6", name: "월트 디즈니 콘서트 홀", englishName: "Walt Disney Concert Hall", location: "Walt Disney Concert Hall, Los Angeles, CA", stayMinutes: 45, guide: "https://www.musiccenter.org/visit-explore/visit-explore/campus/walt-disney-concert-hall/" },
   ] },
   { id: "sanfrancisco", key: "citySanFrancisco", country: 'USA', places: [
     { id: "sanfrancisco-1", name: "금문교", englishName: "Golden Gate Bridge", location: "Golden Gate Bridge, San Francisco, CA", stayMinutes: 60, guide: "https://www.goldengate.org/" },
@@ -84,7 +84,7 @@ export const destinations = [
   ] },
   { id: "lasvegas", key: "cityLasVegas", country: 'USA', places: [
     { id: "lasvegas-1", name: "벨라지오 분수", englishName: "Fountains of Bellagio", location: "Fountains of Bellagio, Las Vegas, NV", stayMinutes: 30, guide: "https://bellagio.mgmresorts.com/en/entertainment/fountains-of-bellagio.html" },
-    { id: "lasvegas-2", name: "하이 롤러", englishName: "High Roller", location: "High Roller, Las Vegas, NV", stayMinutes: 60, guide: "https://www.visitlasvegas.com/things-to-do/?skip=0&sort=rankTitle&subcatids=1048" },
+    { id: "lasvegas-2", name: "하이 롤러", englishName: "High Roller", location: "High Roller, Las Vegas, NV", stayMinutes: 60, guide: "https://www.visitlasvegas.com/listing/high-roller/36000/" },
     { id: "lasvegas-3", searchAliases: ["Grand Canal Shoppes at The Venetian Resort Las Vegas"], name: "베네시안 그랜드 캐널", englishName: "Grand Canal Shoppes at The Venetian", location: "Grand Canal Shoppes at The Venetian, Las Vegas, NV", stayMinutes: 60, guide: "https://www.grandcanalshoppes.com/en/" },
     { id: "lasvegas-4", name: "프리몬트 스트리트", englishName: "Fremont Street Experience", location: "Fremont Street Experience, Las Vegas, NV", stayMinutes: 60, guide: "https://fremontstreetexperience.com/" },
     { id: "lasvegas-5", name: "웰컴 투 라스베이거스 사인", englishName: "Welcome to Fabulous Las Vegas Sign", location: "Welcome to Fabulous Las Vegas Sign, Las Vegas, NV", stayMinutes: 30, guide: "https://www.visitlasvegas.com/listing/welcome-to-fabulous-las-vegas-sign/35219/" },
@@ -111,8 +111,8 @@ export const destinations = [
     { id: "honolulu-2", name: "다이아몬드 헤드", englishName: "Diamond Head State Monument", location: "Diamond Head State Monument, Honolulu, HI", stayMinutes: 120, guide: "https://dlnr.hawaii.gov/dsp/parks/oahu/diamond-head-state-monument/" },
     { id: "honolulu-3", name: "이올라니 궁전", englishName: "Iolani Palace", location: "Iolani Palace, Honolulu, HI", stayMinutes: 90, guide: "https://www.iolanipalace.org/" },
     { id: "honolulu-4", name: "진주만 국립기념관", englishName: "Pearl Harbor National Memorial", location: "Pearl Harbor National Memorial, Honolulu, HI", stayMinutes: 120, guide: "https://www.nps.gov/perl/" },
-    { id: "honolulu-5", searchAliases: ["Ala Moana Regional Park"], name: "알라모아나 비치 파크", englishName: "Ala Moana Beach Park", location: "Ala Moana Beach Park, Honolulu, HI", stayMinutes: 90, guide: "https://www.gohawaii.com/islands/oahu/things-to-do/land-activities" },
-    { id: "honolulu-6", searchAliases: ["Kapiʻolani Regional Park"], name: "카피올라니 공원", englishName: "Kapiolani Park", location: "Kapiolani Park, Honolulu, HI", stayMinutes: 60, guide: "https://www.gohawaii.com/islands/oahu/things-to-do/land-activities" },
+    { id: "honolulu-5", searchAliases: ["Ala Moana Regional Park"], name: "알라모아나 비치 파크", englishName: "Ala Moana Beach Park", location: "Ala Moana Beach Park, Honolulu, HI", stayMinutes: 90, guide: "https://www.honolulu.gov/dpr/ala-moana-regional-park/" },
+    { id: "honolulu-6", searchAliases: ["Kapiʻolani Regional Park"], name: "카피올라니 공원", englishName: "Kapiolani Park", location: "Kapiolani Park, Honolulu, HI", stayMinutes: 60, guide: "https://www.honolulu.gov/dpr/kapiolani-regional-park/" },
   ] },
 ];
 export const destinationById = id => destinations.find(city => city.id === id);

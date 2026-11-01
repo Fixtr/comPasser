@@ -47,6 +47,6 @@ export const cities = [
     { id: 'yuseong', searchAliases: ["유성온천 족욕체험장"], key: 'discoverYuseong', kind: 'discoverFind', stay: '30–60', guide: 'https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=139940' },
     { id: 'science', key: 'discoverScience', kind: 'discoverLandmark', stay: '90–120', guide: 'https://www.science.go.kr/eps/index.do' },
     { id: 'ppuri', key: 'discoverPpuri', kind: 'discoverWalk', stay: '45–90', guide: 'https://www.djjunggu.go.kr/prog/tursmCn/tour/sub03_01_01/view.do?cntNo=24', guideKorean: true },
-    { id: 'daecheong', key: 'discoverDaecheong', kind: 'discoverWalk', stay: '60–120', guide: 'https://www.daejeon.go.kr/english/EngContentsHtmlView.do?menuSeq=7051' },
+    { id: 'daecheong', key: 'discoverDaecheong', kind: 'discoverWalk', stay: '60–120', guide: 'https://daejeontour.co.kr/work_djt/24', guideKorean: true },
   ] },
 ];

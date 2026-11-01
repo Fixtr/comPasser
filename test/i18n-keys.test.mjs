@@ -66,7 +66,7 @@ test('시트 손잡이 문구가 두 사전에 있다', () => {
 test('공식 안내 링크 문구는 열리는 페이지의 언어를 알려 준다', async () => {
   const { destinations } = await import('../src/domains/planner/services/travel-destinations.mjs');
   const places = destinations.flatMap(city => city.places || []).filter(place => place.guide);
-  assert.deepEqual(places.filter(place => place.guideKorean).map(place => place.id), ['ppuri']);
+  assert.deepEqual(places.filter(place => place.guideKorean).map(place => place.id), ['ppuri', 'daecheong']);
   assert.deepEqual(places.filter(place => /\/id_id\/|LABNDR__/.test(place.guide)), []);
   assert.match(source, /discoverGuide: "공식 여행 안내 \(영문\)"/);
   assert.match(source, /discoverGuideKorean: "공식 여행 안내"/);
