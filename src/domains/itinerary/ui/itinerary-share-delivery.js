@@ -1,4 +1,5 @@
 import { loadKakaoSdk } from '../../../utils/external-scripts.js';
+import { t } from '../../../utils/i18n.js';
 
 /** 공개 여부는 actions가 결정한다. 여기는 만들어진 URL을 전달하는 일만 한다. */
 export function createItineraryShareDelivery({ browser = globalThis, loadKakao = loadKakaoSdk } = {}) {
@@ -12,13 +13,13 @@ export function createItineraryShareDelivery({ browser = globalThis, loadKakao =
       Kakao.Share.sendDefault({
         objectType: 'feed',
         content: {
-          title: '✈️ 나만의 스마트한 여행 일정이 도착했어요!',
-          description: 'ComPasser에서 만든 완벽한 여행 타임라인과 지도를 지금 바로 확인해 보세요.',
+          title: t('kakaoShareTitle'),
+          description: t('kakaoShareDescription'),
           imageUrl: 'https://images.unsplash.com/photo-1488646953014-c8c2eb5f2b2b',
           link: { mobileWebUrl: url, webUrl: url },
         },
         buttons: [{
-          title: '일정 자세히 보기',
+          title: t('kakaoShareButton'),
           link: { mobileWebUrl: url, webUrl: url },
         }],
       });
