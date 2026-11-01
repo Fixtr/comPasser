@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { geoOrthographic } from 'd3-geo';
 
 const authModule = `
   export const missingFirebaseConfig = [];
@@ -70,8 +71,9 @@ test('코스는 나라와 도시를 고른 뒤 해당 도시만 표시하고 이
   await expect(page.locator('home-courses article')).toHaveCount(3);
   await page.locator('public-courses').scrollIntoViewIfNeeded();await expect(page.locator('public-courses article')).toHaveCount(1);
   await expect(page.locator('public-courses article')).toContainText('Seoul course');
-  await expect(page.locator('home-courses article').first().getByRole('link',{name:/^이 코스 영어로 보기: /})).toHaveAttribute('href',/\/en\/routes\/curated-seoul$/);
-  await expect(page.locator('public-courses article').getByRole('link',{name:/^이 코스 영어로 보기: /})).toHaveAttribute('href',/\/en\/routes\/city0$/);
+  // One link per city, not one per card; the directory lists both curated and traveler routes.
+  await expect(page.locator('home-courses article a, public-courses article a')).toHaveCount(0);
+  await expect(page.locator('home-courses').getByRole('link',{name:'이 도시 코스 영어 페이지 보기'})).toHaveAttribute('href',/\/en\/routes#city-seoul$/);
   await page.screenshot({ path: testInfo.outputPath('courses-seoul-320.png'), fullPage: true });
   await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await expect(page.locator('public-courses')).toHaveCount(0);
@@ -329,7 +331,7 @@ test('영문 여행자 코스 가져오기 실패는 로그인으로 보내지 �
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: 'export async function listPublicCourses() { return { courses: [], hasMore: false }; } export async function getPublicCourse() { return null; }' }));
   await page.goto('/home?course=removedRoute&lang=en');
-  await expect(page.getByRole('status').filter({ hasText: 'This route is no longer public.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'This route was not found or is not public.' })).toBeVisible();
   await expect(page).toHaveURL(/course=removedRoute/);
 });
 
@@ -760,6 +762,24 @@ test('장소 단계 하단 바는 안전 영역을 피하고, 검색 중에는 �
   // However many picks, the chips scroll inside the bar instead of growing it over the page.
   await page.locator('.flow-place-chips').evaluate(area => { for (let index = 0; index < 12; index++) area.append(area.firstElementChild.cloneNode(true)); });
   expect((await bar.boundingBox()).height).toBeLessThanOrEqual(210);
+});
+
+test('장소 단계 하단 바는 화면 맨 아래까지 닿고, 끝까지 스크롤해도 마지막 내용을 가리지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/destination');
+  await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+  await page.reload();
+  await page.locator('[data-destination-country=KOR]').click();
+  await page.getByRole('button', { name: '서울', exact: true }).click();
+  const bar = page.locator('.flow-place-actions');
+  const barBottom = () => bar.evaluate(element => element.getBoundingClientRect().bottom);
+  await expect.poll(barBottom).toBe(844);
+
+  await page.locator('ion-content:visible').evaluate(async content => { const scroll = await content.getScrollElement(); scroll.scrollTop = scroll.scrollHeight; });
+  await expect.poll(barBottom).toBe(844);
+  const lastRow = await page.locator('.flow-place-row').last().boundingBox();
+  expect(lastRow.y + lastRow.height).toBeLessThanOrEqual((await bar.boundingBox()).y + 1);
 });
 
 test('화면 높이가 아주 낮으면 상단과 하단 바를 풀어 내용과 포커스를 가리지 않는다', async ({ page }) => {
@@ -1355,6 +1375,66 @@ test('작은 폰에서도 홈의 두 진입 버튼이 탭 바 위에 보이고, 
   await expect.poll(turned).not.toBe(stopped);
 });
 
+test('지구본의 작은 여행지는 44px 이상 탭 영역의 표시로 고를 수 있고, 뒷면에서는 숨는다', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/home');
+  const globe = page.locator('.globe-stage svg');
+  await expect(globe.locator('path')).toHaveCount(177);
+  await page.locator('.ionic-home h1').click();
+  await expect(page.locator('.globe-auto')).toHaveAttribute('aria-label', '자동 회전 시작');
+  for (const code of ['SGP', 'KOR', 'TWN']) await expect(globe.locator(`.globe-marker[data-country=${code}]`)).toHaveCount(1);
+  const marker = globe.locator('.globe-marker[data-country=SGP]');
+  await marker.scrollIntoViewIfNeeded();
+  const box = await marker.boundingBox();
+  const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+  // Singapore is not in the 110m map at all, so this ring is its only spot on the globe; 22 px each way is 44 px.
+  // Borneo to the east and Cambodia to the north keep their own land (see the neighbour test), so only the sea sides reach that far; the dot claims 10 px all round.
+  for (const [dx, dy] of [[-22, 0], [0, 22], [10, 0], [0, -10]]) {
+    expect(await page.evaluate(([px, py]) => document.elementFromPoint(px, py)?.dataset.country, [x + dx, y + dy])).toBe('SGP');
+  }
+  await page.mouse.click(x - 20, y);
+  await expect(page.locator('.globe-selection strong')).toHaveText('싱가포르');
+  await page.locator('.globe-selection button').click();
+  await expect(page).toHaveURL(/destination$/);
+  await expect(page.locator('[data-city=singapore], [data-destination-city=singapore]').or(page.getByRole('button', { name: '싱가포르', exact: true })).first()).toBeVisible();
+  // The same country stays one button away for keyboards and screen readers, and a turned globe hides the marker.
+  await page.goto('/recommend');
+  await expect(page.getByRole('button', { name: '싱가포르' })).toBeVisible();
+  await page.goto('/home');
+  await expect(globe.locator('.globe-marker[data-country=SGP]')).toHaveCount(1);
+  await globe.focus();
+  for (let turn = 0; turn < 15; turn += 1) await page.keyboard.press('ArrowRight');
+  await expect(globe.locator('.globe-marker[data-country=SGP]')).toHaveCount(0);
+});
+
+test('지구본 표시의 탭 영역은 이웃 나라를 가리지 않고 바다에서만 넓어진다', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  const globe = page.locator('.globe-stage svg');
+  await expect(globe.locator('path')).toHaveCount(177);
+  await globe.scrollIntoViewIfNeeded();
+  // The same projection the globe starts with; the page maps its units to screen pixels.
+  const projection = geoOrthographic().scale(128).translate([130, 130]).rotate([-127, -30, 0]);
+  const hit = place => globe.evaluate((svg, [x, y]) => {
+    const point = new DOMPoint(x, y).matrixTransform(svg.getScreenCTM());
+    return document.elementFromPoint(point.x, point.y)?.dataset.country;
+  }, projection(place));
+  const expected = [
+    ['JPN', [130.4, 33.6]], ['JPN', [132.5, 34.4]], ['JPN', [135.5, 34.7]], ['JPN', [135.8, 35.0]], ['JPN', [136.9, 35.2]], ['JPN', [139.7, 35.7]],
+    ['VNM', [106.7, 10.8]], ['THA', [100.5, 7.0]], ['MYS', [110.3, 1.55]], ['IDN', [98.7, 3.6]],
+    ['KOR', [127, 37.5]], ['KOR', [131, 37.5]], ['TWN', [121, 23.7]], ['TWN', [123.5, 23]], ['SGP', [103.82, 1.35]], ['SGP', [106, 5]],
+  ];
+  const found = [];
+  for (const [, place] of expected) found.push(await hit(place));
+  expect(found).toEqual(expected.map(([code]) => code));
+  // A real tap on Osaka picks Japan.
+  const box = await globe.boundingBox();
+  const [x, y] = projection([135.5, 34.7]);
+  await page.mouse.click(box.x + x * box.width / 260, box.y + y * box.height / 260);
+  await expect(page.locator('.globe-selection strong')).toHaveText('일본');
+});
+
 test('홈은 일정 만들기와 코스 둘러보기 두 진입 버튼을 제공하고 새 일정 바로가기는 없다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/home');
@@ -1413,18 +1493,111 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
   await expect(page.getByRole('heading', { name: 'Choose a country to browse routes', exact: true })).toBeVisible();
   await expect(page.locator('public-courses')).toHaveCount(0);
   // The picker no longer appears silently: the link says why it did not open the route.
-  await expect(page.getByRole('status').filter({ hasText: 'This route is no longer public.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'This route was not found or is not public.' })).toBeVisible();
   // Picking a country and coming back clears it.
   await page.locator('[data-course-country=KOR]').click();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.locator('[data-course-country=KOR]')).toBeVisible();
-  await expect(page.getByText('This route is no longer public.')).toHaveCount(0);
-  // A public course outside the catalogue cities is not called 'no longer public'.
+  await expect(page.getByText('This route was not found or is not public.')).toHaveCount(0);
+  // A public course outside the catalogue cities is not called 'not found or not public'.
   await page.goto('/courses?review=elsewhereRoute');
   await expect(page.locator('[data-course-country=KOR]')).toBeVisible();
-  await expect(page.getByText('This route is no longer public.')).toHaveCount(0);
+  await expect(page.getByText('This route was not found or is not public.')).toHaveCount(0);
   await page.goto('/courses?review=brokenRoute');
   await expect(page.getByRole('status').filter({ hasText: 'This route cannot be opened right now.' })).toBeVisible();
+});
+
+test('사라진 후기 링크는 알리고 주소에서 review 를 빼며, 목록 밖 도시의 코스도 알린다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+    export async function getPublicCourse(id) { return id === 'brokenRoute' ? Promise.reject(new Error('offline'))
+      : id === 'elsewhereRoute' ? { ownerId: 'another-user', title: 'Village walk', review: '', stops: [{ name: 'A', location: 'Somewhere', stayMinutes: 60 }] } : null; }
+  ` }));
+  const missing = '이 코스를 찾을 수 없거나 공개되어 있지 않아요.';
+  // No extra history entry: Back from the cleaned address leaves /courses.
+  await page.goto('/home');
+  await page.goto('/courses?review=missingRoute');
+  await expect(page.getByRole('status').filter({ hasText: missing })).toBeVisible();
+  await expect(page).toHaveURL(/\/courses$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/home$/);
+  // An address that already has the city (reload, post-login return) stays on the list and says so too.
+  await page.goto('/courses?country=KOR&city=seoul&review=missingRoute');
+  await expect(page.getByRole('status').filter({ hasText: missing })).toBeVisible();
+  await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
+  await expect(page.locator('public-courses:visible')).toBeVisible();
+  // The course exists, so its link is not 'gone': it keeps review and names the real reason.
+  await page.goto('/courses?review=elsewhereRoute');
+  await expect(page.getByRole('status').filter({ hasText: '이 코스의 도시는 아직 둘러보기 목록에 없어 여기서 열 수 없어요.' })).toBeVisible();
+  await expect(page).toHaveURL(/review=elsewhereRoute/);
+  await page.goto('/courses?review=elsewhereRoute&lang=en');
+  await expect(page.getByRole('status').filter({ hasText: "This route's city isn't in the browse list yet, so it can't be opened here." })).toBeVisible();
+  // A failed lookup may work on reload, so the link stays.
+  await page.goto('/courses?review=brokenRoute');
+  await expect(page.getByRole('status').filter({ hasText: 'This route cannot be opened right now.' })).toBeVisible();
+  await expect(page).toHaveURL(/review=brokenRoute/);
+});
+
+test('후기 링크 정리는 URLSearchParams.size 가 없는 WebKit 에서도 나머지 주소를 지킨다', async ({ page }) => {
+  await page.addInitScript(() => { delete URLSearchParams.prototype.size; });
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+    export async function getPublicCourse() { return null; }
+  ` }));
+  await page.goto('/courses?country=KOR&city=seoul&review=missingRoute');
+  await expect(page.getByRole('status').filter({ hasText: '이 코스를 찾을 수 없거나' })).toBeVisible();
+  await expect(page).toHaveURL(/\/courses\?country=KOR&city=seoul$/);
+});
+
+test('후기 링크 안내는 내용보다 먼저 자리 잡은 알림 영역에 나타나고 한국어 단어를 끊지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+    export async function getPublicCourse() { await new Promise(resolve => { window.releaseReview = resolve; }); return null; }
+  ` }));
+  await page.goto('/courses?review=missingRoute');
+  const notice = page.locator('section.flow-page > p[role=status]');
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toHaveText('');
+  await notice.evaluate(element => { window.noticeElement = element; });
+  await page.waitForFunction(() => window.releaseReview);
+  await page.evaluate(() => window.releaseReview());
+  await expect(notice).toHaveText('이 코스를 찾을 수 없거나 공개되어 있지 않아요.');
+  expect(await notice.evaluate(element => [element === window.noticeElement, getComputedStyle(element).wordBreak])).toEqual([true, 'keep-all']);
+});
+
+test('도시가 있는 주소에서 후기 조회가 실패하면 목록 위에 연결 오류를 띄우지 않고 review 를 지킨다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+    export async function getPublicCourse() { throw new Error('offline'); }
+  ` }));
+  const failed = page.waitForEvent('console', message => message.text().includes('Review course unavailable'));
+  await page.goto('/courses?country=KOR&city=seoul&review=brokenRoute');
+  await failed;
+  await expect(page.locator('public-courses:visible')).toBeVisible();
+  await expect(page.locator('section.flow-page > p[role=status]')).toHaveText('');
+  await expect(page).toHaveURL(/review=brokenRoute/);
+});
+
+test('여행자 코스는 후기 패널에서 그 코스의 공유 페이지로 갈 수 있다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const course = { id: 'late19', ownerId: 'another-user', title: 'Seoul late', review: '', stops: [{ name: 'A', location: 'Seoul', stayMinutes: 60 }] };
+    export async function listPublicCourses() { return { courses: [course], hasMore: false }; }
+    export async function getPublicCourse() { return course; }
+    export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function saveCourseReview() {}
+    export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/courses?country=KOR&city=seoul');
+  const card = page.locator('public-courses article');
+  await expect(card.getByRole('link')).toHaveCount(0);
+  await card.getByRole('button', { name: /^여행자 후기 보기·작성: / }).click();
+  const link = card.getByRole('link', { name: '이 코스 영어 페이지 보기' });
+  await expect(link).toHaveAttribute('href', /\/en\/routes\/late19$/);
+  expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
 });
 
 test('후기 링크의 코스 조회가 늦게 끝나도 사용자가 먼저 고른 도시를 바꾸지 않는다', async ({ page }) => {
@@ -1526,7 +1699,7 @@ test('코스 카드의 버튼과 링크는 코스 이름으로 구별되고 휴�
   expect(names.length).toBeGreaterThan(6);
   expect(new Set(names).size).toBe(names.length);
   await expect(page.locator('public-courses').getByRole('button', { name: '여행자 후기 보기·작성: Seoul night' })).toHaveCount(1);
-  for (const link of await page.locator('home-courses article a, public-courses article > a').all()) {
+  for (const link of await page.locator('home-courses a').all()) {
     expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44);
   }
 });
@@ -1643,12 +1816,17 @@ test('여행자 코스 목록은 불러오는 중을 말하고, 검색 결과 �
   await expect(courses.getByRole('button', { name: '코스 더 불러오기' })).toBeVisible();
 });
 
-test('영어 앱의 코스 카드 링크는 공유용 영문 페이지라고 말하고 앱 글자색을 쓴다', async ({ page }) => {
+test('영어 앱은 코스 목록 아래 링크 하나로 그 도시의 공유용 영문 페이지 목록을 연다', async ({ page }) => {
   await page.goto('/courses?country=KOR&city=seoul&lang=en');
-  const link = page.locator('home-courses article').first().getByRole('link', { name: /^Open shareable page: / });
+  await expect(page.locator('home-courses article')).toHaveCount(3);
+  await expect(page.locator('home-courses article a')).toHaveCount(0);
+  const link = page.locator('home-courses').getByRole('link', { name: 'Browse shareable route pages' });
   await expect(link).toBeVisible();
-  const [color, ink] = await link.evaluate(a => [getComputedStyle(a).color, getComputedStyle(a.closest('article')).color]);
+  const [color, ink] = await link.evaluate(a => [getComputedStyle(a).color, getComputedStyle(a.getRootNode().host).color]);
   expect(color).toBe(ink);
+  await link.click();
+  await expect(page).toHaveURL(/\/en\/routes#city-seoul$/);
+  await expect(page.getByRole('heading', { name: 'Seoul', exact: true })).toBeInViewport();
 });
 
 test('없는 공유 일정은 빈 지도 없이 안내 카드가 화면을 차지하고 그 안에 뒤로 버튼이 있다', async ({ page }) => {
@@ -1739,7 +1917,7 @@ test('a city picked on the globe before sign-in restores keeps the signed-in dra
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.locator('svg path[data-country=KOR]').click();
+  await page.locator('svg .globe-marker[data-country=KOR]').click();
   await page.locator('.globe-selection button').click();
   await expect(page.getByRole('status').filter({ hasText: '불러오는' })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);

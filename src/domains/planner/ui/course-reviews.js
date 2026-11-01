@@ -1,6 +1,7 @@
 import { getCurrentUser, subscribeToAuthChanges } from '../../auth/services/firebase-auth.js';
 import { listCourseReviews, getMyCourseReview, saveCourseReview, deleteCourseReview } from '../../itinerary/services/public-course-service.js';
 import { courseSpentInWon } from '../../itinerary/services/course-community.mjs';
+import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { t } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 
@@ -62,6 +63,8 @@ class CourseReviews extends HTMLElement {
       form, label { display:grid; gap:8px; } form { margin-top:20px; }
       input, textarea { box-sizing:border-box; width:100%; padding:10px; min-height:44px; font:inherit; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
       textarea { min-height:100px; resize:vertical; }
+      a { display:flex; align-items:center; width:fit-content; min-height:44px; font-size:13px; color:var(--cp-ink); text-underline-offset:3px; word-break:keep-all; }
+      a:focus-visible { outline:2px solid var(--cp-ink); outline-offset:2px; }
       button { min-height:44px; padding:10px; font:inherit; cursor:pointer; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
       button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid var(--cp-ink); outline-offset:2px; }
       button:disabled { opacity:.5; cursor:wait; }
@@ -69,6 +72,8 @@ class CourseReviews extends HTMLElement {
     const heading = document.createElement('h4'); heading.textContent = t('courseReviewsTitle');
     root.append(heading);
     const disclaimer = document.createElement('p'); disclaimer.textContent = t('courseReviewsDisclaimer'); root.append(disclaimer);
+    // The directory lists only some traveler routes, so this is the app's way to the course's own page.
+    const routePage = document.createElement('a'); routePage.href = getPublicRouteUrl(this.course.id); routePage.textContent = t('courseRoutePageLink'); root.append(routePage);
     if (this.busy || this.error) {
       const status = document.createElement('p'); status.setAttribute('role', 'status');
       // Loading failed: say so, not 'couldn't process', which reads like a submit failed.
