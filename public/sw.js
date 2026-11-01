@@ -16,6 +16,10 @@
  *  - 그 외 same-origin 정적 파일(아이콘 등): stale-while-revalidate.
  *  - 외부 요청(Firebase, Google Maps, 광고): 건드리지 않는다. 인증/실시간
  *    데이터를 캐시하면 오래된 값이나 잘못된 응답을 돌려줄 위험이 있다.
+ *  - 캐시 정리: 이전 워커가 활성화되면서 설치 중인 새 워커의 셸까지 지울 수 있다.
+ *    그래서 내 셸이 온전할 때만 다른 캐시를 지우고, 비었으면 남은 캐시로 버티다가
+ *    다음 온라인 탐색에서 다시 채운다. 활성화 중에는 fetch 가 대기하므로
+ *    activate 에서 네트워크를 기다리지 않는다.
  */
 
 const VERSION = self.__BUILD_ID__ || 'v1';
@@ -26,6 +30,7 @@ const ASSET_CACHE = `compasser-assets-${VERSION}`;
 const SHELL_URL = '/';
 
 const PRECACHE_ASSETS = self.__PRECACHE_ASSETS__ || [];
+const SHELL_ENTRIES = [SHELL_URL, ...PRECACHE_ASSETS];
 const NAVIGATION_TIMEOUT_MS = 3000;
 // Route pages are never cached (an unpublished route must not come back from a cache), so offline they get this.
 const ROUTE_OFFLINE_HTML = '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -38,20 +43,41 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
     // 배포 빌드는 HTML과 모든 JS/CSS가 준비되어야 새 워커로 전환한다.
-    const shell = [SHELL_URL, ...PRECACHE_ASSETS];
-    await (PRECACHE_ASSETS.length ? Promise.all(shell.map(url => cache.add(url))) : Promise.allSettled(shell.map(url => cache.add(url))));
+    await (PRECACHE_ASSETS.length ? Promise.all(SHELL_ENTRIES.map(url => cache.add(url))) : Promise.allSettled(SHELL_ENTRIES.map(url => cache.add(url))));
     await Promise.allSettled(['/manifest.json', '/favicon.svg'].map(url => cache.add(url)));
   })());
 });
 
+async function missingShellEntries(cache) {
+  const found = await Promise.all(SHELL_ENTRIES.map(url => cache.match(url)));
+  return SHELL_ENTRIES.filter((_, index) => !found[index]);
+}
+
+// Set once this worker has seen its whole shell, so later navigations skip the check.
+let shellComplete = false;
+
+/** Refills a shell another worker's activate deleted. addAll stores all of it or nothing. */
+async function repairShell() {
+  const cache = await caches.open(SHELL_CACHE);
+  const missing = await missingShellEntries(cache);
+  if (missing.length) await cache.addAll(missing);
+  shellComplete = true;
+}
+
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter(key => key.startsWith('compasser-') && key !== SHELL_CACHE && key !== ASSET_CACHE)
-        .map(key => caches.delete(key))
-    );
+    const cache = await caches.open(SHELL_CACHE);
+    shellComplete = !(await missingShellEntries(cache)).length;
+    // With no shell of our own the other caches are the only offline start left. A repair
+    // leaves them for the next activation: a page started from one may still be open.
+    if (shellComplete) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter(key => key.startsWith('compasser-') && key !== SHELL_CACHE && key !== ASSET_CACHE)
+          .map(key => caches.delete(key))
+      );
+    }
     await self.clients.claim();
   })());
 });
@@ -106,6 +132,7 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     // Opening a real file (compasser-preview.html, demo.gif) must not turn into the app shell on a slow link.
     if ((/\.\w+$/.test(url.pathname) && url.pathname !== '/index.html') || url.pathname === '/compasser-preview') return;
+    if (!shellComplete) event.waitUntil(repairShell().catch(() => {}));
     event.respondWith((async () => {
       const network = fetch(request);
       // Redirects (opaqueredirect, status 0) pass through; only server errors count as a failure.
@@ -122,7 +149,8 @@ self.addEventListener('fetch', (event) => {
         clearTimeout(timer);
       }
       // SPA 라우팅이라 어떤 경로든 같은 셸을 돌려주면 된다.
-      const cached = await caches.match(SHELL_URL);
+      // Own shell first: after a repair an older one can remain, and caches.match would find it first.
+      const cached = await caches.match(SHELL_URL, { cacheName: SHELL_CACHE }) || await caches.match(SHELL_URL);
       if (cached) return cached;
       // No shell yet (first visit): keep waiting for whatever the network sends.
       try {
@@ -143,7 +171,8 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached;
       try {
         const fresh = await fetch(request);
-        if (fresh.ok) {
+        // Pages answers a removed file with the app's HTML and 200; stored here it would break that URL for good.
+        if (fresh.ok && !fresh.headers?.get('content-type')?.includes('text/html')) {
           const copy = fresh.clone();   // 돌려주기 전에 복제한다
           caches.open(ASSET_CACHE).then(cache => cache.put(request, copy)).catch(() => {});
         }

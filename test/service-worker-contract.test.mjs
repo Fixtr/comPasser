@@ -42,7 +42,7 @@ test('돌려줄 응답이 없으면 오류 응답이라도 돌려준다', () => 
   for (const [i, body] of handlers.entries()) {
     assert.ok(
       // A handler whose failure path builds its own page (the offline route page) is covered too.
-      /Response\.error\(\)|catch\(\(\) => new Response\(/.test(body.slice(0, 700)),
+      /Response\.error\(\)|catch\(\(\) => new Response\(/.test(body.slice(0, 800)),
       `${i + 1}번째 respondWith 에 마지막 대비(Response.error())가 없다`
     );
   }
