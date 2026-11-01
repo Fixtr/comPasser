@@ -45,7 +45,7 @@ test('failed map setup keeps international places visible and selection recovera
   await page.locator('[data-recommend-country=FRA]').click();
   await page.locator('[data-recommend-city=paris]').click();
   await expect(page.locator('.flow-place-row')).toHaveCount(3);
-  await expect(page.getByRole('alert')).toContainText('장소를 확인하지 못했습니다');
+  await expect(page.getByRole('alert')).toContainText('지금은 장소 검색을 쓸 수 없습니다');
   await page.locator('.flow-place-row button').first().click();
   await expect(page.locator('.flow-place-row button').first()).toBeEnabled();
   expect(errors).toEqual([]);

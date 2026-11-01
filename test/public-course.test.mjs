@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publishableStops } from '../src/domains/itinerary/services/public-course.mjs';
-import { courseCity, filterCourses, validateCourseReview } from '../src/domains/itinerary/services/course-community.mjs';
+import { courseCity, courseSpentInWon, filterCourses, validateCourseReview } from '../src/domains/itinerary/services/course-community.mjs';
 
 test('course discovery combines address search, city and visit-duration filters', () => {
   const routes = [
@@ -28,6 +28,31 @@ test('a review link resolves its public course to the catalogue city that lists 
     assert.deepEqual(filterCourses([route(location)], { city }), [route(location)]);
   }
   assert.equal(courseCity(route('Venice, Italy')), null);
+});
+
+test('review spending counts as won only when every city the route names is Korean', () => {
+  const route = (...locations) => ({ stops: locations.map(location => ({ name: 'Gate', location, stayMinutes: 60 })) });
+  assert.equal(courseSpentInWon(route('Seoul Museum', '부산 해운대')), true);
+  assert.equal(courseSpentInWon(route('浅草寺, Tokyo')), false);
+  assert.equal(courseSpentInWon(route('Seoul Garden, Tokyo')), false);
+  assert.equal(courseSpentInWon(route('Venice, Italy')), false);
+});
+
+test('review spending currency follows the address, not shop names or foreign words inside them', () => {
+  const stop = (name, location) => ({ stops: [{ name, location, stayMinutes: 60 }] });
+  for (const [name, location] of [
+    ['런던베이글뮤지엄 안국점', '서울 종로구'], ['파리바게뜨 강남점', '서울 강남구'], ['Nice Cafe', 'Seoul'],
+    ['테니스장', '서울 강남구 테니스장'], ['빵집', '서울 파리바게뜨 강남점'], ['호텔', '서울 마포구 비즈니스호텔'], ['Cafe', 'Nice Cafe, Seoul'],
+    ['불국사', '경주 불국사'], ['황리단길', '경주 황리단길'], ['시장', '강원 속초시'], ['화성', '대한민국 경기도 수원시'],
+    ['경복궁', '서울특별시 종로구 사직로 161'], ['광장', '대한민국 서울특별시'], ['Palace', '161 Sajik-ro, Jongno District, Seoul 03045, South Korea'],
+    ['Temple', 'Bulguksa, Gyeongju'],
+  ]) assert.equal(courseSpentInWon(stop(name, location)), true, `${name} / ${location}`);
+  for (const [name, location] of [
+    ['Busan Pork Soup', 'Osaka, Japan'], ['Seoul Tofu House', 'Vancouver, Canada'], ['식당', '오사카 서울식당'],
+    ['서울식당', '일본 오사카부 오사카시'], ['Korea House', '1 Main St, Los Angeles, CA 90001, USA'], ['Shop', ''],
+  ]) assert.equal(courseSpentInWon(stop(name, location)), false, `${name} / ${location}`);
+  assert.equal(courseSpentInWon({ stops: [] }), false);
+  assert.equal(courseSpentInWon({ stops: [{ name: 'a', location: 'Seoul' }, { name: 'b', location: 'Tokyo' }] }), false);
 });
 
 test('travel reviews reject future/impossible dates and invalid actual metrics', () => {

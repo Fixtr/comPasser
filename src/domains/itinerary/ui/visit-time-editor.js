@@ -1,6 +1,11 @@
 import { editVisitTime } from '../services/itinerary-edit.mjs';
 import { t } from '../../../utils/i18n.js';
 
+export function visitTimeError({lower,upper}) {
+  const key=lower && upper ? 'visitTimeInvalidRange' : lower ? 'visitTimeInvalidFrom' : upper ? 'visitTimeInvalidUntil' : 'visitTimeInvalid';
+  return t(key).replace('{0}',lower || upper).replace('{1}',upper);
+}
+
 export function openVisitTimeEditor(view, host, index) {
   if(!view.canEdit() || host.querySelector('.visit-time-editor')) return;
   const source=view.currentItinerary, day=view.activeDayIndex, request=view._mapRequest;
@@ -25,7 +30,7 @@ export function openVisitTimeEditor(view, host, index) {
       error.textContent=t('visitTimeStale');return;
     }
     const result=editVisitTime(items,index,inputs[0].value,inputs[1].value);
-    if(!result.changed){error.textContent=t('visitTimeInvalid');return;}
+    if(!result.changed){error.textContent=visitTimeError(result);return;}
     view.state.replaceDayItems(day,result.items);form.remove();view.refreshAccessControls();view.requestMapRoute({scheduleEdited:true});
   });
   host.append(form);inputs[0].focus();

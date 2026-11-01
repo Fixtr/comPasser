@@ -1,9 +1,10 @@
 import { listPublicCourses, getPublicCourse } from '../../itinerary/services/public-course-service.js';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
-import { t } from '../../../utils/i18n.js';
+import { t, getLang } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-import { COURSE_CITIES, filterCourses } from '../../itinerary/services/course-community.mjs';
+import { COURSE_CITIES, courseMinutes, filterCourses } from '../../itinerary/services/course-community.mjs';
+import { formatMinutes } from '../../itinerary/services/boarding-pass.mjs';
 import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { addCourseToDraft, cityDestination } from '../services/course-draft.mjs';
 import { destinations } from '../services/travel-destinations.mjs';
@@ -107,6 +108,7 @@ class PublicCourses extends HTMLElement {
       article > a { display:flex; align-items:center; min-height:44px; margin-top:2px; font-size:12px; color:var(--cp-ink); text-underline-offset:3px; }
       h3 { margin:8px 0; font-size:1.15rem; overflow-wrap:anywhere; }
       .stops, .review { overflow-wrap:anywhere; }
+      .duration { margin-top:0; font-size:13px; }
       button { min-height:44px; padding:10px 14px; border:1px solid var(--cp-ink); background:var(--cp-ink); color:var(--cp-paper); cursor:pointer; font:inherit; font-weight:700; }
       button:focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
       .filters { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
@@ -191,17 +193,20 @@ class PublicCourses extends HTMLElement {
       const title = document.createElement('h3'); title.textContent = course.title;
       const stops = document.createElement('p'); stops.className = 'stops';
       stops.textContent = course.stops.map(stop => stop.name).join(' → ');
-      const review = document.createElement('p'); review.className = 'review'; review.textContent = course.review || '';
+      const duration = formatMinutes(courseMinutes(course), getLang());
+      const visit = document.createElement('p'); visit.className = 'duration'; visit.textContent = t('courseCardDuration').replace('{0}', duration);
+      const review = document.createElement('p'); review.className = 'review'; review.textContent = course.review;
       const action = document.createElement('button'); action.type = 'button';
       action.dataset.course = course.id; action.textContent = t('courseCopyButton');
       // Every card repeats the same words; the name adds the course so a list of controls tells them apart.
       const named = (control, key) => control.setAttribute('aria-label', `${t(key)}: ${course.title}`);
       named(action, 'courseCopyButton');
-      const reviews = document.createElement('button'); reviews.type = 'button'; reviews.textContent = t('courseReviewsButton'); reviews.setAttribute('aria-expanded', 'false');
-      named(reviews, 'courseReviewsButton');
+      const reviews = document.createElement('button'); reviews.type = 'button'; reviews.setAttribute('aria-expanded', 'false');
+      const labelToggle = key => { reviews.textContent = t(key); named(reviews, key); };
+      labelToggle('courseReviewsButton');
       reviews.onclick = async () => {
         const old = article.querySelector('course-reviews');
-        if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); article.classList.remove('reviewing'); return; }
+        if (old) { old.remove(); reviews.setAttribute('aria-expanded', 'false'); labelToggle('courseReviewsButton'); article.classList.remove('reviewing'); return; }
         // aria-busy, not disabled: a disabled button drops keyboard focus to the page body.
         if (reviews.getAttribute('aria-busy') === 'true') return;
         reviews.setAttribute('aria-busy', 'true');
@@ -209,11 +214,15 @@ class PublicCourses extends HTMLElement {
           await import('./course-reviews.js');
           if (!article.isConnected) return;
           const panel = document.createElement('course-reviews'); panel.course = course;
-          article.append(panel); reviews.setAttribute('aria-expanded', 'true'); article.classList.add('reviewing');
-        } catch { reviews.textContent = t('courseReviewsError'); named(reviews, 'courseReviewsError'); }
+          article.append(panel); reviews.setAttribute('aria-expanded', 'true'); labelToggle('courseReviewsHide'); article.classList.add('reviewing');
+        } catch { labelToggle('courseReviewsError'); }
         finally { reviews.removeAttribute('aria-busy'); }
       };
-      article.append(label, title, stops, review, action, reviews);
+      article.append(label, title, stops);
+      // A course without stay times or a note leaves no empty line behind.
+      if (duration) article.append(visit);
+      if (course.review) article.append(review);
+      article.append(action, reviews);
       const englishPage = document.createElement('a'); englishPage.href = getPublicRouteUrl(course.id);
       englishPage.textContent = t('courseEnglishLink'); named(englishPage, 'courseEnglishLink');
       article.append(englishPage);
@@ -221,7 +230,7 @@ class PublicCourses extends HTMLElement {
       if (course.id === this.openReviewId) {
         this.openReviewId = null;
         // Scroll once the panel is attached, so a landscape phone sees it, not just the short card.
-        void reviews.onclick().then(() => article.scrollIntoView({ block: 'start' }));
+        void reviews.onclick().then(() => { article.scrollIntoView({ block: 'start' }); article.querySelector('course-reviews')?.scrollIntoView({ block: 'nearest' }); });
       } else if (course.id === this.keepOpenId) {
         this.keepOpenId = null;
         void reviews.click();

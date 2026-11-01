@@ -1,5 +1,6 @@
 import { getCurrentUser, subscribeToAuthChanges } from '../../auth/services/firebase-auth.js';
 import { listCourseReviews, getMyCourseReview, saveCourseReview, deleteCourseReview } from '../../itinerary/services/public-course-service.js';
+import { courseSpentInWon } from '../../itinerary/services/course-community.mjs';
 import { t } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
 
@@ -75,13 +76,14 @@ class CourseReviews extends HTMLElement {
       if (this.error && !this.offline) { const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry'); retry.onclick = () => void this.load(); root.append(retry); }
       return;
     }
+    const inWon = courseSpentInWon(this.course);
     for (const review of this.reviews) {
       const section = document.createElement('section');
       const date = document.createElement('strong'); date.textContent = `${t('courseReviewVisitDate')}: ${review.visitDate}`;
       const numbers = document.createElement('p');
       numbers.textContent = [
         review.walkingKm == null ? '' : `${t('courseReviewWalkingLabel')}: ${review.walkingKm} km`,
-        review.spentWon == null ? '' : `${t('courseReviewSpentLabel')}: ₩${review.spentWon.toLocaleString()}`,
+        review.spentWon == null ? '' : `${t('courseReviewSpentLabel')}: ${inWon ? '₩' : ''}${review.spentWon.toLocaleString()}`,
         review.visitMinutes == null ? '' : `${t('courseReviewMinutesLabel')}: ${review.visitMinutes} ${t('courseReviewMinuteUnit')}`,
       ].filter(Boolean).join(' · ');
       const comment = document.createElement('p'); comment.className = 'comment'; comment.textContent = review.comment;
@@ -105,7 +107,7 @@ class CourseReviews extends HTMLElement {
     for (const [name, key, type, max, step] of [
       ['visitDate', 'courseReviewVisitDate', 'date', maxDate, '1'],
       ['walkingKm', 'courseReviewWalking', 'number', 100, '0.1'],
-      ['spentWon', 'courseReviewSpent', 'number', 10000000, '1'],
+      ['spentWon', inWon ? 'courseReviewSpent' : 'courseReviewSpentAbroad', 'number', 10000000, '1'],
       ['visitMinutes', 'courseReviewMinutes', 'number', 1440, '1'],
       ['comment', 'courseReviewComment', 'textarea'],
     ]) {

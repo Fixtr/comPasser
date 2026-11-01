@@ -62,6 +62,11 @@ ion-back-button::part(native):focus-visible { outline: 3px solid var(--cp-ink); 
 .ionic-settings button { position: relative; min-width: 70px; min-height: 32px; padding: 5px 8px; font-size: 11px; border-radius: 6px; }
 .ionic-settings button::after { content: ''; position: absolute; inset: -6px 0; }
 .ionic-page-nav { max-width: 700px; min-height: 44px; padding: 6px 0; }
+/* Back stays reachable while scrolling: the bar replaces the content's top padding so nothing shows above it. */
+.shell-content:has(> .ionic-page-nav) { --padding-top: 0; }
+.shell-content::part(scroll) { scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+.ionic-page-nav { position: sticky; top: 0; z-index: 10; max-width: none; margin-inline: calc(-1 * var(--ion-padding, 16px)); padding: calc(6px + env(safe-area-inset-top, 0px)) max(var(--ion-padding, 16px), calc((100% - 700px) / 2 + var(--ion-padding, 16px))) 6px; background: var(--cp-paper); border-bottom: 1px solid var(--cp-rule); }
+ion-header + .shell-content .ionic-page-nav { position: static; padding-top: 6px; }
 .ionic-page-nav>a { display: inline-flex; align-items: center; text-decoration: none; }
 .ionic-home-settings { max-width: 440px; }
 button { font: inherit; cursor: pointer; }
@@ -89,6 +94,20 @@ button { font: inherit; cursor: pointer; }
 .flow-place-row button { width: 44px; flex: none; font-size: 20px; }
 .flow-place-row button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
 .flow-page .flow-place-chip { margin: 8px 6px 0 0; font-size: 12px; max-width: 100%; overflow-wrap: anywhere; }
+.flow-place-actions { position: sticky; bottom: 0; z-index: 2; padding: 0 0 calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--cp-paper); border-top: 1px solid var(--cp-rule); }
+/* The padding keeps each chip's 6px focus ring inside the scroll box, which would clip it. */
+.flow-place-chips { max-height: 110px; margin-inline: -6px; padding: 0 6px 6px; overflow-y: auto; }
+.flow-page .flow-place-actions .flow-primary { margin-top: 8px; }
+/* Keeps the bar off Google's suggestion list and the on-screen keyboard while typing. */
+.flow-page:has(gmp-place-autocomplete:focus-within) .flow-place-actions { position: static; }
+/* Keyboard focus must not land behind the bar (chips + Next). */
+.flow-page:has(.flow-place-actions) * { scroll-margin-bottom: calc(180px + env(safe-area-inset-bottom, 0px)); }
+/* Very short screens (a laptop at 300-400% zoom): the two bars would cover the whole page. */
+@media (max-height: 300px) {
+  .ionic-page-nav, .flow-place-actions { position: static; }
+  .shell-content::part(scroll) { scroll-padding-top: 0; }
+  .flow-page:has(.flow-place-actions) * { scroll-margin-bottom: 0; }
+}
 .ai-place-recommendations { margin: 20px 0; padding: 16px; border: 1px solid var(--cp-rule); border-radius: 7px; }
 .ai-place-recommendations h2 { margin: 0; font-size: 18px; }
 .ai-place-recommendations > p, .ai-place-weather { font-size: 13px; color: var(--cp-ink-2); line-height: 1.6; }

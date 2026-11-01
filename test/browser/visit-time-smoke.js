@@ -17,7 +17,7 @@ async page=>{
   await page.locator('itinerary-view .visit-time-editor').getByLabel('방문 시작').fill('11:00');
   await page.locator('itinerary-view .visit-time-editor').getByLabel('방문 종료').fill('13:30');
   await page.locator('itinerary-view .visit-time-editor button[type=submit]').click();
-  if(!(await page.locator('itinerary-view .visit-time-editor [role=alert]').textContent()).includes('고정 일정')) throw Error('Invalid boundary allowed');
+  if(!(await page.locator('itinerary-view .visit-time-editor [role=alert]').textContent()).includes('09:00~12:54')) throw Error('Invalid boundary allowed or range not named');
   await page.locator('itinerary-view .visit-time-editor').getByLabel('방문 종료').fill('11:30');
   await page.locator('itinerary-view .visit-time-editor button[type=submit]').click();
   await page.waitForFunction(()=>document.querySelector('itinerary-view').currentItinerary.days[0].scheduleItems[1].time==='11:00');

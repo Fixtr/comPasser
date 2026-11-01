@@ -12,13 +12,15 @@ import { normalizeSelectedPlace } from '../../planner/services/selected-place.mj
 export function editVisitTime(items, index, start, end) {
   const item=items?.[index];
   const valid=t=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t || '');
-  if(!Array.isArray(items) || !Number.isInteger(index) || !item ||
-    ['departure','arrival','AnchorSchedule'].includes(item.type) || !valid(start) || !valid(end) || end<=start)
-    return {items,changed:false};
   const fixed=i=>['departure','arrival','AnchorSchedule'].includes(i.type);
+  if(!Array.isArray(items) || !Number.isInteger(index) || !item || fixed(item)) return {items,changed:false};
   const previous=items.slice(0,index).filter(fixed).at(-1), next=items.slice(index+1).find(fixed);
   const lower=previous?.endTime || previous?.time, upper=next?.time;
-  if ((lower && (!valid(lower) || start<lower)) || (upper && (!valid(upper) || end>upper))) return {items,changed:false};
+  if (!valid(start) || !valid(end) || end<=start || (lower && (!valid(lower) || start<lower)) || (upper && (!valid(upper) || end>upper))) {
+    // A closed gap or a malformed boundary rejects every entry, so report no limits instead of a range that cannot work.
+    const open=(!lower || valid(lower)) && (!upper || valid(upper)) && !(lower && upper && lower>=upper);
+    return {items,changed:false,lower:open && lower || '',upper:open && upper || ''};
+  }
   return {items:items.map((i,n)=>n===index ? {...i,time:start,endTime:end,visitNotBefore:start,duration:'',transitInfo:''} : i),changed:true};
 }
 
