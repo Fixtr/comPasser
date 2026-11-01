@@ -6,6 +6,7 @@ import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs
 import { destinations, destinationById } from '../domains/planner/services/travel-destinations.mjs';
 import { bindPlaceSelection, normalizeSelectedPlace } from '../domains/planner/services/selected-place.mjs';
 import { resolveDestinationPlace, destinationPlaceError } from '../domains/planner/services/destination-place.js';
+import { getAutocompleteValue } from '../domains/planner/ui/travel-form-data.js';
 import { getMapsLoader } from '../domains/map/services/google-maps-loader.js';
 import { cityDestination, setDraftDestination } from '../domains/planner/services/course-draft.mjs';
 import { t, tFor, getLang } from '../utils/i18n.js';
@@ -49,10 +50,10 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
     void Promise.resolve().then(() => getMapsLoader().importLibrary('places')).then(() => {
       if (!active) return;
       bindPlaceSelection(element, () => {
-        if (element.placeSelectionError) setError(t('flowPlaceFailed'));
+        setError(element.placeSelectionError ? t('flowPlaceFailed') : '');
       });
       element.includedRegionCodes = [travelRegion({ destination: { country } }).countryCode];
-    }).catch(() => { if (active) setError(t('flowPlaceFailed')); });
+    }).catch(() => { if (active) setError(t('flowSearchUnavailable')); });
     return () => { active = false; version.current++; };
   }, [city, country]);
   const add = (place, suggestionId = '') => {
@@ -102,7 +103,12 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         <label htmlFor="destination-search">{t('flowSearch')}</label>
         <gmp-place-autocomplete id="destination-search" ref={search} />
         <p>{t('flowSearchHelp')}</p>
-        <button onClick={async () => { await search.current?.placeSelectionPending; add(search.current?.selectedPlace); }}>{t('flowAddPlace')}</button>
+        <button onClick={async () => {
+          await search.current?.placeSelectionPending;
+          if (search.current?.selectedPlace || getAutocompleteValue(search.current)) add(search.current?.selectedPlace);
+          // Without the Maps library the element draws no input, so there is nothing to type into.
+          else setError(t(customElements.get('gmp-place-autocomplete') ? 'flowPlaceEmpty' : 'flowSearchUnavailable'));
+        }}>{t('flowAddPlace')}</button>
         {error && <p role="alert">{error}</p>}
         <AIPlaceRecommendations key={city.id} city={city} draft={draft} onAdd={add} onRemove={placeId=>save({anchorSchedules:read().anchorSchedules.filter(anchor=>anchor.location?.placeId !== placeId)})} />
         <details className="catalogue-places" open><summary>{t('aiPlacesCatalogue').replace('{0}',t(city.key))}</summary>
@@ -115,8 +121,10 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
             <button disabled={busy} aria-pressed={!!chosen} aria-label={t(chosen ? 'flowRemovePlace' : 'flowAddPlace') + ': ' + name} onClick={() => chosen ? save({ anchorSchedules: selected.filter(anchor => anchor !== chosen) }) : addSuggestion(place)}>{chosen ? '✓' : '+'}</button>
           </div>;
         })}</div></details>
-        {selected.map((anchor, index) => <button className="flow-place-chip" key={index} onClick={() => save({ anchorSchedules: selected.filter((_, i) => i !== index) })}>{anchor.name} ×</button>)}
-        <button className="flow-primary" disabled={busy} onClick={() => { const next = editingPlan ? '/plan' : '/preference/1'; save({ step: next }); navigate(next); }}>{selected.length ? t('flowNextPlaces').replace('{0}', selected.length) : t('flowSkipPlaces')}</button>
+        <div className="flow-place-actions">
+          <div className="flow-place-chips">{selected.map((anchor, index) => <button className="flow-place-chip" key={index} onClick={() => save({ anchorSchedules: selected.filter((_, i) => i !== index) })}>{anchor.name} ×</button>)}</div>
+          <button className="flow-primary" disabled={busy} onClick={() => { const next = editingPlan ? '/plan' : '/preference/1'; save({ step: next }); navigate(next); }}>{selected.length ? t('flowNextPlaces').replace('{0}', selected.length) : t('flowSkipPlaces')}</button>
+        </div>
       </>}
     </section>
   </>;

@@ -36,6 +36,12 @@ const mapsModule = `
   } }) });
 `;
 
+// Content scrolls inside ion-content, so the document never reports its overflow.
+const contentOverflow = page => page.locator('ion-content:visible').evaluate(async content => {
+  const scroller = await content.getScrollElement();
+  return scroller.scrollWidth > scroller.clientWidth;
+});
+
 async function chooseCourseCity(page, city = 'seoul', country = 'KOR') {
   await page.locator(`button[data-course-country=${country}]`).click();
   await page.locator(`button[data-course-city=${city}]`).click();
@@ -147,7 +153,7 @@ test('화면과 단계가 바뀌면 새 제목으로 포커스가 가고 탭 제
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: '둘러볼 코스', exact: true })).toBeFocused();
   await expect(page).toHaveTitle('서울 · 코스 둘러보기 · ComPasser');
-  const reviews = page.locator('public-courses:visible').getByRole('button', { name: '여행자 후기 보기·작성' });
+  const reviews = page.locator('public-courses:visible').getByRole('button', { name: /^여행자 후기 (보기·작성|닫기)/ });
   await reviews.focus();
   await page.keyboard.press('Enter');
   await expect(reviews).toHaveAttribute('aria-expanded', 'true');
@@ -472,7 +478,7 @@ test('오프라인이 되어도 이미 불러온 여행자 코스를 보여 주�
   await expect(courses.getByText('Palace walk')).toBeVisible();
   // The installed app has every chunk precached; the dev server does not, so open and close the
   // panel once online, through the app's own import, before going offline.
-  const toggle = courses.getByRole('button', { name: '여행자 후기 보기·작성' });
+  const toggle = courses.getByRole('button', { name: /^여행자 후기 (보기·작성|닫기)/ });
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await toggle.click();
@@ -654,6 +660,204 @@ test('한국 recommend와 destination은 동일한 검색창과 장소 목록 �
     }
     expect(layouts[0]).toEqual(layouts[1]);
   }
+});
+
+test('장소 단계는 담은 장소와 다음 버튼이 어디서나 닿고, 빈 입력으로 담으면 이름을 입력하라고만 안내한다', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule.replace('static async searchByText(request) {', 'static async searchByText(request) { window.lookups = (window.lookups || 0) + 1;') }));
+  const reachable = locator => locator.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return box.top >= 0 && box.bottom <= window.innerHeight && box.height >= 44 && (hit === element || element.contains(hit));
+  });
+  for (const [width, height] of [[390, 667], [1280, 800]]) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/destination');
+    await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+    await page.reload();
+    await page.locator('[data-destination-country=KOR]').click();
+    await page.getByRole('button', { name: '서울', exact: true }).click();
+
+    await page.getByRole('button', { name: '꼭 갈 장소로 담기', exact: true }).click();
+    await expect(page.locator('.flow-page [role=alert]')).toHaveText('장소 이름을 입력해 주세요.');
+    expect(await page.evaluate(() => window.lookups || 0)).toBe(0);
+    await page.locator('gmp-place-autocomplete input').fill('경복');
+    await expect(page.locator('.flow-page [role=alert]')).toHaveCount(0);
+    await page.getByRole('button', { name: '꼭 갈 장소로 담기', exact: true }).click();
+    await expect(page.locator('.flow-page [role=alert]')).toHaveText('장소를 확인하지 못했습니다. 검색에서 다시 선택해 주세요.');
+    await page.locator('gmp-place-autocomplete input').blur();
+
+    const next = page.locator('.flow-primary');
+    await expect.poll(() => reachable(next)).toBe(true);
+    const lastRow = page.locator('.flow-place-row').last();
+    await lastRow.locator('button').focus();
+    await expect.poll(() => reachable(lastRow.locator('button'))).toBe(true);
+    await page.locator('.flow-place-row').first().locator('button').click();
+    await expect(page.locator('.flow-place-chip')).toHaveCount(1);
+    await expect.poll(() => reachable(page.locator('.flow-place-chip'))).toBe(true);
+    await expect.poll(() => reachable(next)).toBe(true);
+    await expect(next).toHaveText(/1/);
+    await expect.poll(() => contentOverflow(page)).toBe(false);
+  }
+});
+
+test('장소 단계 하단 바는 안전 영역을 피하고, 검색 중에는 풀리며, 포커스를 가리지 않고 칩 포커스 링이 잘리지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, left: 0, bottom: 34, right: 0 } });
+  await page.goto('/destination');
+  await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+  await page.reload();
+  await page.locator('[data-destination-country=KOR]').click();
+  await page.getByRole('button', { name: '서울', exact: true }).click();
+  const bar = page.locator('.flow-place-actions');
+  const next = page.locator('.flow-primary');
+  expect((await next.boundingBox()).y + (await next.boundingBox()).height).toBeLessThanOrEqual(844 - 34);
+
+  await expect(bar).toHaveCSS('position', 'sticky');
+  await page.locator('gmp-place-autocomplete input').focus();
+  await expect(bar).toHaveCSS('position', 'static');
+  await page.locator('gmp-place-autocomplete input').blur();
+  await expect(bar).toHaveCSS('position', 'sticky');
+
+  const rows = page.locator('.flow-place-row > button');
+  const rowCount = await rows.count();
+  for (let index = 0; index < 6; index++) {
+    await rows.nth(index).click();
+    await expect(page.locator('.flow-place-chip')).toHaveCount(index + 1);
+  }
+  // Focus from the top of the page: a control already in the scrollport but under the bar must still come clear of it.
+  for (let index = 0; index < rowCount; index++) {
+    const row = rows.nth(index);
+    await page.locator('ion-content:visible').evaluate(async content => { (await content.getScrollElement()).scrollTop = 0; });
+    await row.focus();
+    await expect.poll(() => row.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return hit === element || element.contains(hit);
+    }), `row ${index}`).toBe(true);
+  }
+
+  // Keyboard focus shows the real ring: the scroll box must not clip it on the first column or the last line.
+  const chips = page.locator('.flow-place-chip');
+  await next.focus();
+  for (let index = 5; index >= 0; index--) {
+    await page.keyboard.press('Shift+Tab');
+    const clip = await chips.nth(index).evaluate(element => {
+      const style = getComputedStyle(element);
+      const ring = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+      const box = element.getBoundingClientRect();
+      const area = element.parentElement.getBoundingClientRect();
+      return { focused: document.activeElement === element, ring, left: box.left - ring - area.left, bottom: area.bottom - box.bottom - ring };
+    });
+    expect(clip.focused).toBe(true);
+    expect(clip.ring).toBeGreaterThan(0);
+    expect(clip.left).toBeGreaterThanOrEqual(0);
+    expect(clip.bottom).toBeGreaterThanOrEqual(0);
+  }
+
+  // However many picks, the chips scroll inside the bar instead of growing it over the page.
+  await page.locator('.flow-place-chips').evaluate(area => { for (let index = 0; index < 12; index++) area.append(area.firstElementChild.cloneNode(true)); });
+  expect((await bar.boundingBox()).height).toBeLessThanOrEqual(210);
+});
+
+test('화면 높이가 아주 낮으면 상단과 하단 바를 풀어 내용과 포커스를 가리지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule }));
+  await page.setViewportSize({ width: 320, height: 180 });
+  await page.goto('/destination');
+  await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+  await page.reload();
+  await page.locator('[data-destination-country=KOR]').click();
+  await page.getByRole('button', { name: '서울', exact: true }).click();
+  const rows = page.locator('.flow-place-row > button');
+  for (let index = 0; index < 6; index++) {
+    await rows.nth(index).click({ timeout: 5000 });
+    await expect(page.locator('.flow-place-chip')).toHaveCount(index + 1);
+  }
+  await rows.nth(2).focus();
+  await expect.poll(() => rows.nth(2).evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return hit === element || element.contains(hit);
+  })).toBe(true);
+  await expect(page.locator('.flow-place-actions')).toHaveCSS('position', 'static');
+  await expect(page.locator('.ionic-page-nav:visible')).toHaveCSS('position', 'static');
+  // An ordinary landscape phone keeps both bars.
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect(page.locator('.flow-place-actions')).toHaveCSS('position', 'sticky');
+  await expect(page.locator('.ionic-page-nav:visible')).toHaveCSS('position', 'sticky');
+});
+
+test('지도 라이브러리를 못 불러오면 없는 입력창에 이름을 입력하라고 하지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: "export const getMapsLoader = () => ({ importLibrary: async () => { throw new Error('offline'); } });" }));
+  await page.goto('/destination');
+  await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+  await page.reload();
+  await page.locator('[data-destination-country=KOR]').click();
+  await page.getByRole('button', { name: '서울', exact: true }).click();
+  const alert = page.locator('.flow-page [role=alert]');
+  const unavailable = '지금은 장소 검색을 쓸 수 없습니다. 연결을 확인하고 새로고침해 주세요.';
+  await expect(alert).toHaveText(unavailable);
+  await page.getByRole('button', { name: '꼭 갈 장소로 담기', exact: true }).click();
+  await expect(alert).toHaveText(unavailable);
+});
+
+test('화면 밖으로 스크롤해도 뒤로 버튼이 닿고 내용을 가리지 않으며 헤더와 겹치지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
+  await page.setViewportSize({ width: 390, height: 667 });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, left: 0, bottom: 0, right: 0 } });
+  for (const [theme, attribute] of [['다크 모드', 'dark'], ['라이트 모드', 'light']]) {
+    await page.goto('/');
+    await page.getByRole('button', { name: theme }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', attribute);
+    for (const route of ['/recommend', '/courses', '/destination', '/plan', '/profile/trips']) {
+      await page.evaluate(path => window.navigate(path), route);
+      const pageRoot = page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)').last();
+      const nav = pageRoot.locator('.ionic-page-nav');
+      await expect(nav).toBeVisible();
+      const state = await nav.evaluate(async element => {
+        const content = element.closest('ion-content');
+        content.insertAdjacentHTML('beforeend', '<div data-spacer style="height:3000px"></div><button data-target>x</button><div data-spacer style="height:3000px"></div>');
+        const scroller = await content.getScrollElement();
+        scroller.scrollTop = 1500;
+        await new Promise(requestAnimationFrame);
+        const control = element.querySelector('button, a');
+        const box = control.getBoundingClientRect();
+        const bar = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        const result = {
+          scrolled: scroller.scrollTop > 0,
+          controlTop: box.top,
+          barTop: bar.top,
+          hit: control === hit || control.contains(hit),
+          height: box.height,
+          background: getComputedStyle(element).backgroundColor,
+          overflow: scroller.scrollWidth <= scroller.clientWidth,
+        };
+        const target = content.querySelector('[data-target]');
+        target.scrollIntoView();
+        await new Promise(requestAnimationFrame);
+        result.targetGap = target.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
+        content.querySelectorAll('[data-spacer], [data-target]').forEach(node => node.remove());
+        scroller.scrollTop = 0;
+        return result;
+      });
+      expect(state.scrolled, route).toBe(true);
+      expect(state.barTop, route).toBeLessThanOrEqual(0);
+      expect(state.controlTop, route).toBeGreaterThanOrEqual(47);
+      expect(state.hit, route).toBe(true);
+      expect(state.height, route).toBeGreaterThanOrEqual(44);
+      expect(state.background, route).toMatch(/^rgb\(/);
+      expect(state.overflow, route).toBe(true);
+      expect(state.targetGap, route).toBeGreaterThanOrEqual(0);
+    }
+  }
+  await page.goto('/nowhere');
+  const notFound = page.locator('.ionic-page-nav:visible');
+  await expect(page.locator('ion-header:visible')).toHaveCount(1);
+  await expect(notFound).toHaveCSS('position', 'static');
 });
 
 test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async ({ page }) => {
@@ -966,6 +1170,40 @@ test('이메일로 가입해도 게스트가 고른 여행 계획이 남는다',
   await expect(page.locator('ion-router-outlet > .ion-page', { has: page.locator('login-view') }).locator('.ionic-auth-reason')).toHaveText('부산 여행 계획은 그대로 있어요. 로그인하면 이어서 일정을 만들어요.');
 });
 
+test('여행자 코스 카드는 체류시간을 보여 주고, 빈 소개 칸이 없으며, 후기 토글 이름이 상태를 따른다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [
+      { id: 'noNote', ownerId: 'other', title: 'No note', review: '', stops: [{ name: 'Museum', location: 'Seoul Museum', stayMinutes: 90 }, { name: 'Cafe', location: 'Seoul cafe', stayMinutes: 60 }] },
+      { id: 'withNote', ownerId: 'other', title: 'With note', review: 'Easy to walk', stops: [{ name: 'Park', location: 'Seoul Park', stayMinutes: 60 }, { name: 'Market', location: 'Seoul Market', stayMinutes: 60 }] },
+    ], hasMore: false }; }
+    export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function getPublicCourse() { return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/courses');
+  await chooseCourseCity(page);
+  const courses = page.locator('public-courses:visible');
+  const card = courses.locator('article', { hasText: 'No note' });
+  await expect(card.locator('.duration')).toHaveText('예상 체류 2시간 30분 (이동 제외)');
+  await expect(card.locator('.review')).toHaveCount(0);
+  await expect(courses.locator('article', { hasText: 'With note' }).locator('.review')).toHaveText('Easy to walk');
+
+  const toggle = card.locator('button[aria-expanded]');
+  await expect(toggle).toHaveText('여행자 후기 보기·작성');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toHaveText('여행자 후기 닫기');
+  await expect(toggle).toHaveAttribute('aria-label', '여행자 후기 닫기: No note');
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveText('여행자 후기 보기·작성');
+  await expect(toggle).toHaveAttribute('aria-label', '여행자 후기 보기·작성: No note');
+  await expect(toggle).toBeFocused();
+});
+
 test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·삭제한다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
@@ -1013,6 +1251,43 @@ test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·�
   await reviews.getByRole('button', { name: '내 후기 삭제', exact: true }).click();
   await page.locator('#app-confirm-host').getByRole('button', { name: '삭제', exact: true }).click();
   await expect(reviews.locator('section')).toHaveCount(0);
+});
+
+test('후기 지출은 국내 코스만 원으로 표시하고 해외 코스는 잘못된 통화 기호를 붙이지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const stops = city => [{ name: 'Gate', location: city, stayMinutes: 60 }, { name: 'Cafe', location: city, stayMinutes: 60 }];
+    export async function listPublicCourses() { return { courses: [
+      { id: 'seoulRoute', ownerId: 'another-user', title: 'Seoul walk', review: '', stops: stops('Seoul') },
+      { id: 'tokyoRoute', ownerId: 'another-user', title: 'Tokyo walk', review: '', stops: stops('Tokyo') },
+    ], hasMore: false }; }
+    // Old review shape: only spentWon, no currency field.
+    export async function listCourseReviews() { return { reviews: [{ visitDate: '2026-10-04', comment: 'Nice', walkingKm: null, spentWon: 20000, visitMinutes: null }], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function getPublicCourse() { return null; }
+    export async function saveCourseReview() {}
+    export async function deleteCourseReview() {}
+  ` }));
+  const panel = async (city, country) => {
+    await page.goto('/courses');
+    await chooseCourseCity(page, city, country);
+    const courses = page.locator('public-courses:visible');
+    await courses.getByRole('button', { name: '여행자 후기 보기·작성' }).click();
+    const reviews = courses.locator('course-reviews');
+    await expect(reviews.locator('section')).toHaveCount(1);
+    await reviews.getByRole('button', { name: '로그인하고 후기 쓰기' }).click();
+    await page.locator('login-view #email-input').last().fill('test@example.com');
+    await page.locator('login-view #password-input').last().fill('password');
+    await page.locator('login-view #email-login-btn').last().click();
+    await expect(reviews.locator('input[name=spentWon]')).toBeVisible();
+    return reviews;
+  };
+  const seoul = await panel('seoul', 'KOR');
+  await expect(seoul.locator('section p').first()).toHaveText('지출: ₩20,000');
+  await expect(seoul.locator('label', { has: page.locator('input[name=spentWon]') })).toHaveText('실제 지출 (원, 선택)');
+  const tokyo = await panel('tokyo', 'JPN');
+  await expect(tokyo.locator('section p').first()).toHaveText('지출: 20,000');
+  await expect(tokyo.locator('label', { has: page.locator('input[name=spentWon]') })).toHaveText('실제 지출 (선택)');
 });
 
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
@@ -1130,7 +1405,7 @@ test('여행자 후기 링크는 그 공개 코스의 나라·도시를 고르�
   await page.goto('/courses?review=reviewRoute&lang=en');
   const courses = page.locator('public-courses:visible');
   await expect(page.getByRole('heading', { name: 'Explore short routes', exact: true })).toBeVisible();
-  await expect(courses.getByRole('button', { name: 'Read or write traveler reviews', expanded: true })).toBeVisible();
+  await expect(courses.getByRole('button', { name: 'Close traveler reviews', expanded: true })).toBeVisible();
   await expect(courses.locator('course-reviews').getByRole('heading', { name: 'Traveler experience reviews' })).toBeInViewport();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.locator('[data-course-city]')).toHaveCount(2);
