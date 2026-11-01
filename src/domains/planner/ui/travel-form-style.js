@@ -162,6 +162,12 @@ export const travelFormStyles = `
           box-sizing: border-box;
         }
 
+        /* iOS는 기본 모양의 날짜·시간 칸을 content-box로 고정해 패딩만큼 칸 밖으로 넘친다. */
+        input:is([type="date"], [type="time"]) {
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
         /* 보라 링(box-shadow) 대신 outline 하나로 초점을 알린다.
            그림자가 없어야 캡처와 저사양 기기가 같이 편하다. */
         input:focus,

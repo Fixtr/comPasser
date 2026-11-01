@@ -124,7 +124,8 @@ button { font: inherit; cursor: pointer; }
 .ai-place-interests small { display: block; margin-top: 8px; line-height: 1.5; }
 .ai-place-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 8px; }
 .ai-place-controls label { display: grid; gap: 6px; flex: 1 1 150px; }
-.ai-place-controls input { width: 100%; min-width: 0; font-size: 16px; }
+/* iOS keeps native date fields content-box, which pushes this one under the button. */
+.ai-place-controls input { -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; font-size: 16px; }
 .ai-place-controls button { flex: 1 1 140px; }
 .ai-place-recommendations small { color: var(--cp-muted); font-size: 12px; }
 .ai-place-card { display: flex; align-items: start; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--cp-rule); }
