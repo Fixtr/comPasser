@@ -18,21 +18,46 @@ function makeResponse(body, ok = true, redirected = false, status = ok ? 200 : 5
 }
 
 /** sw.js 를 가짜 환경에서 실행하고 조작용 핸들을 돌려준다. */
-function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = [], network = null } = {}) {
+function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = [], network = null, store = new Map(), version, precache, failingAdds = [], holdAdds = null } = {}) {
   const listeners = {};
-  const store = new Map(); // cacheName -> Map(url -> response)
+  // store: cacheName -> Map(url -> response). A worker's open Cache keeps writing to its Map after
+  // caches.delete, like a real doomed cache, and a store passed in is shared between workers.
   const fetchCalls = [];
+  const lifetime = [];
+
+  const download = async (url) => {
+    if (holdAdds) await holdAdds;
+    if (networkFails || failingAdds.includes(url)) throw new Error(`cannot fetch ${url}`);
+    if (network) {
+      const response = await network(url);
+      if (!response.ok) throw new Error(`bad status for ${url}`);
+    }
+    // A real server sends Vary: Origin here, so a request with an Origin header misses without ignoreVary.
+    return { ...makeResponse(`precached:${url}`, true, redirectedUrls.includes(url)), varyOrigin: true };
+  };
+  const path = (key) => key.replace('https://app.example', '');
+  const lookup = (entries, req, options) => {
+    const key = typeof req === 'string' ? req : req.url;
+    for (const [stored, response] of entries) {
+      if (path(stored) !== path(key)) continue;
+      if (response.varyOrigin && req.origin && !options?.ignoreVary) continue;
+      return response;
+    }
+    return undefined;
+  };
 
   const openCache = (name) => {
     if (!store.has(name)) store.set(name, new Map());
     const entries = store.get(name);
     return Promise.resolve({
-      add: (url) => networkFails
-        ? Promise.reject(new Error('offline'))
-        : (entries.set(url, makeResponse(`precached:${url}`, true, redirectedUrls.includes(url))), Promise.resolve()),
+      add: async (url) => { entries.set(url, await download(url)); },
+      addAll: async (urls) => {
+        const responses = await Promise.all(urls.map(download));
+        urls.forEach((url, index) => entries.set(url, responses[index]));
+      },
       put: (req, res) => { entries.set(typeof req === 'string' ? req : req.url, res); return Promise.resolve(); },
       keys: () => Promise.resolve([...entries.keys()].map(url => ({ url }))),
-      match: (req) => Promise.resolve(entries.get(typeof req === 'string' ? req : req.url))
+      match: (req, options) => Promise.resolve(lookup(entries, req, options))
     });
   };
 
@@ -40,10 +65,12 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
     open: openCache,
     keys: () => Promise.resolve([...store.keys()]),
     delete: (name) => Promise.resolve(store.delete(name)),
-    match: (req) => {
-      const key = typeof req === 'string' ? req : req.url;
-      for (const entries of store.values()) {
-        if (entries.has(key)) return Promise.resolve(entries.get(key));
+    // Like the real one: creation order, or only the named cache.
+    match: (req, options) => {
+      const searched = options?.cacheName ? [store.get(options.cacheName) ?? new Map()] : store.values();
+      for (const entries of searched) {
+        const found = lookup(entries, req, options);
+        if (found) return Promise.resolve(found);
       }
       return Promise.resolve(undefined);
     }
@@ -58,6 +85,8 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
 
   const self = {
     location: { origin: 'https://app.example' },
+    __BUILD_ID__: version,
+    __PRECACHE_ASSETS__: precache,
     addEventListener: (type, fn) => { listeners[type] = fn; },
     skipWaiting: () => Promise.resolve(),
     clients: { claim: () => Promise.resolve() }
@@ -79,7 +108,7 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
   /** fetch 이벤트를 흘리고 respondWith 결과를 돌려준다. undefined 면 SW 가 관여하지 않은 것. */
   const dispatchFetch = (request) => {
     let responded;
-    listeners.fetch({ request, respondWith: (p) => { responded = p; } });
+    listeners.fetch({ request, respondWith: (p) => { responded = p; }, waitUntil: (p) => { lifetime.push(p); } });
     return responded;
   };
 
@@ -89,10 +118,14 @@ function runServiceWorker({ networkFails = false, cached = {}, redirectedUrls = 
     await work;
   };
 
-  return { dispatchFetch, dispatchLifecycle, store, fetchCalls };
+  const backgroundWork = () => Promise.all(lifetime);
+
+  return { dispatchFetch, dispatchLifecycle, backgroundWork, store, fetchCalls };
 }
 
-const req = (url, { method = 'GET', mode = 'no-cors' } = {}) => ({ url, method, mode });
+const req = (url, { method = 'GET', mode = 'no-cors', origin } = {}) => ({ url, method, mode, origin });
+
+const ASSETS = ['/assets/index-A.js', '/assets/lazy-A.js'];
 
 test('install precaches the app shell', async () => {
   const sw = runServiceWorker();
@@ -113,7 +146,7 @@ test('activate deletes caches from older versions only', async () => {
   const sw = runServiceWorker({
     cached: {
       'compasser-shell-v0': { '/old.html': 'old' },
-      'compasser-shell-v1': { '/index.html': 'current' },
+      'compasser-shell-v1': { '/': 'current' },
       'unrelated-cache': { '/x': 'keep' }
     }
   });
@@ -123,6 +156,87 @@ test('activate deletes caches from older versions only', async () => {
   assert.ok(!names.includes('compasser-shell-v0'), '이전 버전은 지운다');
   assert.ok(names.includes('compasser-shell-v1'), '현재 버전은 남긴다');
   assert.ok(names.includes('unrelated-cache'), '우리 것이 아닌 캐시는 건드리지 않는다');
+});
+
+test('a production install fails as a whole when any precache entry fails', async () => {
+  // A partial worker would activate and delete the last good cache.
+  const sw = runServiceWorker({ precache: ASSETS, failingAdds: ['/assets/lazy-A.js'] });
+  await assert.rejects(() => sw.dispatchLifecycle('install'));
+});
+
+test('install deletes nothing, because an open older page still lazy-loads its chunks from those caches', async () => {
+  const sw = runServiceWorker({ version: 'v2', precache: ASSETS, cached: { 'compasser-shell-v1': { '/': 'v1' }, 'compasser-assets-v1': { '/x': 'v1' } } });
+  await sw.dispatchLifecycle('install');
+  assert.deepEqual([...sw.store.keys()], ['compasser-shell-v1', 'compasser-assets-v1', 'compasser-shell-v2']);
+});
+
+test('a precached chunk is found offline for a module request with an Origin header', async () => {
+  const sw = runServiceWorker({ precache: ASSETS });
+  await sw.dispatchLifecycle('install');
+  const offline = runServiceWorker({ networkFails: true, store: sw.store });
+  const res = await offline.dispatchFetch(req('https://app.example/assets/lazy-A.js', { origin: 'https://app.example' }));
+  assert.equal(res.body, 'precached:/assets/lazy-A.js');
+});
+
+/** v1 is gone and v2 active with a good shell, while v3 installed into a cache v2 deleted midway. */
+async function raceV3ShellAway(options = {}) {
+  const store = new Map();
+  const v2 = runServiceWorker({ store, version: 'v2', precache: ASSETS });
+  await v2.dispatchLifecycle('install');
+  let releaseInstall;
+  const holdAdds = new Promise(resolve => { releaseInstall = resolve; });
+  const v3 = runServiceWorker({ store, version: 'v3', precache: ASSETS, holdAdds });
+  const installing = v3.dispatchLifecycle('install');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(store.has('compasser-shell-v3'), 'v3 is mid-install');
+  await v2.dispatchLifecycle('activate');
+  assert.ok(!store.has('compasser-shell-v3'), 'v2 deleted the shell v3 is still writing to');
+  releaseInstall();
+  await installing;
+  // The same worker wakes up with the network the scenario needs.
+  const worker = runServiceWorker({ store, version: 'v3', precache: ASSETS, ...options });
+  await worker.dispatchLifecycle('activate');
+  return worker;
+}
+
+test('a worker whose shell was deleted during install keeps the older shell for offline starts', async () => {
+  const v3 = await raceV3ShellAway({ networkFails: true });
+  assert.equal(v3.store.get('compasser-shell-v2').size, 5, 'the only complete shell must survive');
+  const res = await v3.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
+  assert.equal(res.body, 'precached:/');
+  await v3.backgroundWork();
+  assert.equal(v3.store.get('compasser-shell-v3').size, 0, 'an offline repair stores nothing');
+});
+
+test('the next online navigation refills that shell and serves it offline, keeping the older one for pages still open', async () => {
+  const v3 = await raceV3ShellAway();
+  await v3.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
+  await v3.backgroundWork();
+  assert.deepEqual([...v3.store.get('compasser-shell-v3').keys()].sort(), ['/', ...ASSETS].sort());
+  assert.ok(v3.store.has('compasser-shell-v2'), 'a page started offline from it may still lazy-load chunks');
+
+  // Older cache first in creation order, so a plain caches.match would pick the v2 shell.
+  v3.store.get('compasser-shell-v3').set('/', makeResponse('v3 shell'));
+  const offline = runServiceWorker({ networkFails: true, store: v3.store, version: 'v3', precache: ASSETS });
+  assert.equal((await offline.dispatchFetch(req('https://app.example/', { mode: 'navigate' }))).body, 'v3 shell');
+});
+
+test('a repair that cannot fetch everything stores nothing, and later navigations try again', async () => {
+  const failing = ['/assets/lazy-A.js'];
+  const v3 = await raceV3ShellAway({ failingAdds: failing });
+  await v3.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
+  await v3.backgroundWork();
+  assert.equal(v3.store.get('compasser-shell-v3').size, 0);
+  failing.length = 0;
+  await v3.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
+  await v3.backgroundWork();
+  assert.equal(v3.store.get('compasser-shell-v3').size, 3);
+});
+
+test('activate never waits on the network, because fetch events are held until it finishes', async () => {
+  // A stalled link during activation would otherwise hang every page of the origin.
+  const v3 = await raceV3ShellAway({ network: () => new Promise(() => {}) });
+  assert.ok(v3.store.has('compasser-shell-v2'));
 });
 
 test('cross-origin requests are left entirely to the network', () => {
@@ -188,12 +302,12 @@ test('a stalled navigation shows the cached shell after 3 seconds', async (t) =>
 test('a slow first visit with no cached shell keeps waiting for the network', async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ['setTimeout'] });
-  let answer;
-  const sw = runServiceWorker({ network: () => new Promise(resolve => { answer = resolve; }) });
+  const answers = [];
+  const sw = runServiceWorker({ network: () => new Promise(resolve => { answers.push(resolve); }) });
   const pending = sw.dispatchFetch(req('https://app.example/', { mode: 'navigate' }));
   mock.timers.tick(3000);
   await new Promise(resolve => setImmediate(resolve));
-  answer(makeResponse('network:/'));
+  for (const answer of answers) answer(makeResponse('network:/'));
   assert.equal((await pending).body, 'network:/');
 });
 
@@ -234,6 +348,14 @@ test('hashed build assets are served from cache first', async () => {
 
   assert.equal(res.body, 'cachedAsset');
   assert.equal(sw.fetchCalls.length, 0, '파일명에 해시가 있으니 다시 받을 이유가 없다');
+});
+
+test('the HTML Pages answers for a removed asset is never stored under the asset URL', async () => {
+  const removed = 'https://app.example/assets/removed-OLD.js';
+  const sw = runServiceWorker({ network: async () => ({ ...makeResponse('<!doctype html>'), headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }), clone() { return this; } }) });
+  await sw.dispatchFetch(req(removed));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sw.store.get('compasser-assets-v1')?.has(removed) ?? false, false);
 });
 
 test('a hashed asset missing from cache is fetched and stored', async () => {
