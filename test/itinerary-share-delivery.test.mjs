@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createItineraryShareDelivery } from '../src/domains/itinerary/ui/itinerary-share-delivery.js';
+import { getLang, setLang } from '../src/utils/i18n.js';
 
 const url = 'https://app.example/share/public123';
 
@@ -41,6 +42,24 @@ test('카카오 공유를 누른 때 SDK를 기다리고 기존 내용의 모든
     },
     buttons: [{ title: '일정 자세히 보기', link: { mobileWebUrl: url, webUrl: url } }],
   }]);
+});
+
+test('영어 사용자가 보내는 카카오 메시지는 영어로 나간다', async () => {
+  const before = getLang();
+  setLang('en');
+  try {
+    const payloads = [];
+    const delivery = createItineraryShareDelivery({
+      loadKakao: async () => ({ Share: { sendDefault: payload => payloads.push(payload) } }),
+    });
+    await delivery.shareToKakao(url);
+    const [{ content, buttons }] = payloads;
+    assert.equal(content.title, '✈️ A travel plan has arrived for you!');
+    assert.equal(content.description, 'See the full timeline and map made with ComPasser.');
+    assert.equal(buttons[0].title, 'View trip details');
+  } finally {
+    setLang(before);
+  }
 });
 
 test('클립보드 권한 오류는 화면이 알리고 재시도할 수 있도록 전달한다', async () => {
