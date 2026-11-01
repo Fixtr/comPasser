@@ -259,9 +259,6 @@ const noticeStalledWrite = write => async (...args) => {
   }
 };
 
-// Outlives the view: saving a draft moves to /view/<id>, which remounts it before a retry.
-const undeliveredShare = {};
-
 export default class ItineraryView extends HTMLElement {
   constructor() {
     super();
@@ -271,8 +268,8 @@ export default class ItineraryView extends HTMLElement {
       onStorageError: () => this.showToast(t('itinerarySessionUnavailable'), true),
     });
     this.actions = createItineraryActions({
-      undeliveredShare,
       state: this.state, getCurrentUser, getSharedItineraryUrl,
+      readSharedItinerary: async id => (await loadItineraryDocument(id, { sharedOnly: true }))?.itineraryPlan,
       saveItinerary: noticeStalledWrite(saveItinerary), updateItinerary: noticeStalledWrite(updateItinerary), createSharedItinerary: noticeStalledWrite(createSharedItinerary),
     });
     this._loadVersion = 0;
@@ -797,7 +794,7 @@ export default class ItineraryView extends HTMLElement {
           if (!shareUrl) return;
 
           await itineraryShareDelivery.copyLink(shareUrl);
-          this.actions.linkDelivered(shareUrl);
+          if (!await this.actions.linkDelivered(shareUrl)) throw new Error('The shared trip no longer opens');
           showGlobalToast(t('shareSuccessAlert') || "공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
         } catch (error) {
           console.error("Share error:", error);
@@ -826,7 +823,7 @@ export default class ItineraryView extends HTMLElement {
           if (!shareUrl) return;
 
           await itineraryShareDelivery.shareToKakao(shareUrl);
-          this.actions.linkDelivered(shareUrl);
+          if (!await this.actions.linkDelivered(shareUrl)) throw new Error('The shared trip no longer opens');
         } catch (error) {
           console.error("Kakao Share error:", error);
           this.showToast(t('kakaoShareFailed'), true);

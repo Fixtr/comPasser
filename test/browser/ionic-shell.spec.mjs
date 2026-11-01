@@ -1504,7 +1504,7 @@ async function openUnsavedDraft(page, waitForShare = '', waitForSave = '') {
     export async function saveItinerary() { ${waitForSave} return 'saved1'; }
     export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-    export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
+    export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() { return { itineraryPlan: { days: [] }, access: 'shared' }; }
     export async function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
   ` }));
   await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
@@ -1745,4 +1745,26 @@ test('초안을 저장해 주소가 바뀌어도 되돌리기가 남고, 빈 /vi
   expect(entries).toEqual(['private']);
   await page.goto('/view');
   await expect(page).toHaveURL(/\/view\/saved1$/);
+});
+
+test('복사가 실패하고 새로고침해도 다시 공유하면 같은 링크를 쓴다', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.addInitScript(() => {
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = text => {
+      if (sessionStorage.getItem('copyFailed')) return write(text);
+      sessionStorage.setItem('copyFailed', '1');
+      return Promise.reject(new Error('denied'));
+    };
+  });
+  const share = await openUnsavedDraft(page);
+  await share.click();
+  await page.locator('#app-confirm-host .confirm-ok').click();
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  await page.reload();
+  await expect(page.locator('itinerary-view:visible .schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await page.locator('itinerary-view:visible #share-itinerary-btn').click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('/share/public1');
+  await expect(page.locator('#app-confirm-host .confirm-ok')).toHaveCount(0);
+  expect(await page.evaluate(() => window.shares)).toBeUndefined();
 });
