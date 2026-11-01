@@ -375,6 +375,8 @@ export default class ItineraryView extends HTMLElement {
     };
     window.addEventListener('focus', this._sharedRecheck);
     window.addEventListener('offline', this._sharedRecheck);
+    this._retryOnOnline = () => this.retryFailedLoad();
+    window.addEventListener('online', this._retryOnOnline);
   }
 
   disconnectedCallback() {
@@ -382,6 +384,7 @@ export default class ItineraryView extends HTMLElement {
     window.removeEventListener('i18n-changed', this._languageHandler);
     window.removeEventListener('focus', this._sharedRecheck);
     window.removeEventListener('offline', this._sharedRecheck);
+    window.removeEventListener('online', this._retryOnOnline);
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
     window.removeEventListener('transit-unavailable', this._transitUnavailableHandler);
     window.removeEventListener('places-resolved', this._placesResolvedHandler);
@@ -679,7 +682,7 @@ export default class ItineraryView extends HTMLElement {
         return false;
       }
 
-      this.showResults(document.itineraryPlan, { access: document.access, id });
+      if (!this.showResults(document.itineraryPlan, { access: document.access, id })) return false;
       if (document.access === 'shared') {
         const stop = await watchSharedItinerary(id, () => {
           if (version === this._loadVersion && this.sharedId === id) {
@@ -701,12 +704,31 @@ export default class ItineraryView extends HTMLElement {
            <div class="state-icon">${icons.warn}</div>
            <h1 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h1>
            <p class="state-desc" data-i18n="sharedLoadRetry">${t('sharedLoadRetry')}</p>
+           <button type="button" class="state-action" id="retry-load-btn" data-i18n="shellRetry">${t('shellRetry')}</button>
         </div>
       `);
+      this._failedLoad = { id, sharedOnly, path: window.location.pathname };
+      const retry = this.shadowRoot.getElementById('retry-load-btn');
+      retry.addEventListener('click', () => { retry.focus(); this.retryFailedLoad(); });
       return false;
     } finally {
       if (version === this._loadVersion) this.setLoading(false);
     }
+  }
+
+  /** Ionic keeps left pages mounted, so a hidden view must not reload (it could redirect) when the connection returns. */
+  async retryFailedLoad() {
+    const failed = this._failedLoad;
+    if (!failed || failed.path !== window.location.pathname) return;
+    // The retry replaces the card, so keyboard focus on its button must move with it.
+    const hadFocus = this.shadowRoot.activeElement?.id === 'retry-load-btn';
+    const loaded = await this.loadItineraryById(failed.id, { sharedOnly: failed.sharedOnly });
+    if (loaded) this.dispatchEvent(new CustomEvent('itinerary-recovered'));
+    // A control the user moved to while it loaded keeps focus.
+    if (!hadFocus || (document.activeElement && document.activeElement !== document.body)) return;
+    const timeline = this.shadowRoot.getElementById('timeline-container');
+    timeline.tabIndex = -1;
+    (this.shadowRoot.getElementById('retry-load-btn') || timeline).focus();
   }
 
   async getShareUrl() {
@@ -1550,6 +1572,7 @@ export default class ItineraryView extends HTMLElement {
   }
 
   cancelPendingLoad() {
+    this._failedLoad = null;
     this._stopSharedWatch?.();
     this._stopSharedWatch = null;
     this._loadVersion += 1;

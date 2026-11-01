@@ -645,7 +645,7 @@ export const itineraryStyles = `
         }
 
         .rec-btn.direction:hover {
-          background: var(--cp-rule);
+          background: var(--cp-sunken);
         }
 
         .nav-btn:active {
@@ -963,6 +963,7 @@ export const itineraryStyles = `
         }
 
         .state-action {
+          min-height: 44px;
           background: var(--cp-ink);
           color: var(--cp-surface);
           border: var(--cp-hair) solid var(--cp-ink);

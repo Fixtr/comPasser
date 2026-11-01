@@ -1559,6 +1559,153 @@ test('복사가 실패한 뒤 주소가 바뀌어도 다시 공유하면 같은 
   expect(await page.evaluate(() => window.shares)).toBe(1);
 });
 
+const failingItineraryStore = missingItineraryStore.replace(
+  'export async function loadItineraryDocument() { return null; }',
+  `export async function loadItineraryDocument() {
+    window.loads = (window.loads || 0) + 1;
+    await window.holdLoad;
+    if (window.failLoads === 'missing') return null;
+    if (window.failLoads === 'empty') return { access: 'shared', itineraryPlan: { days: [] } };
+    if (window.failLoads !== false) throw new Error('unavailable');
+    return { access: 'shared', itineraryPlan: { days: [{ day: 1, date: '2026-09-27', scheduleItems: [
+      { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+      { type: 'arrival', title: '경복궁', time: '10:00', location: '경복궁' },
+    ] }] } };
+  }`);
+
+test('공유 일정을 못 불러오면 다시 시도할 수 있고 실패해도 버튼에 초점이 남는다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const view = page.locator('itinerary-view:visible');
+  const retry = view.getByRole('button', { name: '다시 시도' });
+  await expect(retry).toBeVisible();
+  await retry.click();
+  await expect.poll(() => page.evaluate(() => window.loads)).toBe(2);
+  await expect(retry).toBeFocused();
+  await page.evaluate(() => { window.failLoads = false; });
+  await retry.click();
+  await expect(view.locator('.schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await expect(retry).toHaveCount(0);
+  await expect.poll(() => view.evaluate(element => element.shadowRoot.activeElement?.id)).toBe('timeline-container');
+});
+
+test('다시 불러오기에 성공하면 데스크톱 지도가 돌아오고 읽기 전용 일정에 편집 버튼이 없다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'reader', email: 'r@example.com', emailVerified: true }") }));
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const view = page.locator('itinerary-view:visible');
+  await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await expect(page.locator('.ionic-result-missing')).toHaveCount(1);
+  await page.evaluate(() => { window.failLoads = false; });
+  await view.getByRole('button', { name: '다시 시도' }).click();
+  await expect(view.locator('.schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await expect(page.locator('.ionic-result-missing')).toHaveCount(0);
+  await expect(page.locator('.ionic-result-edit')).toHaveCount(0);
+});
+
+test('공유 일정 오류 화면은 연결이 돌아오면 스스로 다시 불러온다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const view = page.locator('itinerary-view:visible');
+  await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await page.evaluate(() => { window.failLoads = false; window.dispatchEvent(new Event('online')); });
+  await expect(view.locator('.schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+});
+
+test('다른 화면으로 떠난 뒤 연결이 돌아와도 숨은 오류 화면은 다시 불러오지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  await expect(page.locator('itinerary-view:visible').getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await page.evaluate(() => window.navigate('/courses'));
+  await expect(page).toHaveURL(/\/courses$/);
+  const before = await page.evaluate(() => window.loads);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.loads)).toBe(before);
+  await expect(page).toHaveURL(/\/courses$/);
+});
+
+test('찾을 수 없음 화면은 제목을 한 번만 말하고 뒤로 버튼에 키보드 초점이 보인다', async ({ page }) => {
+  await page.goto('/no-such-page');
+  const screen = page.locator('.ion-page:visible');
+  await expect(screen.getByText('페이지를 찾을 수 없습니다')).toHaveCount(1);
+  await expect(screen.locator('ion-title')).toHaveText('ComPasser');
+  await page.keyboard.press('Tab');
+  const outline = () => page.evaluate(() => {
+    const button = document.querySelector('.ion-page:not(.ion-page-hidden) ion-back-button')?.shadowRoot?.querySelector('button');
+    return button?.matches(':focus-visible') ? getComputedStyle(button).outlineStyle : null;
+  });
+  await expect.poll(async () => { const value = await outline(); if (!value) await page.keyboard.press('Tab'); return value; }).toBe('solid');
+});
+
+test('휴대폰에서 다시 불러오기에 성공하면 시트가 보통 높이로 돌아온다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
+  await page.evaluate(() => { window.failLoads = false; });
+  await sheet.locator('itinerary-view').getByRole('button', { name: '다시 시도' }).click();
+  await expect(sheet.locator('.schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(0.62);
+});
+
+test('다른 곳에 갔다 돌아온 휴대폰 시트도 실패와 복구를 화면에 알린다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/courses');
+  await page.evaluate(() => { window.failLoads = false; window.navigate('/share/abc123'); });
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  await expect(sheet.locator('.schedule-title').filter({ hasText: '경복궁' })).toBeVisible();
+  await page.evaluate(() => window.navigate('/courses'));
+  await expect(page).toHaveURL(/\/courses$/);
+  await page.evaluate(() => { window.failLoads = true; });
+  await page.goBack();
+  await expect(sheet.locator('itinerary-view').getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await expect.poll(() => sheet.evaluate(modal => modal.getCurrentBreakpoint())).toBe(1);
+});
+
+test('다시 시도 중 사용자가 옮겨 간 곳의 초점을 뺏지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const view = page.locator('itinerary-view:visible');
+  await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await page.evaluate(() => { window.holdLoad = new Promise(done => { window.releaseLoad = done; }); });
+  await view.getByRole('button', { name: '다시 시도' }).click();
+  const theme = page.getByRole('button', { name: /다크 모드|라이트 모드/ }).first();
+  await theme.focus();
+  await page.evaluate(() => window.releaseLoad());
+  await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await expect(theme).toBeFocused();
+});
+
+test('다시 시도한 일정이 없으면 복구로 치지 않고 초점을 잃지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const view = page.locator('itinerary-view:visible');
+  await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
+  await page.evaluate(() => { window.failLoads = 'missing'; });
+  await view.getByRole('button', { name: '다시 시도' }).click();
+  await expect(view.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expect.poll(() => view.evaluate(element => element.shadowRoot.activeElement?.id)).toBe('timeline-container');
+  await expect(page.locator('.ionic-result-missing')).toHaveCount(1);
+});
+
+test('다시 시도한 일정의 내용이 비어 있으면 복구로 치지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: failingItineraryStore }));
+  await page.goto('/share/abc123');
+  const retry = page.locator('itinerary-view:visible').getByRole('button', { name: '다시 시도' });
+  await expect(retry).toBeVisible();
+  await page.evaluate(() => { window.failLoads = 'empty'; });
+  await retry.click();
+  await expect(retry).toHaveCount(0);
+  await expect(page.locator('.ionic-result-missing')).toHaveCount(1);
+});
+
 test('저장 중 다른 화면으로 떠났다면 연결 안내를 띄우지 않는다', async ({ page }) => {
   await openUnsavedDraft(page, '', 'await new Promise(done => { window.finishSave = done; });');
   const save = page.locator('itinerary-view:visible #save-itinerary-btn');

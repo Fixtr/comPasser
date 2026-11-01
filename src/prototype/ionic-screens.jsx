@@ -306,9 +306,15 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   useEffect(() => {
     const view = itinerary.current;
     const onMissing = () => setMissing(true);
+    const onRecovered = () => { setMissing(false); setShowEdit(view.canEdit()); void sheet.current?.setCurrentBreakpoint(0.62); };
     view?.addEventListener('itinerary-missing', onMissing);
-    return () => view?.removeEventListener('itinerary-missing', onMissing);
-  }, [loaded, desktop, offlineMode]);
+    view?.addEventListener('itinerary-recovered', onRecovered);
+    return () => {
+      view?.removeEventListener('itinerary-missing', onMissing);
+      view?.removeEventListener('itinerary-recovered', onRecovered);
+    };
+  // `ready`: the sheet renders a new view each time it presents.
+  }, [loaded, desktop, offlineMode, ready]);
   // A page kept in the outlet must not carry the last trip's state into the next one.
   useEffect(() => { if (!active) setMissing(false); }, [active]);
   // On a phone the missing-trip card opens to full height instead of leaving an empty map above it.

@@ -103,7 +103,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   return <IonPage>
     <IonHeader><IonToolbar>
       {path !== '/' && path !== '/home' && <IonButtons slot="start"><IonBackButton defaultHref="/" text={t('shellBack')} /></IonButtons>}
-      <IonTitle>{t('shellNotFound')}</IonTitle>
+      <IonTitle>ComPasser</IonTitle>
     </IonToolbar></IonHeader>
     <IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><Link to="/">{t('profileGoHome')}</Link>{settings}</div><h1>{t('shellNotFound')}</h1><p>{t('shellCheckAddress')}</p></IonContent>
   </IonPage>;
