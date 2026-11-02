@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { loginWithGoogle, loginWithEmail, loginWithCustomToken, sendPasswordReset, app } from '../services/firebase-auth.js';
 import { availableSocialLogins } from '../services/available-logins.mjs';
+import { isNoGoogleAccountError } from '../services/native-google-signin.mjs';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { t, applyTranslations, getLang } from '../../../utils/i18n.js';
 import { isInAppBrowser, handleInAppBrowserEscape } from '../../../utils/browser-utils.js';
@@ -190,7 +191,7 @@ export default class LoginView extends HTMLElement {
       try {
         await loginWithGoogle();
       } catch (err) {
-        errorMsg.textContent = t('loginFailed');
+        errorMsg.textContent = t(isNoGoogleAccountError(err) ? 'googleAccountRequired' : 'loginFailed');
         errorMsg.style.display = 'block';
       } finally {
         googleBtn.disabled = false;
