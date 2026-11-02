@@ -19,7 +19,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isNoGoogleAccountError, signInWithNativeGoogle } from '../src/domains/auth/services/native-google-signin.mjs';
+import { isNoGoogleAccountError, isSignInCancelled, signInWithNativeGoogle } from '../src/domains/auth/services/native-google-signin.mjs';
 
 /** 성공 경로의 기본 대역. 호출 순서를 적어 둔다. */
 function makeDeps(overrides = {}) {
@@ -86,4 +86,18 @@ test('기기에 구글 계정이 없을 때 나는 오류만 계정 없음으로
   assert.equal(isNoGoogleAccountError(new Error('activity is cancelled by the user.')), false);
   assert.equal(isNoGoogleAccountError(new Error('GOOGLE_ID_TOKEN_MISSING')), false);
   assert.equal(isNoGoogleAccountError(undefined), false);
+});
+
+test('사용자가 직접 닫은 로그인만 취소로 본다', () => {
+  // iOS GoogleSignIn, 안드로이드 플러그인과 Credential Manager, 빈 결과, 웹 팝업
+  assert.equal(isSignInCancelled(new Error('The user canceled the sign-in flow.')), true);
+  assert.equal(isSignInCancelled(new Error('Authorization canceled.')), true);
+  assert.equal(isSignInCancelled(new Error('activity is cancelled by the user.')), true);
+  assert.equal(isSignInCancelled(new Error('GOOGLE_ID_TOKEN_MISSING')), true);
+  assert.equal(isSignInCancelled({ code: 'auth/popup-closed-by-user', message: 'Firebase: Error' }), true);
+
+  assert.equal(isSignInCancelled(new Error('No credentials available')), false);
+  assert.equal(isSignInCancelled(new Error('keychain error')), false);
+  assert.equal(isSignInCancelled({ code: 'auth/network-request-failed', message: 'Firebase: Error' }), false);
+  assert.equal(isSignInCancelled(undefined), false);
 });
