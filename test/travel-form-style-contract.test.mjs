@@ -59,3 +59,11 @@ test('폼 로직 파일의 인라인 스타일에도 옛 색이 없다', () => {
   assertNoGradients(inlineStyles, `${LABEL}(inline)`);
   assertNoLegacyTokens(inlineStyles, `${LABEL}(inline)`);
 });
+
+test('스크롤할 때 입력창이 상단 메뉴 위로 올라오지 않는다', () => {
+  const shell = readFileSync(new URL('../src/prototype/ionic-shell.css', import.meta.url), 'utf8');
+  const navZ = Number(shell.match(/\.ionic-page-nav\s*\{[^}]*z-index:\s*(\d+)/)[1]);
+  const formZ = [...css.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1]));
+  assert.ok(formZ.length > 0);
+  assert.ok(formZ.every((z) => z < navZ), `상단 메뉴 ${navZ}, 폼 ${formZ}`);
+});
