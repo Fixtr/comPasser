@@ -1335,6 +1335,19 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await expect(page.locator('itinerary-view')).toBeVisible();
   await expect(page.locator('itinerary-view #next-stop')).toBeVisible();
   await expect(page.locator('itinerary-view #next-stop-title')).toHaveText('경복궁');
+  // The default sheet height must already show the start of the day, and the map must frame above the sheet.
+  const firstStop = await page.locator('itinerary-view #timeline-container .schedule-card').first().boundingBox();
+  const saveBar = await page.locator('itinerary-view #actions-primary').boundingBox();
+  expect(firstStop.y + 40).toBeLessThanOrEqual(saveBar.y);
+  const insets = await page.locator('map-view').evaluate(map => ({ padding: map.getFrameInsets(), height: map.getBoundingClientRect().height }));
+  expect(insets.padding.bottom).toBeGreaterThan(insets.height * 0.62);
+  expect(insets.padding.top).toBeGreaterThan(44);
+  // Rotating refits the route; otherwise it stays framed for the old shape.
+  await page.locator('map-view').evaluate(map => { map.reframe = () => { window.__reframed = true; }; });
+  const portrait = page.viewportSize();
+  await page.setViewportSize({ width: 800, height: 390 });
+  await expect.poll(() => page.evaluate(() => window.__reframed === true)).toBe(true);
+  await page.setViewportSize(portrait);
   await expect(page.locator('ion-modal.ionic-result-sheet itinerary-view').getByRole('heading', { level: 1 })).toContainText('2026-09-27');
   await page.screenshot({ path: testInfo.outputPath('result-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -16,6 +16,8 @@ import {
   MIN_PADDING,
   edgeInsetFor,
   framePadding,
+  sheetFramePadding,
+  SHEET_FRAME_MAX_RATIO,
   centerOffsetFor,
   toPoint,
   spanOf,
@@ -139,4 +141,20 @@ test('같은 자리만 있으면 "한 곳"으로 본다', () => {
   assert.equal(isSinglePlace([{ lat: 37.5, lng: 127.0 }, { lat: 37.5001, lng: 127.0001 }]), true);
   assert.equal(isSinglePlace([{ lat: 37.5, lng: 127.0 }, { lat: 37.55, lng: 127.0 }]), false);
   assert.equal(isSinglePlace([]), true);
+});
+
+test('휴대폰 결과 시트는 지도 아래 62% 를 덮고 버튼 줄은 위를 덮는다', () => {
+  // 작은 뒤로 버튼을 그대로 재면 왼쪽 여백으로 잡혀 핀이 그 아래로 들어간다. 줄 전체를 위 여백으로 본다.
+  const phone = { top: 0, left: 0, right: 402, bottom: 874 };
+  const padding = sheetFramePadding(phone, 110, 0.62);
+  assert.equal(padding.top, 110 + MIN_PADDING);
+  assert.ok(Math.abs(padding.bottom - (874 * 0.62 + MIN_PADDING)) < 0.001);
+  assert.equal(padding.left, MIN_PADDING);
+  assert.equal(padding.right, MIN_PADDING);
+});
+
+test('가로로 눕혀 지도가 낮아도 맞출 자리를 남긴다', () => {
+  const low = { top: 0, left: 0, right: 874, bottom: 402 };
+  const padding = sheetFramePadding(low, 60, 0.62);
+  assert.ok(padding.top + padding.bottom <= 402 * SHEET_FRAME_MAX_RATIO + 0.001);
 });

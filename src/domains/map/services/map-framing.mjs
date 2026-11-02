@@ -94,6 +94,25 @@ function shrinkPair(padding, a, b, size, maxRatio) {
   padding[b] *= scale;
 }
 
+/** 휴대폰 결과 시트는 지도를 많이 덮는다. 기본 비율로 줄이면 핀이 다시 시트 뒤로 간다. */
+export const SHEET_FRAME_MAX_RATIO = 0.85;
+
+/**
+ * Ionic 결과 시트 위로 경로를 올린다. 시트의 기본 높이로 맞춰 두면 더 접어도 경로가 보인다.
+ * 시트는 폰 폭보다 높아 `edgeInsetFor` 가 옆에서 덮는다고 판단하므로, 위아래 띠로 바로 계산한다.
+ */
+export function sheetFramePadding(stage, topBarBottom, sheetFraction, min = MIN_PADDING) {
+  const height = positive(stage?.bottom - stage?.top);
+  const padding = {
+    top: positive(topBarBottom - stage?.top) + min,
+    right: min,
+    bottom: height * sheetFraction + min,
+    left: min,
+  };
+  shrinkPair(padding, 'top', 'bottom', height, SHEET_FRAME_MAX_RATIO);
+  return padding;
+}
+
 /**
  * 한 곳만 있어 `fitBounds` 를 못 쓸 때, 그 곳을 **보이는 가운데**로 보내려면
  * 지도를 얼마나 밀어야 하는가.

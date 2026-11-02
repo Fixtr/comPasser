@@ -67,3 +67,9 @@ test('스크롤할 때 입력창이 상단 메뉴 위로 올라오지 않는다'
   assert.ok(formZ.length > 0);
   assert.ok(formZ.every((z) => z < navZ), `상단 메뉴 ${navZ}, 폼 ${formZ}`);
 });
+
+test('결과 시트는 끝까지 올려도 상태 표시줄 아래에서 멈춘다', () => {
+  // 100% 면 손잡이와 언어·테마 버튼이 상태 표시줄과 겹치고 손잡이를 누를 수 없다.
+  const shell = readFileSync(new URL('../src/prototype/ionic-shell.css', import.meta.url), 'utf8');
+  assert.match(shell, /\.ionic-result-sheet \{[^}]*--height: calc\(100% - env\(safe-area-inset-top, 0px\)\)/);
+});
