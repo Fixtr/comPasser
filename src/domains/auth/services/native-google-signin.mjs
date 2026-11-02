@@ -54,3 +54,14 @@ export async function signInWithNativeGoogle({
 export function isNoGoogleAccountError(error) {
   return error?.message === 'No credentials available';
 }
+
+/**
+ * 사용자가 로그인 창을 직접 닫았는가. 실패가 아니므로 오류를 띄우지 않는다.
+ *
+ * shortcut: 플랫폼마다 코드 없이 문구만 줘서 cancel 이 든 문구로 가린다, 플러그인이 취소 코드를 주면 코드로 바꾼다.
+ */
+export function isSignInCancelled(error) {
+  return error?.code === 'auth/popup-closed-by-user'
+    || error?.message === 'GOOGLE_ID_TOKEN_MISSING'
+    || /cancel/i.test(error?.message ?? '');
+}
