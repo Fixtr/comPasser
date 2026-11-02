@@ -19,7 +19,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { signInWithNativeGoogle } from '../src/domains/auth/services/native-google-signin.mjs';
+import { isNoGoogleAccountError, signInWithNativeGoogle } from '../src/domains/auth/services/native-google-signin.mjs';
 
 /** 성공 경로의 기본 대역. 호출 순서를 적어 둔다. */
 function makeDeps(overrides = {}) {
@@ -77,4 +77,13 @@ test('플러그인이 던진 오류는 그대로 올려 보낸다', async () => 
     requestGoogleIdToken: async () => { throw new Error('SIGN_IN_CANCELLED'); },
   });
   await assert.rejects(() => signInWithNativeGoogle(deps), /SIGN_IN_CANCELLED/);
+});
+
+test('기기에 구글 계정이 없을 때 나는 오류만 계정 없음으로 본다', () => {
+  assert.equal(isNoGoogleAccountError(new Error('No credentials available')), true);
+  assert.equal(isNoGoogleAccountError({ message: 'No credentials available' }), true);
+
+  assert.equal(isNoGoogleAccountError(new Error('activity is cancelled by the user.')), false);
+  assert.equal(isNoGoogleAccountError(new Error('GOOGLE_ID_TOKEN_MISSING')), false);
+  assert.equal(isNoGoogleAccountError(undefined), false);
 });

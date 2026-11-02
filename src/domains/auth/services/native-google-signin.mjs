@@ -43,3 +43,14 @@ export async function signInWithNativeGoogle({
   const { user } = await signInWithCredential(buildCredential(idToken));
   return user;
 }
+
+/**
+ * 안드로이드 기기에 구글 계정이 하나도 없을 때의 오류인가.
+ *
+ * 이때는 다시 눌러도 계속 실패하므로 재시도 문구가 아니라 계정 추가를 안내한다.
+ * 플러그인이 코드 없이 문구만 넘기므로 문구로 가린다.
+ * shortcut: androidx.credentials 의 기본 문구에 기댄다, 플러그인이 오류 코드를 주면 코드로 바꾼다.
+ */
+export function isNoGoogleAccountError(error) {
+  return error?.message === 'No credentials available';
+}
