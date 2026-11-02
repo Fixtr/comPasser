@@ -65,7 +65,7 @@ ion-back-button::part(native):focus-visible { outline: 3px solid var(--cp-ink); 
 /* Back stays reachable while scrolling: the bar replaces the content's top padding so nothing shows above it. */
 .shell-content:has(> .ionic-page-nav) { --padding-top: 0; }
 .shell-content::part(scroll) { scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
-.ionic-page-nav { position: sticky; top: 0; z-index: 10; max-width: none; margin-inline: calc(-1 * var(--ion-padding, 16px)); padding: calc(6px + env(safe-area-inset-top, 0px)) max(var(--ion-padding, 16px), calc((100% - 700px) / 2 + var(--ion-padding, 16px))) 6px; background: var(--cp-paper); border-bottom: 1px solid var(--cp-rule); }
+.ionic-page-nav { position: sticky; top: 0; z-index: 20; max-width: none; margin-inline: calc(-1 * var(--ion-padding, 16px)); padding: calc(6px + env(safe-area-inset-top, 0px)) max(var(--ion-padding, 16px), calc((100% - 700px) / 2 + var(--ion-padding, 16px))) 6px; background: var(--cp-paper); border-bottom: 1px solid var(--cp-rule); }
 ion-header + .shell-content .ionic-page-nav { position: static; padding-top: 6px; }
 .ionic-page-nav>a { display: inline-flex; align-items: center; text-decoration: none; }
 .ionic-home-settings { max-width: 440px; }
