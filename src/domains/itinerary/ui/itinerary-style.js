@@ -880,19 +880,24 @@ export const itineraryStyles = `
         .next-stop { display: none; }
         @media (max-width: 899px) {
           :host([mobile-summary]) .next-stop:not([hidden]) {
+            /* 시트 기본 높이에서 타임라인 시작이 보이도록 버튼을 옆으로 둔다. */
             display: grid;
-            gap: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1.25rem;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.15rem 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
             background: var(--cp-surface);
             border: 2px solid var(--cp-ink);
             color: var(--cp-ink);
           }
-          .next-stop span { color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
-          .next-stop strong { font-size: 1.25rem; line-height: 1.3; }
+          .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
+          .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }
           .next-stop button {
+            grid-column: 2;
+            grid-row: 1 / span 3;
             min-height: 48px;
-            margin-top: 0.5rem;
+            padding: 0 1rem;
             border: 0;
             background: var(--cp-ink);
             color: var(--cp-surface);

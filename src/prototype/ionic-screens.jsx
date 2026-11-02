@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IonButton, IonContent, IonModal, IonPage, IonProgressBar } from '@ionic/react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { sheetFramePadding } from '../domains/map/services/map-framing.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { normalizeData } from '../domains/itinerary/services/itinerary-normalize.mjs';
 import { getLang } from '../utils/i18n.js';
@@ -282,6 +283,8 @@ export function PlanScreen({ user, settings }) {
   </IonContent></IonPage>;
 }
 
+const RESULT_SHEET_DEFAULT = 0.62;
+
 export function ResultScreen({ path, active, user, authSettled, settings }) {
   const itinerary = useRef(null);
   const location = useLocation();
@@ -299,6 +302,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   const navigate = useNavigate();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sheet = useRef(null);
+  const mapView = useRef(null);
   const fullSheet = useRef(false);
   // Ionic leaves the sheet unnamed and its handle in English, with no prop for either, so set them in its shadow root
   // after every render (a language switch re-renders). Below full height the map's Back and Edit stay usable beside it,
@@ -315,7 +319,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   useEffect(() => {
     const view = itinerary.current;
     const onMissing = () => setMissing(true);
-    const onRecovered = () => { setMissing(false); setShowEdit(view.canEdit()); void sheet.current?.setCurrentBreakpoint(0.62); };
+    const onRecovered = () => { setMissing(false); setShowEdit(view.canEdit()); void sheet.current?.setCurrentBreakpoint(RESULT_SHEET_DEFAULT); };
     view?.addEventListener('itinerary-missing', onMissing);
     view?.addEventListener('itinerary-recovered', onRecovered);
     return () => {
@@ -328,6 +332,29 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   useEffect(() => { if (!active) setMissing(false); }, [active]);
   // On a phone the missing-trip card opens to full height instead of leaving an empty map above it.
   useEffect(() => { if (missing && ready && active && !desktop) void sheet.current?.setCurrentBreakpoint(1); }, [missing, ready, active, desktop]);
+
+  // The map only knows it is covered through this; on a phone the sheet and button row take most of it.
+  useEffect(() => {
+    const view = mapView.current;
+    if (!view) return undefined;
+    view.getFrameInsets = desktop ? undefined : () => {
+      const backBottom = view.closest('.ionic-result-page')?.querySelector('.ionic-result-back')?.getBoundingClientRect().bottom;
+      return sheetFramePadding(view.getBoundingClientRect(), backBottom ?? 0, RESULT_SHEET_DEFAULT);
+    };
+    if (desktop) return undefined;
+    // Rotation keeps the map's centre, which pushes a route framed above the sheet off the top.
+    // Wait for the new size to reach the map; only width counts, so the keyboard never moves it.
+    let width = view.clientWidth;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      if (view.clientWidth === width) return;
+      width = view.clientWidth;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => view.reframe?.());
+    });
+    observer.observe(view);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [desktop, offlineMode]);
 
   // One subscription for the page's life: re-subscribing on each offline switch missed a resize made in between.
   useEffect(() => {
@@ -402,7 +429,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   };
 
   const map = <IonContent fullscreen scrollY={false} className="ionic-map-content">
-      <map-view />
+      <map-view ref={mapView} />
       <IonButton className="ionic-result-back" size="small" onClick={() => void back()}>{t('shellBack')}</IonButton>
       {showEdit && <IonButton className="ionic-result-edit" size="small" onClick={edit}>{t('editItineraryBtn')}</IonButton>}
     </IonContent>;
@@ -423,9 +450,9 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     </div> : <>
       {map}
       <IonModal ref={sheet} className="ionic-result-sheet" canDismiss={!active} isOpen={active} animated={!reducedMotion}
-      breakpoints={[0.3, 0.62, 1]} initialBreakpoint={0.62} backdropBreakpoint={0.62}
+      breakpoints={[0.3, RESULT_SHEET_DEFAULT, 1]} initialBreakpoint={RESULT_SHEET_DEFAULT} backdropBreakpoint={RESULT_SHEET_DEFAULT}
       handle handleBehavior="cycle" expandToScroll={false} onDidPresent={() => { nameSheet(); setReady(true); }}
-      onIonBreakpointDidChange={event => { fullSheet.current = event.detail.breakpoint > 0.62; nameSheet(); }} onDidDismiss={() => setReady(false)}>
+      onIonBreakpointDidChange={event => { fullSheet.current = event.detail.breakpoint > RESULT_SHEET_DEFAULT; nameSheet(); }} onDidDismiss={() => setReady(false)}>
         <IonContent className="ionic-result-sheet-content">{schedule}</IonContent>
       </IonModal>
     </>}

@@ -362,6 +362,11 @@ export class MapView extends HTMLElement {
     }
   }
 
+  /** 화면 방향이 바뀌면 덮이는 자리가 달라지므로 마지막 경로를 다시 맞춘다. */
+  reframe() {
+    if (this.map && this._lastFrame) this.frameToItems(...this._lastFrame);
+  }
+
   /**
    * 그 날의 장소가 전부 보이도록 지도를 맞춘다.
    * @param {Array} geocodedItems 좌표가 붙은 일정 항목들
@@ -370,6 +375,7 @@ export class MapView extends HTMLElement {
   frameToItems(geocodedItems, preferredItem, isCurrent = () => true) {
     const points = geocodedItems.map(item => toPoint(item.latLng)).filter(Boolean);
     if (points.length === 0) return;
+    this._lastFrame = [geocodedItems, preferredItem];
 
     const padding = this.currentPadding();
 
