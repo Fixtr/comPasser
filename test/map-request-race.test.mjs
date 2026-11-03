@@ -66,7 +66,7 @@ test('위치를 확인하지 못한 중간 장소를 건너뛰는 경로를 만�
 });
 
 // 지도 클래스의 실제 async 경로를 실행한다. Google 통신과 그리기 객체만 대체한다.
-function harness({ geocode = async items => geocoded(items), route = async () => response(), library } = {}) {
+function harness({ geocode = async items => geocoded(items), route = async () => response(), library, styles = {} } = {}) {
   const events = [], created = { markers: [], routes: [], fallbacks: [] }, frames = [], listeners = new Map();
   const libraries = {
     marker: {
@@ -94,7 +94,8 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
     GeocodingService: class { geocodeSchedule(...args) { return geocode(...args); } },
     RoutingService: class { getTransitRoute(...args) { return route(...args); } },
     getLang: () => 'ko', t: key => key, buildTransitDepartureTime,
-    getComputedStyle: () => ({ getPropertyValue: () => '' }), document: { documentElement: {} },
+    getComputedStyle: () => ({ getPropertyValue: name => styles[name] || '' }),
+    document: { documentElement: {}, createElement: tag => ({ tag, style: {}, children: [], append(...nodes) { this.children.push(...nodes); } }) },
     CustomEvent: class { constructor(type, { detail } = {}) { this.type = type; this.detail = detail; } },
     window: {
       dispatchEvent(event) { events.push(event); },
@@ -220,4 +221,34 @@ test('전역 취소 이벤트와 컴포넌트 해제도 대기 중인 경로를 
     assert.equal(app.map.markers.length, 0);
     assert.equal(app.events.some(event => event.type === 'transit-info-ready'), false);
   }
+});
+
+test('map pins keep their light colours in dark mode, because Google map tiles stay light', async () => {
+  // Dark mode swaps the theme tokens on :root; the pin tokens stay put.
+  const styles = { '--cp-anchor': '#a78bfa', '--cp-start': '#34d399', '--cp-stop': '#60a5fa', '--cp-surface': '#1A1A19',
+    '--cp-pin-anchor': '#5820b0', '--cp-pin-start': '#10b981', '--cp-pin-stop': '#3b82f6', '--cp-pin-glyph': '#FFFFFF' };
+  const app = harness({ styles });
+  await app.map.renderMarkers([
+    { latLng: { lat: 37, lng: 127 }, displayIndex: 1 },
+    { latLng: { lat: 37.1, lng: 127 }, displayIndex: 2 },
+    { latLng: { lat: 37.2, lng: 127 }, displayIndex: 3, type: 'AnchorSchedule' },
+  ]);
+  assert.deepEqual(app.created.markers.map(marker => [marker.content.background, marker.content.glyphColor]),
+    [['#10b981', '#FFFFFF'], ['#3b82f6', '#FFFFFF'], ['#5820b0', '#FFFFFF']]);
+});
+
+test('a merged pin uses a pill that widens with its numbers instead of a pin they overflow', async () => {
+  const app = harness();
+  await app.map.renderMarkers([
+    { latLng: { lat: 37, lng: 127 }, displayIndex: 10, title: 'Hotel' },
+    { latLng: { lat: 37, lng: 127 }, displayIndex: 11, title: 'Hotel again' },
+    { latLng: { lat: 37.1, lng: 127 }, displayIndex: 12 },
+  ]);
+  const [merged, single] = app.created.markers;
+  // PinElement's number grows with its scale, so no scale fits '10·11' (measured on Maps JS, 2026-11-03).
+  assert.equal(merged.content.glyphText, undefined);
+  assert.equal(merged.content.textContent, '10·11');
+  assert.equal(merged.content.style.whiteSpace, 'nowrap');
+  assert.equal(merged.title, 'Hotel / Hotel again');
+  assert.equal(single.content.glyphText, '12');
 });

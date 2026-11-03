@@ -32,14 +32,29 @@ const DEFAULT_PADDING = { top: MIN_PADDING, right: MIN_PADDING, bottom: MIN_PADD
  * 토큰 값을 실제 색 문자열로 읽는다. PinElement 와 Polyline 은 CSS 변수를
  * 받지 못해 값이 필요하다.
  *
- * `body` 가 아니라 `:root` 에서 읽는 것은 의도적이다. 다크 모드 토큰은
- * `body.dark` 에 걸리는데, 구글 지도 타일은 우리 테마를 따르지 않고 항상
- * 밝다. `body` 에서 읽으면 다크 모드에서 밝은 지도 위에 옅은 파스텔 핀이
- * 찍혀 잘 안 보이게 된다. 여기서는 늘 라이트 값이 맞다.
+ * 구글 지도 타일은 우리 테마를 따르지 않고 항상 밝으므로, 지도에 그리는
+ * 색은 다크 모드에서 바뀌지 않는 `--cp-route`·`--cp-pin-*` 만 읽는다.
+ * 예전에는 `:root` 에서 읽으면 라이트 값이 나온다고 믿고 테마 토큰을 썼지만,
+ * 다크 선택자가 `:root[data-theme="dark"]` 로 바뀌면서 그 전제가 깨졌다.
  */
 function tokenColor(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
+}
+
+/**
+ * 같은 자리에 들르는 번호('10·11')를 담는 알약 모양 마커. PinElement 는
+ * scale 을 키우면 글자도 같이 커져서, 세 글자부터는 어떤 크기로도 핀 밖으로
+ * 넘친다(Maps JS 실측, 2026-11-03). 알약은 글자 길이만큼 넓어진다.
+ */
+function numberPill(text, fill, ink) {
+  const pill = document.createElement('div');
+  pill.textContent = text;
+  Object.assign(pill.style, {
+    padding: '4px 9px', borderRadius: '14px', background: fill, color: ink,
+    font: '600 14px Roboto, Arial, sans-serif', lineHeight: '18px', whiteSpace: 'nowrap',
+  });
+  return pill;
 }
 
 function latLngToString(latLng) {
@@ -423,16 +438,13 @@ export class MapView extends HTMLElement {
 
       // map/COMMAND_GUIDE.md: Anchor=보라 / 첫 장소=초록 / 나머지=파랑
       const fill = isAnchor
-        ? tokenColor('--cp-anchor', '#7c3aed')
-        : (isStart ? tokenColor('--cp-start', '#10b981') : tokenColor('--cp-stop', '#3b82f6'));
+        ? tokenColor('--cp-pin-anchor', '#5820b0')
+        : (isStart ? tokenColor('--cp-pin-start', '#10b981') : tokenColor('--cp-pin-stop', '#3b82f6'));
 
-      const pinView = new PinElement({
-        background: fill,
-        borderColor: fill,
-        glyphColor: tokenColor('--cp-surface', '#ffffff'),
-        glyphText: numbers.join('·'),
-        scale: numbers.length > 1 ? 1.25 : 1
-      });
+      const glyphColor = tokenColor('--cp-pin-glyph', '#FFFFFF');
+      const pinView = numbers.length > 1
+        ? numberPill(numbers.join('·'), fill, glyphColor)
+        : new PinElement({ background: fill, borderColor: fill, glyphColor, glyphText: String(numbers[0]) });
 
       const marker = new AdvancedMarkerElement({
         map: this.map,
