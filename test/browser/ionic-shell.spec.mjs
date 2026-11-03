@@ -703,7 +703,7 @@ test('장소 단계는 담은 장소와 다음 버튼이 어디서나 닿고, �
   }
 });
 
-test('장소 단계 하단 바는 안전 영역을 피하고, 검색 중에는 풀리며, 포커스를 가리지 않고 칩 포커스 링이 잘리지 않는다', async ({ page }) => {
+test('장소 단계 하단 바는 안전 영역을 피하고, 목록이 아래로 펼쳐지는 폭에서 검색 중에는 풀리며, 포커스를 가리지 않고 칩 포커스 링이 잘리지 않는다', async ({ page }) => {
   await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule }));
   await page.setViewportSize({ width: 390, height: 844 });
   const cdp = await page.context().newCDPSession(page);
@@ -717,11 +717,19 @@ test('장소 단계 하단 바는 안전 영역을 피하고, 검색 중에는 �
   const next = page.locator('.flow-primary');
   expect((await next.boundingBox()).y + (await next.boundingBox()).height).toBeLessThanOrEqual(844 - 34);
 
+  // At 450px and below Google opens its own full-screen list, and closing it leaves focus in the box:
+  // the bar stays pinned so Next is not lost (seen on an iPhone 17 simulator and a Galaxy S25 Edge).
   await expect(bar).toHaveCSS('position', 'sticky');
+  await page.locator('gmp-place-autocomplete input').focus();
+  await expect(bar).toHaveCSS('position', 'sticky');
+  await page.locator('gmp-place-autocomplete input').blur();
+  // Wider, Google drops its list under the box, so the bar steps aside while typing.
+  await page.setViewportSize({ width: 600, height: 844 });
   await page.locator('gmp-place-autocomplete input').focus();
   await expect(bar).toHaveCSS('position', 'static');
   await page.locator('gmp-place-autocomplete input').blur();
   await expect(bar).toHaveCSS('position', 'sticky');
+  await page.setViewportSize({ width: 390, height: 844 });
 
   const rows = page.locator('.flow-place-row > button');
   const rowCount = await rows.count();
@@ -1022,6 +1030,10 @@ test('다른 도시를 둘러보거나 다른 도시 코스를 담으면 이전 
   await page.locator('[data-recommend-city=seoul]').click();
   await page.locator('.flow-place-row').nth(1).locator('button').click();
   await expect(page.locator('.flow-place-chip')).toHaveText(['서울숲 ×']);
+  // The official guide link in a place's details is a finger-sized target, not a 22px line of text.
+  await page.locator('.flow-place-row').nth(1).locator('summary').click();
+  const guide = page.locator('.flow-place-row').nth(1).getByRole('link');
+  expect((await guide.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-recommend-country=JPN]').click();
@@ -1030,8 +1042,13 @@ test('다른 도시를 둘러보거나 다른 도시 코스를 담으면 이전 
   await expect(page.locator('.flow-place-chip')).toHaveCount(0);
   expect((await draft()).destination.id).toBe('seoul');
   await page.locator('.flow-place-row').first().locator('button').click();
-  await expect(page.locator('.flow-place-chip')).toHaveText(['Sensō-ji ×']);
+  // The chip uses the row's name on a Korean screen; the stored anchor keeps the name the AI and geocoder use.
+  await expect(page.locator('.flow-place-chip')).toHaveText(['센소지 ×']);
   expect((await draft()).destination.id).toBe('tokyo');
+  expect((await draft()).anchorSchedules[0].name).toBe('Sensō-ji');
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.locator('.flow-place-chip')).toHaveText(['Sensoji Temple ×']);
+  await page.getByRole('button', { name: '한국어', exact: true }).click();
 
   await page.goto('/courses');
   await chooseCourseCity(page);
