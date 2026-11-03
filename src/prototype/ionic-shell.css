@@ -91,6 +91,7 @@ button { font: inherit; cursor: pointer; }
 .flow-place-row details { flex: 1; min-width: 0; }
 .flow-place-row summary { cursor: pointer; min-height: 44px; font-size: 14px; }
 .flow-place-row small { display: block; color: var(--cp-muted); margin-top: 4px; }
+.flow-place-row details a { display: inline-flex; align-items: center; min-height: 44px; }
 .flow-place-row button { width: 44px; flex: none; font-size: 20px; }
 .flow-place-row button[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
 .course-review-notice { word-break: keep-all; }
@@ -103,8 +104,9 @@ button { font: inherit; cursor: pointer; }
 /* The padding keeps each chip's 6px focus ring inside the scroll box, which would clip it. */
 .flow-place-chips { max-height: 110px; margin-inline: -6px; padding: 0 6px 6px; overflow-y: auto; }
 .flow-page .flow-place-actions .flow-primary { margin-top: 8px; }
-/* Keeps the bar off Google's suggestion list and the on-screen keyboard while typing. */
-.flow-page:has(gmp-place-autocomplete:focus-within) .flow-place-actions { position: static; }
+/* Keeps the bar off Google's suggestion list while typing. At 450px and below Google covers the page with its own
+   list instead, and focus stays in the box after it closes, which would hide Next until another tap. */
+@media (width > 450px) { .flow-page:has(gmp-place-autocomplete:focus-within) .flow-place-actions { position: static; } }
 /* Keyboard focus must not land behind the bar (chips + Next). */
 .flow-page:has(.flow-place-actions) * { scroll-margin-bottom: calc(180px + env(safe-area-inset-bottom, 0px)); }
 /* Very short screens (a laptop at 300-400% zoom): the two bars would cover the whole page. */

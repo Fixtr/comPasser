@@ -67,6 +67,12 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
     save({ anchorSchedules: [...anchors, { name: canonical.displayName, location: canonical, suggestionId, flexible: true, stayMinutes: 60, time: '', endTime: '' }] });
     setError('');
   };
+  const placeName = place => typeof place === 'string' ? place : place.name ? (getLang() === 'en' ? place.englishName : place.name) : t(`${place.key}Name`);
+  // A catalogue pick stores the English name the AI and geocoder use; its chip shows the row's name in the screen's language.
+  const chipName = anchor => {
+    const place = city?.places.find(item => (typeof item === 'string' ? item : item.id) === anchor.suggestionId);
+    return place ? placeName(place) : anchor.name;
+  };
   const addSuggestion = async place => {
     const request = ++version.current;
     setBusy(true); setError('');
@@ -113,7 +119,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         <AIPlaceRecommendations key={city.id} city={city} draft={draft} onAdd={add} onRemove={placeId=>save({anchorSchedules:read().anchorSchedules.filter(anchor=>anchor.location?.placeId !== placeId)})} />
         <details className="catalogue-places" open><summary>{t('aiPlacesCatalogue').replace('{0}',t(city.key))}</summary>
         <div className="flow-place-list">{city.places.filter(place => !place.pairOnly).map(place => {
-          const name = typeof place === 'string' ? place : place.name ? (getLang() === 'en' ? place.englishName : place.name) : t(`${place.key}Name`);
+          const name = placeName(place);
           const canonicalName = typeof place === 'string' ? place : place.englishName || tFor(`${place.key}Name`, 'ko');
           const chosen = selected.find(anchor => anchor.suggestionId === (typeof place === 'string' ? place : place.id) || anchor.location?.displayName === canonicalName);
           return <div className="flow-place-row" key={typeof place === 'string' ? place : place.id}>
@@ -122,7 +128,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
           </div>;
         })}</div></details>
         <div className="flow-place-actions">
-          <div className="flow-place-chips">{selected.map((anchor, index) => <button className="flow-place-chip" key={index} onClick={() => save({ anchorSchedules: selected.filter((_, i) => i !== index) })}>{anchor.name} ×</button>)}</div>
+          <div className="flow-place-chips">{selected.map((anchor, index) => <button className="flow-place-chip" key={index} onClick={() => save({ anchorSchedules: selected.filter((_, i) => i !== index) })}>{chipName(anchor)} ×</button>)}</div>
           <button className="flow-primary" disabled={busy} onClick={() => { const next = editingPlan ? '/plan' : '/preference/1'; save({ step: next }); navigate(next); }}>{selected.length ? t('flowNextPlaces').replace('{0}', selected.length) : t('flowSkipPlaces')}</button>
         </div>
       </>}
