@@ -94,7 +94,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   else if (path === '/preference/1' || path === '/preference/2') screen = <PreferenceScreen step={path.endsWith('/2') ? 2 : 1} settings={settings} active={active} />;
   else if (path === '/plan') screen = <PlanScreen user={user} settings={settings} />;
   else if (path === '/view' || /^\/(?:view|share)\/[a-zA-Z0-9]+$/.test(path)) screen = <ResultScreen path={path} active={active} user={user} authSettled={authSettled} settings={settings} />;
-  else if (['/profile', '/profile/trips', '/profile/personal', '/profile/security'].includes(path)) screen = <ProfileScreen key={user?.uid || 'guest'} tab={path === '/profile/personal' && new URLSearchParams(search).get('tab') === 'trips' ? 'trips' : path.split('/')[2] || 'personal'} settings={settings} active={active} />;
+  else if (['/profile', '/profile/trips', '/profile/personal', '/profile/security'].includes(path)) screen = <ProfileScreen userId={user?.uid || 'guest'} tab={path === '/profile/personal' && new URLSearchParams(search).get('tab') === 'trips' ? 'trips' : path.split('/')[2] || 'personal'} settings={settings} active={active} />;
   else if (path === '/account-deletion-status') screen = <AccountDeletionScreen settings={settings} />;
 
   if (active && decision.action === 'wait') return <IonPage><IonContent className="ion-padding">{t('shellSignInRequired')}</IonContent></IonPage>;

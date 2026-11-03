@@ -1168,6 +1168,22 @@ test('게스트가 내 일정·프로필 탭을 누르면 로그인 화면이 �
   await expect(page.locator('.ionic-auth-reason:visible')).toHaveText('내 일정과 프로필은 로그인해야 볼 수 있어요.');
 });
 
+test('로그아웃하면 프로필에 남지 않고 홈이 보인다', async ({ page }) => {
+  // Native logout keeps working after Firebase has already reported the sign-out.
+  const signedIn = authModule
+    .replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };")
+    .replace('export async function logout() { currentUser = null; notify(null); }', 'export async function logout() { currentUser = null; notify(null); await new Promise(resolve => setTimeout(resolve, 500)); }');
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: signedIn }));
+  await page.goto('/home');
+  await page.locator('ion-tab-button[tab=profile]').click();
+  await expect(page.locator('profile-view[data-active]')).toBeVisible();
+  await page.evaluate(() => window.navigate('/profile/security'));
+  await page.locator('profile-view[data-active] #security.active #btn-logout').click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.locator('profile-view:visible')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '일정 만들기', exact: true })).toBeVisible();
+});
+
 test('이메일로 가입해도 게스트가 고른 여행 계획이 남는다', async ({ page }) => {
   const signUpModule = authModule
     .replace('export async function signUpWithEmail() {}', "export async function signUpWithEmail() { notify({ uid: 'new-user', providerData: [{ providerId: 'password' }], emailVerified: false }); await new Promise(resolve => setTimeout(resolve, 50)); notify(null); }")

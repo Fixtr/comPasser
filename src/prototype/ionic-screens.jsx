@@ -459,7 +459,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   </IonPage>;
 }
 
-export function ProfileScreen({ tab, settings, active }) {
+export function ProfileScreen({ tab, settings, active, userId }) {
   const view = useRef(null);
   const location = useLocation();
   useEffect(() => {
@@ -467,8 +467,9 @@ export function ProfileScreen({ tab, settings, active }) {
     if (!active) return undefined;
     void import('../domains/profile/ui/profile-view.js').then(() => { if (!cancelled) { view.current?.setTabFromPath(tab); view.current?.loadUserData(); view.current?.fetchItineraries(); } });
     return () => { cancelled = true; };
-  }, [tab, active, location.search]);
-  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>{t('profileGoHome')}</button>{settings}</div><profile-view ref={view} data-active={active ? '' : undefined} standalone-trips={tab === 'trips' && location.pathname === '/profile/trips' ? '' : undefined} /></IonContent></IonPage>;
+  }, [tab, active, location.search, userId]);
+  // Keyed here, not on the page: a remounted IonPage loses Ionic's hidden state and covers the current page.
+  return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={() => window.navigate('/home')}>{t('profileGoHome')}</button>{settings}</div><profile-view key={userId} ref={view} data-active={active ? '' : undefined} standalone-trips={tab === 'trips' && location.pathname === '/profile/trips' ? '' : undefined} /></IonContent></IonPage>;
 }
 
 export function AccountDeletionScreen({ settings }) {
