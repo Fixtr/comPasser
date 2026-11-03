@@ -121,6 +121,10 @@ test('directory links every route on the same site and the sitemap uses canonica
   assert.equal(sitemap.headers.get('Content-Type'), 'application/xml');
   assert.equal((await sitemap.text()).match(/<loc>/g).length, courseCities.length * 3 + 1);
   assert.match(await (await worker.fetch(request('/robots.txt'), env)).text(), /Sitemap: https:\/\/example.com\/sitemap.xml/);
+  // Link-preview bots may read share pages; everyone else, search crawlers included, stays out.
+  const robots = await (await worker.fetch(request('/robots.txt'), env)).text();
+  assert.match(robots, /User-agent: kakaotalk-scrap\nUser-agent: facebookexternalhit\nUser-agent: Slackbot-LinkExpanding\nUser-agent: Twitterbot\nAllow: \/share\/\nDisallow: \/view\nDisallow: \/profile\n/);
+  assert.match(robots, /User-agent: \*\nAllow: \/en\/routes\nDisallow: \/view\nDisallow: \/share\nDisallow: \/profile\n/);
 });
 
 test('curated stops abroad show the local name, one place line and a maps link, never the Korean name', () => {

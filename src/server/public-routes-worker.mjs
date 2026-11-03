@@ -64,7 +64,9 @@ export default {
     const response = (body, status = 200, type = 'text/html; charset=utf-8', extras = {}) => new Response(request.method === 'HEAD' ? null : body,
       { status, headers: { ...securityHeaders, 'Content-Type': type, ...extras } });
     if (!['GET', 'HEAD'].includes(request.method)) return response('Method not allowed', 405, 'text/plain', { Allow: 'GET, HEAD' });
-    if (url.pathname === '/robots.txt') return response(`User-agent: *\nAllow: /en/routes\nDisallow: /view\nDisallow: /share\nDisallow: /profile\nSitemap: ${origin}/sitemap.xml\n`, 200, 'text/plain');
+    // Link-preview bots that honour robots.txt may read share pages for their preview tags; search crawlers stay out.
+    if (url.pathname === '/robots.txt') return response(`User-agent: kakaotalk-scrap\nUser-agent: facebookexternalhit\nUser-agent: Slackbot-LinkExpanding\nUser-agent: Twitterbot\nAllow: /share/\nDisallow: /view\nDisallow: /profile\n\n`
+      + `User-agent: *\nAllow: /en/routes\nDisallow: /view\nDisallow: /share\nDisallow: /profile\nSitemap: ${origin}/sitemap.xml\n`, 200, 'text/plain');
     if (url.pathname === '/sitemap.xml') {
       try {
         // ponytail: first 200 public routes; split sitemaps when the catalogue outgrows this bound.
