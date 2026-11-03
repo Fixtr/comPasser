@@ -1568,6 +1568,31 @@ test('사라진 후기 링크는 알리고 주소에서 review 를 빼며, 목�
   await expect(page).toHaveURL(/review=brokenRoute/);
 });
 
+test('주소의 도시가 코스의 도시와 다르면 후기 링크는 코스의 도시로 옮겨 후기 창을 연다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function listPublicCourses() { return { courses: [], hasMore: false }; }
+    export async function getPublicCourse(id) { return id === 'reviewRoute' ? { ownerId: 'another-user', title: 'Temple morning', review: '', stops: [
+      { name: 'Sensoji', location: '浅草寺, Tokyo', stayMinutes: 60 }, { name: 'Tower', location: '東京タワー, Tokyo', stayMinutes: 60 }
+    ] } : id === 'elsewhereRoute' ? { ownerId: 'another-user', title: 'Village walk', review: '', stops: [{ name: 'A', location: 'Somewhere', stayMinutes: 60 }] }
+      : id === 'bothRoute' ? { ownerId: 'another-user', title: 'Station lunch', review: '', stops: [{ name: '서울깍두기', location: '부산광역시 중구', stayMinutes: 60 }] } : null; }
+    export async function listCourseReviews() { return { reviews: [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  // A course the current city's list also shows keeps that city, even if another city matches first.
+  await page.goto('/courses?country=KOR&city=busan&review=bothRoute');
+  await expect(page.locator('public-courses:visible').getByRole('button', { name: /^여행자 후기 닫기/, expanded: true })).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page).toHaveURL(/city=busan&review=bothRoute/);
+  await page.goto('/courses?country=KOR&city=seoul&review=reviewRoute');
+  await expect(page).toHaveURL(/country=JPN&city=tokyo&review=reviewRoute/);
+  await expect(page.locator('public-courses:visible').getByRole('button', { name: /^여행자 후기 닫기/, expanded: true })).toBeVisible();
+  // A course outside the catalogue cities says so instead of leaving the Seoul list silent.
+  await page.goto('/courses?country=KOR&city=seoul&review=elsewhereRoute');
+  await expect(page.getByRole('status').filter({ hasText: '이 코스의 도시는 아직 둘러보기 목록에 없어 여기서 열 수 없어요.' })).toBeVisible();
+});
+
 test('후기 링크 정리는 URLSearchParams.size 가 없는 WebKit 에서도 나머지 주소를 지킨다', async ({ page }) => {
   await page.addInitScript(() => { delete URLSearchParams.prototype.size; });
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `

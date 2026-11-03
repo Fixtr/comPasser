@@ -10,7 +10,7 @@ import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/
 import { t } from '../utils/i18n.js';
 import { showConfirm } from '../utils/confirm-dialog.js';
 import { destinations, destinationById, destinationCountries } from '../domains/planner/services/travel-destinations.mjs';
-import { courseCity } from '../domains/itinerary/services/course-community.mjs';
+import { courseCity, filterCourses } from '../domains/itinerary/services/course-community.mjs';
 import { CountryPicker } from './country-picker.jsx';
 import { DestinationScreen } from './destination-screen.jsx';
 import { useStageTransition } from './screen-transition.js';
@@ -87,9 +87,10 @@ export function CoursesScreen({ settings }) {
           navigate(`/courses${query.toString() ? `?${query}` : ''}`, { replace: true });
           return;
         }
-        // An address that already names a city stays there; public-courses opens the panel.
-        if (city) return;
-        const match = destinations.find(item => item.id === courseCity(course));
+        // A city whose list shows the course stays (a course can match two cities); public-courses opens the panel.
+        if (city && filterCourses([course], { city: city.id }).length) return;
+        const id = courseCity(course);
+        const match = destinations.find(item => item.id === id);
         if (match) navigate(`/courses?${new URLSearchParams({ country: match.country, city: match.id, review: reviewId })}`, { replace: true });
         else setReviewNotice('courseReviewOutsideCatalogue');
       })

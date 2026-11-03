@@ -28,7 +28,7 @@
 - **NO Social Network Features:** No user-to-user following, social feeds, or in-app messaging.
 - **NO Heavy Full-Stack Frameworks:** Avoid heavy SSR frameworks (e.g., Next.js). A lightweight client-side Ionic React shell hosts the Web Components domain UIs.
 - **NO Real-time Collaborative Editing:** Itinerary sharing is read-only for guests.
-- **NO Server-side Rendering (SSR) framework:** The app UI stays Client-Side Rendered (CSR) + Firebase. Only the public English route pages (`/en/routes`, `sitemap.xml`, `robots.txt`) are rendered by a small Cloudflare Pages Worker (`src/server/public-routes-worker.mjs`) from public Firestore data.
+- **NO Server-side Rendering (SSR) framework:** The app UI stays Client-Side Rendered (CSR) + Firebase. Only the public English route pages (`/en/routes`, `sitemap.xml`, `robots.txt`) are rendered by a small Cloudflare Pages Worker (`src/server/public-routes-worker.mjs`) from public Firestore data. The same Worker only rewrites the app shell's preview tags for `/share/<id>` (catalogue city and day count).
 
 ---
 
