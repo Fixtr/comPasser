@@ -66,7 +66,7 @@ export default defineConfig({
       });
       writeFileSync(resolve(directory, '_routes.json'), JSON.stringify({
         version: 1,
-        include: ['/en', '/en/*', '/sitemap.xml', '/robots.txt'],
+        include: ['/en', '/en/*', '/share/*', '/sitemap.xml', '/robots.txt'],
         exclude: []
       }));
     },

@@ -231,3 +231,38 @@ test('the plan link waits for the page script, so a start typed before it loads 
   const script = readFileSync(new URL('../public/route-page.js', import.meta.url), 'utf8');
   assert.match(script, /getElementById\('plan-route'\)\?\.removeAttribute\('aria-disabled'\)/);
 });
+
+test('a share link preview names only the catalogue city and day count, and falls back to the generic shell', async t => {
+  const shell = '<title>ComPasser</title><meta property="og:title" content="ComPasser" /><meta property="og:description" content="Generic tagline" />';
+  const assets = { fetch: () => new Response(shell, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }) };
+  let status = 200;
+  let plan = { request: { destination: { id: 'seoul', name: 'Home address 12' }, date: ['2026-08-20', '2026-08-21', '2026-08-22'] }, days: [{ scheduleItems: [{ location: 'Hotel secret' }] }] };
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.match(url.pathname, /\/documents\/shared_itineraries\/share1$/);
+    assert.deepEqual(url.searchParams.getAll('mask.fieldPaths'), ['itineraryPlan.request.destination.id', 'itineraryPlan.request.date']);
+    assert.equal(options.headers.Authorization, undefined);
+    return new Response(status === 200 ? JSON.stringify({ fields: { itineraryPlan: encode(plan), ownerId: encode('uid-1') } }) : '{}', { status });
+  });
+  const shared = await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets });
+  assert.equal(shared.status, 200);
+  assert.match(shared.headers.get('Content-Security-Policy'), /frame-ancestors 'self'/);
+  assert.equal(shared.headers.get('Strict-Transport-Security'), 'max-age=31536000');
+  const html = await shared.text();
+  assert.match(html, /<meta property="og:title" content="서울 3일 여행 일정 · ComPasser" \/>/);
+  assert.doesNotMatch(html, /Generic tagline|Home address|Hotel secret|uid-1|2026-08/);
+  assert.match(await (await worker.fetch(request('/share/share1?lang=en'), { ...env, ASSETS: assets })).text(), /og:title" content="Seoul 3-day trip · ComPasser"/);
+  plan = { request: { destination: { id: 'seoul' }, date: '2026-08-20' } };
+  assert.match(await (await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets })).text(), /og:title" content="서울 1일 여행 일정 · ComPasser"/);
+  // A destination outside the catalogue, a revoked or missing share and a failed read keep the generic preview.
+  plan = { request: { destination: { id: 'my-home' }, date: ['2026-08-20'] } };
+  for (const next of [200, 403, 404, 500]) {
+    status = next;
+    const fallback = await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets });
+    assert.equal(fallback.status, 200);
+    assert.equal(await fallback.text(), shell);
+  }
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('timeout'); });
+  assert.equal(await (await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets })).text(), shell);
+  // IDs no document can have go straight to the app, which shows its not-found page.
+  assert.equal(await (await worker.fetch(request('/share/a-b'), { ...env, ASSETS: assets })).text(), shell);
+});

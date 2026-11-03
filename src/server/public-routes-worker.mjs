@@ -3,6 +3,8 @@ import { courseCities, curatedRoute, PUBLIC_ROUTE_ID, publicRouteUrl } from '../
 import { renderPublicRoute, renderRouteDirectory, renderRouteError } from '../domains/itinerary/services/public-route-html.mjs';
 import { DEFAULT_PUBLIC_APP_URL } from '../domains/itinerary/services/share-url.mjs';
 import { escapeHtml } from '../utils/html-safety.mjs';
+import { itineraryCity } from '../domains/itinerary/services/itinerary-title.mjs';
+import { tFor } from '../utils/i18n.js';
 
 export function decodeFirestore(value) {
   if ('stringValue' in value) return value.stringValue;
@@ -26,6 +28,22 @@ async function publicDocuments(project, id, pageSize = 18) {
   const data = await response.json();
   const convert = document => ({ id: document.name.split('/').at(-1), ...decodeFirestore({ mapValue: { fields: document.fields } }) });
   return id ? convert(data) : (data.documents || []).map(convert);
+}
+
+// Link previews get only the catalogue city and day count: the snapshot also holds addresses and the owner's uid.
+async function sharePreview(project, id, language) {
+  const url = new URL(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/shared_itineraries/${id}`);
+  for (const field of ['itineraryPlan.request.destination.id', 'itineraryPlan.request.date']) url.searchParams.append('mask.fieldPaths', field);
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(2000), headers: { Accept: 'application/json' } });
+    if (!response.ok) return null;
+    const { itineraryPlan } = decodeFirestore({ mapValue: { fields: (await response.json()).fields } });
+    const city = itineraryCity({ itineraryPlan }, language);
+    // A one-day request may store its date as a plain string.
+    const date = itineraryPlan?.request?.date;
+    const days = Array.isArray(date) ? date.length : date ? 1 : 0;
+    return city && days ? { title: tFor('sharePreviewTitle', language).replace('{0}', city).replace('{1}', days), description: tFor('kakaoShareDescription', language) } : null;
+  } catch { return null; }
 }
 
 // Pages does not apply public/_headers to worker responses, so the worker sends HSTS itself.
@@ -59,6 +77,19 @@ export default {
       let publicCourses = [];
       try { publicCourses = await publicDocuments(project); } catch { /* Curated routes remain available without Firestore. */ }
       return response(renderRouteDirectory([...curated, ...publicCourses], origin));
+    }
+    const share = url.pathname.match(/^\/share\/([a-zA-Z0-9]+)$/);
+    if (share) {
+      // The app shell itself, not the SPA fallback, which advanced mode may not apply to asset fetches.
+      const shell = await env.ASSETS.fetch(new Request(new URL('/', url), request));
+      const preview = shell.ok && await sharePreview(project, share[1], url.searchParams.get('lang') === 'en' ? 'en' : 'ko');
+      if (!preview) return shell;
+      const html = (await shell.text())
+        .replace(/(<meta property="og:title" content=")[^"]*/, `$1${escapeHtml(preview.title)}`)
+        .replace(/(<meta property="og:description" content=")[^"]*/, `$1${escapeHtml(preview.description)}`);
+      // The app shell keeps public/_headers' rules, not the route pages' strict CSP.
+      return new Response(request.method === 'HEAD' ? null : html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        'Content-Security-Policy': "frame-ancestors 'self'", 'Strict-Transport-Security': 'max-age=31536000' } });
     }
     // '/en' alone is a trimmed route address; anything else under /en/ is an English page that does not exist.
     if (/^\/en\/?$/.test(url.pathname)) return new Response(null, { status: 301, headers: { ...securityHeaders, Location: '/en/routes' } });
