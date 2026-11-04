@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
+import { isValidGeneratedDays } from '../src/domains/planner/services/generated-days.mjs';
 
 test('isValidGeneratedDays rejects anything that is not a non-empty array', () => {
   assert.equal(isValidGeneratedDays([{ day: 1 }]), true);
