@@ -5,6 +5,8 @@ export const ITINERARY_SESSION_KEY = 'compasser.itineraries.v1';
 const LEGACY_DRAFT_KEY = 'savedItineraryData';
 const UNDELIVERED_LINK_KEY = 'compasser.undeliveredShare.v1';
 const validPlan = plan => {
+  // Placeholder plans built before 2026-10-28 carry isFallback and can come back through browser session restore.
+  if (plan?.isFallback) return false;
   const days = normalizeData(plan)?.days;
   return Array.isArray(days) && days.length > 0 && days.every(day => Array.isArray(day?.scheduleItems));
 };

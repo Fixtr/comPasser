@@ -5,7 +5,7 @@ import {
   enforcePlannerConstraints,
   normalizePlannerRequest
 } from "./planner-constraints.mjs";
-import { isValidGeneratedDays } from "./gemini-fallback.mjs";
+import { isValidGeneratedDays } from "./generated-days.mjs";
 import { findPlannerInputIssue, plannerValidationMessage } from './planner-validation.js';
 import { prepareGeneratedPlaces } from '../../map/services/recommendation-place.mjs';
 import { verifyGeneratedItinerary } from './generated-day-quality.js';

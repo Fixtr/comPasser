@@ -220,16 +220,13 @@ test('저장 중 다른 일정으로 이동하면 완료 후 이전 화면으로
   }
 });
 
-test('일정이 없거나 대체 예시 일정이면 저장과 공유 확인·쓰기를 실행하지 않는다', async () => {
-  for (const fallback of [false, true]) {
-    const { state, calls, actions } = fixture();
-    if (fallback) state.open({ ...plan(), isFallback: true });
-    let confirms = 0;
-    assert.deepEqual(await actions.save(), { status: 'unavailable' });
-    assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { confirms++; return true; } }), { status: 'unavailable' });
-    assert.deepEqual(calls, { saves: [], shares: [], urls: [] });
-    assert.equal(confirms, 0);
-  }
+test('일정이 없으면 저장과 공유 확인·쓰기를 실행하지 않는다', async () => {
+  const { calls, actions } = fixture();
+  let confirms = 0;
+  assert.deepEqual(await actions.save(), { status: 'unavailable' });
+  assert.deepEqual(await actions.getShareLink({ confirmPublicShare: () => { confirms++; return true; } }), { status: 'unavailable' });
+  assert.deepEqual(calls, { saves: [], shares: [], urls: [] });
+  assert.equal(confirms, 0);
 });
 
 test('비로그인 사용자의 저장과 개인 초안 공개는 로그인 요구만 반환한다', async () => {

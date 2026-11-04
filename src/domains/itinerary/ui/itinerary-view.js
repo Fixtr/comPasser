@@ -950,43 +950,6 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /**
-   * AI 일정 생성이 실패해 임시(Mock) 일정이 표시되고 있음을 알린다.
-   *
-   * 예전에는 alert 한 번만 띄우고 임시 일정을 정상 결과와 똑같이 보여줬다.
-   * alert 을 닫으면 화면에는 "출발 -> 도착"만 있는 가짜 일정이 남고, 사용자가
-   * 그걸 진짜로 믿고 저장·공유까지 할 수 있었다. 임시 일정임을 상시 표시하고
-   * 저장/공유 버튼은 숨겨 잘못된 일정이 퍼지지 않게 한다.
-   *
-   * @returns {boolean} 임시 일정이면 true
-   */
-  refreshFallbackWarning() {
-    const box = this.shadowRoot.getElementById('fallback-warning');
-    const isFallback = Boolean(this.currentItinerary?.isFallback);
-    if (!box) return isFallback;
-
-    if (!isFallback) {
-      box.style.display = 'none';
-      box.textContent = '';
-      return false;
-    }
-
-    const reason = this.currentItinerary?.fallbackReason === 'quota'
-      ? (t('fallbackReasonQuota') || 'AI 일일 사용량을 모두 소진했습니다.')
-      : (t('fallbackReasonError') || 'AI 일정 생성에 실패했습니다.');
-
-    // 예전에는 문구 앞에 🚨 를 붙였다. 이모지는 OS 색을 갖고 들어와
-    // 무채색 규칙을 깨고, 기기마다 모양이 달라 캡처 결과도 달라진다.
-    // 문구는 서버가 준 값을 포함하므로 textContent 로 넣는다.
-    box.replaceChildren(iconRow(
-      icons.warn,
-      `${reason} ${t('fallbackNotice') || '아래는 출발지와 도착지만 채운 임시 일정이며 실제 추천이 아닙니다. 잠시 후 다시 시도해 주세요.'}`,
-      { iconClass: 'info-icon' }
-    ));
-    box.style.display = 'block';
-    return true;
-  }
-
-  /**
    * 지도가 해석한 장소 이름/주소를 카드에 반영한다.
    *
    * 카드에는 AI 가 쓴 문자열("서울 경복궁")이 떠 있는데, 지도가 실제로 찾은
@@ -1493,7 +1456,6 @@ export default class ItineraryView extends HTMLElement {
              흰 띠가 생긴다. 캡처용 배경은 share 경로가 따로 지정한다. -->
         <div id="results-content">
           <p id="shared-notice" class="shared-notice" role="note" data-i18n="sharedReadOnlyNotice" hidden></p>
-          <div id="fallback-warning" class="fallback-warning" role="alert" style="display: none;"></div>
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
           <p id="anchor-time-warning" class="shared-notice" role="alert" data-i18n="anchorTransitConflict" hidden></p>
@@ -1602,8 +1564,6 @@ export default class ItineraryView extends HTMLElement {
     this.transitUnavailable = false;
     const notice = this.shadowRoot.getElementById('transit-notice');
     if (notice) notice.style.display = 'none';
-    const fallback = this.shadowRoot.getElementById('fallback-warning');
-    if (fallback) fallback.style.display = 'none';
     const cost = this.shadowRoot.getElementById('cost-summary');
     if (cost) cost.style.display = 'none';
   }
@@ -1640,18 +1600,14 @@ export default class ItineraryView extends HTMLElement {
         return;
       }
 
-    // 임시(Mock) 일정은 저장·공유를 막는다. 가짜 일정이 Firestore 에 남거나
-    // 공유 링크로 퍼지면 되돌릴 방법이 없다.
-    const isFallback = this.refreshFallbackWarning();
-
     const primaryBar = this.shadowRoot.getElementById('actions-primary');
-    if (primaryBar) primaryBar.hidden = isFallback;
+    if (primaryBar) primaryBar.hidden = false;
 
     const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
-    if (shareBtn) shareBtn.style.display = isFallback ? 'none' : 'block';
+    if (shareBtn) shareBtn.style.display = 'block';
 
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
-    if (kakaoBtn) kakaoBtn.style.display = isFallback ? 'none' : 'block';
+    if (kakaoBtn) kakaoBtn.style.display = 'block';
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
@@ -1827,7 +1783,7 @@ export default class ItineraryView extends HTMLElement {
       item.type !== 'departure' && item.title && !item.stayUnsetLabel &&
       (!Object.hasOwn(item, 'placeIntent') || item.placeStatus === 'verified') &&
       (!isToday || (typeof item.time === 'string' && item.time >= currentTime)));
-    panel.hidden = !stop || Boolean(this.currentItinerary?.isFallback);
+    panel.hidden = !stop;
     if (!stop) return;
     this.shadowRoot.getElementById('next-stop-label').textContent = t(isToday ? 'nextStopToday' : 'firstStop');
     this.shadowRoot.getElementById('next-stop-title').textContent = stop.title;

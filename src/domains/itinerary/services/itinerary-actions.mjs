@@ -25,7 +25,7 @@ export function createItineraryActions({
     async save({ language = 'ko', onSaved = () => {} } = {}) {
       const user = getCurrentUser();
       if (!user) return { status: 'login-required' };
-      if (!state.current?.plan || state.current.plan.isFallback) return { status: 'unavailable' };
+      if (!state.current?.plan) return { status: 'unavailable' };
 
       const entry = state.current;
       const snapshot = state.snapshot();
@@ -66,7 +66,7 @@ export function createItineraryActions({
 
     async getShareLink({ confirmPublicShare, confirmSaveAndShare, saveBeforeShare }) {
       const entry = state.current;
-      if (!entry?.plan || entry.plan.isFallback) return { status: 'unavailable' };
+      if (!entry?.plan) return { status: 'unavailable' };
       // 공개 공유본의 재공유에는 로그인, 확인창, 새로운 쓰기가 필요 없다.
       if (entry.source.kind === 'shared') {
         return { status: 'ready', url: getSharedItineraryUrl(entry.source.id) };
