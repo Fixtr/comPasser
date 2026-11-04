@@ -124,6 +124,23 @@ test('이전 savedItineraryData는 로그인된 탭에서 최신 형식으로 �
   assert.equal(JSON.parse(storage.getItem(ITINERARY_SESSION_KEY)).userId, 'owner');
 });
 
+test('예전 AI 실패 임시 일정은 세션 사본·이전 형식·새로 열기 어디서도 복원하지 않고 사본에서 지운다', () => {
+  const placeholder = { ...plan(), isFallback: true, fallbackReason: 'error' };
+  const session = memoryStorage();
+  session.setItem(ITINERARY_SESSION_KEY, JSON.stringify({ version: 1, userId: 'owner', entries: [
+    { source: { kind: 'draft', ownerId: 'owner' }, plan: placeholder, dayIndex: 0 },
+  ] }));
+  const restored = make(session);
+  assert.equal(restored.activateDraft(), null);
+  assert.deepEqual(JSON.parse(session.getItem(ITINERARY_SESSION_KEY)).entries, []);
+
+  const legacy = memoryStorage();
+  legacy.setItem('savedItineraryData', JSON.stringify(placeholder));
+  assert.equal(make(legacy).activateDraft(), null);
+
+  assert.equal(make(memoryStorage()).open(placeholder), null);
+});
+
 test('임시 저장 실패는 메모리 편집을 막지 않고 이전 형식도 지우지 않는다', () => {
   const values = memoryStorage();
   values.setItem('savedItineraryData', JSON.stringify(plan()));

@@ -34,7 +34,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
-    'end-time-warning', 'transit-notice', 'fallback-warning', 'cost-summary',
+    'end-time-warning', 'transit-notice', 'cost-summary',
     'day-tabs-container', 'day-title-header',
   ].map(id => [id, fakeElement()]));
   const editButton = fakeElement();

@@ -57,19 +57,6 @@ export const itineraryStyles = `
           line-height: 1.55;
         }
 
-        .fallback-warning {
-          background: var(--cp-danger-bg);
-          border: 1px solid var(--cp-danger);
-          border-left: 4px solid var(--cp-danger);
-          color: var(--cp-danger);
-          border-radius: 0;
-          padding: 0.9rem 1rem;
-          margin-bottom: 0.75rem;
-          font-size: 0.9rem;
-          font-weight: 700;
-          line-height: 1.55;
-        }
-
         .transit-notice {
           background: var(--cp-sunken);
           border: 1px solid var(--cp-rule);

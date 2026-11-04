@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { normalizePlannerRequest, enforcePlannerConstraints } from '../src/domains/planner/services/planner-constraints.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../src/domains/planner/services/planner-validation.js';
-import { isValidGeneratedDays } from '../src/domains/planner/services/gemini-fallback.mjs';
+import { isValidGeneratedDays } from '../src/domains/planner/services/generated-days.mjs';
 import { setLang, t } from '../src/utils/i18n.js';
 import { prepareGeneratedPlaces } from '../src/domains/map/services/recommendation-place.mjs';
 

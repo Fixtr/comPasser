@@ -56,7 +56,7 @@
 - Each attempt takes a new `run` number. Leaving `/plan`, a query change on `/plan` (such as `?review=1`), discarding the draft (`planner-draft-discarded`) or a different signed-in user makes the attempt stale, and a stale attempt never applies its result. This does not cancel the server request.
 - Phases are form, loading and error. Loading lists three stages (일정 초안 만들기, 장소 확인, 이동시간 계산): `generateOptimizedItinerary(request, { onStage })` passes `onStage` to `verifyGeneratedItinerary`, which reports `places` and `routes`. The list is visual; a visually hidden line in the status region carries the current stage for screen readers. A static line says it can take over a minute. Error shows the message, '다시 시도' (same request, only for a retryable error) and return-to-form; the draft is kept. While the review's map checks run before generation, 일정 생성하기 reads '입력 확인 중…'. On success it keeps the plan in memory for the same user (used once by `/view`, not persisted), clears the draft and navigates to `/view` at once; there is no result button. Only the current attempt releases the form via `itinerary-generation-complete`.
 - Ionic coverage is `test/browser/ionic-shell.spec.mjs` (success to `/view`) and `test/browser/ui-handoff.spec.mjs` (stages, stop on every Back, a late result after stopping or leaving, a result during the stop question, retry, re-read credits).
-- Keep generation request/response constraints in the existing planner services (`gemini-optimizer.js`, `gemini-fallback.mjs`), shared by both shells.
+- Keep generation request/response constraints in the existing planner services (`gemini-optimizer.js`, `generated-days.mjs`), shared by both shells.
 
 ### Legacy vanilla shell
 
