@@ -927,6 +927,11 @@ export default class TravelForm extends HTMLElement {
       list.append(row);
     });
     applyTranslations(list);
+    this.updateTripStayStatus();
+  }
+
+  updateTripStayStatus() {
+    this.shadowRoot.getElementById('trip-stay-status').textContent = stayIssue(this.draft.stays || [], this.draft.date) >= 0 ? t('flowStayInvalid') : this.draft.overnightLocations.some(place => !getLocationName(place)) ? t('flowStayUnset') : '';
   }
 
   addTripStay() {
@@ -1104,7 +1109,7 @@ export default class TravelForm extends HTMLElement {
   saveDraft() {
     this.draft = plannerDraftStore.save(this.getFormData());
     if (this.hasAttribute('handoff-flow')) {
-      this.shadowRoot.getElementById('trip-stay-status').textContent = stayIssue(this.draft.stays || [], this.draft.date) >= 0 ? t('flowStayInvalid') : this.draft.overnightLocations.some(place => !getLocationName(place)) ? t('flowStayUnset') : '';
+      this.updateTripStayStatus();
       this.shadowRoot.getElementById('trip-end-date').value = this.draft.date.at(-1) || '';
       const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.shadowRoot.querySelector('.anchor-item') ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
     }

@@ -28,7 +28,7 @@ export function isDarkRoute(path) {
 /** 사용자가 이 화면에서 직접 바꿨는가. 한 번 바꾸면 이 세션 동안 강제하지 않는다. */
 let userChose = false;
 
-/** 원래의 theme-color 값들. 처음 한 번만 기억한다. */
+/** 강제 전의 theme-color 값들. 그 사이 시스템 테마를 따라 바뀌었을 수 있어 들어갈 때마다 다시 읽는다. */
 let originalColors = null;
 
 function themeColorMetas() {
@@ -40,7 +40,7 @@ function enter() {
   if (root.getAttribute(ROUTE_THEME_ATTR) === 'dark') return;
 
   const metas = themeColorMetas();
-  if (originalColors === null) originalColors = metas.map(m => m.getAttribute('content'));
+  originalColors = metas.map(m => m.getAttribute('content'));
 
   root.setAttribute(ROUTE_THEME_ATTR, 'dark');
 

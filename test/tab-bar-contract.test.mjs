@@ -44,9 +44,7 @@ test('탭바도 같은 형태 규칙을 지킨다', () => {
   assertNoLegacyTokens(tabCss, '탭바');
 });
 
-test('고른 탭은 색이 아니라 잉크 반전으로 말한다', {
-  skip: 'production gap: ionic-shell.css marks the selected tab only with --color-selected: var(--cp-ink) (text ink-2 -> ink); no rule inverts it to an ink background with surface text',
-}, () => {
+test('고른 탭은 색이 아니라 잉크 반전으로 말한다', () => {
   // 이 앱에서 색은 지도 마커 규칙(보라=고정 일정/초록=첫 장소/파랑=나머지)에만
   // 쓴다. 선택을 색으로 말하면 그 색이 두 가지 뜻을 갖는다.
   const active = tabBlocks.find(b => /tab-selected|aria-selected/.test(b));

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   IonApp, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon,
@@ -8,11 +8,12 @@ import {
 import { IonReactRouter } from '@ionic/react-router';
 import { Link, matchPath, Navigate, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
-import { decideRoute, getSafeReturnPath } from '../app/route-decision.mjs';
+import { decideRoute, getSafeReturnPath, isHomePath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { showErrorToast } from '../utils/toast.js';
+import { applyRouteTheme, isDarkRoute, releaseRouteTheme, ROUTE_THEME_ATTR } from '../utils/route-theme.js';
 import { installPageTransitions } from './screen-transition.js';
 import { usePlanExitGuard } from './plan-exit-guard.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
@@ -42,8 +43,19 @@ const DestinationScreen = lazyScreen(() => import('./destination-screen.jsx'), '
 const [AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen] =
   ['AuthScreen', 'PreferenceScreen', 'PlanScreen', 'ResultScreen', 'ProfileScreen', 'AccountDeletionScreen', 'RecommendScreen', 'CoursesScreen'].map(name => lazyScreen(screens, name));
 
+// The palette class, body class and status bar follow what is shown: the user's theme, or dark while a result route forces it.
+function paintTheme(theme) {
+  const root = document.documentElement;
+  const forced = root.hasAttribute(ROUTE_THEME_ATTR);
+  const dark = forced || theme === 'dark';
+  root.classList.toggle('ion-palette-dark', dark);
+  document.body.classList.toggle('dark', dark);
+  // While a route forces dark, route-theme owns the status bar colour and restores it when the force ends.
+  if (!forced) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121211' : '#FFFFFF');
+}
+
 const pages = [
-  ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
+  ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/index.html', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
   ['/login', 'authEmailLoginBtn'], ['/join', 'joinTitle'],
   ['/verify', 'verifyPendingTitle'], ['/account-deletion-status', 'shellAccountDeletion'],
   ['/preference', 'shellPreferences'], ['/preference/1', 'shellPreferences'], ['/preference/2', 'shellBudget'], ['/plan', 'tabPlan'],
@@ -85,7 +97,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   if (active && path === '/preference') return <Navigate to="/preference/1" replace />;
 
   let screen;
-  if (path === '/' || path === '/home') screen = <HomeScreen authSettled={authSettled} settings={settings} />;
+  if (isHomePath(path)) screen = <HomeScreen authSettled={authSettled} settings={settings} />;
   // Keyed: the saved draft is restored when auth settles, and this screen reads it at mount.
   else if (path === '/destination') screen = <DestinationScreen key={authSettled ? 'settled' : 'pending'} settings={settings} />;
   else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
@@ -102,18 +114,22 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   if (screen) return <Suspense fallback={<div className="boot" role="status"><strong>ComPasser</strong><p>{t('loadingModal')}</p></div>}>{screen}</Suspense>;
   return <IonPage>
     <IonHeader><IonToolbar>
-      {path !== '/' && path !== '/home' && <IonButtons slot="start"><IonBackButton defaultHref="/" text={t('shellBack')} /></IonButtons>}
+      {!isHomePath(path) && <IonButtons slot="start"><IonBackButton defaultHref="/" text={t('shellBack')} /></IonButtons>}
       <IonTitle>ComPasser</IonTitle>
     </IonToolbar></IonHeader>
     <IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><Link to="/">{t('profileGoHome')}</Link>{settings}</div><h1>{t('shellNotFound')}</h1><p>{t('shellCheckAddress')}</p></IonContent>
   </IonPage>;
 }
 
-function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
+function ShellRoutes({ user, authSettled, theme, routeThemeReleased, lang, onThemeChange }) {
   useEffect(installPageTransitions, []);
   const location = useLocation();
   const navigate = useNavigate();
   usePlanExitGuard(location, user);
+  // Layout effect: the forced palette lands before the new route paints, so /view never flashes light.
+  useLayoutEffect(() => { applyRouteTheme(location.pathname); paintTheme(theme); }, [location.pathname, theme, routeThemeReleased]);
+  // The toggle names the theme it switches to, so it follows what is shown, not the stored choice.
+  const shownTheme = !routeThemeReleased && isDarkRoute(location.pathname) ? 'dark' : theme;
   useEffect(() => {
     const route = pages.find(([path]) => matchPath(path, location.pathname));
     // A trip address whose ID no document can have shows the not-found page, so the tab says so too.
@@ -140,7 +156,7 @@ function ShellRoutes({ user, authSettled, theme, lang, onThemeChange }) {
   const selectedTab = activeTabId(location.pathname + location.search);
   const icons = [homeOutline, listOutline, personOutline];
   const labels = [t('tabHome'), t('tabTrips'), t('tabProfile')];
-  const settings = <SettingsControls theme={theme} onThemeChange={onThemeChange} lang={lang}  />;
+  const settings = <SettingsControls theme={shownTheme} onThemeChange={() => onThemeChange(shownTheme)} lang={lang}  />;
   return <IonTabs>
     <IonRouterOutlet animated={false}>
       {pages.map(([path, titleKey]) => <Route key={path} path={path} element={<ShellPage titleKey={titleKey} routePath={path} user={user} authSettled={authSettled} settings={settings} />} />)}
@@ -164,11 +180,10 @@ function Shell() {
     return getLang();
   });
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+  const [routeThemeReleased, setRouteThemeReleased] = useState(false);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.classList.toggle('ion-palette-dark', theme === 'dark');
-    document.body.classList.toggle('dark', theme === 'dark');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121211' : '#FFFFFF');
+    paintTheme(theme);
   }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -190,8 +205,11 @@ function Shell() {
     systemDark.addEventListener('change', followSystem);
     return () => systemDark.removeEventListener('change', followSystem);
   }, []);
-  const onThemeChange = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
+  const onThemeChange = shown => {
+    const next = shown === 'dark' ? 'light' : 'dark';
+    // Without the release, pressing the toggle on a forced-dark route would leave the screen unchanged.
+    releaseRouteTheme();
+    setRouteThemeReleased(true);
     setTheme(next);
     try { localStorage.setItem('theme', next); } catch { /* Keep the current session usable. */ }
   };
@@ -209,7 +227,7 @@ function Shell() {
     if (unverifiedEmail(auth.user)) void authService().then(({ logout }) => logout({ keepLocalData: true }));
   }, [auth.user]);
   if (auth.failed) return <div className="boot" role="alert"><strong>ComPasser</strong><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>;
-  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
+  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} routeThemeReleased={routeThemeReleased} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
 }
 
 createRoot(document.getElementById('ionic-shell')).render(<Shell />);

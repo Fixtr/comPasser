@@ -13,9 +13,7 @@ async (page) => {
   });
   // The Ionic shell's own settings group; its theme button is the one without a lang attribute.
   const themeToggle = page.locator('.ionic-settings:visible > button:not([lang])');
-  // The Ionic shell does not force /view dark (no data-route-theme), so start from the user's dark theme instead.
-  if (await page.evaluate(() => document.documentElement.dataset.theme !== 'dark')) await themeToggle.click();
-  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark' && document.body.classList.contains('dark'));
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-route-theme') === 'dark' && document.body.classList.contains('dark'));
   await page.evaluate(() => {
     window.__exportTheme = { mutations: [] };
     const state = window.__exportTheme;
@@ -39,7 +37,7 @@ async (page) => {
   const theme = () => page.evaluate(() => window.__exportTheme.snapshot());
   const clean = () => page.evaluate(() => !document.querySelector('body > div[aria-hidden="true"] .bp') && !document.querySelector('.html2canvas-container'));
   const before = await theme();
-  check(before.theme === 'dark' && before.dark, 'Begin on a dark live theme; rerun setup for an isolated test');
+  check(before.route === 'dark' && before.dark, 'Begin on the dark result route; rerun setup for an isolated test');
   await page.locator('itinerary-view #download-image-btn').click();
   await page.waitForFunction(() => !!window.__exportTheme.finish);
   check(JSON.stringify(await theme()) === JSON.stringify(before), 'Real capture must not change the current route/theme/meta colors');

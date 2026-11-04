@@ -40,10 +40,9 @@ test('그라디언트 글씨를 쓰지 않는다', () => {
   }
 });
 
-test('프레임 CSS 에 그림자가 없다', {
-  skip: 'production gap: ionic-shell.css .ionic-result-back/.ionic-result-edit set --box-shadow: 0 1px 4px #17252250 on the result screen buttons',
-}, () => {
-  const shadows = css.match(/box-shadow\s*:\s*(?!none)[^;]+/g) || [];
+test('프레임 CSS 에 그림자가 없다', () => {
+  // (?!\s*none) 이어야 한다 — \s* 뒤에 두면 공백을 되물려 'box-shadow: none' 까지 걸린다.
+  const shadows = css.match(/box-shadow\s*:(?!\s*none\s*[;}])[^;]+/g) || [];
   assert.deepEqual(shadows, [], `그림자 대신 1px 실선으로:\n${shadows.join('\n')}`);
 });
 
@@ -100,11 +99,12 @@ test('라운드 토큰 값이 정해져 있다', () => {
   assert.equal(radius[1].trim(), '8px', `--cp-radius 가 바뀌었다: ${radius[1].trim()}`);
 });
 
-test('프레임의 라운드는 0 이거나 알약 토큰이다', {
-  skip: 'production gap: ionic-shell.css hard-codes radii (8px, 22px 22px 0 0, 18px 18px 0 0, 6px, 7px, 999px) instead of 0, var(--cp-radius) or var(--cp-pill)',
-}, () => {
-
-  const values = (css.match(/border-radius\s*:\s*[^;]+/g) || []).map(v => v.split(':')[1].trim());
+test('프레임의 라운드는 0 이거나 알약 토큰이다', () => {
+  // 유일한 예외: 아래에서 올라오는 결과 시트의 위 모서리. 화면 가장자리에서 떠오른
+  // 판이라는 것을 모양으로 알린다. 선택자와 값까지 정확히 맞아야 빠진다.
+  const sheet = /\.ionic-result-sheet\s*\{(?:(?!border-radius)[^}])*--border-radius:\s*(?:22px 22px|18px 18px) 0 0;/g;
+  assert.equal((css.match(sheet) || []).length, 2, '결과 시트의 위 모서리 규칙이 넓은 화면·좁은 화면 두 곳에 있어야 한다');
+  const values = (css.replace(sheet, '').match(/border-radius\s*:\s*[^;]+/g) || []).map(v => v.split(':')[1].trim());
   const bad = values.filter(v => !/^0(px)?$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));
   assert.deepEqual(bad, [], `각진 형태가 이 방향의 핵심이다:\n${[...new Set(bad)].join('\n')}`);
 });
