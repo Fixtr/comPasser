@@ -7,6 +7,8 @@ export async function findFixedVisitIssue(request, checks = {}) {
     const fixed=(day.anchors || []).filter(anchor=>!anchor.flexible);
     for (const anchor of fixed) {
       if (minutes(anchor.time)===null || minutes(anchor.endTime)===null || anchor.time>=anchor.endTime) return {reason:'time',anchor,day:day.day};
+      // Same rule as the server's anchor-bounds; otherwise the travel legs below read it as a negative gap.
+      if (anchor.time<day.startTime || anchor.endTime>day.endTime) return {reason:'bounds',anchor,day:day.day};
     }
     fixed.sort((a,b)=>a.time.localeCompare(b.time));
     for (let index=1;index<fixed.length;index++) if(fixed[index-1].endTime>fixed[index].time) return {reason:'overlap',anchor:fixed[index],day:day.day};

@@ -1109,7 +1109,7 @@ export default class TravelForm extends HTMLElement {
     if (this.hasAttribute('handoff-flow')) {
       this.shadowRoot.getElementById('trip-stay-status').textContent = stayIssue(this.draft.stays || [], this.draft.date) >= 0 ? t('flowStayInvalid') : this.draft.overnightLocations.some(place => !getLocationName(place)) ? t('flowStayUnset') : '';
       this.shadowRoot.getElementById('trip-end-date').value = this.draft.date.at(-1) || '';
-      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.draft.anchorSchedules.length ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
+      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.shadowRoot.querySelector('.anchor-item') ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
     }
     this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
     this.updateDailyLocationSummary();
@@ -1604,7 +1604,7 @@ export default class TravelForm extends HTMLElement {
         const issue = await findFixedVisitIssue(plannerRequest, createFlexibleVisitChecks(Math.max(1, plannerRequest.anchorSchedules.length), plannerRequest));
         if (issue) {
           const row = anchorRows.find(row => row.name===issue.anchor.name && row.day===issue.day);
-          this._revealInvalidField(row?.el.querySelector('.anchor-time'), t({time:'plannerAnchorError',overlap:'flowOverlap',route:'flexibleVisitRouteError',travel:'flowTravelTime',hours:'flexibleVisitHoursError'}[issue.reason]));
+          this._revealInvalidField(row?.el.querySelector('.anchor-time'), t({time:'plannerAnchorError',overlap:'flowOverlap',route:'flexibleVisitRouteError',travel:'flowTravelTime',bounds:'plannerAnchorBoundsError',hours:'flexibleVisitHoursError'}[issue.reason]));
           this._resetSubmitButton(btn);this.isSubmitting=false;return;
         }
       }

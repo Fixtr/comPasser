@@ -75,6 +75,18 @@ test('preflight blocks only same-day fixed overlap and measured travel shortage;
   request.anchorSchedules[1].day=1;request.anchorSchedules[1].flexible=true;assert.equal(await findFixedVisitIssue(request,{travelMinutes:async()=>40}),null);
 });
 
+test('preflight reports a fixed visit outside its day\'s custom hours as out of bounds, not as a travel shortfall',async()=> {
+  const request={date:dates.slice(0,2),startTime:'09:00',endTime:'18:00',startLocation:'A',endLocation:'B',
+    dailyTimes:[{day:1,startTime:'09:00',endTime:'18:00',isCustom:true},{day:2,startTime:'11:00',endTime:'20:00',isCustom:true}],
+    anchorSchedules:[{day:2,name:'Show',time:'10:00',endTime:'12:00',location:'A'}]};
+  assert.equal((await findFixedVisitIssue(request,{travelMinutes:async()=>15})).reason,'bounds');
+  assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)).reason,'anchor-bounds');
+  request.anchorSchedules[0]={...request.anchorSchedules[0],time:'19:00',endTime:'21:00'};
+  assert.equal((await findFixedVisitIssue(request,{travelMinutes:async()=>15})).reason,'bounds');
+  request.anchorSchedules[0]={...request.anchorSchedules[0],time:'11:30',endTime:'12:00'};
+  assert.equal(await findFixedVisitIssue(request,{travelMinutes:async()=>15}),null);
+});
+
 test('server rejects region mismatches, unselected locations and nonexistent DST appointment times',async()=>{
   const input={destination:{id:'paris',country:'FRA',name:'Paris, France'},date:['2030-10-17'],startTime:'09:00',endTime:'18:00',startLocation:place,endLocation:place,anchorSchedules:[]};
   assert.equal(findPlannerRequestIssue(normalizePlannerRequest(input)),null);
