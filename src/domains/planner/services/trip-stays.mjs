@@ -1,18 +1,18 @@
 import { dateRange } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
+const badStay = (stays, dates, index) => {
+  const stay = stays[index];
+  return !dateRange(stay.checkin, 1).length || !dateRange(stay.checkout, 1).length || stay.checkin >= stay.checkout
+    || stay.checkin < dates[0] || stay.checkout > dates.at(-1)
+    || stays.some((other, i) => i !== index && stay.checkin < other.checkout && other.checkin < stay.checkout);
+};
 export function stayIssue(stays, dates) {
-  const end = dates.at(-1);
-  for (const [index, stay] of stays.entries()) {
-    if (!dateRange(stay.checkin, 1).length || !dateRange(stay.checkout, 1).length || stay.checkin >= stay.checkout
-      || stay.checkin < dates[0] || stay.checkout > end
-      || stays.some((other, i) => i !== index && stay.checkin < other.checkout && other.checkin < stay.checkout)) return index;
-  }
-  return -1;
+  return stays.findIndex((_, index) => badStay(stays, dates, index));
 }
+// A flagged stay covers no night, but valid stays still apply so the review is the only thing blocked.
 export function nightlyStays(stays, dates) {
-  if (stayIssue(stays, dates) !== -1) return dates.slice(1).map(() => '');
   return dates.slice(0, -1).map(date => {
-    const stay = stays.find(stay => stay.checkin <= date && date < stay.checkout);
+    const stay = stays.find((stay, index) => stay.checkin <= date && date < stay.checkout && !badStay(stays, dates, index));
     return normalizeSelectedPlace(stay?.location) || (typeof stay?.location === 'string' ? stay.location : '');
   });
 }

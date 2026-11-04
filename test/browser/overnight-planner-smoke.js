@@ -195,8 +195,11 @@ async (page) => {
   await duration(2);
   request = await read();
   check(request.overnightLocations.length === 1, 'Shrinking to two days keeps one night');
-  // Stays are dated on the Ionic planner: ones that no longer fit are flagged, not silently applied or dropped.
-  check(request.overnightLocations[0] === '', 'Stays that no longer fit must not be applied: ' + JSON.stringify(request.overnightLocations));
+  // Stays are dated on the Ionic planner: ones that no longer fit are flagged and kept, while the one still inside the trip applies.
+  check(request.overnightLocations[0]?.placeId === hotel.placeId, 'The stay inside the shortened trip must still apply: ' + JSON.stringify(request.overnightLocations));
+  check(await page.locator('travel-form .trip-stay').count() === 3, 'Stays outside the shortened trip stay listed so they can be fixed');
+  const stayStatus = page.locator('travel-form #trip-stay-status');
+  check(await stayStatus.isVisible() && (await stayStatus.innerText()).includes('여행 기간 밖'), 'The form must flag stays outside the shortened trip before review');
   await page.locator('travel-form .primary-btn').click();
   check((await page.locator('travel-form #review-issues').innerText()).includes('여행 기간 밖'), 'Review must flag stays outside the shortened trip');
   await page.locator('travel-form #review-panel [data-review-edit="details"]').first().click();
