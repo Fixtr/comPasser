@@ -1,11 +1,10 @@
 /**
  * 외부 SDK 를 "필요해진 순간"에만 불러온다.
  *
- * 예전에는 index.html <head> 에 html2canvas·Kakao 를 async/defer
- * 없이 동기 <script> 로 걸어 두었다. 브라우저는 CDN 의 응답을 다 받을
- * 때까지 문서 파싱을 멈추므로, 네트워크가 느리거나 CDN 이 막힌 환경에서는
- * 앱이 아예 뜨지 않았다. 게다가 sw.js 는 외부 요청을 캐시하지 않기 때문에
- * 오프라인에서는 매번 실패한다.
+ * 셸 HTML <head> 에 동기 <script> 로 걸지 않는다. 브라우저는 CDN 의 응답을
+ * 다 받을 때까지 문서 파싱을 멈추므로, 네트워크가 느리거나 CDN 이 막힌
+ * 환경에서는 앱이 아예 뜨지 않는다. 게다가 sw.js 는 외부 요청을 캐시하지
+ * 않기 때문에 오프라인에서는 매번 실패한다.
  *
  * Kakao 는 로그인 버튼을 누를 때만 불러온다. 로드에 실패해도 그 기능
  * 하나만 막히고 앱 전체는 살아 있다.
@@ -25,7 +24,7 @@ export function loadScriptOnce(src, options = {}) {
   if (pending.has(src)) return pending.get(src);
 
   const promise = new Promise((resolve, reject) => {
-    // 다른 경로로 이미 붙어 있으면(예: 캐시된 index.html) 다시 붙이지 않는다.
+    // 이미 붙어 있는 태그가 있으면 다시 붙이지 않는다.
     const existing = document.querySelector(`script[src="${src}"]`);
     if (existing) {
       if (existing.dataset.loaded === 'true') { resolve(); return; }

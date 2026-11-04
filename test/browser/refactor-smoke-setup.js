@@ -227,6 +227,25 @@ async (page) => {
       creditBalance:Number(sessionStorage.getItem('__smoke_credits') ?? 3),
       calls:[], requests:[], pending:[], kakao:[],
     };
+    // The Ionic shell mounts <itinerary-view> only on /view, which shows the session draft or bounces to /plan.
+    window.__smoke.openPlan = async (plan, { path = '/view' } = {}) => {
+      let view = document.querySelector('itinerary-view');
+      if (view) view.state.open(plan);
+      else {
+        const uid = window.__smoke.user?.uid;
+        sessionStorage.setItem('compasser.itineraries.v1', JSON.stringify({ version: 1, userId: uid, entries: [{ source: { kind: 'draft', ownerId: uid }, plan, dayIndex: 0 }] }));
+      }
+      if (window.location.pathname === path) view?.renderCurrentState();
+      else window.navigate(path);
+      for (let tries = 0; tries < 400; tries++) {
+        // Leaving /plan with inputs asks first; answer it the way a user moving on would.
+        document.querySelector('[role="alertdialog"] .confirm-ok')?.click();
+        view = document.querySelector('itinerary-view');
+        if (view?.currentItinerary && window.location.pathname === path) return view;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error('TEST: /view did not show the plan');
+    };
     localStorage.setItem('hasSeenTutorial','true');
     if(!sessionStorage.getItem('userPreference')) sessionStorage.setItem('userPreference',JSON.stringify({date:['2026-10-20'],theme:'healing',budget:'standard'}));
     if(!sessionStorage.getItem('__smoke_db')) sessionStorage.setItem('__smoke_db',JSON.stringify({users:{smokeOwner:{birthday:'1990-01-01',phoneNumber:'01000000000',isVerified:false}}}));
@@ -234,7 +253,6 @@ async (page) => {
   await page.context().grantPermissions(['clipboard-read','clipboard-write'], {origin});
   await page.setViewportSize({width:1280,height:900});
   await page.goto(origin+'/plan');
-  await page.locator('#page-plan').waitFor({state:'visible'});
-  await page.locator('travel-form #start-location input').waitFor({state:'visible'});
+  await page.locator('travel-form:visible #start-location input').waitFor({state:'visible'});
   return {url:page.url(), errors:page.smokeErrors, mode:'Real DOM/router/services, fake external boundaries'};
 }

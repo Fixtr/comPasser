@@ -26,10 +26,11 @@ const ROOT = new URL('../', import.meta.url).pathname;
 const authService = stripSourceComments(
   readFileSync(`${ROOT}src/domains/auth/services/firebase-auth.js`, 'utf8')
 );
-const main = stripSourceComments(readFileSync(`${ROOT}src/app/main.js`, 'utf8'));
+const shell = stripSourceComments(readFileSync(`${ROOT}src/prototype/ionic-shell.jsx`, 'utf8'));
+const screens = stripSourceComments(readFileSync(`${ROOT}src/prototype/ionic-screens.jsx`, 'utf8'));
 
 test('설정이 비었으면 Firebase 를 시작하지 않는다', () => {
-  // 시작하면 그 자리에서 터지고, 터지면 이 모듈을 들여오는 main.js 가 죽는다.
+  // 시작하면 그 자리에서 터지고, 터지면 이 모듈을 들여오는 앱 셸이 죽는다.
   assert.match(authService, /missingFirebaseConfig/,
     '무엇이 빠졌는지 알려 주는 값이 없다');
   assert.match(
@@ -39,15 +40,20 @@ test('설정이 비었으면 Firebase 를 시작하지 않는다', () => {
   );
 });
 
-test('빠진 변수 이름을 화면에 적을 수 있어야 한다', () => {
+test('빠진 변수 이름을 들고 있다', () => {
   // VITE_ 이름 그대로 보여 줘야 배포 설정에서 바로 찾을 수 있다.
   assert.match(authService, /VITE_FIREBASE_/, '변수 이름을 들고 있지 않다');
-  assert.match(main, /missingFirebaseConfig/, '앱이 그 사실을 화면에 알리지 않는다');
+});
+
+test('빠진 변수 이름을 화면에 적는다', () => {
+  // 로그인·가입·인증 화면이 빠진 이름을 경고로 보여 준다.
+  assert.match(screens, /role="alert">\{t\('configErrorBody'\)\.replace\('\{0\}',\s*missingFirebaseConfig\.join\(/,
+    '앱이 그 사실을 화면에 알리지 않는다');
 });
 
 test('설정이 없으면 인증을 부르지 않고 멈춘다', () => {
   assert.match(
-    main,
+    shell,
     /missingFirebaseConfig[\s\S]{0,400}?return|if\s*\([^)]*missingFirebaseConfig[^)]*\)/,
     '설정이 없는데 그대로 진행하면 다음 줄에서 또 터진다'
   );

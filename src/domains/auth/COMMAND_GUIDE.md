@@ -3,7 +3,7 @@
 ## Architectural Principles
 - **Firebase Auth Centralization**: Any interaction with Firebase Authentication (e.g. `signInWithPopup`, `signOut`, `onAuthStateChanged`) must go through `src/domains/auth/services/firebase-auth.js`. Do not import `firebase/auth` directly in UI components.
 - **Login View Limitation**: The `login-view.js` component acts solely as the landing page UI for unauthenticated users.
-- **Routing**: Routing based on authentication state is handled at the application entry point (`src/app/main.js`), which listens to `subscribeToAuthChanges` and toggles the visibility of the `login-view` and the main `app-content`.
+- **Routing**: Routing based on authentication state is handled by the Ionic shell (`src/prototype/ionic-shell.jsx`), which listens to `subscribeToAuthChanges` and passes the user to `decideRoute` (`src/app/route-decision.mjs`); `/login` and `/join` mount `login-view` and `join-view` inside `AuthScreen`.
 - **Environment Variables**: Make sure to populate the `.env` file with the relevant `VITE_FIREBASE_*` keys for authentication to work correctly.
 
 ## Guest Sign-in Context

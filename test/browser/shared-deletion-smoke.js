@@ -1,9 +1,6 @@
 // Local fake persistence only; production view, actions, loader and sharing service.
 async (page) => {
   const check=(v,m)=>{if(!v)throw Error(m);};
-  const origin=page.smokeOrigin;
-  await page.goto(origin+'/plan');
-  await page.waitForFunction(()=>window.__smoke && document.querySelector('itinerary-view'));
   await page.evaluate(()=>{
     const plan={days:[{date:'2026-09-14',scheduleItems:[{type:'attraction',title:'삭제 검증 장소',location:'서울',time:'10:00',endTime:'11:00'}]}]};
     window.__smoke.setUser({uid:'smokeOwner',displayName:'검증',emailVerified:true,providerData:[]});

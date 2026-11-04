@@ -77,11 +77,8 @@ export default class TravelForm extends HTMLElement {
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
 
-    // 여기서 initPlaces() 를 부르지 않는다. <travel-form> 은 index.html
-    // 마크업에 있어 **모든 경로에서** 붙는데, initPlaces 는 Maps 의 places
-    // 라이브러리를 받아 온다 — 랜딩에서도 지도 API 를 받고 있었다는 뜻이다.
-    // 폼이 실제로 보일 때 받으면 된다. 마침 아래 옵저버가 그 순간을 이미
-    // 알고 있었다.
+    // 여기서 initPlaces() 를 부르지 않는다. initPlaces 는 Maps 의 places
+    // 라이브러리를 받아 오므로, 폼이 실제로 보일 때(아래 옵저버) 받는다.
     this._visibilityObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -1109,7 +1106,7 @@ export default class TravelForm extends HTMLElement {
     if (this.hasAttribute('handoff-flow')) {
       this.shadowRoot.getElementById('trip-stay-status').textContent = stayIssue(this.draft.stays || [], this.draft.date) >= 0 ? t('flowStayInvalid') : this.draft.overnightLocations.some(place => !getLocationName(place)) ? t('flowStayUnset') : '';
       this.shadowRoot.getElementById('trip-end-date').value = this.draft.date.at(-1) || '';
-      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.draft.anchorSchedules.length ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
+      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.shadowRoot.querySelector('.anchor-item') ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
     }
     this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
     this.updateDailyLocationSummary();
@@ -1604,7 +1601,7 @@ export default class TravelForm extends HTMLElement {
         const issue = await findFixedVisitIssue(plannerRequest, createFlexibleVisitChecks(Math.max(1, plannerRequest.anchorSchedules.length), plannerRequest));
         if (issue) {
           const row = anchorRows.find(row => row.name===issue.anchor.name && row.day===issue.day);
-          this._revealInvalidField(row?.el.querySelector('.anchor-time'), t({time:'plannerAnchorError',overlap:'flowOverlap',route:'flexibleVisitRouteError',travel:'flowTravelTime',hours:'flexibleVisitHoursError'}[issue.reason]));
+          this._revealInvalidField(row?.el.querySelector('.anchor-time'), t({time:'plannerAnchorError',overlap:'flowOverlap',route:'flexibleVisitRouteError',travel:'flowTravelTime',bounds:'plannerAnchorBoundsError',hours:'flexibleVisitHoursError'}[issue.reason]));
           this._resetSubmitButton(btn);this.isSubmitting=false;return;
         }
       }

@@ -21,7 +21,7 @@
   - User Preference Flow (Theme, Budget).
   - PWA & Capacitor support for native mobile apps (iOS/Android).
   - Serverless architecture leveraging Firebase (Firestore/Auth).
-  - Single app shell: the Ionic React shell (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`) is the entry for web, PWA and Capacitor; domain UIs are Web Components mounted inside it. The legacy vanilla shell (`index.html` + `src/app/main.js`) remains only for `dev:legacy`/`build:legacy` (`vite.legacy.config.js`) and the `npm run test:browser` smoke suite.
+  - Single app shell: the Ionic React shell (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`) is the entry for web, PWA and Capacitor; domain UIs are Web Components mounted inside it.
 
 ### 1.3. 🚫 Non-Goals (Strictly Excluded to prevent Scope Creep)
 - **NO Custom Payment Infrastructure:** Absolutely no PG integrations beyond simple affiliate redirect linking.

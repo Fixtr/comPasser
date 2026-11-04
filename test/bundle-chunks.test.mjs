@@ -43,7 +43,7 @@ test('idb 는 Firestore 규칙에 끌려가지 않고 catch-all 에 남는다', 
 });
 
 test('앱 코드와 동적 import 전용 패키지는 이름을 받지 않는다', () => {
-  assert.equal(manualChunks('/repo/src/app/main.js'), undefined);
+  assert.equal(manualChunks('/repo/src/prototype/ionic-shell.jsx'), undefined);
   assert.equal(manualChunks(idFor('html2canvas-pro')), undefined);
   // The home globe loads after first paint; its map math must not join the first-load vendor chunk.
   for (const pkg of ['d3-geo', 'd3-array', 'internmap', 'topojson-client']) assert.equal(manualChunks(idFor(pkg)), undefined, pkg);

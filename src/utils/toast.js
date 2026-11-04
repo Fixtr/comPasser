@@ -115,7 +115,7 @@ export function showToast(message, options = {}) {
   container.replaceChildren(toast);
   // requestAnimationFrame 은 탭이 백그라운드면 실행되지 않아, 그 사이 생성된
   // 토스트가 opacity 0 인 채로 남는다. 강제 리플로우 후 동기적으로 클래스를
-  // 붙여 전환은 살리면서 표시 자체는 보장한다(main.js 의 로딩 화면과 같은 방식).
+  // 붙여 전환은 살리면서 표시 자체는 보장한다.
   void toast.offsetWidth;
   toast.classList.add('visible');
   setTimeout(() => dismiss(toast), duration);

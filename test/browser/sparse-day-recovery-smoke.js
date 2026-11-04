@@ -1,6 +1,6 @@
 // Replay the real 07:11 departure, 09:00 palace opening and four-day hotel/airport boundaries.
 async page => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const p = id => ({placeId:id,displayName:id,formattedAddress:'서울',lat:37.5+((['station','JW Seoul','airport','booking','palace'].indexOf(id)+1)||6+Number(id.split('-')[1]))*.001,lng:127});
     const s = (id,type,time,endTime='') => ({title:id,type,time,endTime,location:id,selectedPlace:p(id)});
     const hours = {utcOffsetMinutes:540,regularOpeningHours:{periods:Array.from({length:7},(_,day)=>({open:{day,hour:9,minute:0},close:{day,hour:18,minute:0}}))}};
@@ -13,13 +13,11 @@ async page => {
         addressComponents:[{types:['country'],shortText:'KR'}]};
     });
     const dates=['2026-10-09','2026-10-10','2026-10-11','2026-10-12'];
-    const view=document.querySelector('itinerary-view');
-    view.state.open({request:{date:dates,startTime:'07:11',endTime:'17:11',startLocation:p('station'),endLocation:p('airport'),
+    await window.__smoke.openPlan({request:{date:dates,startTime:'07:11',endTime:'17:11',startLocation:p('station'),endLocation:p('airport'),
       overnightLocations:[p('JW Seoul'),p('JW Seoul'),p('JW Seoul')]},days:dates.map((date,index)=>({day:index+1,date,
       scheduleItems:[s(index===0?'station':'JW Seoul','departure','07:11'),
         ...(index===0?[{...s('palace','AnchorSchedule','09:30','10:30'),selectedPlace:null,flexible:true}]:[]),
         ...(index===2?[s('booking','AnchorSchedule','12:00','13:00')]:[]),s(index===3?'airport':'JW Seoul','arrival','17:11')]}))});
-    window.navigate('/view');view.renderCurrentState();
   });
   // Generation verifies every day without opening its tab.
   await page.evaluate(async()=>{

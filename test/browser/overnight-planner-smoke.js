@@ -18,9 +18,13 @@ async (page) => {
     sessionStorage.setItem('__smoke_db', JSON.stringify(db));
     window.navigate('/view/legacyStay');
   }, legacy);
-  await page.waitForFunction(() => document.querySelector('itinerary-view').currentItinerary?.request?.dailyData?.length === 4);
-  await page.locator('#edit-itinerary-btn').click();
-  await page.locator('travel-form #overnight-notice').waitFor({ state: 'visible' });
+  // Leaving /plan with inputs asks first; opening the saved trip means moving on.
+  await page.locator('[role="alertdialog"] .confirm-ok').click();
+  await page.waitForURL('**/view/legacyStay');
+  // <itinerary-view> mounts only once /view/:id loads its screen.
+  await page.waitForFunction(() => document.querySelector('itinerary-view')?.currentItinerary?.request?.dailyData?.length === 4);
+  await page.locator('.ionic-result-edit:visible').click();
+  await page.locator('travel-form #trip-stays').waitFor({ state: 'visible' });
   const read = () => page.evaluate(() => {
     const view = document.querySelector('travel-form');
     return view.getFormData();
@@ -53,14 +57,11 @@ async (page) => {
         timesTop: times.top, locationTop: location.top, startWidth: times.width, endWidth: end.width,
         endTop: end.top, endLeft: end.left, dateRight: date.right, dateTop: date.top, dateBottom: date.bottom };
     });
-    check(positions.toggle.bottom <= positions.timesTop && positions.timesTop < positions.locationTop,
-      'Time toggle must sit above time inputs, separate from locations');
-    if (width === 1280) {
-      check(positions.toggle.left >= positions.dateRight && positions.toggle.top < positions.dateBottom
-        && positions.toggle.bottom > positions.dateTop, 'Disabled toggle must stay beside the date');
-      check(Math.abs(positions.timesTop - positions.endTop) < 1 && positions.startWidth > 250
-        && Math.abs(positions.startWidth - positions.endWidth) < 1, 'Shared times must be two equal wide columns below the date');
-    }
+    // The Ionic planner lays out dates, then the two shared times, then the toggle on its own row (travel-form-style handoff-flow).
+    check(positions.dateBottom <= positions.timesTop && positions.timesTop < positions.toggle.top && positions.toggle.bottom <= positions.locationTop,
+      'Time toggle must sit below the shared times, separate from locations: ' + JSON.stringify(positions));
+    check(Math.abs(positions.timesTop - positions.endTop) < 1 && Math.abs(positions.startWidth - positions.endWidth) < 1,
+      'Shared times must be two equal columns below the date');
     check(positions.toggle.left >= 0 && positions.toggle.right <= width, 'Time toggle must fit the viewport');
     await page.screenshot({ path: page.smokeOutputDir + `/time-toggle-${width}.png`, fullPage: true });
     await timeToggle.press('Space');
@@ -68,13 +69,11 @@ async (page) => {
     const enabled = await page.locator('travel-form').evaluate(form => {
       const root = form.shadowRoot;
       const toggle = root.querySelector('.toggle-container').getBoundingClientRect();
-      const date = root.querySelector('#schedule-date').getBoundingClientRect();
-      return { left: toggle.left, right: toggle.right, top: toggle.top, bottom: toggle.bottom,
-        dateRight: date.right, dateTop: date.top, dateBottom: date.bottom };
+      const rows = root.querySelector('#daily-times-accordion').getBoundingClientRect();
+      return { left: toggle.left, right: toggle.right, bottom: toggle.bottom, rowsTop: rows.top };
     });
     check(enabled.left >= 0 && enabled.right <= width, 'Enabled toggle must fit the viewport');
-    if (width === 1280) check(enabled.left >= enabled.dateRight && enabled.top < enabled.dateBottom
-      && enabled.bottom > enabled.dateTop, 'Enabled toggle must move beside the date');
+    check(enabled.bottom <= enabled.rowsTop, 'Enabled toggle must stay above the per-day rows');
     await page.screenshot({ path: page.smokeOutputDir + `/time-toggle-enabled-${width}.png`, fullPage: true });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await timeToggle.press('Space');
@@ -84,35 +83,47 @@ async (page) => {
 
   }
   results.push('PASS time toggle placement at mobile/desktop widths and keyboard operation');
-  await page.locator('travel-form .primary-btn').click();
-  await page.locator('travel-form #overnight-location-1[aria-invalid="true"]').waitFor();
-  check(await page.evaluate(() => window.__smoke.requests.length === 0), 'Missing lodging must block generation');
-  results.push('PASS legacy edit preserves endpoints, requires lodging and blocks incomplete generation');
+  // The Ionic planner (handoff-flow) books lodging as optional dated stays, not one required input per night.
+  check(await page.locator('travel-form .trip-stay').count() === 0, 'Do not infer stays from legacy airport endpoints');
+  check((await page.locator('travel-form #trip-stay-status').innerText()).includes('숙소 미정'), 'Say that lodging is still unset');
+  results.push('PASS legacy edit preserves endpoints and leaves lodging unset');
 
-  const hotel = { placeId: 'hotel-a', displayName: '연박 호텔', formattedAddress: '서울 중구', lat: 37.55, lng: 126.98 };
-  await page.locator('travel-form #same-overnight-toggle').check();
-  check(await page.locator('travel-form #overnight-location-2').isHidden(), 'Only one lodging input for consecutive nights');
-  await page.locator('travel-form #overnight-location-1').evaluate((element, hotel) => {
+  const pick = (locator, place) => locator.evaluate((element, place) => {
     element.dispatchEvent(Object.assign(new Event('gmp-select'), { placePrediction: { toPlace: () => ({
-      ...hotel, fetchFields: async () => {},
+      ...place, fetchFields: async () => {},
     }) } }));
-  }, hotel);
-  await page.waitForFunction(() => document.querySelector('travel-form').draft.overnightLocations.every(place => place.placeId === 'hotel-a'));
-  await page.locator('travel-form #overnight-notice').waitFor({ state: 'hidden' });
-  request = await read();
-  check(request.sameOvernightLocation && request.overnightLocations.every(place => place.placeId === hotel.placeId), 'Repeat selected identity, not just text');
-  await page.reload();
-  await page.locator('travel-form #overnight-location-1').waitFor();
-  check(await page.locator('travel-form #same-overnight-toggle').isChecked(), 'Restore consecutive-night mode after reload');
+  }, place);
+  const placeAt = (placeId, displayName, lng) => ({ placeId, displayName, formattedAddress: '서울', lat: 37.55, lng });
+  // Generation needs searched places, so the legacy text endpoints are picked again under the same names.
+  await pick(page.locator('travel-form #start-location'), placeAt('station-a', '서울역', 126.97));
+  await pick(page.locator('travel-form #end-location'), placeAt('airport-t2', '인천공항 T2', 126.45));
+  const hotel = { placeId: 'hotel-a', displayName: '연박 호텔', formattedAddress: '서울 중구', lat: 37.55, lng: 126.98 };
+  await page.locator('travel-form #add-trip-stay').click();
+  check(await page.locator('travel-form .trip-stay').count() === 1, 'One stay covers consecutive nights');
+  check(await page.locator('travel-form .stay-checkin').inputValue() === dates[0] && await page.locator('travel-form .stay-checkout').inputValue() === dates[3],
+    'The first stay spans the whole trip');
+  await pick(page.locator('travel-form .stay-location'), hotel);
+  await page.waitForFunction(() => document.querySelector('travel-form').getFormData().overnightLocations.every(place => place.placeId === 'hotel-a'));
+  // Reloading a signed-in /plan discards its inputs on the Ionic shell (plan-exit-guard pagehide), so re-render from the stored draft.
+  const restore = () => page.locator('travel-form').evaluate(form => form.refreshFromStorage());
+  await restore();
+  await page.locator('travel-form .stay-location').waitFor();
+  check(await page.locator('travel-form .trip-stay').count() === 1, 'Restore the consecutive-night stay from the saved draft');
   check((await read()).overnightLocations.every(place => place.placeId === hotel.placeId), 'Restore all lodging identities');
   await page.screenshot({ path: page.smokeOutputDir + '/consecutive-nights.png', fullPage: true });
-  results.push('PASS one selected hotel covers all nights and survives reload');
+  results.push('PASS one selected hotel covers all nights and is restored from the saved draft');
 
-  await page.locator('travel-form #same-overnight-toggle').uncheck();
-  await page.locator('travel-form #overnight-location-3').waitFor();
-  check((await read()).overnightLocations.every(place => place.placeId === hotel.placeId), 'Turning off consecutive nights keeps selected hotels');
-  await page.locator('travel-form #overnight-location-2 input').fill('둘째 숙소');
-  await page.locator('travel-form #overnight-location-3 input').fill('셋째 숙소');
+  // Adding a stay splits the last night off the longest one, keeping the hotel already chosen.
+  await page.locator('travel-form #add-trip-stay').click();
+  await page.locator('travel-form .trip-stay').nth(1).waitFor();
+  request = await read();
+  check(request.overnightLocations[0].placeId === hotel.placeId && request.overnightLocations[1].placeId === hotel.placeId
+    && request.overnightLocations[2] === '', 'Splitting a stay keeps the selected hotel on its remaining nights');
+  await pick(page.locator('travel-form .stay-location').nth(1), placeAt('hotel-c', '셋째 숙소', 126.99));
+  await page.locator('travel-form #add-trip-stay').click();
+  await page.locator('travel-form .trip-stay').nth(2).waitFor();
+  await pick(page.locator('travel-form .stay-location').nth(2), placeAt('hotel-b', '둘째 숙소', 126.988));
+  await page.waitForFunction(() => document.querySelector('travel-form').getFormData().overnightLocations.map(place => place.placeId).join() === 'hotel-a,hotel-b,hotel-c');
   const locationToggle = page.locator('travel-form #daily-locations-toggle');
   await locationToggle.focus();
   await locationToggle.press('Space');
@@ -126,13 +137,11 @@ async (page) => {
   await locationToggle.check();
   check((await read()).dailyLocations.every(day => !day.startLocation && !day.endLocation), 'Turning off clears hidden overrides');
   const departure = {...hotel, placeId:'station-b', displayName:'둘째 날 출발역'};
-  await page.locator('travel-form #daily-start-location-2').evaluate((element, place) => {
-    element.dispatchEvent(Object.assign(new Event('gmp-select'), {placePrediction:{toPlace:() => ({...place, fetchFields:async()=>{}})}}));
-  }, departure);
+  await pick(page.locator('travel-form #daily-start-location-2'), departure);
   await page.waitForFunction(() => document.querySelector('travel-form').draft.dailyLocations?.[1].startLocation?.placeId === 'station-b');
-  await page.reload();
+  await restore();
   await page.locator('travel-form #daily-locations-panel').waitFor({state:'visible'});
-  check((await read()).dailyLocations[1].startLocation.placeId === 'station-b', 'Restore selected override identity after reload');
+  check((await read()).dailyLocations[1].startLocation.placeId === 'station-b', 'Restore selected override identity from the saved draft');
   for (const width of [390,1280]) {
     await page.setViewportSize({width,height:900});
     const bounds = await page.locator('travel-form #daily-start-location-2').boundingBox();
@@ -140,11 +149,12 @@ async (page) => {
     await page.locator('travel-form #daily-start-location-2').scrollIntoViewIfNeeded();
     await page.screenshot({path:page.smokeOutputDir + `/daily-locations-${width}.png`,fullPage:true});
   }
-  results.push('PASS daily location overrides, defaults, keyboard, transfer warning, reload and responsive layout');
+  results.push('PASS daily location overrides, defaults, keyboard, transfer warning, draft restore and responsive layout');
   request = await read();
-  check(request.overnightLocations[0].placeId === hotel.placeId && request.overnightLocations[1] === '둘째 숙소'
-    && request.overnightLocations[2] === '셋째 숙소', 'Different lodging each night');
+  check(request.overnightLocations.map(place => place.displayName).join() === '연박 호텔,둘째 숙소,셋째 숙소', 'Different lodging each night');
+  // The Ionic planner reviews the inputs before it generates.
   await page.locator('travel-form .primary-btn').click();
+  await page.locator('travel-form #final-generate').click();
   await page.waitForFunction(() => window.__smoke.requests.length === 1);
   const boundaries = await page.evaluate(async () => {
     const { normalizePlannerRequest, enforcePlannerConstraints } = await import('/src/domains/planner/services/planner-constraints.mjs');
@@ -155,16 +165,18 @@ async (page) => {
   });
   check(JSON.stringify(boundaries) === JSON.stringify([
     ['서울역', '연박 호텔'], ['둘째 날 출발역', '둘째 숙소'], ['둘째 숙소', '셋째 숙소'], ['셋째 숙소', '인천공항 T2'],
-  ]), 'Generated day boundaries connect each selected night');
-  await page.locator('#show-results-btn').click();
-  await page.locator('#save-itinerary-btn').waitFor();
-  await page.locator('#save-itinerary-btn').click();
-  await page.waitForFunction(() => document.querySelector('itinerary-view').state.snapshot()?.source.kind === 'private');
-  await page.locator('#edit-itinerary-btn').click();
-  await page.locator('travel-form #overnight-location-3').waitFor();
+  ]), 'Generated day boundaries connect each selected night: ' + JSON.stringify(boundaries));
+  // The Ionic shell opens /view by itself once generation succeeds.
+  // Ionic keeps the earlier /view/legacyStay page (and its itinerary-view) hidden in the DOM.
+  await page.locator('itinerary-view:visible #save-itinerary-btn').click();
+  await page.waitForFunction(() => [...document.querySelectorAll('itinerary-view')].find(view => view.checkVisibility())?.state.snapshot()?.source.kind === 'private'
+    && window.location.pathname !== '/view/legacyStay' && window.location.pathname !== '/view');
+  await page.locator('.ionic-result-edit:visible').click();
+  // Editing reopens the last review, so the form rows are present but behind the review panel.
+  await page.locator('travel-form .trip-stay').nth(2).waitFor({ state: 'attached' });
   request = await read();
   check(request.dailyLocations[1].startLocation.placeId === 'station-b', 'Save/edit preserves explicit daily overrides');
-  check(request.overnightLocations[1] === '둘째 숙소' && request.overnightLocations[2] === '셋째 숙소', 'Save/edit restores different hotels');
+  check(request.overnightLocations.map(place => place.placeId).join() === 'hotel-a,hotel-b,hotel-c', 'Save/edit restores different hotels');
   check(await page.evaluate(legacy => JSON.stringify(JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.legacyStay.itineraryPlan.request)
     === JSON.stringify(legacy), legacy), 'Editing/regeneration must not rewrite the legacy snapshot');
   results.push('PASS different hotels connect through submit, regeneration, save and edit; legacy snapshot unchanged');
@@ -172,29 +184,32 @@ async (page) => {
   // Reuse preference navigation to exercise duration changes, not a direct draft mutation.
   const duration = async count => {
     await page.locator('travel-form #reselect-preference-btn').click();
-    await page.locator('preference-view #prev-step-btn').click();
-    await page.locator(`preference-view [data-duration="${count}"]`).click();
-    await page.locator('preference-view #next-step-btn').click();
-    await page.locator('preference-view #skip-btn').click();
+    // Each preference step is its own Ionic page, so only the shown one counts.
+    await page.locator('preference-view #prev-step-btn:visible').click();
+    await page.locator(`preference-view [data-duration="${count}"]:visible`).click();
+    await page.locator('preference-view #next-step-btn:visible').click();
+    await page.locator('preference-view #skip-btn:visible').click();
     await page.waitForFunction(count => document.querySelector('travel-form').draft.date.length === count, count);
   };
+  await page.locator('travel-form #review-panel [data-review-edit="details"]').first().click();
   await duration(2);
-  check((await read()).overnightLocations.length === 1, 'Shrinking to two days keeps one night');
+  request = await read();
+  check(request.overnightLocations.length === 1, 'Shrinking to two days keeps one night');
+  // Stays are dated on the Ionic planner: ones that no longer fit are flagged, not silently applied or dropped.
+  check(request.overnightLocations[0] === '', 'Stays that no longer fit must not be applied: ' + JSON.stringify(request.overnightLocations));
+  await page.locator('travel-form .primary-btn').click();
+  check((await page.locator('travel-form #review-issues').innerText()).includes('여행 기간 밖'), 'Review must flag stays outside the shortened trip');
+  await page.locator('travel-form #review-panel [data-review-edit="details"]').first().click();
   await duration(4);
   request = await read();
-  check(request.overnightLocations[0].placeId === hotel.placeId && request.overnightLocations[1] === '' && request.overnightLocations[2] === '',
-    'Expanding dates must not resurrect removed hotels');
-  await page.locator('travel-form #same-overnight-toggle').check();
-  await duration(2);
-  await duration(4);
-  check((await read()).overnightLocations.every(place => place.placeId === hotel.placeId), 'Consecutive-night mode follows duration expansion');
+  check(request.overnightLocations.map(place => place.placeId).join() === 'hotel-a,hotel-b,hotel-c',
+    'Expanding back to the stays\' dates applies them again: ' + JSON.stringify(request.overnightLocations));
   await duration(1);
   await page.locator('travel-form #overnight-wrapper').waitFor({ state: 'hidden' });
   request = await read();
   check(request.dailyLocations === null, 'Day trip clears daily location overrides');
   check(request.overnightLocations.length === 0 && !request.sameOvernightLocation, 'Day trip has no nights');
-  check((await page.locator('travel-form label[for="start-location"]').innerText()) === '시작 장소 (호텔, 공항 등)', 'Restore day-trip label');
-  results.push('PASS duration changes resize lodging, preserve consecutive stays and restore day-trip form');
+  results.push('PASS duration changes resize lodging and restore the day-trip form');
   check(page.smokeErrors.length === 0, 'No page errors: ' + page.smokeErrors.join(', '));
   return { results, errors: page.smokeErrors };
 }

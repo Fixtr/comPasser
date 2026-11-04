@@ -1,13 +1,11 @@
 async page=>{
-  await page.evaluate(()=>{
-    const view=document.querySelector('itinerary-view');
-    view.state.open({request:{startTime:'09:00',endTime:'18:00'},days:[{day:1,date:'2026-09-17',scheduleItems:[
+  await page.evaluate(async()=>{
+    await window.__smoke.openPlan({request:{startTime:'09:00',endTime:'18:00'},days:[{day:1,date:'2026-09-17',scheduleItems:[
       {type:'departure',time:'09:00',title:'출발'},
       {type:'dining',time:'10:54',endTime:'11:24',title:'식당'},
       {type:'attraction',time:'11:45',endTime:'12:27',title:'관람'},
       {type:'AnchorSchedule',time:'12:54',endTime:'14:55',title:'고정 일정'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
-    window.navigate('/view');view.renderCurrentState();
   });
   await page.locator('itinerary-view .visit-time-btn').first().click();
   await page.locator('itinerary-view .visit-time-editor').getByRole('button',{name:'취소',exact:true}).click();

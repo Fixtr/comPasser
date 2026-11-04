@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-ComPasser is an AI travel planner built with Vite, Firebase, and Capacitor. The app shell is Ionic React (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`), which handles startup and routing and mounts the domain UIs, written as framework-free Web Components. `src/app/` holds the route guard (`route-decision.mjs`) and tab definitions (`tab-bar.mjs`) the shell imports, plus the legacy vanilla shell (`main.js`) kept for `dev:legacy`, `build:legacy` and the `npm run test:browser` smoke suite. Feature code lives in `src/domains/{auth,planner,itinerary,map,profile}/`, split into `services/` and `ui/`. Shared helpers, icons, and design tokens live in `src/utils/`, `src/ui/`, and `src/styles/`. Static assets and the service worker live in `public/`; backend code lives in `functions/`. Native projects are in `android/` and `ios/`. Read the relevant domain’s `COMMAND_GUIDE.md` before changing its behavior.
+ComPasser is an AI travel planner built with Vite, Firebase, and Capacitor. The app shell is Ionic React (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`), which handles startup and routing and mounts the domain UIs, written as framework-free Web Components. `src/app/` holds the route guard (`route-decision.mjs`) and tab definitions (`tab-bar.mjs`) the shell imports. Feature code lives in `src/domains/{auth,planner,itinerary,map,profile}/`, split into `services/` and `ui/`. Shared helpers, icons, and design tokens live in `src/utils/`, `src/ui/`, and `src/styles/`. Static assets and the service worker live in `public/`; backend code lives in `functions/`. Native projects are in `android/` and `ios/`. Read the relevant domain’s `COMMAND_GUIDE.md` before changing its behavior.
 
 ## Build, Test, and Development Commands
 Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
@@ -13,7 +13,7 @@ Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
 - `npm test`: run Node.js unit and contract tests.
 - `npm run lint`: run Oxlint with the anti-slop rules over `src`, `functions`, `scripts`, and `test`.
 - `npm run test:browser:install`: install the test browser before first use.
-- `npm run test:browser`: run Playwright smoke scenarios.
+- `npm run test:browser`: run Playwright smoke scenarios on the Ionic shell.
 - `npm run test:emulator`: run Firebase Auth/Firestore integration and security-rule tests.
 - `npm run check`: run tests, build, browser scenarios, and emulator tests sequentially.
 - `npm run cap:sync`: build and synchronize the native projects.

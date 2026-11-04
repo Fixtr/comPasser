@@ -56,21 +56,24 @@ async (page) => {
   page.smokeResults.push('PASS 390px viewport/share dialog/profile edit/no horizontal overflow');
 
   await page.getByRole('button',{name:'보안 및 계정',exact:true}).click();
-  await page.locator('profile-view #btn-delete-account-trigger').click();
-  await page.locator('profile-view #btn-modal-cancel').click();
+  await page.waitForURL('**/profile/security');
+  // /profile/security is its own Ionic page; the personal page's profile-view stays in the DOM, hidden.
+  const security = selector => page.locator('profile-view '+selector+':visible');
+  await security('#btn-delete-account-trigger').click();
+  await security('#btn-modal-cancel').click();
   check(await page.evaluate(() => !!JSON.parse(sessionStorage.getItem('__smoke_db')).users.smokeOwner), 'Cancelled deletion must preserve profile');
   page.smokeResults.push('PASS account deletion confirmation/cancel');
 
 
   await page.evaluate(() => {window.__smoke.dbError='delete';});
-  await page.locator('profile-view #btn-delete-account-trigger').click();
-  await page.locator('profile-view #btn-modal-confirm').click();
-  await page.locator('profile-view #account-deletion-status').filter({hasText:'접수되어'}).waitFor({state:'visible'});
-  check(await page.locator('profile-view #btn-delete-account-trigger').isDisabled(), 'Accepted deletion must remain locked');
+  await security('#btn-delete-account-trigger').click();
+  await security('#btn-modal-confirm').click();
+  await security('#account-deletion-status').filter({hasText:'접수되어'}).waitFor({state:'visible'});
+  check(await security('#btn-delete-account-trigger').isDisabled(), 'Accepted deletion must remain locked');
   check(await page.evaluate(() => !!JSON.parse(sessionStorage.getItem('__smoke_db')).users.smokeOwner), 'Server failure retains unprocessed profile');
   check(await page.evaluate(() => window.__smoke.user?.uid)==='smokeOwner', 'Pending job must not claim completion');
   await page.reload();
-  await page.locator('profile-view #account-deletion-status').filter({hasText:'접수되어'}).waitFor({state:'visible'});
+  await security('#account-deletion-status').filter({hasText:'접수되어'}).waitFor({state:'visible'});
   check(!(await page.evaluate(() => window.__smoke.calls)).includes('server-request'), 'Reload must not resubmit deletion');
   page.smokeResults.push('PASS server deletion outage/pending/duplicate guard/reload receipt recovery');
   await page.evaluate(() => window.__smoke.finishServerDeletion());

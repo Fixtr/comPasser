@@ -62,6 +62,22 @@ async page => {
           if (!check[key]) throw new Error(`${width}px dark=${dark} ${check.tag}: ${key} failed`);
         }
       }
+      // The same check on the real Ionic /plan page: an open start-location dropdown covers what lies below it.
+      const real = await page.evaluate(() => {
+        const form = document.querySelector('travel-form'), root = form.shadowRoot;
+        const host = root.getElementById('start-location'), inner = host.shadowRoot;
+        const panel = document.createElement('div');
+        panel.innerHTML = `<style>.smoke-suggestions { display:none;position:absolute;top:100%;left:0;right:0;height:180px;background:white;z-index:1000; }
+          :host(:focus-within) .smoke-suggestions { display:block; }</style><div class="smoke-suggestions"></div>`;
+        inner.append(panel);
+        try {
+          host.scrollIntoView({ block: 'start' });
+          inner.querySelector('input').focus();
+          const rect = host.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.bottom + 90;
+          return { inView: y < innerHeight, above: root.elementFromPoint(x, y) === host, onPage: document.elementFromPoint(x, y) === form };
+        } finally { panel.remove(); inner.querySelector('input').blur(); }
+      });
+      for (const key of ['inView', 'above', 'onPage']) if (!real[key]) throw new Error(`${width}px dark=${dark} real /plan: ${key} failed`);
       results.push(`PASS ${width}px ${dark ? 'dark' : 'light'}: dropdown hit testing, selection, focus transfer and reset`);
     }
   }

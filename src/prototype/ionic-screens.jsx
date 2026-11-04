@@ -466,7 +466,12 @@ export function ProfileScreen({ tab, settings, active, userId }) {
   useEffect(() => {
     let cancelled = false;
     if (!active) return undefined;
-    void import('../domains/profile/ui/profile-view.js').then(() => { if (!cancelled) { view.current?.setTabFromPath(tab); view.current?.loadUserData(); view.current?.fetchItineraries(); } });
+    const loaded = import('../domains/profile/ui/profile-view.js');
+    void loaded.then(() => { if (!cancelled) { view.current?.setTabFromPath(tab); view.current?.loadUserData(); view.current?.fetchItineraries(); } });
+    // Refetched on every visit, as a generation may have spent or refunded a credit; the view is keyed by user, so another account starts at loading.
+    if (userId !== 'guest') void Promise.all([import('../domains/planner/services/gemini-optimizer.js'), loaded])
+      .then(([service]) => service.getGenerationCredits())
+      .then(balance => { if (!cancelled) view.current?.setGenerationCredits(balance); }, () => { if (!cancelled) view.current?.setGenerationCredits(null); });
     return () => { cancelled = true; };
   }, [tab, active, location.search, userId]);
   // Keyed here, not on the page: a remounted IonPage loses Ionic's hidden state and covers the current page.

@@ -1,8 +1,7 @@
 // User-reported overlap and saved/share time mismatch; no external services.
 async page => {
-  await page.evaluate(()=>{
-    const view=document.querySelector('itinerary-view');
-    view.state.open({request:{date:['2026-10-20'],startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'서울역'},days:[{day:1,date:'2026-10-20',scheduleItems:[
+  await page.evaluate(async()=>{
+    await window.__smoke.openPlan({request:{date:['2026-10-20'],startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'서울역'},days:[{day:1,date:'2026-10-20',scheduleItems:[
       {type:'departure',title:'서울역 출발 준비',location:'서울역',time:'07:51',endTime:'09:00'},
       {type:'attraction',title:'쇼핑',time:'09:08',endTime:'11:38'},
       {type:'dining',title:'식사1',time:'11:55',endTime:'12:25'},
@@ -11,7 +10,6 @@ async page => {
       {type:'leisure',title:'미확인 방문',time:'14:55',endTime:'15:25'},
       {type:'arrival',title:'서울역 복귀',location:'서울역',time:'18:00'}
     ]}]});
-    window.navigate('/view'); view.renderCurrentState();
   });
   await page.locator('itinerary-view .schedule-title').filter({hasText:'박물관 푸드코트'}).waitFor({state:'visible'});
   await page.evaluate(async()=>{
@@ -48,6 +46,9 @@ async page => {
   if(sharedTimes!==savedTimes) throw Error('Sharing/reopening changed schedule times');
   if(await page.locator('itinerary-view #recalculate-times-btn').isVisible()) throw Error('Shared snapshot exposes recalculation');
   await page.goto(page.smokeOrigin+'/view/smoke1');
+  // The Ionic result view runs with day-editing: recalculation is offered only once an explicit edit marks the day modified.
+  await page.locator('itinerary-view').getByRole('button',{name:'미확인 방문 앞으로 옮기기'}).click();
+  if(await page.evaluate(()=>document.querySelector('itinerary-view')._allowTimeAdjustment)) throw Error('An explicit edit unlocked automatic fitting');
   await page.locator('itinerary-view #recalculate-times-btn').click();
   if(!await page.evaluate(()=>document.querySelector('itinerary-view')._allowTimeAdjustment)) throw Error('Explicit recalculation did not unlock adjustment');
   return {results:['PASS partial measured fitting, unknown costs, saved/share times immutable, explicit recalculation'],errors:page.smokeErrors};

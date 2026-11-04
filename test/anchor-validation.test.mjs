@@ -70,7 +70,15 @@ test('시간 미정 방문지는 이름과 위치를 요구하고 시간은 요�
   assert.equal(isAnchorBlank(flexible), false);
   assert.deepEqual(missingAnchorFields(flexible), []);
   assert.deepEqual(missingAnchorFields({ ...flexible, location: '' }), ['location']);
-  assert.deepEqual(missingAnchorFields({ name: '', location: '', flexible: true }), ['name', 'location']);
+  assert.deepEqual(missingAnchorFields({ name: '', location: '서울숲', flexible: true }), ['name']);
+});
+
+test('추가만 하고 안 채운 시간 미정 줄도 빈 줄이다', () => {
+  // 길 안내 흐름은 새 줄을 시간 미정으로 연다. 그 체크만으로 "손댄 줄"이 되면 안 된다.
+  assert.equal(isAnchorBlank({ name: '', time: '', endTime: '', location: '', flexible: true }), true);
+  assert.equal(findIncompleteAnchor([{ name: ' ', location: '', flexible: true }]), null);
+  // 시간 미정 줄의 시간 칸은 꺼져 있어 읽지 않는다 — 남은 값으로 채운 줄이 되지 않는다.
+  assert.equal(isAnchorBlank({ name: '', time: '10:00', endTime: '11:00', location: '', flexible: true }), true);
 });
 
 test('첫 번째 덜 찬 줄과 그 줄의 첫 빈 칸을 집어 준다', () => {

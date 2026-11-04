@@ -7,7 +7,7 @@ import { stripComments } from './helpers/style-contract.mjs';
 /**
  * 외부 SDK 를 언제 불러오는가.
  *
- * index.html 은 html2canvas·Kakao 를 async 없이 동기 <script> 로
+ * 옛 index.html 은 html2canvas·Kakao 를 async 없이 동기 <script> 로
  * 걸고 있었다. 브라우저는 CDN 의 응답을 다 받을 때까지 문서 파싱을
  * 멈춘다. 네트워크가 느리거나 CDN 이 막힌 곳에서는 앱이 아예 뜨지 않고,
  * 오프라인에서는 sw.js 가 외부 요청을 캐시하지 않아 매번 실패한다.
@@ -15,7 +15,7 @@ import { stripComments } from './helpers/style-contract.mjs';
  * 둘 다 첫 화면에는 필요 없다 — 이미지 저장이나 카카오 로그인을
  * 누를 때 필요하다.
  */
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../ionic-shell.html', import.meta.url), 'utf8');
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('첫 화면을 막는 외부 스크립트가 없다', () => {
@@ -31,7 +31,7 @@ test('캡처 라이브러리를 CDN 에서 받지 않는다', () => {
   // 번들에 넣으면 오프라인에서도 되고 버전이 고정된다.
   // 주석은 지우고 본다 — 걷어낸 이유를 주석으로 남겼는데 그 글자에
   // 정규식이 걸리면, 기록을 지우거나 테스트를 무디게 만드는 선택을 강요받는다.
-  assert.doesNotMatch(stripComments(html), /html2canvas/, 'index.html 이 아직 CDN 을 건다');
+  assert.doesNotMatch(stripComments(html), /html2canvas/, 'ionic-shell.html 이 아직 CDN 을 건다');
   const exporter = src('../src/domains/itinerary/ui/itinerary-image-export.js');
   assert.match(exporter, /loadHtml2Canvas/,
     '이미지 내보내기는 공용 캡처 로더를 사용해야 한다');
@@ -43,10 +43,10 @@ test('캡처 라이브러리를 CDN 에서 받지 않는다', () => {
 });
 
 test('카카오 앱 키가 한 곳에서만 나온다', () => {
-  // main.js 는 하드코딩된 키로, login-view 는 .env 키로 각각 init 하고
+  // 옛 main.js 는 하드코딩된 키로, login-view 는 .env 키로 각각 init 하고
   // 있었다. 먼저 실행되는 쪽이 이겨서, 공유와 로그인이 다른 앱으로 붙을 수
-  // 있었다.
-  for (const f of ['../src/app/main.js', '../src/domains/auth/ui/login-view.js',
+  // 있었다. 지금 앱 층은 Ionic 셸이다.
+  for (const f of ['../src/prototype/ionic-shell.jsx', '../src/prototype/ionic-screens.jsx', '../src/domains/auth/ui/login-view.js',
                    '../src/domains/itinerary/ui/itinerary-view.js',
                    '../src/domains/itinerary/ui/itinerary-share-delivery.js']) {
     assert.doesNotMatch(src(f), /Kakao\.init\(/, `${f} 이 직접 init 한다`);

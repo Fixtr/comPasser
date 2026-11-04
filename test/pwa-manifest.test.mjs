@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from 'node:fs';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const manifest = JSON.parse(readFileSync(`${ROOT}public/manifest.json`, 'utf8'));
-const main = readFileSync(`${ROOT}src/app/main.js`, 'utf8');
+const shell = readFileSync(`${ROOT}src/prototype/ionic-shell.jsx`, 'utf8');
 
 test('start_url 이 있고 홈을 가리킨다', () => {
   // 없으면 manifest 를 읽은 문서의 주소가 시작 주소가 된다. 즉 사용자가
@@ -85,7 +85,7 @@ test('바로가기는 실제로 있는 경로만 가리킨다', () => {
     assert.ok(s.name, '바로가기에 name 이 없다');
     assert.ok(s.url && s.url.startsWith(manifest.scope),
       `${s.url} 이 scope 밖이다`);
-    assert.ok(main.includes(`'${s.url}'`),
+    assert.ok(shell.includes(`['${s.url}',`),
       `${s.url} 을 라우터가 다루지 않는다`);
   }
 });

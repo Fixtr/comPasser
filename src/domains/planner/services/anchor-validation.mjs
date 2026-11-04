@@ -27,8 +27,9 @@ const isBlank = (value) => typeof value === 'string' ? value.trim() === '' : val
  */
 export function isAnchorBlank(anchor) {
   if (!anchor) return true;
-  if (anchor.flexible === true) return false;
-  return TOUCHED_FIELDS.every((field) => isBlank(anchor[field]));
+  // 시간 미정 줄은 시간 칸이 꺼져 있다 — 이름과 장소만 손댄 흔적이다.
+  const fields = anchor.flexible === true ? ['name', 'location'] : TOUCHED_FIELDS;
+  return fields.every((field) => isBlank(anchor[field]));
 }
 
 /**
