@@ -13,9 +13,9 @@ import { readFileSync } from 'node:fs';
  */
 const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const manifest = JSON.parse(readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const css = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
-const main = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../ionic-shell.html', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/prototype/ionic-shell.css', import.meta.url), 'utf8');
+const shell = readFileSync(new URL('../src/prototype/ionic-shell.jsx', import.meta.url), 'utf8');
 
 /** tokens.css 의 :root 블록에서 값을 읽는다(body.dark 쪽과 섞이지 않게). */
 function token(name) {
@@ -35,19 +35,23 @@ test('스플래시 배경이 앱 지면색과 같다', () => {
 });
 
 test('meta theme-color 가 라이트/다크 각각 지면색과 같다', () => {
+  // Ionic 셸은 meta 하나를 두고, 첫 페인트 전 head 스크립트와 테마 토글이
+  // 그 content 를 라이트/다크 지면색으로 바꿔 쓴다. 세 자리 모두 토큰과 같아야 한다.
   const metas = [...html.matchAll(/<meta\s+name="theme-color"[^>]*>/g)].map(m => m[0]);
-  assert.ok(metas.length >= 2, '라이트/다크 두 개를 선언해야 한다 (받은 개수: ' + metas.length + ')');
-
-  const light = metas.find(m => !m.includes('prefers-color-scheme: dark'));
-  const dark = metas.find(m => m.includes('prefers-color-scheme: dark'));
-  assert.ok(light && dark, 'prefers-color-scheme 로 구분된 두 선언이 필요하다');
-
-  const contentOf = (tag) => /content="([^"]+)"/.exec(tag)[1].trim().toLowerCase();
-  assert.equal(contentOf(light), token('paper'));
-
+  assert.equal(metas.length, 1, 'theme-color 선언이 하나여야 스크립트가 고치는 값과 갈라지지 않는다');
+  const lightPaper = token('paper');
   const darkRoot = tokens.slice(tokens.indexOf('body.dark'));
   const darkPaper = /--cp-paper\s*:\s*([^;]+);/.exec(darkRoot)[1].trim().toLowerCase();
-  assert.equal(contentOf(dark), darkPaper);
+  assert.equal(/content="([^"]+)"/.exec(metas[0])[1].trim().toLowerCase(), lightPaper);
+
+  const head = html.slice(0, html.indexOf('</head>'));
+  const boot = /theme-color"\]'\)\.content\s*=\s*theme === 'dark' \? '([^']+)' : '([^']+)'/.exec(head);
+  assert.ok(boot, 'head 스크립트가 첫 페인트 전에 theme-color 를 테마에 맞추지 않는다');
+  assert.deepEqual([boot[1].toLowerCase(), boot[2].toLowerCase()], [darkPaper, lightPaper]);
+
+  const toggle = /theme-color"\]'\)\?\.setAttribute\('content', theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(shell);
+  assert.ok(toggle, '테마를 바꿀 때 theme-color 를 따라 바꾸지 않는다');
+  assert.deepEqual([toggle[1].toLowerCase(), toggle[2].toLowerCase()], [darkPaper, lightPaper]);
 });
 
 /**
@@ -67,7 +71,7 @@ test('핀치 줌을 막지 않는다', () => {
 });
 
 test('첫 페인트 전에 테마가 정해진다', () => {
-  // main.js 는 모듈이라 문서 파싱이 끝난 뒤 실행된다. 거기서 테마를 정하면
+  // 셸 스크립트는 모듈이라 문서 파싱이 끝난 뒤 실행된다. 거기서 테마를 정하면
   // 시스템이 다크인 폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다.
   const head = html.slice(0, html.indexOf('</head>'));
   assert.match(head, /data-theme/, 'head 안에서 테마를 정하는 코드가 없다');
@@ -86,31 +90,11 @@ test('다크 팔레트는 data-theme 로도 걸린다', () => {
 });
 
 test('시스템 테마가 바뀌면 따라간다 — 사용자가 고른 적 없을 때만', () => {
-  assert.match(main, /matchMedia\(\s*['"]\(prefers-color-scheme: dark\)['"]\s*\)/,
+  assert.match(shell, /matchMedia\(\s*['"]\(prefers-color-scheme: dark\)['"]\s*\)/,
     '시스템 테마 변경을 듣지 않는다');
-  assert.match(main, /addEventListener\(\s*['"]change['"]/, 'change 이벤트를 듣지 않는다');
+  assert.match(shell, /addEventListener\(\s*['"]change['"]/, 'change 이벤트를 듣지 않는다');
   // 고른 적이 있으면 그 선택이 이긴다.
-  assert.match(main, /localStorage\.getItem\(\s*['"]theme['"]\s*\)/, '저장된 선택을 확인하지 않는다');
-});
-
-test('설치형에서는 히어로가 자리를 덜 차지한다', () => {
-  // 홈 화면에서 띄우면 브라우저 주소창이 없는 대신 이 헤더가 매 화면 위에
-  // 200px 를 상시 점유했다. 설치형에서는 줄인다.
-  //
-  // 줄이는 값은 이제 커스텀 속성 한 벌이다 — 설치형과 결과 화면(지도에
-  // 자리를 내줘야 한다)이 같은 것을 원하는데, 값을 두 곳에 적으면 한쪽만
-  // 고쳐지는 날이 온다. 그래서 ① 조건이 값을 켜는지 ② .hero 가 그 값을
-  // 실제로 읽는지, 두 쪽을 함께 본다.
-  const block = /@media\s*\(display-mode:\s*standalone\)\s*\{[\s\S]*?\n\}/.exec(css);
-  assert.ok(block, '(display-mode: standalone) 블록이 없다');
-  assert.match(block[0], /--hero-pad\s*:/, '설치형에서 헤더 여백을 줄이지 않는다');
-  assert.match(block[0], /--hero-sub\s*:\s*none/, '설치형에서 소개 문구를 감추지 않는다');
-
-  const hero = /\.hero\s*\{([^}]*)\}/.exec(css);
-  assert.ok(hero, '.hero 규칙이 없다');
-  assert.match(hero[1], /padding\s*:\s*var\(--hero-pad/, '.hero 가 --hero-pad 를 읽지 않는다');
-  const heroP = /\.hero p\s*\{([^}]*)\}/.exec(css);
-  assert.match(heroP[1], /display\s*:\s*var\(--hero-sub/, '.hero p 가 --hero-sub 를 읽지 않는다');
+  assert.match(shell, /localStorage\.getItem\(\s*['"]theme['"]\s*\)/, '저장된 선택을 확인하지 않는다');
 });
 
 test('노치 아래로 내용이 숨지 않는다', () => {
@@ -121,8 +105,9 @@ test('노치 아래로 내용이 숨지 않는다', () => {
 // 캡처의 라이트 팔레트와 원래 테마 복원은 itinerary-image-export.test.mjs에서 검증한다.
 
 test('테마 버튼 라벨이 언어를 바꿔도 상태를 지킨다', () => {
-  // 버튼에 data-i18n 이 고정돼 있으면, 다크 모드에서 언어를 바꾸는 순간
-  // updateTexts() 가 "다크 모드"로 되돌려 놓는다(누르면 라이트로 가는데도).
-  assert.match(main, /setAttribute\(\s*['"]data-i18n['"]\s*,\s*key\s*\)/,
+  // 라벨 키가 고정돼 있으면, 다크 모드에서 언어를 바꾸는 순간 "다크 모드"로
+  // 되돌아간다(누르면 라이트로 가는데도). 셸은 그릴 때마다 테마로 키를 고른다.
+  assert.match(shell, /\{t\(theme === 'dark' \? 'lightMode' : 'darkMode'\)\}/,
     '테마에 따라 i18n 키를 바꾸지 않는다');
+  assert.match(shell, /addEventListener\('i18n-changed'/, '언어가 바뀌어도 다시 그리지 않는다');
 });

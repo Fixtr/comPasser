@@ -24,7 +24,7 @@ import { stripSourceComments } from './helpers/style-contract.mjs';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const sw = stripSourceComments(readFileSync(`${ROOT}public/sw.js`, 'utf8'));
-const main = stripSourceComments(readFileSync(`${ROOT}src/app/main.js`, 'utf8'));
+const shell = stripSourceComments(readFileSync(`${ROOT}src/prototype/ionic-shell.jsx`, 'utf8'));
 
 test('응답 복제는 넘겨주기 전에 한다', () => {
   // `caches.open(...).then(cache => cache.put(request, response.clone()))` 처럼
@@ -55,7 +55,7 @@ test('개발 서버의 것은 캐시하지 않는다', () => {
 
 test('개발 중에는 서비스 워커를 아예 등록하지 않는다', () => {
   assert.match(
-    main,
+    shell,
     /import\.meta\.env\.(PROD|DEV)[\s\S]{0,200}?serviceWorker\.register|serviceWorker[\s\S]{0,200}?import\.meta\.env\.(PROD|DEV)/,
     '등록 자체를 배포 빌드에서만 해야 한다'
   );

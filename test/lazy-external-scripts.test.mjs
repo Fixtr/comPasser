@@ -6,8 +6,8 @@
  * Google Maps, 애드센스, GA, gapi. 랜딩에는 지도도 광고도 없다.
  *
  * 넷을 같은 잣대로 보지는 않는다.
- *  - **지도**: `<map-view>` 와 `<travel-form>` 이 index.html 마크업에 있어
- *    모든 경로에서 붙는다. 붙자마자 라이브러리 여섯 벌(marker·geocoding·
+ *  - **지도**: `<map-view>` 와 `<travel-form>` 은 화면이 붙이는 순간 붙는다
+ *    (옛 index.html 에서는 마크업에 있어 모든 경로에서 붙었다). 붙자마자 라이브러리 여섯 벌(marker·geocoding·
  *    routes·maps·core·places)을 받아 왔다. 화면에 보일 때 받으면 된다.
  *  - **광고**: 애드센스 계정이 비활성화돼 2026-10-21 광고 코드를 지웠다.
  *  - **GA**: 랜딩의 page_view 를 세는 것이 일이라 첫 화면에 있어야 한다.
@@ -24,7 +24,7 @@ import { stripSourceComments } from './helpers/style-contract.mjs';
 const ROOT = new URL('../', import.meta.url).pathname;
 const read = p => readFileSync(`${ROOT}${p}`, 'utf8');
 
-const html = read('index.html');
+const html = read('ionic-shell.html');
 const mapView = stripSourceComments(read('src/domains/map/ui/map-view.js'));
 const travelForm = stripSourceComments(read('src/domains/planner/ui/travel-form.js'));
 const itinerary = stripSourceComments(read('src/domains/itinerary/ui/itinerary-view.js'));
@@ -47,7 +47,7 @@ function methodBody(source, signature) {
   throw new Error(`${signature} 의 끝을 찾지 못했다`);
 }
 
-test('index.html 이 직접 부르는 외부 스크립트는 정해진 것뿐이다', () => {
+test('ionic-shell.html 이 직접 부르는 외부 스크립트는 정해진 것뿐이다', () => {
   // 새 SDK 를 여기 그냥 붙이면 첫 화면이 그만큼 느려진다.
   // 미룰 수 없는 것만 남기고, 나머지는 external-scripts.js 로.
   const ALLOWED = ['www.googletagmanager.com'];
@@ -55,14 +55,14 @@ test('index.html 이 직접 부르는 외부 스크립트는 정해진 것뿐이
     .map(m => new URL(m[1].replace(/%[A-Z_]+%/g, 'x')).hostname);
   const unexpected = found.filter(h => !ALLOWED.includes(h));
   assert.deepEqual(unexpected, [],
-    'index.html 에서 직접 부르면 첫 화면이 그만큼 늦어진다. ' +
+    'ionic-shell.html 에서 직접 부르면 첫 화면이 그만큼 늦어진다. ' +
     'external-scripts.js 에서 필요한 순간에 불러라:\n' + unexpected.join('\n'));
 });
 
 test('지도는 붙자마자가 아니라 그릴 경로가 생길 때 불러온다', () => {
   const body = methodBody(mapView, 'connectedCallback()');
   assert.ok(!/this\.initMap\s*\(/.test(body),
-    '<map-view> 는 index.html 마크업에 있어 모든 경로에서 붙는다. ' +
+    '<map-view> 는 결과 화면이 미리 붙여 둔다. ' +
     'connectedCallback 에서 지도를 켜면 랜딩에서도 Maps JS 를 받는다');
   // 보이자마자 켜면 공유 링크에서 Firestore 와 대역폭을 다퉈 "없는 일정" 안내가 늦어진다.
   assert.ok(!/ensureMap\s*\(/.test(body), '결과 화면이 보이는 것만으로 Maps JS 를 받는다');
@@ -103,12 +103,12 @@ test('자동완성도 붙자마자 불러오지 않는다', () => {
 
   const onMount = withoutObserverCallbacks(body);
   assert.ok(!/this\.initPlaces\s*\(/.test(onMount),
-    '<travel-form> 도 index.html 마크업에 있어 모든 경로에서 붙는다. ' +
+    '<travel-form> 도 화면에 보이기 전에 붙는다. ' +
     '붙자마자 부르면 랜딩에서도 Maps 의 places 를 받는다 — 폼이 보일 때 받으면 된다');
 });
 
 test('비활성화된 애드센스를 다시 불러오지 않는다', () => {
-  for (const [file, source] of [['index.html', html], ['src/utils/external-scripts.js', externals],
+  for (const [file, source] of [['ionic-shell.html', html], ['src/utils/external-scripts.js', externals],
     ['src/domains/itinerary/ui/itinerary-view.js', itinerary]]) {
     assert.ok(!/ca-pub-\d+|adsbygoogle|googlesyndication|loadAdSense/.test(source), `${file} 에 애드센스 코드가 남아 있다`);
   }

@@ -54,12 +54,11 @@ export const missingFirebaseConfig = Object.entries(REQUIRED_CONFIG)
 /**
  * 설정이 비었으면 **시작하지 않는다.**
  *
- * 예전에는 그냥 불렀다. 그러면 `initializeApp` 이 모듈을 읽는 도중
- * `auth/invalid-api-key` 로 터지고, 이 모듈을 들여오는 `main.js` 가 통째로
- * 죽는다 — 라우터도 안 돌고 커스텀 요소도 하나도 정의되지 않는다. 화면에는
- * index.html 의 정적 마크업이 멀쩡히 떠 있으니 **멀쩡한 화면에 죽은 버튼**만
- * 남고, 원인을 짐작할 단서가 하나도 없다. 실제로 Cloudflare 미리보기 배포가
- * 그 상태였다(미리보기 환경에는 환경 변수가 따로 들어간다).
+ * 빈 설정으로 부르면 `initializeApp` 이 모듈을 읽는 도중
+ * `auth/invalid-api-key` 로 터지고, 이 모듈을 들여오는 셸 화면 모듈까지
+ * 통째로 죽어 원인을 짐작할 단서가 하나도 남지 않는다. 그래서 `app` 을
+ * null 로 두고, 로그인 화면이 `missingFirebaseConfig` 를 알림으로 보여 준다.
+ * 환경 변수가 따로 들어가는 Cloudflare 미리보기 배포에서 실제로 생긴다.
  */
 export const app = missingFirebaseConfig.length === 0 ? initializeApp(firebaseConfig) : null;
 

@@ -1,13 +1,12 @@
 // Four-day replay of reported route/time problems; actual services run against isolated Maps fixtures.
 async page => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const p=n=>({placeId:`quality-${n}`,displayName:`P${n}`,formattedAddress:'서울',lat:37.5,lng:127+n*.02});
     const s=(n,type,time,endTime='')=>({title:`P${n}`,type,time,endTime,location:`P${n}`,selectedPlace:p(n)});
     const optional=(n,time,endTime)=>({...s(n,'attraction',time,endTime),selectedPlace:null,placeStatus:'verified',
       placeIntent:{purpose:'공원',category:'park',nearLocation:'P0'},verifiedPlace:{...p(n),source:'google_places'}});
-    const view=document.querySelector('itinerary-view');
     const dates=['2026-10-07','2026-10-08','2026-10-09','2026-10-10'];
-    view.state.open({request:{date:dates,startTime:'07:11',endTime:'17:11',startLocation:p(0),endLocation:p(8),
+    await window.__smoke.openPlan({request:{date:dates,startTime:'07:11',endTime:'17:11',startLocation:p(0),endLocation:p(8),
       overnightLocations:[p(4),p(4),p(4)],anchorSchedules:[
         {day:2,name:'P5',location:p(5),time:'09:00',endTime:'10:32'},
         {day:3,name:'P7',location:p(7),time:'07:56',endTime:'08:41',flexible:true,stayMinutes:45}
@@ -22,12 +21,15 @@ async page => {
         {...s(5,'AnchorSchedule','09:50','10:20'),flexible:true},
         {...s(6,'AnchorSchedule','10:30','11:00'),flexible:true},s(8,'arrival','17:11')]}
     ]});
-    window.navigate('/view');view.renderCurrentState();
     window.__qualityMapRequests=[];
     window.addEventListener('render-map-route',event=>window.__qualityMapRequests.push(event.detail));
   });
-  const send = values => page.evaluate(values => {
+  // Applying measured times can make the view request the route again, and under load that request can land
+  // after the next send. Answer the newest request, waiting briefly for one this scenario has not answered yet.
+  const send = values => page.evaluate(async values => {
     const view=document.querySelector('itinerary-view');
+    for (let tries=0;tries<120 && view._mapRequest?.requestId===window.__qualityAnswered;tries++) await new Promise(resolve=>setTimeout(resolve,25));
+    window.__qualityAnswered=view._mapRequest?.requestId;
     window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:view._mapRequest,
       routes:values.map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes,duration:`${durationMinutes}분`,mode:'TRANSIT'}))}}));
   },values);
@@ -71,7 +73,8 @@ async page => {
   });
   await page.getByRole('button',{name:'3일차 2026-10-09',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
-  await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector('itinerary-view').shadowRoot.getElementById('timeline-container')).opacity)===1);
+  // Phone width moves the schedule into the Ionic bottom sheet, which mounts a fresh itinerary-view once it presents.
+  await page.waitForFunction(()=>{const timeline=document.querySelector('itinerary-view')?.shadowRoot.getElementById('timeline-container');return timeline&&Number(getComputedStyle(timeline).opacity)===1;});
   for (const toast of await page.locator('#app-toast-container .app-toast').all()) await toast.click();
   await page.waitForFunction(()=>!document.querySelector('#app-toast-container .app-toast'));
   await page.locator('itinerary-view .schedule-card').nth(1).scrollIntoViewIfNeeded();

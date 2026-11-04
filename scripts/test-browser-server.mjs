@@ -12,12 +12,13 @@ if (process.argv.includes('--build')) {
   await build({ root: fileURLToPath(new URL('../', import.meta.url)), envDir: false });
   process.exit(0);
 }
-const ionic = process.argv.includes('--ionic');
+const portFlag = process.argv.indexOf('--port');
+const port = portFlag > 0 ? Number(process.argv[portFlag + 1]) : process.argv.includes('--ionic') ? 4184 : 4183;
 const server = await createServer({
   root: fileURLToPath(new URL('../', import.meta.url)),
-  configFile: ionic ? fileURLToPath(new URL('../vite.config.js', import.meta.url)) : false,
+  configFile: fileURLToPath(new URL('../vite.config.js', import.meta.url)),
   envDir: false,
-  server: { host: '127.0.0.1', port: ionic ? 4184 : 4183, strictPort: true },
+  server: { host: '127.0.0.1', port, strictPort: true },
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await server.close(); process.exit(0); });
 await server.listen();

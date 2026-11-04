@@ -2,7 +2,6 @@
 async page => {
   await page.evaluate(async()=>{
     const {prepareGeneratedPlaces}=await import('/src/domains/map/services/recommendation-place.mjs');
-    const view=document.querySelector('itinerary-view');
     const selectedPlace={placeId:'station',displayName:'서울역',formattedAddress:'서울특별시 중구',lat:37.55,lng:126.97};
     const days=prepareGeneratedPlaces([{day:1,date:'2026-10-20',scheduleItems:[
       {type:'dining',title:'점심 식사',location:'서울역',time:'12:00',endTime:'13:00',placeIntent:{purpose:'점심 식사',category:'restaurant',nearLocation:'서울역'}},
@@ -10,9 +9,7 @@ async page => {
     ]}]);
     days[0].scheduleItems.unshift({type:'departure',title:'서울역 출발',location:'서울역',time:'10:00',selectedPlace});
     days[0].scheduleItems.push({type:'arrival',title:'서울역 도착',location:'서울역',time:'18:00',selectedPlace});
-    view.state.open({request:{date:['2026-10-20'],startTime:'10:00',endTime:'18:00',startLocation:selectedPlace,endLocation:selectedPlace},days});
-    window.navigate('/view');
-    view.renderCurrentState();
+    await window.__smoke.openPlan({request:{date:['2026-10-20'],startTime:'10:00',endTime:'18:00',startLocation:selectedPlace,endLocation:selectedPlace},days});
   });
   await page.locator('itinerary-view .schedule-title').filter({hasText:'점심 식사'}).waitFor({state:'visible'});
   const dining=page.locator('itinerary-view .schedule-card').nth(1);

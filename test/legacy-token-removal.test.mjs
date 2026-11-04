@@ -15,25 +15,25 @@ import { stripSourceComments, stripComments } from './helpers/style-contract.mjs
  */
 const ROOT = new URL('../', import.meta.url).pathname;
 const LEGACY_READ = /var\(\s*--(bg|text|accent|shadow|radius)-[a-z-]+/g;
-const LEGACY_DEFINE = /^\s*--(bg|text|accent|shadow|radius)-[a-z-]+\s*:/gm;
+// One-line rules put definitions after `{` or `;`, not at a line start.
+const LEGACY_DEFINE = /(?:^|[{;])\s*--(bg|text|accent|shadow|radius)-[a-z-]+\s*:/gm;
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     if (name === 'node_modules' || name === '.git' || name === 'dist') continue;
     const full = join(dir, name);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.(js|mjs|css|html)$/.test(name)) out.push(full);
+    else if (/\.(js|jsx|mjs|css|html)$/.test(name)) out.push(full);
   }
   return out;
 }
 
 const FILES = [
   ...walk(join(ROOT, 'src')),
-  join(ROOT, 'style.css'),
-  join(ROOT, 'index.html'),
-].filter(f => {
-  try { statSync(f); return true; } catch { return false; }
-});
+  join(ROOT, 'ionic-shell.html'),
+];
+/** 앱 층 스타일 — 토큰은 tokens.css 에서만 정의한다. */
+const SHELL_CSS = join(ROOT, 'src/prototype/ionic-shell.css');
 
 test('옛 토큰을 읽는 곳이 하나도 없다', () => {
   const offenders = [];
@@ -49,15 +49,15 @@ test('옛 토큰을 읽는 곳이 하나도 없다', () => {
 });
 
 test('옛 토큰의 정의가 남아 있지 않다', () => {
-  const css = stripComments(readFileSync(join(ROOT, 'style.css'), 'utf8'));
+  const css = stripComments(readFileSync(SHELL_CSS, 'utf8'));
   const hits = css.match(LEGACY_DEFINE) || [];
   assert.deepEqual(hits.map(v => v.trim()), [],
-    `style.css 에 옛 변수 정의가 남아 있다\n${hits.join('\n')}`);
+    `ionic-shell.css 에 옛 변수 정의가 남아 있다\n${hits.join('\n')}`);
 });
 
 test('토큰 정의는 tokens.css 한 곳에만 있다', () => {
   // 같은 이름을 두 파일에서 정의하면 어느 쪽이 이기는지 로드 순서에 달린다.
-  const style = stripComments(readFileSync(join(ROOT, 'style.css'), 'utf8'));
-  const defined = [...style.matchAll(/^\s*(--cp-[a-z0-9-]+)\s*:/gm)].map(m => m[1]);
-  assert.deepEqual(defined, [], `style.css 가 --cp-* 를 다시 정의한다: ${defined.join(', ')}`);
+  const style = stripComments(readFileSync(SHELL_CSS, 'utf8'));
+  const defined = [...style.matchAll(/(?:^|[{;])\s*(--cp-[a-z0-9-]+)\s*:/gm)].map(m => m[1]);
+  assert.deepEqual(defined, [], `ionic-shell.css 가 --cp-* 를 다시 정의한다: ${defined.join(', ')}`);
 });

@@ -1,11 +1,9 @@
 async page => {
-  await page.evaluate(()=>{
-    const view=document.querySelector('itinerary-view');
-    view.state.open({days:[{day:1,date:'2026-10-20',scheduleItems:[
+  await page.evaluate(async()=>{
+    await window.__smoke.openPlan({days:[{day:1,date:'2026-10-20',scheduleItems:[
       {type:'departure',time:'09:00',title:'출발'},
       {type:'leisure',title:'휴식 및 주변 경관 감상',time:'14:55',endTime:'15:25',placeIntent:{purpose:'휴식'},placeStatus:'unresolved'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
-    window.navigate('/view'); view.renderCurrentState();
   });
   await page.locator('itinerary-view .replace-place-btn').click();
   await page.locator('itinerary-view .place-replacement gmp-place-autocomplete input').waitFor({state:'visible'});

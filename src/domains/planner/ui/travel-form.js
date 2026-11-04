@@ -77,11 +77,8 @@ export default class TravelForm extends HTMLElement {
     this.setupEventListeners();
     this.updateTexts(); // Fix i18n flickering on load
 
-    // 여기서 initPlaces() 를 부르지 않는다. <travel-form> 은 index.html
-    // 마크업에 있어 **모든 경로에서** 붙는데, initPlaces 는 Maps 의 places
-    // 라이브러리를 받아 온다 — 랜딩에서도 지도 API 를 받고 있었다는 뜻이다.
-    // 폼이 실제로 보일 때 받으면 된다. 마침 아래 옵저버가 그 순간을 이미
-    // 알고 있었다.
+    // 여기서 initPlaces() 를 부르지 않는다. initPlaces 는 Maps 의 places
+    // 라이브러리를 받아 오므로, 폼이 실제로 보일 때(아래 옵저버) 받는다.
     this._visibilityObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {

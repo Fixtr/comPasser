@@ -19,7 +19,7 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 | --- | --- |
 | `npm test` | 빠른 단위·계약 검사. 서버 콜백과 클라이언트 오류 처리 격리 검사 포함 |
 | `npm run build` | 실제 Vite 빌드 가능 여부 |
-| `npm run test:browser` | 브라우저 시나리오 전체. 현재 등록된 25개 검사 실행 (`test/browser/smoke.spec.mjs`) |
+| `npm run test:browser` | Ionic 셸 위의 브라우저 스모크 시나리오 전체 (`test/browser/smoke.spec.mjs`) |
 | `npm run test:ionic` | 실제 Ionic 화면, 라우팅, 생성 흐름, 모바일 320px·번역·테마 검사 |
 | `npm run test:ionic:pwa` | 격리 빌드·서비스 워커·네트워크 단절·앱 재실행·본인 일정 오프라인 열람 |
 | `npm run test:emulator` | 실제 Auth·Firestore 에뮬레이터, 서버 탈퇴 처리·HTTP 호출·보안 규칙 |
@@ -29,7 +29,8 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 
 ## 안전성과 재현성
 
-- 브라우저는 전용 로컬 서버 `127.0.0.1:4183`을 자동으로 열고 종료한다. 해당 포트를 이미 쓰고 있으면 다른 서버를 재사용하지 않고 실패한다. 개발 중인 4173 포트 서버는 건드리지 않는다.
+- 스모크 검사는 `scripts/test-browser-server.mjs`가 `vite.config.js`로 띄운 Ionic 셸에서 실행한다. 전용 로컬 서버 `127.0.0.1:4183`을 자동으로 열고 종료한다. 해당 포트를 이미 쓰고 있으면 다른 서버를 재사용하지 않고 실패한다. 개발 중인 4173 포트 서버는 건드리지 않는다.
+- 같은 체크아웃에서 스모크 검사를 여러 개 동시에 돌리려면 `SMOKE_PORT=4190 npm run test:browser`처럼 포트를 바꾼다. 이때 실행 결과는 `test-results/browser-4190/`에 따로 저장된다. HTML 보고서(`playwright-report/`)는 나눠지지 않는다.
 - 검사 서버는 `.env`와 기존 `VITE_` 환경 설정을 읽지 않는다. 카카오 테스트용 더미 키만 넣고 인증·AI·DB·지도·공유 전달 등 외부 경계를 대체한다. 외부 HTTP는 가로채며 WebSocket과 서비스 워커도 차단한다. 개인 브라우저 프로필은 사용하지 않는다.
 - 고정된 검사 날짜(2026-09-13), 한국어와 서울 시간대를 사용한다. 날짜 입력의 과거 판정은 안정화하되 로딩·애니메이션 타이머는 정상적으로 흐르게 한다.
 - 기존 MCP용 콜백 파일을 CLI가 그대로 실행한다. 수동 도구에서 계속 쓸 수 있지만 자동 실행에는 Codex나 MCP 연결이 필요 없다. 새 콜백은 `test/browser/smoke.spec.mjs`에도 등록한다.
@@ -39,7 +40,7 @@ Linux에서 브라우저 시스템 라이브러리까지 설치해야 하면 `np
 
 ## 실패 기록
 
-- 브라우저: `playwright-report/index.html`에 단계별 결과, `test-results/browser/`에 실행별 PNG 및 실패 시 화면/trace를 남긴다. `npx --no-install playwright show-report`로 HTML 보고서를 열 수 있다.
+- 브라우저: `playwright-report/index.html`에 단계별 결과, `test-results/browser/`(`SMOKE_PORT` 지정 시 `test-results/browser-<포트>/`)에 실행별 PNG 및 실패 시 화면/trace를 남긴다. `npx --no-install playwright show-report`로 HTML 보고서를 열 수 있다.
 - 에뮬레이터: 콘솔의 실패 테스트와 `firestore-debug.log`를 확인한다.
 - 산출물은 Git에서 제외한다. 브라우저를 재실행하면 이전 실행 보고서가 갱신되므로 필요한 증거는 별도로 보관한다.
 

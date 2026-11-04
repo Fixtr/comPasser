@@ -8,6 +8,9 @@ async (page) => {
     sessionStorage.setItem('__smoke_db',JSON.stringify(db));
     window.navigate('/profile/security');
   });
+  // Leaving /plan with the seeded planner draft asks first.
+  await page.locator('[role="alertdialog"] .confirm-ok').click();
+  await page.waitForURL('**/profile/security');
   const before=await page.evaluate(()=>sessionStorage.getItem('__smoke_db'));
   const confirm=async()=>{
     await page.locator('profile-view #btn-delete-account-trigger').click();

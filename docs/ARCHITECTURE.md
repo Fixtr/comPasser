@@ -40,7 +40,7 @@ ComPasser is built as a serverless web and mobile application utilizing a unifie
 본 프로젝트는 시스템 권장 환경(`GEMINI.md`) 및 `--cp-*` 디자인 토큰 계약을 준수하여 가볍고 빠른 Web Component와 Baseline 웹 표준 기술, 그리고 개발 및 프로덕션 배포 일원화를 위한 **Ionic React Shell** 아키텍처를 채택하고 있습니다.
 
 *   **Frontend**: 
-    *   **단일 Ionic Shell 구조**: 개발 환경(`npm run dev`)과 웹(Cloudflare Pages)/앱(Capacitor) 배포 환경 모두 **Ionic React Shell (`ionic-shell.html`)**로 일원화하여 로컬과 배포 사이의 시각적·동작적 괴리를 제거. Web Components 기반 도메인 UI 자산은 그대로 호환 마운트. (레거시 검증용 설정은 `vite.legacy.config.js`로 분리 보존)
+    *   **단일 Ionic Shell 구조**: 개발 환경(`npm run dev`)과 웹(Cloudflare Pages)/앱(Capacitor) 배포 환경 모두 **Ionic React Shell (`ionic-shell.html`)**로 일원화하여 로컬과 배포 사이의 시각적·동작적 괴리를 제거. Web Components 기반 도메인 UI 자산은 그대로 호환 마운트.
     *   **플랫 디자인 토큰 (`--cp-*`)**: 모든 색상은 `html2canvas` 캡처 호환성을 위해 hex 기반으로 선언되며, `oklch`, `color-mix`, `box-shadow`, `gradient`는 계약 테스트로 전면 금지됩니다. UI는 무채색, 색상은 지도 핀 규칙에만 한정됩니다.
     *   Vite를 기본 개발 서버 및 번들러로 활용하여 HMR 및 통합 빌드 지원.
 *   **Backend & DB**:

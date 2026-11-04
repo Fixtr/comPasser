@@ -18,14 +18,17 @@ async page => {
   const read=()=>page.evaluate(()=>document.querySelector('travel-form').getFormData());
   const restored=await read();
   if(restored.startLocation.placeId!=='start-id'||restored.endLocation.placeId!=='end-id'||restored.anchorSchedules[0].location.placeId!=='anchor-id') throw Error('Selected IDs lost on form reload');
+  // The Ionic planner shows a final review before generating.
   await page.locator('travel-form .primary-btn').click();
+  await page.locator('travel-form #final-generate').click();
   await page.waitForFunction(()=>window.__smoke.requests.length===1);
   await page.evaluate(async()=>{
     const {enforcePlannerConstraints}=await import('/src/domains/planner/services/planner-constraints.mjs');
     const request=window.__smoke.requests[0];
     window.__smoke.pending.shift().resolve({request,days:enforcePlannerConstraints([{day:1,date:'2026-10-20',scheduleItems:[]}],request)});
   });
-  await page.locator('#show-results-btn').click();
+  // The Ionic shell opens the result as soon as generation succeeds; there is no separate show-results step.
+  await page.waitForURL('**/view');
   await page.locator('itinerary-view #save-itinerary-btn').click();
   await page.waitForURL('**/view/smoke1');
   await page.reload();
@@ -37,8 +40,8 @@ async page => {
     return (await service.geocodeSchedule(plan.days[0].scheduleItems)).map(i=>({id:i.selectedPlace?.placeId,lat:i.latLng.lat}));
   });
   if(result.map(i=>i.id).join()!=='start-id,anchor-id,end-id'||result.some(i=>i.lat!==37.5)) throw Error('Saved selected places must drive map coordinates');
-  await page.locator('#edit-itinerary-btn').click();
-  await page.locator('travel-form #start-location input').fill('수동 수정');
+  await page.locator('.ionic-result-edit:visible').click();
+  await page.locator('travel-form:visible #start-location input').fill('수동 수정');
   if(typeof (await read()).startLocation!=='string') throw Error('Typing must clear the old ID');
   return {results:['PASS selection → draft/reload → generate → save/reload → exact coordinates; manual edit clears ID'],errors:page.smokeErrors};
 }

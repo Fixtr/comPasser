@@ -21,7 +21,7 @@ const read = (rel) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8'
 
 /** 마크업을 담은 파일들 — 사용자가 읽는 글자가 여기서 나온다. */
 const MARKUP_FILES = [
-  'index.html',
+  'ionic-shell.html',
   'src/domains/auth/ui/login-view.js',
   'src/domains/auth/ui/join-view.js',
   'src/domains/planner/ui/preference-view.js',
@@ -33,7 +33,13 @@ const MARKUP_FILES = [
 
 /** 마크업이 아니라 **코드가 직접 써 넣는** 글자가 있는 파일들. */
 const SCRIPTED_FILES = [
-  'src/app/main.js',
+  'src/prototype/ionic-shell.jsx',
+  'src/prototype/ionic-screens.jsx',
+  'src/prototype/home-screen.jsx',
+  'src/prototype/destination-screen.jsx',
+  'src/prototype/ai-place-recommendations.jsx',
+  'src/prototype/country-picker.jsx',
+  'src/prototype/travel-globe.jsx',
   'src/domains/auth/ui/login-view.js',
   'src/domains/auth/ui/join-view.js',
   'src/domains/auth/ui/verify-view.js',
@@ -44,11 +50,15 @@ const SCRIPTED_FILES = [
 ];
 
 /**
- * 언어 토글은 "지금 언어"가 아니라 "누르면 갈 언어"를 말한다(테마 토글과 같은
- * 규칙). 그래서 한국어 화면에서 "English", 영어 화면에서 "한국어"가 맞다 —
- * 자기 자신을 번역하면 안 되는 유일한 자리다.
+ * ionic-shell.html 의 첫 화면은 사전이 오기 전에 그려지므로 두 언어를 나란히 담고,
+ * html[lang="en"] 일 때 CSS 가 한국어 쪽을 숨긴다. 바로 뒤에 같은 태그의 영어 짝이 있고
+ * 그 숨김 규칙이 파일에 있을 때만 봐준다.
  */
-const EXEMPT_LINE = /id="lang-toggle"/;
+const HIDES_KOREAN_IN_ENGLISH = /html\[lang="en"\][^{]*\[lang="ko"\][^{]*\{[^}]*display:\s*none/;
+function pairedKorean(chunk, tag, closeAt) {
+  const name = /^<([a-z0-9]+)\b[^>]*\blang="ko"/.exec(tag)?.[1];
+  return !!name && chunk.startsWith(`</${name}><${name} lang="en">`, closeAt) && HIDES_KOREAN_IN_ENGLISH.test(chunk);
+}
 
 /**
  * 주석을 지우되 **줄 수는 유지한다.** 여러 줄 주석을 통째로 없애면 그 뒤의
@@ -164,7 +174,7 @@ function untranslated(source, isHtml) {
       if (!/[가-힣]/.test(body)) continue;
       const tagStart = chunk.lastIndexOf('<', m.index);
       const tag = tagStart < 0 ? '' : chunk.slice(tagStart, m.index + 1);
-      if (/data-i18n/.test(tag) || EXEMPT_LINE.test(tag)) continue;
+      if (/data-i18n/.test(tag) || (isHtml && pairedKorean(chunk, tag, m.index + m[0].length - 1))) continue;
       found.push(`${lineAt(masked, from + m.index)}: ${body.trim().slice(0, 52)}   ← ${tag.trim().slice(0, 52)}`);
     }
     // 속성 안의 한국어(placeholder·title·aria-label)도 사용자가 읽는 글자다.
@@ -189,7 +199,7 @@ for (const file of MARKUP_FILES) {
 test('쓰이는 data-i18n 키가 두 사전에 모두 있다', () => {
   const i18n = read('src/utils/i18n.js');
   const keys = new Set();
-  for (const file of [...MARKUP_FILES, 'src/app/main.js']) {
+  for (const file of MARKUP_FILES) {
     const source = stripComments(read(file));
     for (const m of source.matchAll(/data-i18n(?:-placeholder|-aria|-title)?=["']([a-zA-Z0-9_]+)["']/g)) {
       keys.add(m[1]);
@@ -221,8 +231,6 @@ function scriptedKorean(source) {
   stripComments(source).split('\n').forEach((line, index) => {
     if (!WRITE_SITES.test(line)) return;
     if (/\bt\(/.test(line)) return;              // 사전을 거치는 줄
-    if (EXEMPT_LINE.test(line)) return;
-    if (/langToggleBtn\.textContent/.test(line)) return;  // 토글은 자기 자신을 번역하지 않는다
     const bare = stripExpressions(line);
     if (/[가-힣]/.test(bare)) found.push(`${index + 1}: ${line.trim().slice(0, 76)}`);
   });

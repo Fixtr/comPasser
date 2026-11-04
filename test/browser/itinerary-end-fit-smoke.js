@@ -1,16 +1,13 @@
 // Real itinerary state/view; map responses and persistence use isolated fixtures.
 async page => {
-  await page.evaluate(() => {
-    const view = document.querySelector('itinerary-view');
-    view.state.open({request:{date:['2026-10-20'], startTime:'10:00',endTime:'16:00',startLocation:'서울역',endLocation:'서울역'}, days:[{date:'2026-10-20',scheduleItems:[
+  await page.evaluate(async () => {
+    await window.__smoke.openPlan({request:{date:['2026-10-20'], startTime:'10:00',endTime:'16:00',startLocation:'서울역',endLocation:'서울역'}, days:[{date:'2026-10-20',scheduleItems:[
       {type:'departure',title:'서울역',location:'서울역',time:'10:00',endTime:''},
       {type:'attraction',title:'식물원',location:'식물원',time:'10:35',endTime:'12:35'},
       {type:'dining',title:'점심',location:'점심',time:'12:35',endTime:'13:35'},
       {type:'attraction',title:'쇼핑몰',location:'쇼핑몰',time:'13:35',endTime:'15:35',duration:'2시간'},
       {type:'arrival',title:'서울역',location:'서울역',time:'16:00',endTime:''}
     ]}]});
-    window.navigate('/view');
-    view.renderCurrentState();
     window.__fitMapRequests = [];
     window.addEventListener('render-map-route', event => window.__fitMapRequests.push(event.detail));
   });

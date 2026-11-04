@@ -1,11 +1,9 @@
 async page => {
-  await page.evaluate(()=>{
+  await page.evaluate(async()=>{
     const point=n=>({placeId:`order-${n}`,displayName:`P${n}`,formattedAddress:'서울',lat:37.5,lng:127+n*.02});
     const i=(n,type,time,endTime='')=>({title:`P${n}`,type,time,endTime,selectedPlace:point(n)});
-    const view=document.querySelector('itinerary-view');
-    view.state.open({days:[{day:1,date:'2026-09-17',scheduleItems:[i(0,'departure','09:00'),i(3,'attraction','09:10','09:40'),
+    await window.__smoke.openPlan({days:[{day:1,date:'2026-09-17',scheduleItems:[i(0,'departure','09:00'),i(3,'attraction','09:10','09:40'),
       i(1,'dining','09:50','10:50'),i(2,'leisure','11:00','11:20'),i(4,'AnchorSchedule','12:00','13:00'),i(5,'arrival','14:00')]}]});
-    window.navigate('/view');view.renderCurrentState();
   });
   const order=()=>page.locator('itinerary-view .schedule-title').allTextContents();
   await page.locator('itinerary-view .schedule-title').filter({hasText:'P3'}).waitFor({state:'visible'});

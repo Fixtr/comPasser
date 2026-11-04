@@ -13,7 +13,7 @@ async (page) => {
   const previousLang = await page.evaluate(async () => (await import('/src/utils/i18n.js')).getLang());
   const previousViewport = page.viewportSize();
   const results = [];
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const state = window.__exportI18n = { tickets: [], finish: null, file: null };
     state.originalCanShare = Object.getOwnPropertyDescriptor(navigator, 'canShare');
     state.originalShare = Object.getOwnPropertyDescriptor(navigator, 'share');
@@ -31,13 +31,12 @@ async (page) => {
       }
     });
     state.observer.observe(document.body, { childList: true });
-    document.querySelector('itinerary-view').showResults({ days: [{ date: '2026-10-20', scheduleItems: [
+    await window.__smoke.openPlan({ days: [{ date: '2026-10-20', scheduleItems: [
       { type: 'departure', title: '서울역', location: '서울역', time: '09:00' },
       { type: 'AnchorSchedule', title: '경복궁 산책', location: '경복궁', time: '10:00', endTime: '11:00',
         transitInfo: '지하철 20분 · 3km', practicalInfo: { estimatedCost: '3,000원' } },
       { type: 'arrival', title: '호텔', location: '호텔', time: '18:00' },
     ] }] });
-    window.navigate('/view');
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: payload => new Promise((resolve, reject) => {
       state.file = payload.files[0];
@@ -69,7 +68,8 @@ async (page) => {
       check(await button.textContent() === copy[lang].busy && await button.isDisabled(), 'Translated busy state required');
       const ticket = await ticketCheck(lang);
       const nextLang = lang === 'ko' ? 'en' : 'ko';
-      await page.locator('#lang-toggle').click();
+      // The Ionic shell's settings group; its language button carries the lang it switches to.
+      await page.locator('.ionic-settings:visible > button[lang]').click();
       check(await button.textContent() === copy[nextLang].busy && await button.isDisabled(), 'Language switch must preserve translated busy state');
       const cancelled = lang === 'en';
       await page.evaluate(cancelled => window.__exportI18n.finish(cancelled), cancelled);

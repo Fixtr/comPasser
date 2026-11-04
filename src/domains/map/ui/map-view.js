@@ -96,12 +96,8 @@ export class MapView extends HTMLElement {
   connectedCallback() {
     this.render();
 
-    // 여기서 지도를 켜지 않는다.
-    //
-    // <map-view> 는 index.html 마크업에 있어 **모든 경로에서** 붙는다.
-    // 붙자마자 initMap() 을 부르면 랜딩·로그인·폼에서도 Maps JS 를 받아
-    // 온다 — 라이브러리 여섯 벌(marker·geocoding·routes·maps·core·places)
-    // 이라 가볍지 않고, 지도는 그 화면들 중 어디에도 보이지 않는다.
+    // 여기서 지도를 켜지 않는다. Maps JS 는 라이브러리 여섯 벌
+    // (marker·geocoding·routes·maps·core·places)이라 가볍지 않다.
     //
     // 대신 그릴 경로가 생기면(renderRoute) 켠다. 지도 칸은 경로 전까지 숨어 있어
     // 미리 받아 봐야 보일 것이 없고, 느린 연결에서는 공유 일정을 읽는 Firestore 와
@@ -366,7 +362,7 @@ export class MapView extends HTMLElement {
    *
    * 값이 아니라 **함수**를 받는 이유: 시트는 접히고 펼쳐지고 창은 크기가
    * 바뀐다. 미리 받아 둔 숫자는 맞추는 순간에는 이미 틀린 값일 수 있다.
-   * 재는 일은 그 DOM 을 아는 앱 층이 하고(`main.js`), 지도는 부르기만 한다.
+   * 재는 일은 그 DOM 을 아는 셸 화면이 하고(`ionic-screens.jsx`), 지도는 부르기만 한다.
    */
   currentPadding() {
     try {

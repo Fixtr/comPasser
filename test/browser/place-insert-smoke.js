@@ -1,11 +1,9 @@
 async page => {
-  await page.evaluate(()=>{
-    const view=document.querySelector('itinerary-view');
-    view.state.open({days:[{day:1,date:'2026-10-20',scheduleItems:[
+  await page.evaluate(async()=>{
+    await window.__smoke.openPlan({days:[{day:1,date:'2026-10-20',scheduleItems:[
       {type:'departure',time:'09:00',title:'출발'},
       {type:'leisure',title:'경복궁',time:'10:00',endTime:'11:00'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
-    window.navigate('/view'); view.renderCurrentState();
   });
   const slot=page.locator('itinerary-view .insert-slot').filter({has:page.locator('.insert-slot-btn')}).nth(1);
   await slot.locator('.insert-slot-btn').click();

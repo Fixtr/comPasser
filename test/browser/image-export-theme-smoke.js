@@ -4,13 +4,19 @@ async (page) => {
   check(page.url().startsWith((page.smokeOrigin || 'http://127.0.0.1:4173') + '/'), 'Local harness required');
   check(await page.evaluate(() => !!window.__smoke), 'Run the isolated smoke setup first');
   const results = [];
-  await page.evaluate(() => {
-    document.querySelector('itinerary-view').showResults({ days: [{ date: '2026-10-20', scheduleItems: [
+  await page.evaluate(async () => {
+    await window.__smoke.openPlan({ days: [{ date: '2026-10-20', scheduleItems: [
       { type: 'departure', title: '서울역', location: '서울역', time: '09:00' },
       { type: 'AnchorSchedule', title: '경복궁 산책', location: '경복궁', time: '10:00', endTime: '11:00' },
       { type: 'arrival', title: '호텔', location: '호텔', time: '18:00' },
     ] }] });
-    window.navigate('/view');
+  });
+  // The Ionic shell's own settings group; its theme button is the one without a lang attribute.
+  const themeToggle = page.locator('.ionic-settings:visible > button:not([lang])');
+  // The Ionic shell does not force /view dark (no data-route-theme), so start from the user's dark theme instead.
+  if (await page.evaluate(() => document.documentElement.dataset.theme !== 'dark')) await themeToggle.click();
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark' && document.body.classList.contains('dark'));
+  await page.evaluate(() => {
     window.__exportTheme = { mutations: [] };
     const state = window.__exportTheme;
     state.snapshot = () => ({
@@ -33,7 +39,7 @@ async (page) => {
   const theme = () => page.evaluate(() => window.__exportTheme.snapshot());
   const clean = () => page.evaluate(() => !document.querySelector('body > div[aria-hidden="true"] .bp') && !document.querySelector('.html2canvas-container'));
   const before = await theme();
-  check(before.route === 'dark', 'Begin on the dark result route; rerun setup for an isolated test');
+  check(before.theme === 'dark' && before.dark, 'Begin on a dark live theme; rerun setup for an isolated test');
   await page.locator('itinerary-view #download-image-btn').click();
   await page.waitForFunction(() => !!window.__exportTheme.finish);
   check(JSON.stringify(await theme()) === JSON.stringify(before), 'Real capture must not change the current route/theme/meta colors');
@@ -56,7 +62,7 @@ async (page) => {
   results.push({ check: 'real PNG/light palette/no live-theme mutation/early cleanup', pixels });
 
   await page.evaluate(() => window.navigate('/profile/personal'));
-  await page.locator('#page-profile').waitFor({ state: 'visible' });
+  await page.locator('profile-view:visible').waitFor({ state: 'visible' });
   const profileTheme = await theme();
   await page.evaluate(() => window.__exportTheme.finish(true));
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.querySelector('#download-image-btn').disabled);
@@ -66,7 +72,7 @@ async (page) => {
   await page.evaluate(() => { window.__exportTheme.finish = null; window.navigate('/view'); });
   await page.locator('itinerary-view #download-image-btn').click();
   await page.waitForFunction(() => !!window.__exportTheme.finish);
-  await page.locator('#theme-toggle').click();
+  await themeToggle.click();
   const chosenTheme = await theme();
   await page.evaluate(() => window.__exportTheme.finish(false));
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.querySelector('#download-image-btn').disabled);

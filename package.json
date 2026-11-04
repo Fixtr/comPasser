@@ -5,11 +5,9 @@
   "scripts": {
     "dev": "vite",
     "dev:ionic": "vite",
-    "dev:legacy": "vite --config vite.legacy.config.js",
     "build": "vite build",
     "build:ionic": "vite build",
     "build:release": "vite build",
-    "build:legacy": "vite build --config vite.legacy.config.js",
     "lint": "oxlint src functions scripts test",
     "test": "node --test test/*.test.mjs",
     "test:browser": "playwright test",

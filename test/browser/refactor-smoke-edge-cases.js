@@ -17,10 +17,12 @@ async (page) => {
     sessionStorage.setItem('__smoke_db',JSON.stringify(db));
     window.navigate('/share/legacy');
   });
-  await page.locator('itinerary-view #shared-notice').waitFor({state:'visible'});
-  await page.locator('itinerary-view #save-itinerary-btn').click();
+  // Each trip address is its own Ionic page with its own itinerary-view; earlier ones stay in the DOM, hidden.
+  const shown = selector => page.locator('itinerary-view '+selector+':visible');
+  await shown('#shared-notice').waitFor({state:'visible'});
+  await shown('#save-itinerary-btn').click();
   await page.waitForURL('**/view/smoke1');
-  await page.locator('itinerary-view .item-edit-btn').first().waitFor({state:'visible'});
+  await shown('.item-edit-btn').first().waitFor({state:'visible'});
   check(await page.evaluate(() => {
     const db=JSON.parse(sessionStorage.getItem('__smoke_db'));
     return db.itineraries.smoke1.userId==='smokeCopyOwner' && !!db.shared_itineraries.smoke1;
@@ -31,24 +33,27 @@ async (page) => {
     Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
     Object.defineProperty(navigator,'share',{configurable:true,value:()=>new Promise((_resolve,reject)=>{window.__smoke.shareFinish=()=>reject(new DOMException('Cancelled','AbortError'));})});
   });
-  await page.locator('itinerary-view #download-image-btn').click();
+  const exportView = await shown('#download-image-btn').evaluateHandle(button => button.getRootNode().host);
+  await shown('#download-image-btn').click();
   await page.waitForFunction(() => typeof window.__smoke.shareFinish==='function');
-  const label=await page.locator('itinerary-view #download-image-btn').textContent();
+  const label=await shown('#download-image-btn').textContent();
   const expectedLabel = await page.evaluate(async () => (await import('/src/utils/i18n.js')).getLang() === 'en' ? 'Creating image...' : '이미지 만드는 중...');
   check(label === expectedLabel, 'F3: Image export must display translated progress, not a dictionary key');
   page.smokeResults.push('PASS F3 image export progress is translated');
   await page.evaluate(() => window.navigate('/profile/personal'));
-  await page.locator('#page-profile').waitFor({state:'visible'});
+  await page.waitForURL('**/profile/personal');
+  await page.locator('profile-view #field-birthday .btn-edit-inline:visible').waitFor({state:'visible'});
   const before = await page.evaluate(() => document.documentElement.getAttribute('data-route-theme'));
   await page.evaluate(() => window.__smoke.shareFinish());
-  await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.getElementById('download-image-btn').disabled);
+  await page.waitForFunction(view => !view.shadowRoot.getElementById('download-image-btn').disabled, exportView);
   const after = await page.evaluate(() => document.documentElement.getAttribute('data-route-theme'));
   check(before===after, 'Finishing export must not restore the previous route theme over profile');
   page.smokeResults.push('PASS F2 delayed image share cancellation preserves the destination route theme');
   // Restore test route through the app router, not by changing production code.
   await page.evaluate(() => window.navigate('/profile/security'));
-  await page.locator('profile-view #btn-delete-account-trigger').click();
-  await page.locator('profile-view #btn-modal-confirm').click();
+  await page.waitForURL('**/profile/security');
+  await page.locator('profile-view #btn-delete-account-trigger:visible').click();
+  await page.locator('profile-view #btn-modal-confirm:visible').click();
   await page.waitForURL('**/account-deletion-status');
   check(await page.evaluate(() => window.__smoke.user)===null, 'Successful fake deletion must show public status after logout');
   check(await page.evaluate(() => !JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1), 'Successful fake deletion must remove private itinerary');
