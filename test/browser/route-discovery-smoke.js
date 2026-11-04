@@ -33,6 +33,8 @@ async (page) => {
   await page.reload();
   await page.evaluate(()=>window.navigate('/plan'));
   const form=page.locator('travel-form');
+  // The Ionic shell loads the form lazily after the reload; wait until it has rendered before calling its methods.
+  await form.locator('#where-to-go').waitFor();
   const place=(placeId,displayName,lng)=>({placeId,displayName,formattedAddress:'서울 중구',lat:37.55,lng});
   const original={date:['2026-10-08','2026-10-09'],startTime:'09:00',endTime:'18:00',
     startLocation:place('start','서울역',126.98),endLocation:place('end','공항',126.99),
