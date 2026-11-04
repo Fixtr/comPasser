@@ -106,17 +106,17 @@ test('글꼴 이름은 토큰 한 곳에서만 정한다', () => {
     'font-family 는 var(--cp-font) / var(--cp-mono) / inherit 만 쓴다:\n' + literal.join('\n'));
 });
 
-test('정적 첫 화면도 글꼴 토큰을 쓴다', {
-  skip: 'production gap: the ionic-shell.html boot <style> hard-codes font-family: system-ui, -apple-system, sans-serif',
-}, () => {
-  const literal = literalFamilies('ionic-shell.html');
+test('정적 첫 화면도 글꼴 토큰과 같은 글꼴을 쓴다', () => {
+  // 부트 화면의 <style> 은 tokens.css 보다 먼저 그려져 var(--cp-font) 가 비어 있다.
+  // 그래서 --cp-font 와 후보·순서까지 똑같은 문자열 사본만 허용하고, 다른 목록은 막는다.
+  const cpFont = familiesOf(tokenValue(stripComments(read('src/styles/tokens.css')), '--cp-font')).join(', ');
+  const literal = literalFamilies('ionic-shell.html')
+    .filter(entry => familiesOf(entry.split(' → ')[1]).join(', ') !== cpFont);
   assert.deepEqual(literal, [],
     'font-family 는 var(--cp-font) / var(--cp-mono) / inherit 만 쓴다:\n' + literal.join('\n'));
 });
 
-test('셸 본문이 글꼴 토큰을 쓴다', {
-  skip: "production gap: ionic-shell.css never sets --ion-font-family, so Ionic's typography.css draws light-DOM text in Ionic's default stack while the domain components use var(--cp-font); the legacy style.css body used var(--cp-font)",
-}, () => {
+test('셸 본문이 글꼴 토큰을 쓴다', () => {
   // Ionic 은 html 의 글꼴을 --ion-font-family 로 정한다(typography.css).
   assert.match(stripComments(read('src/prototype/ionic-shell.css')), /--ion-font-family\s*:\s*var\(--cp-font\)/,
     '셸 글자와 컴포넌트 글자가 다른 글꼴로 그려진다');

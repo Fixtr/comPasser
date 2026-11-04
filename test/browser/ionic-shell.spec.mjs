@@ -2292,3 +2292,28 @@ test('복사가 실패하고 새로고침해도 다시 공유하면 같은 링�
   await expect(page.locator('#app-confirm-host .confirm-ok')).toHaveCount(0);
   expect(await page.evaluate(() => window.shares)).toBeUndefined();
 });
+
+test('결과 화면만 어둡고, 그 화면에서 누른 테마 토글이 강제를 푼다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openUnsavedDraft(page);
+  const root = page.locator('html');
+  const statusBar = page.locator('meta[name="theme-color"]');
+  // At phone width the result settings live in the sheet; going back re-presents it while the previous page leaves.
+  const sheet = page.locator('ion-modal.ionic-result-sheet');
+  const toggle = sheet.locator('.ionic-settings button:not([lang])');
+  await expect(root).toHaveAttribute('data-route-theme', 'dark');
+  await expect(statusBar).toHaveAttribute('content', '#121211');
+  await expect(toggle).toHaveText('라이트 모드');
+  await page.evaluate(() => window.navigate('/profile/trips'));
+  await expect(root).not.toHaveAttribute('data-route-theme', /./);
+  await expect(statusBar).toHaveAttribute('content', '#FFFFFF');
+  await page.goBack();
+  await expect(root).toHaveAttribute('data-route-theme', 'dark');
+  await expect(sheet).toBeVisible();
+  await expect(toggle).toHaveText('라이트 모드');
+  await toggle.click();
+  await expect(root).not.toHaveAttribute('data-route-theme', /./);
+  await expect(root).toHaveAttribute('data-theme', 'light');
+  await expect(statusBar).toHaveAttribute('content', '#FFFFFF');
+  await expect(toggle).toHaveText('다크 모드');
+});

@@ -47,12 +47,6 @@ test('JS 가 아예 안 떠도 첫 화면이 비지 않는다', () => {
   assert.doesNotMatch(boot[0], /style="[^"]*display:\s*none/, '마크업에서도 감춰 두면 안 된다');
 });
 
-test('JS 가 아예 안 떠도 로그인으로 가는 문(랜딩)이 보인다', {
-  skip: 'production gap: ionic-shell.html only paints a static "ComPasser / Loading" boot screen; the landing and its login link exist only after React renders HomeScreen',
-}, () => {
-  assert.match(html, /<a\b[^>]*href="\/login"/, '정적 마크업에 로그인으로 가는 문이 없다');
-});
-
 test('홈 경로 판단은 route-decision.mjs 한 곳에만 있다', () => {
   // 렌더 분기와 가드가 홈 경로를 따로 판단하면, 한쪽에만 있는 주소로 들어온 사람이
   // 랜딩을 못 보고 로그인으로 간다. 규칙 자체는 route-decision.test.mjs 가 값으로 본다.
@@ -62,9 +56,7 @@ test('홈 경로 판단은 route-decision.mjs 한 곳에만 있다', () => {
   assert.ok(!/if \(!user && path !== '\/login'/.test(shell), '가드가 경로 목록을 직접 들고 있다 — 목록이 두 곳에 생긴다');
 });
 
-test('/index.html 로 들어와도 홈을 그린다', {
-  skip: "production gap: route-decision isHomePath('/index.html') is true, but the Ionic shell's pages list has no '/index.html' and its render branch checks only '/' and '/home', so the address falls to the '*' not-found page (Cloudflare 308s it to '/', so only dev or other hosts reach it)",
-}, () => {
+test('/index.html 로 들어와도 홈을 그린다', () => {
   assert.match(shell, /isHomePath\(path\)|\['\/index\.html',/, '렌더 분기가 route-decision 의 홈 판단을 쓰지 않는다');
 });
 

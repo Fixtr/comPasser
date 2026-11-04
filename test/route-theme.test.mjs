@@ -55,16 +55,12 @@ test('상태바 색은 토큰에서 읽는다', () => {
     '지면색 토큰을 읽지 않는다');
 });
 
-test('라우터가 경로마다 테마를 다시 정한다', {
-  skip: 'production gap: the Ionic shell (ionic-shell.jsx) never imports route-theme.js or calls applyRouteTheme, so /view and /share are not forced dark; only the deleted main.js did',
-}, () => {
+test('라우터가 경로마다 테마를 다시 정한다', () => {
   assert.match(shell, /applyRouteTheme\s*\(/, '라우트 변경에서 경로 테마를 적용하지 않는다');
   assert.match(shell, /from\s+['"]\.\.\/utils\/route-theme\.js['"]/, 'route-theme 모듈을 쓰지 않는다');
 });
 
-test('직접 테마를 바꾸면 그 선택이 이긴다', {
-  skip: 'production gap: the Ionic shell theme toggle (onThemeChange) never calls releaseRouteTheme; moot while the route force above is missing',
-}, () => {
+test('직접 테마를 바꾸면 그 선택이 이긴다', () => {
   // 토글을 눌렀는데 화면이 그대로면 사용자에게는 고장으로 보인다.
   assert.match(shell, /releaseRouteTheme\s*\(/,
     '토글이 경로 강제를 풀지 않는다 — 눌러도 아무 일이 없다');
