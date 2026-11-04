@@ -8,7 +8,7 @@ CRITICAL: DATA INTEGRITY
 You must strictly adhere to `docs/Schema.md`. The 'Anchor Event' structure (including `isFixed`) and AI generative schema (`top3Recommendations`, `localTip`) must never be arbitrarily modified.
 
 CRITICAL: INFRASTRUCTURE & ARCHITECTURE
-- Maintain lightweight Vanilla JS + Vite + Firebase environment.
+- Maintain the lightweight Vite + Firebase environment: the app shell is Ionic React (`src/prototype/`), and domain UI stays framework-free Web Components. Do not add another UI framework.
 - Any mobile-specific adjustments must ensure Capacitor (iOS/Android) compatibility.
 - Ensure DDD separation (`auth`, `planner`, `itinerary`, `profile`, `map`).
 - Maintain modern web standards (Web Components, ES Modules) when creating new UI assets.

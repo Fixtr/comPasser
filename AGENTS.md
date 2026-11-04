@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-ComPasser is an AI travel planner built with Vanilla JavaScript, Vite, Firebase, and Capacitor. `src/app/` handles application startup and routing. Feature code lives in `src/domains/{auth,planner,itinerary,map,profile}/`, split into `services/` and `ui/`. Shared helpers, icons, and design tokens live in `src/utils/`, `src/ui/`, and `src/styles/`. Static assets and the service worker live in `public/`; backend code lives in `functions/`. Native projects are in `android/` and `ios/`. Read the relevant domain’s `COMMAND_GUIDE.md` before changing its behavior.
+ComPasser is an AI travel planner built with Vite, Firebase, and Capacitor. The app shell is Ionic React (`ionic-shell.html` + `src/prototype/ionic-shell.jsx`), which handles startup and routing and mounts the domain UIs, written as framework-free Web Components. `src/app/` holds the route guard (`route-decision.mjs`) and tab definitions (`tab-bar.mjs`) the shell imports, plus the legacy vanilla shell (`main.js`) kept for `dev:legacy`, `build:legacy` and the `npm run test:browser` smoke suite. Feature code lives in `src/domains/{auth,planner,itinerary,map,profile}/`, split into `services/` and `ui/`. Shared helpers, icons, and design tokens live in `src/utils/`, `src/ui/`, and `src/styles/`. Static assets and the service worker live in `public/`; backend code lives in `functions/`. Native projects are in `android/` and `ios/`. Read the relevant domain’s `COMMAND_GUIDE.md` before changing its behavior.
 
 ## Build, Test, and Development Commands
 Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
