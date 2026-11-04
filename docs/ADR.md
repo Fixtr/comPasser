@@ -16,7 +16,7 @@ We need to select an AI Model, an Authentication Provider, a Frontend Framework 
 - **Gained:** Single Sign-On (SSO) drastically lowering user entry barriers and eliminating custom backend server maintenance.
 
 ## Decision 3: Framework Strategy - Vanilla JS + Vite
-**Status:** Accepted
+**Status:** Superseded in part (2026-10-07, `78d140b`): the app shell is now Ionic React for dev, web and Capacitor. Domain UIs remain framework-free Web Components, so this decision still holds inside `src/domains/`.
 **Trade-offs:**
 - **Given Up:** React/Vue's built-in state management algorithms and vast ecosystem of drop-in components.
 - **Gained:** Zero framework runtime overhead (max performance) and direct DOM manipulation stability, directly benefiting the "Hybrid Map Strategy."
