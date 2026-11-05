@@ -4,6 +4,7 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { trackEvent } from '../../../utils/analytics.js';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { COURSE_CITIES, courseMinutes, filterCourses } from '../../itinerary/services/course-community.mjs';
+import { blockedAuthors } from '../../itinerary/services/blocked-authors.mjs';
 import { formatMinutes } from '../../itinerary/services/boarding-pass.mjs';
 import { addCourseToDraft, cityDestination } from '../services/course-draft.mjs';
 import { destinations } from '../services/travel-destinations.mjs';
@@ -31,6 +32,11 @@ class PublicCourses extends HTMLElement {
       this.keepOpenId = this.shadowRoot.querySelector('article.reviewing button[data-course]')?.dataset.course || null;
       void this.load(this.failedMore);
     };
+    // Redraw only when a shown card's author was blocked; a review author's block must not close the open review panel.
+    this.hideBlocked = () => {
+      const blocked = blockedAuthors();
+      if (this.cards?.isConnected && this.courses.some(course => blocked.has(course.ownerId) && this.cards.querySelector(`button[data-course="${CSS.escape(course.id)}"]`))) this.renderCards();
+    };
   }
 
   connectedCallback() {
@@ -39,6 +45,7 @@ class PublicCourses extends HTMLElement {
     this.render();
     window.addEventListener('i18n-changed', this.render);
     window.addEventListener('online', this.reloadWhenOnline);
+    window.addEventListener('blocked-authors-changed', this.hideBlocked);
     this.shadowRoot.addEventListener('click', event => {
       const button = event.target.closest('button[data-course]');
       if (!button) return;
@@ -61,7 +68,7 @@ class PublicCourses extends HTMLElement {
     } else void this.load();
   }
 
-  disconnectedCallback() { window.removeEventListener('i18n-changed', this.render); window.removeEventListener('online', this.reloadWhenOnline); this.observer?.disconnect(); }
+  disconnectedCallback() { window.removeEventListener('i18n-changed', this.render); window.removeEventListener('online', this.reloadWhenOnline); window.removeEventListener('blocked-authors-changed', this.hideBlocked); this.observer?.disconnect(); }
 
   async load(more = false) {
     if (this.loading) return;
@@ -181,7 +188,8 @@ class PublicCourses extends HTMLElement {
 
   renderCards() {
     this.cards.replaceChildren();
-    const filtered = filterCourses(this.courses, { ...this.filters, city: this.getAttribute('city') || this.filters.city });
+    const blocked = blockedAuthors();
+    const filtered = filterCourses(this.courses.filter(course => !blocked.has(course.ownerId)), { ...this.filters, city: this.getAttribute('city') || this.filters.city });
     this.status.textContent = filtered.length ? t('courseResultCount').replace('{0}', filtered.length) : t('courseSearchEmpty');
     // Offered only when a filter the user set is what empties the list.
     this.reset.hidden = filtered.length > 0 || (!this.filters.search && !this.filters.duration && (this.hasAttribute('city') || !this.filters.city));

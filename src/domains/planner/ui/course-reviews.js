@@ -4,6 +4,8 @@ import { courseSpentInWon } from '../../itinerary/services/course-community.mjs'
 import { getPublicRouteUrl } from '../../itinerary/services/share-links.js';
 import { t } from '../../../utils/i18n.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
+import { reportContent } from '../../itinerary/services/content-reports.js';
+import { blockAuthor, blockedAuthors } from '../../itinerary/services/blocked-authors.mjs';
 
 class CourseReviews extends HTMLElement {
   constructor() {
@@ -13,6 +15,8 @@ class CourseReviews extends HTMLElement {
     this.sequence = 0;
     // Only an offline failure retries by itself; an online one keeps its retry button.
     this.reloadWhenOnline = () => { if (this.error && this.offline) void this.load(); };
+    // Remove only the blocked author's reviews: a full render would wipe a review being typed and re-enable buttons mid-request.
+    this.hideBlocked = () => { const blocked = blockedAuthors(); this.shadowRoot.querySelectorAll('section[data-author]').forEach(section => { if (blocked.has(section.dataset.author)) section.remove(); }); };
   }
 
   connectedCallback() {
@@ -26,9 +30,10 @@ class CourseReviews extends HTMLElement {
       void this.load();
     });
     window.addEventListener('online', this.reloadWhenOnline);
+    window.addEventListener('blocked-authors-changed', this.hideBlocked);
   }
 
-  disconnectedCallback() { this.sequence++; this.unsubscribe?.(); window.removeEventListener('online', this.reloadWhenOnline); }
+  disconnectedCallback() { this.sequence++; this.unsubscribe?.(); window.removeEventListener('online', this.reloadWhenOnline); window.removeEventListener('blocked-authors-changed', this.hideBlocked); }
 
   async load(more = false) {
     const sequence = ++this.sequence;
@@ -81,8 +86,34 @@ class CourseReviews extends HTMLElement {
       if (this.error && !this.offline) { const retry = document.createElement('button'); retry.textContent = t('courseReviewsRetry'); retry.onclick = () => void this.load(); root.append(retry); }
       return;
     }
+    const user = getCurrentUser();
+    // Play's user-content policy: every public post gets a report (signed in) and a block (anyone) control.
+    const moderation = (kind, targetId, authorId, text, holder) => {
+      if (!authorId || authorId === user?.uid) return;
+      const status = document.createElement('p'); status.setAttribute('role', 'status');
+      const control = key => { const button = document.createElement('button'); button.type = 'button'; button.textContent = t(key); holder.append(button); return button; };
+      if (user) {
+        const report = control(kind === 'course' ? 'contentReportCourse' : 'contentReportReview');
+        report.onclick = async () => {
+          const approved = await showConfirm({ title: report.textContent, message: t('contentReportNotice'), confirmText: t('contentReportConfirm'), cancelText: t('cancelBtn') });
+          if (!approved || !this.isConnected) return;
+          report.disabled = true;
+          try { await reportContent({ kind, targetId, authorId, text }); status.textContent = t('contentReported'); }
+          catch { status.textContent = t('contentReportError'); report.disabled = false; }
+        };
+      }
+      const block = control(kind === 'course' ? 'contentBlockCourse' : 'contentBlockReview');
+      block.onclick = async () => {
+        const approved = await showConfirm({ title: block.textContent, message: t('contentBlockNotice'), confirmText: t('contentBlockConfirm'), cancelText: t('cancelBtn') });
+        if (approved) blockAuthor(authorId);
+      };
+      holder.append(status);
+    };
+    moderation('course', this.course.id, this.course.ownerId, [this.course.title, this.course.review].filter(Boolean).join('\n'), root);
     const inWon = courseSpentInWon(this.course);
-    for (const review of this.reviews) {
+    const blocked = blockedAuthors();
+    const reviews = this.reviews.filter(review => !blocked.has(review.userId));
+    for (const review of reviews) {
       const section = document.createElement('section');
       const date = document.createElement('strong'); date.textContent = `${t('courseReviewVisitDate')}: ${review.visitDate}`;
       const numbers = document.createElement('p');
@@ -92,11 +123,11 @@ class CourseReviews extends HTMLElement {
         review.visitMinutes == null ? '' : `${t('courseReviewMinutesLabel')}: ${review.visitMinutes} ${t('courseReviewMinuteUnit')}`,
       ].filter(Boolean).join(' · ');
       const comment = document.createElement('p'); comment.className = 'comment'; comment.textContent = review.comment;
-      section.append(date, numbers, comment); root.append(section);
+      section.append(date, numbers, comment); section.dataset.author = review.userId || '';
+      moderation('review', review.id, review.userId, review.comment, section); root.append(section);
     }
-    if (!this.reviews.length) { const empty = document.createElement('p'); empty.textContent = t('courseReviewsEmpty'); root.append(empty); }
+    if (!reviews.length) { const empty = document.createElement('p'); empty.textContent = t('courseReviewsEmpty'); root.append(empty); }
     if (this.hasMore) { const more = document.createElement('button'); more.textContent = t('courseReviewsMore'); more.onclick = () => { more.disabled = true; void this.load(true); }; root.append(more); }
-    const user = getCurrentUser();
     if (!user) {
       const login = document.createElement('button'); login.textContent = t('courseReviewLogin');
       // Return to the same country and city: the kept /courses page shows whatever its address says.

@@ -189,6 +189,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Anonymous reports of public courses and reviews: write-only for signed-in users, read by the operator in the console.
+    match /content_reports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['kind', 'targetId', 'authorId', 'text', 'createdAt'])
+        && request.resource.data.keys().hasAll(['kind', 'targetId', 'authorId', 'text', 'createdAt'])
+        && request.resource.data.kind in ['course', 'review']
+        && request.resource.data.targetId is string
+        && request.resource.data.targetId.size() > 0 && request.resource.data.targetId.size() <= 200
+        && request.resource.data.authorId is string && request.resource.data.authorId.size() <= 128
+        && request.resource.data.text is string && request.resource.data.text.size() <= 1000
+        && exists(/databases/$(database)/documents/$(request.resource.data.kind == 'course' ? 'public_courses' : 'course_reviews')/$(request.resource.data.targetId))
+        && request.resource.data.createdAt == request.time;
+    }
+
     // 정의되지 않은 모든 경로는 기본 차단.
     match /{document=**} {
       allow read, write: if false;
