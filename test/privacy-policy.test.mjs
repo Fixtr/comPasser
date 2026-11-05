@@ -15,3 +15,9 @@ test('the privacy policy covers email sign-up, public content, device storage an
     assert.ok(policy.includes(text), `English translation mentions ${text}`);
   }
 });
+
+test('the privacy policy explains anonymous reports and the on-device block list', () => {
+  for (const text of ['신고', '신고한 사람은 기록하지 않습니다', '차단한 작성자 목록', 'Reports do not record who sent them', 'blocked authors']) {
+    assert.ok(policy.includes(text), `policy mentions ${text}`);
+  }
+});

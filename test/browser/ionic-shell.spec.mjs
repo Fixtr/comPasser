@@ -1306,6 +1306,67 @@ test('공개 코스를 검색하고 여행자 경험 후기를 작성·수정·�
   await expect(reviews.locator('section')).toHaveCount(0);
 });
 
+test('공개 코스와 후기를 신고하고, 차단한 작성자의 글은 다시 열어도 숨긴다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/content-reports.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function reportContent(report) { (window.__reports ||= []).push(report); }
+  ` }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    const stops = [{ name: 'Gate', location: 'Seoul', stayMinutes: 60 }, { name: 'Cafe', location: 'Seoul', stayMinutes: 60 }];
+    export async function listPublicCourses() { return { courses: [
+      { id: 'spamRoute', ownerId: 'spammer', title: 'Spam walk', review: '', stops },
+      { id: 'goodRoute', ownerId: 'another-user', title: 'Good walk', review: '', stops },
+    ], hasMore: false }; }
+    export async function listCourseReviews(course) { return { reviews: course.id === 'goodRoute' ? [
+      { id: 'goodRoute_troll', userId: 'troll', visitDate: '2026-10-04', comment: 'Rude words', walkingKm: null, spentWon: null, visitMinutes: null },
+      { id: 'goodRoute_friend', userId: 'friend', visitDate: '2026-10-05', comment: 'Lovely', walkingKm: null, spentWon: null, visitMinutes: null },
+    ] : [], hasMore: false }; }
+    export async function getMyCourseReview() { return null; }
+    export async function getPublicCourse() { return null; }
+    export async function saveCourseReview() {} export async function deleteCourseReview() {}
+  ` }));
+  await page.goto('/courses');
+  await chooseCourseCity(page);
+  const courses = page.locator('public-courses:visible');
+  const confirm = page.locator('#app-confirm-host');
+  const good = courses.locator('article', { hasText: 'Good walk' });
+  await good.getByRole('button', { name: '여행자 후기 보기·작성' }).click();
+  let reviews = good.locator('course-reviews');
+  // Signed out, a reader can still hide an author but reporting needs an account.
+  await expect(reviews.getByRole('button', { name: '후기 작성자 차단' })).toHaveCount(2);
+  await expect(reviews.getByRole('button', { name: '후기 신고' })).toHaveCount(0);
+  await reviews.getByRole('button', { name: '로그인하고 후기 쓰기' }).click();
+  await page.locator('login-view #email-input').last().fill('test@example.com');
+  await page.locator('login-view #password-input').last().fill('password');
+  await page.locator('login-view #email-login-btn').last().click();
+  reviews = courses.locator('article', { hasText: 'Good walk' }).locator('course-reviews');
+  const troll = reviews.locator('section', { hasText: 'Rude words' });
+  await troll.getByRole('button', { name: '후기 신고' }).click();
+  await confirm.getByRole('button', { name: '신고', exact: true }).click();
+  await expect(troll.getByRole('status')).toHaveText('신고가 접수됐어요. 운영자가 검토할게요.');
+  // A block must not wipe a review the reader is typing.
+  await reviews.locator('textarea').fill('작성 중인 후기');
+  await troll.getByRole('button', { name: '후기 작성자 차단' }).click();
+  await confirm.getByRole('button', { name: '차단', exact: true }).click();
+  await expect(reviews.locator('section')).toHaveCount(1);
+  await expect(reviews.locator('textarea')).toHaveValue('작성 중인 후기');
+  await expect(reviews.locator('section')).toContainText('Lovely');
+  const spam = courses.locator('article', { hasText: 'Spam walk' });
+  await spam.getByRole('button', { name: '여행자 후기 보기·작성' }).click();
+  await spam.locator('course-reviews').getByRole('button', { name: '코스 신고' }).click();
+  await confirm.getByRole('button', { name: '신고', exact: true }).click();
+  await spam.locator('course-reviews').getByRole('button', { name: '코스 작성자 차단' }).click();
+  await confirm.getByRole('button', { name: '차단', exact: true }).click();
+  await expect(courses.locator('article', { hasText: 'Spam walk' })).toHaveCount(0);
+  expect(await page.evaluate(() => window.__reports)).toEqual([
+    { kind: 'review', targetId: 'goodRoute_troll', authorId: 'troll', text: 'Rude words' },
+    { kind: 'course', targetId: 'spamRoute', authorId: 'spammer', text: 'Spam walk' },
+  ]);
+  await page.reload();
+  await expect(courses.locator('article', { hasText: 'Good walk' })).toBeVisible();
+  await expect(courses.locator('article', { hasText: 'Spam walk' })).toHaveCount(0);
+});
+
 test('후기 지출은 국내 코스만 원으로 표시하고 해외 코스는 잘못된 통화 기호를 붙이지 않는다', async ({ page }) => {
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
