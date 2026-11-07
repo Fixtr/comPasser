@@ -21,3 +21,10 @@ test('the privacy policy explains anonymous reports and the on-device block list
     assert.ok(policy.includes(text), `policy mentions ${text}`);
   }
 });
+
+test('the privacy policy says signed-in rate limits are keyed by a hashed account identifier', () => {
+  // recommendPlaces counts signed-in users by uid and guests by IP (functions/place-recommendations.js).
+  for (const text of ['계정 고유 식별자의 해시값', '회원 탈퇴 후에도 남을 수 있습니다', 'A hash of your account\'s unique identifier', 'including after you delete your account']) {
+    assert.ok(policy.includes(text), `policy mentions ${text}`);
+  }
+});
