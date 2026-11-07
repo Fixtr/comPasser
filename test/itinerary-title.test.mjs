@@ -77,3 +77,9 @@ test('a long AI stop name is capped to the 100 characters the save rule allows',
   const itinerary = { days: [day('2026-08-20', stop('가'.repeat(150)))] };
   assert.equal(buildItineraryTitle(itinerary).length, 100);
 });
+
+test('the 100-character cap never splits an emoji in half', () => {
+  const title = buildItineraryTitle({ days: [day('2026-08-20', stop('😀'.repeat(60)))] });
+  assert.ok(title.length <= 100);
+  assert.doesNotMatch(title, /[\uD800-\uDBFF]$/);
+});

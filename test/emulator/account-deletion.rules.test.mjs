@@ -89,8 +89,9 @@ function createTrip(id, user, data, transforms=serverCreatedAt) {
 
 test('private trip creation accepts only the saveItinerary shape', async()=>{
     const plan={days:'plan'};
-    for(const [id,title] of [['untitledTrip',null],['titledTrip','서울 · 8월 20일'],['maxTitleTrip','a'.repeat(100)]]) {
-        const created=await createTrip(id,'creator',{userId:'creator',itineraryPlan:plan,title});
+    // legacyTrip: app builds before titles existed write no title key at all.
+    for(const [id,extra] of [['untitledTrip',{title:null}],['titledTrip',{title:'서울 · 8월 20일'}],['maxTitleTrip',{title:'a'.repeat(100)}],['legacyTrip',{}]]) {
+        const created=await createTrip(id,'creator',{userId:'creator',itineraryPlan:plan,...extra});
         assert.equal(created.status,200,`${id}: ${await created.text()}`);
     }
     for(const [id,data,transforms] of [
