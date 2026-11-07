@@ -402,7 +402,8 @@ function createPlaceRecommendations({axios, getKeys, reserveRequest, now = () =>
     const input = validateRecommendationInput(request.data,now());
     const keys = getKeys();
     if (!keys.gemini || !keys.maps) throw fail('failed-precondition','recommendation-config');
-    await reserveRequest(request.rawRequest?.ip);
+    // Signed-in users count by uid so one carrier IP does not exhaust everyone's budget; guests stay on IP.
+    await reserveRequest(request.auth?.uid || request.rawRequest?.ip);
     const startedAt = now();
     let firstSearch = null;
     try {

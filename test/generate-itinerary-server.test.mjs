@@ -36,7 +36,7 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
     './place-recommendations': {validateRecommendationInput:require('./place-recommendations').validateRecommendationInput,createRecommendationLimiter:()=>()=>{},createPlaceRecommendations:()=>async request=>{calls.push('recommendation');if(recommendationError)throw recommendationError;return {cityId:request.data.cityId};}},
-    axios: { get: async () => ({ data: socialProfile }), post: async url => {
+    axios: { get: async () => { if (socialProfile instanceof Error) throw socialProfile; return { data: socialProfile }; }, post: async url => {
       calls.push('ai');
       modelUrls.push(url);
       if (fail) throw fail;
@@ -171,4 +171,11 @@ test('social login issues a token only for a provider profile with an id', async
     assert.equal(body.data.error, '소셜 계정 정보를 확인할 수 없습니다.', provider);
     assert.ok(!app.calls.some(call => call.startsWith('token:')), provider);
   }
+
+  // Provider/library errors carry internal detail (URLs, status text); the client gets a fixed message.
+  const down = await fixture({ socialProfile: new Error('connect ECONNREFUSED 10.0.0.1:443 kapi.kakao.com') }).social('kakao');
+  assert.equal(down.code, 500);
+  assert.equal(down.body.data.error, '소셜 로그인을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  const unsupported = await fixture().social('google');
+  assert.equal(unsupported.body.data.error, "지원하지 않는 소셜 로그인 플랫폼입니다. ('kakao' 또는 'naver' 만 가능)");
 });

@@ -33,8 +33,12 @@ function fixture({candidates=[candidate()],places=[venue()],weatherFail=false,gr
   return {data:{candidates:[{content:{parts:[{text:formattedText??JSON.stringify({places:candidates})}]}}]}};
  }};
  const run=createPlaceRecommendations({axios,getKeys:()=>keys,reserveRequest:async ip=>calls.push({reserve:ip}),now});
- return {calls,run:(data=input)=>run({data,rawRequest:{ip:'fixture-ip'}})};
+ return {calls,run:(data=input,auth)=>run({data,auth,rawRequest:{ip:'fixture-ip'}})};
 }
+test('signed-in requests are limited by uid so users behind one carrier IP do not share a budget; guests stay on IP',async()=>{
+ const user=fixture();await user.run(input,{uid:'user-1'});assert.deepEqual(user.calls[0],{reserve:'user-1'});
+ const guest=fixture();await guest.run();assert.deepEqual(guest.calls[0],{reserve:'fixture-ip'});
+});
 test('all 24 supported cities use server-owned locations; untrusted inputs fail before providers or limits',async()=>{
  assert.deepEqual(Object.keys(RECOMMENDATION_CITIES).sort(),Object.values(TRAVEL_REGIONS).flatMap(r=>r.cities).sort());
  for(const data of [null,{}, {...input,cityId:'tokyo'},{...input,country:'__proto__'},{...input,country:{}},{...input,cityId:'toString'},
@@ -484,6 +488,11 @@ test('persistent guest limits enforce cooldown, daily individual and hourly/glob
  docs.set('ai_place_limits/global',{hour:Math.floor(time/3600000),hourly:60});await assert.rejects(reserve('other-ip'),{code:'resource-exhausted'});
  docs.set('ai_place_limits/global',{day:new Date(time).toISOString().slice(0,10),count:300});await assert.rejects(reserve('third-ip'),{code:'resource-exhausted'});
  time+=86400000;await reserve('fixture-ip');
+});
+test('recommendPlaces server timeout covers the worst-case provider chain and the client waits longer than the server',()=>{
+ const server=Number(readFileSync(new URL('../functions/index.js',import.meta.url),'utf8').match(/recommendPlaces = onCall\(\{[^}]*timeoutSeconds:(\d+)/)[1]);
+ const client=Number(readFileSync(new URL('../src/domains/planner/services/ai-place-recommendations.js',import.meta.url),'utf8').match(/'recommendPlaces',\{timeout:(\d+)\}/)[1]);
+ assert.equal(server,300);assert.ok(client>server*1000,`client ${client}ms must outlive server ${server}s`);
 });
 test('client checks request scope and rejects unsafe source links instead of rendering arbitrary responses',async()=>{
  const sourceCode=readFileSync(new URL('../src/domains/planner/services/ai-place-recommendations.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export async function','async function');
