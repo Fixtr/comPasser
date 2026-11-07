@@ -752,3 +752,32 @@ test('two timed appointments at one venue on one day stay two events; untimed du
   assert.equal(mergedSameDayVisits([request.anchorSchedules[0], untimed.anchorSchedules[1]]), true);
   assert.equal(mergedSameDayVisits([request.anchorSchedules[0], { ...untimed.anchorSchedules[1], day: 2 }]), false);
 });
+
+test('a visit near the stay-unset city end is kept, not promoted into the arrival boundary', () => {
+  const station = { placeId: 'seoul-station', displayName: '서울역', formattedAddress: '서울 중구', lat: 37.55, lng: 126.97 };
+  const request = { destination: { id: 'seoul', country: 'KOR', name: 'Seoul, South Korea' }, date: ['2030-10-17'], startTime: '09:00', endTime: '18:00',
+    startLocation: station, endLocation: 'Seoul, South Korea', anchorSchedules: [] };
+  const visit = { type: 'attraction', title: 'Gyeongbokgung', time: '11:00', endTime: '12:00', location: '161 Sajik-ro, Seoul, South Korea' };
+  for (const item of [{ ...visit, addedByUser: true }, visit]) {
+    const [day] = enforcePlannerConstraints([{ day: 1, date: '2030-10-17', scheduleItems: [item] }], request, 'en');
+    assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
+    assert.equal(day.scheduleItems[1].title, 'Gyeongbokgung');
+    assert.equal(day.scheduleItems[2].title, 'Arrive · Stay not set (central Seoul)');
+  }
+});
+
+test('a user-added visit matching a named end point is kept, not promoted', () => {
+  const request = { ...flatRequest, anchorSchedules: [] };
+  const visit = { time: '20:00', endTime: '20:30', type: 'attraction', title: 'My pick', location: flatRequest.endLocation, addedByUser: true };
+  const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit] }], request, 'ko');
+  assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
+  assert.equal(day.scheduleItems[1].title, 'My pick');
+});
+
+test('a user-added first visit matching the start point is kept, not promoted into departure', () => {
+  const request = { ...flatRequest, anchorSchedules: [] };
+  const visit = { time: '09:30', endTime: '10:00', type: 'attraction', title: 'My pick', location: flatRequest.startLocation, addedByUser: true };
+  const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit] }], request, 'ko');
+  assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
+  assert.equal(day.scheduleItems[1].title, 'My pick');
+});

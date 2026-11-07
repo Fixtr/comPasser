@@ -3,9 +3,8 @@ import { normalizePlannerRequest, getLocationName } from './planner-constraints.
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { scheduleFlexibleVisits } from './schedule-flexible-visits.mjs';
 import { getLang } from '../../../utils/i18n.js';
+import { minutesOf as minutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
-const minutes = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
-  ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
 const clock = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 const coordinate = value => ({lat: typeof value.lat === 'function' ? value.lat() : value.lat,
   lng: typeof value.lng === 'function' ? value.lng() : value.lng});

@@ -1,7 +1,7 @@
 import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { getLocationName } from './location-name.mjs';
-import { minimumStayMinutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
+import { minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { isAirportName } from './flight-arrival.mjs';
 import { destinationById } from './travel-destinations.mjs';
 import { tFor } from '../../../utils/i18n.js';
@@ -129,6 +129,9 @@ export function stayUnsetLabel(location, destination, isKo) {
   return tFor('stayUnsetCityCenter', lang).replace('{0}', city ? tFor(city.key, lang) : location);
 }
 
+// Loose text matching against a whole city ("Seoul, South Korea") or a user's own pick would swallow a real visit.
+const mayBecomeBoundary = (item, required) => item.type === required.type || (!item.addedByUser && !required.stayUnsetLabel);
+
 function makeBoundaryItem(kind, source, time, isKo, destination) {
   const location = getLocationName(source);
   const label = stayUnsetLabel(location, destination, isKo);
@@ -174,11 +177,8 @@ function makeAnchorItem(anchor, isKo) {
   };
 }
 
-function minutes(time) {
-  if (!/^\d{2}:\d{2}$/.test(time || '')) return Number.MAX_SAFE_INTEGER;
-  const [hours, mins] = time.split(':').map(Number);
-  return (hours * 60) + mins;
-}
+// Unparseable times sort last.
+const minutes = time => minutesOf(time) ?? Number.MAX_SAFE_INTEGER;
 
 /**
  * 자정을 넘기는 일정(예: 밤 11시 저녁 다음 새벽 1시 공항 이동)의 마지막
@@ -378,6 +378,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       const requiredStart = makeBoundaryItem('departure', constraints.startLocation, constraints.startTime, isKo, normalizedRequest.destination);
       if (scheduleItems[0] && scheduleItems[0].type !== 'AnchorSchedule' &&
           !scheduleItems[0].placeIntent?.purpose &&
+          mayBecomeBoundary(scheduleItems[0], requiredStart) &&
           isSameLocation(scheduleItems[0].selectedPlace || scheduleItems[0].location, constraints.startLocation)) {
         scheduleItems[0] = {
           ...scheduleItems[0],
@@ -403,6 +404,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       const lastIndex = scheduleItems.length - 1;
       if (scheduleItems[lastIndex] && scheduleItems[lastIndex].type !== 'AnchorSchedule' &&
           !scheduleItems[lastIndex].placeIntent?.purpose &&
+          mayBecomeBoundary(scheduleItems[lastIndex], requiredEnd) &&
           isSameLocation(scheduleItems[lastIndex].selectedPlace || scheduleItems[lastIndex].location, constraints.endLocation)) {
         scheduleItems[lastIndex] = {
           ...scheduleItems[lastIndex],

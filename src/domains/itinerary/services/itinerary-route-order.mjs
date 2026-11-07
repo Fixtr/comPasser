@@ -2,10 +2,9 @@ import { assessVisitHours, nextVisitStart } from './itinerary-hours.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from './itinerary-end-fit.mjs';
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { distanceMeters } from '../../map/services/recommendation-place.mjs';
+import { minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
 
 const boundary = item => ['departure', 'arrival', 'AnchorSchedule'].includes(item?.type);
-const minutes = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
-  ? Number(value.slice(0,2))*60+Number(value.slice(3)) : null;
 const time = value => `${String(Math.floor(value/60)).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`;
 function identity(item) {
   if (!boundary(item) && Object.hasOwn(item, 'placeIntent') && item.placeStatus !== 'verified') return null;

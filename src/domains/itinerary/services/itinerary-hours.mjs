@@ -1,4 +1,5 @@
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
+import { minutesOf as clock } from './itinerary-schedule-adjust.mjs';
 
 export function hoursPlaceId(item) {
   if (Object.hasOwn(item, 'placeIntent') && item.placeStatus !== 'verified') return null;
@@ -7,11 +8,6 @@ export function hoursPlaceId(item) {
     || normalizeSelectedPlace(item.resolvedPlace)?.placeId || null;
 }
 
-const clock = value => {
-  if (!/^\d{2}:\d{2}$/.test(value || '')) return null;
-  const [h, m] = value.split(':').map(Number);
-  return h < 24 && m < 60 ? h * 60 + m : null;
-};
 const point = p => p && Number.isInteger(p.day) && p.day >= 0 && p.day <= 6
   && Number.isInteger(p.hour) && p.hour >= 0 && p.hour < 24
   && Number.isInteger(p.minute) && p.minute >= 0 && p.minute < 60

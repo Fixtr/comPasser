@@ -29,6 +29,7 @@ test('도착에 붙은 가짜 체류시간을 이동 지연으로 자정 이후�
 import {
   applyTransitDelays,
   getEndTimeOverflowMinutes,
+  minutesOf,
   trimScheduleToEndTime
 } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 
@@ -382,4 +383,10 @@ test('trimming handles empty and malformed input without throwing', () => {
   assert.doesNotThrow(() => trimScheduleToEndTime([], '18:00'));
   assert.doesNotThrow(() => trimScheduleToEndTime(null, '18:00'));
   assert.doesNotThrow(() => trimScheduleToEndTime([{ time: 'x' }], '18:00'));
+});
+
+test('minutesOf accepts only real 24-hour clock times', () => {
+  assert.equal(minutesOf('09:05'), 545);
+  assert.equal(minutesOf('23:59'), 1439);
+  for (const bad of ['24:00', '25:70', '9:05', '', undefined]) assert.equal(minutesOf(bad), null, String(bad));
 });

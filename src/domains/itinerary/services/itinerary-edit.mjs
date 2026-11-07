@@ -8,6 +8,7 @@
  */
 
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
+import { minutesOf } from './itinerary-schedule-adjust.mjs';
 
 export function editVisitTime(items, index, start, end) {
   const item=items?.[index];
@@ -108,12 +109,6 @@ export function moveScheduleItem(scheduleItems, index, direction) {
   next[target] = { ...a, ...slotB };
 
   return { items: next, moved: true };
-}
-
-function minutesOf(time) {
-  if (!/^\d{2}:\d{2}$/.test(time || '')) return null;
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
 }
 
 function formatMinutes(total) {
