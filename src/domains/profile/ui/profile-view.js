@@ -1,4 +1,5 @@
 import { offlineTrips } from '../../itinerary/services/offline-trips.mjs';
+import { unblockAllAuthors } from '../../itinerary/services/blocked-authors.mjs';
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
 import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itinerary/services/firestore-service.js';
@@ -638,6 +639,10 @@ class ProfileView extends HTMLElement {
         });
 
         // The Ionic shell dropped the old header, so this is the only sign-out control.
+        this.shadowRoot.getElementById('btn-unblock-all')?.addEventListener('click', async () => {
+            if (!(await showConfirm({ title: t('unblockAllBtn'), message: t('unblockAllNotice'), confirmText: t('unblockAllConfirm'), cancelText: t('cancelBtn') }))) return;
+            showToast(unblockAllAuthors() ? t('unblockAllDone') : t('unblockAllNone'));
+        });
         this.shadowRoot.getElementById('btn-logout')?.addEventListener('click', async () => {
             try {
                 await logout();
@@ -883,6 +888,10 @@ class ProfileView extends HTMLElement {
                                 <div class="list-value"><span class="not-set" data-i18n="passwordExternal">${t('passwordExternal')}</span></div>
                             </div>
                             <div class="list-item"><label class="list-label" for="profile-language" data-i18n="flowLanguage"></label><div class="list-value"><select id="profile-language"><option value="ko" data-i18n="flowKorean">${t('flowKorean')}</option><option value="en">English</option></select></div></div>
+                            <div class="list-item">
+                                <div class="list-label" data-i18n="labelBlockedAuthors">${t('labelBlockedAuthors')}</div>
+                                <div class="list-value"><button id="btn-unblock-all" type="button" class="btn-modal-cancel" data-i18n="unblockAllBtn">${t('unblockAllBtn')}</button></div>
+                            </div>
                             <button id="btn-logout" type="button" class="btn-modal-cancel btn-logout" data-i18n="logout" hidden>${t('logout')}</button>
                         </div>
 
