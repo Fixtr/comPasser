@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { getSafeReturnPath } from '../src/app/route-decision.mjs';
 
 // 실제 화면의 이벤트 핸들러를 실행하되 DOM과 외부 인증만 작은 가짜로 대체한다.
-function authView(file, className, search = '', { authError } = {}) {
+function authView(file, className, search = '', { authError, popup = { closed: false } } = {}) {
   const elements = new Map();
   const element = (id) => {
     if (!elements.has(id)) elements.set(id, {
@@ -23,9 +23,9 @@ function authView(file, className, search = '', { authError } = {}) {
   const window = {
     location,
     navigate: (path) => navigations.push(path),
-    open: () => ({ closed: false }),
+    open: () => popup,
     addEventListener: (event, handler) => messages.set(event, handler),
-    removeEventListener: (event) => messages.delete(event),
+    removeEventListener: (event, handler) => { if (messages.get(event) === handler) messages.delete(event); },
   };
   const source = readFileSync(new URL(`../src/domains/auth/ui/${file}`, import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '')
@@ -55,7 +55,7 @@ function authView(file, className, search = '', { authError } = {}) {
   if (file === 'verify-view.js') view.render();
   else view.setupListeners();
   return {
-    location, navigations, messages, session, signups, toasts, element,
+    view, location, navigations, messages, session, signups, toasts, element,
     input: (id, value) => { element(id).value = value; },
     click: (id) => element(id).listeners.click({ preventDefault() {} }),
     submit: (id) => element(id).listeners.submit({ preventDefault() {} }),
@@ -168,4 +168,25 @@ test('로그인·가입 결과 문구는 사전을 거쳐 영어 화면에서도
   joined.input('password-input', 'test-password');
   await joined.submit('join-form');
   assert.deepEqual(joined.toasts, ['joinVerificationSent']);
+});
+
+test('팝업이 차단되면 네이버 버튼을 되돌리고 기다리지 않는다', async () => {
+  const login = authView('login-view.js', 'LoginView', '', { popup: null });
+  login.element('naver-btn').innerHTML = 'NAVER';
+  await login.click('naver-btn');
+  assert.equal(login.element('naver-btn').disabled, false);
+  assert.equal(login.element('naver-btn').innerHTML, 'NAVER');
+  assert.equal(login.element('error-msg').textContent, 'popupBlocked');
+  assert.equal(login.messages.has('message'), false);
+});
+
+test('로그인·가입 화면은 떠날 때 언어 변경 구독을 해제한다', () => {
+  for (const [file, className] of [['login-view.js', 'LoginView'], ['join-view.js', 'JoinView']]) {
+    const { view, messages } = authView(file, className);
+    view.render = view.setupListeners = view.updateTexts = () => {};
+    view.connectedCallback();
+    assert.equal(messages.has('i18n-changed'), true);
+    view.disconnectedCallback?.();
+    assert.equal(messages.has('i18n-changed'), false, file);
+  }
 });

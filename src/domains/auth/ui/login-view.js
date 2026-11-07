@@ -52,13 +52,18 @@ export default class LoginView extends HTMLElement {
       this._showInAppBrowserWarning();
     }
 
-    window.addEventListener('i18n-changed', () => {
+    this._i18nHandler = () => {
       this.updateTexts();
       // 언어 전환 시 인앱 경고 배너 텍스트도 업데이트
       if (isInAppBrowser()) {
         this._updateInAppBannerTexts();
       }
-    });
+    };
+    window.addEventListener('i18n-changed', this._i18nHandler);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('i18n-changed', this._i18nHandler);
   }
 
   updateTexts() {
@@ -259,6 +264,14 @@ export default class LoginView extends HTMLElement {
       const authUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=token&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
 
       const popup = window.open(authUrl, 'naverLogin', 'width=500,height=600');
+      // 차단되면 null 이다: 닫힘 감시가 영원히 돌고 버튼이 '로그인 중'에 묶인다.
+      if (!popup) {
+          errorMsg.textContent = t('popupBlocked');
+          errorMsg.style.display = 'block';
+          naverBtn.disabled = false;
+          naverBtn.innerHTML = originalHtml;
+          return;
+      }
       
       const handlePopupMessage = async (e) => {
           if (e.origin !== window.location.origin) return;
