@@ -25,8 +25,8 @@ const FREE_PATTERNS = /(무료|free|없음|no charge)/i;
 // 교통비를 섞어 넣은 구버전 일정은 금액 합계에서 제외하고 미확인으로 센다.
 // 입장·식사처럼 장소 자체의 비용이 함께 적힌 경우에는 이 필터를 적용하지
 // 않아 유효한 방문 비용까지 버리지 않는다.
-const TRANSPORT_COST = /(?:대중교통|교통비|교통\s*요금|운임|승차권|버스|지하철|전철|공항철도|철도|열차|기차|택시|\bktx\b|\barex\b|public\s+transit|transport(?:ation)?|transit|\bfare\b|\bbus\b|subway|metro|airport\s+rail(?:road)?|rail(?:way)?|\btrain\b|\btaxi\b|\bcab\b)/i;
-const VENUE_COST = /(?:입장|관람|전시|체험|식사|음식|음료|메뉴|숙박|쇼핑|admission|entrance|entry|exhibit|activity|meal|food|drink|hotel|shopping)/i;
+const TRANSPORT_COST = /(?:대중교통|교통비|교통\s*요금|운임|승차권|버스|지하철|전철|공항철도|철도|열차|기차|택시|\bktx\b|\barex\b|public\s+transit|\btransport(?:ation)?\b|\btransit\b|\bfare\b|\bbus\b|subway|\bmetro\b|airport\s+rail(?:road)?|\brail(?:way)?\b|\btrain\b|\btaxi\b|\bcab\b)/i;
+const VENUE_COST = /(?:입장|관람|전시|체험|식사|음식|음료|메뉴|숙박|쇼핑|admission|entrance|entry|exhibit|activity|meal|food|drink|caf[eé]|hotel|shopping)/i;
 
 export function isTransportEstimatedCost(value, itemType = '') {
   const text = typeof value === 'string' ? value.trim() : '';

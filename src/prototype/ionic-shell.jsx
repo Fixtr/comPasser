@@ -82,9 +82,9 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   const path = routePath.includes(':id') ? routePath.replace(':id', params.id || '') : routePath === '*' ? location.pathname : routePath;
   const active = location.pathname === path;
   // '/profile/' matches the '/profile' route but is never that page's address, so the page would never become active.
+  const firstSearch = useRef(location.search).current;
   const trimmed = location.pathname.replace(/(.)\/+$/, '$1');
   if (trimmed !== location.pathname && trimmed === path) return <Navigate to={trimmed + location.search} replace />;
-  const firstSearch = useRef(location.search).current;
   const search = active ? location.search : firstSearch;
   const next = new URLSearchParams(search).get('next');
   const decision = routePath === '*' ? { action: 'render' } : decideRoute({ path, user, authSettled, hasPreference: !!sessionStorage.getItem('userPreference'), returnTo: next });

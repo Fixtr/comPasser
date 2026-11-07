@@ -584,10 +584,16 @@ test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보�
   }
 
   // A trailing slash opens the same screen instead of a page that never becomes active.
+  // The redirect must not change the shell's hook count between renders, which React reports as a page error.
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
   await page.goto('/courses/?country=JPN');
   await expect(page).toHaveURL(/\/courses\?country=JPN$/);
+  await expect(page.locator('.ion-page:visible h1')).not.toHaveText('');
   await page.goto('/profile/trips/');
   await expect(page).toHaveURL(/\/login\?next=%2Fprofile%2Ftrips$/);
+  await expect(page.locator('.ion-page:visible h1')).not.toHaveText('');
+  expect(errors).toEqual([]);
 });
 
 test('게스트를 로그인으로 보낼 때 주소의 쿼리도 돌아올 곳에 남긴다', async ({ page }) => {

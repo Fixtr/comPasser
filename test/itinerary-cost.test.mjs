@@ -75,6 +75,13 @@ test('AI transport fares are not treated as venue costs', () => {
   assert.equal(isTransportEstimatedCost('입장료 ₩15,000'), false);
   assert.equal(isTransportEstimatedCost('기차 박물관 입장료 ₩12,000'), false,
     '장소 비용임을 밝힌 값까지 교통비로 버리면 안 된다');
+  // Transport words inside a venue name are not fares (the Met is in the New York catalogue).
+  for (const venue of ['Metropolitan Museum $25', 'Trail pass ¥500', 'Train Street cafe 50,000₫', 'Transporter Bridge £5']) {
+    assert.equal(isTransportEstimatedCost(venue), false, venue);
+  }
+  for (const fare of ['Metro ticket €2.15', 'Railway pass ¥2,000', 'Transportation ₩3,000', 'Airport rail $10']) {
+    assert.equal(isTransportEstimatedCost(fare), true, fare);
+  }
 
   const summary = summarizeCosts([
     stop('KTX 요금 ₩59,800'),

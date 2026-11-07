@@ -15,7 +15,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 
 // Run the actual exported callback with fake SDK/HTTP boundaries. No credentials,
 // account reads, network, paid AI or production initialization are involved.
-function fixture({ fail, empty = false, responses, user = {}, recommendationError } = {}) {
+function fixture({ fail, empty = false, responses, user = {}, recommendationError, socialProfile } = {}) {
   const calls = [];
   const modelUrls = [];
   let responseIndex = 0;
@@ -27,7 +27,7 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     'firebase-functions/v2/https': { onCall: (_, fn) => fn, onRequest: (_, fn) => fn, HttpsError },
     'firebase-functions/v2/scheduler': { onSchedule: (_, fn) => fn },
     'firebase-functions/params': { defineSecret: () => ({ value: () => { calls.push('secret'); return 'test-only-key'; } }) },
-    'firebase-admin': { initializeApp() {}, firestore() {}, auth: () => ({ getUser: async () => { calls.push('user'); return { metadata: { creationTime: '2026-01-01' }, ...user }; } }) },
+    'firebase-admin': { initializeApp() {}, firestore() {}, auth: () => ({ getUser: async () => { calls.push('user'); return { metadata: { creationTime: '2026-01-01' }, ...user }; }, createCustomToken: async uid => { calls.push(`token:${uid}`); return 'custom-token'; } }) },
     './account-deletion': { createAccountDeletion: () => ({ assertNotDeleting: async () => calls.push('account-check') }) },
     './generation-credits': { createGenerationCredits: () => ({
       balance: async (_uid, _createdAt, unlimited) => ({ balance: 1, generating: false, ...(unlimited ? { unlimited: true } : {}) }),
@@ -36,18 +36,19 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
     './place-recommendations': {validateRecommendationInput:require('./place-recommendations').validateRecommendationInput,createRecommendationLimiter:()=>()=>{},createPlaceRecommendations:()=>async request=>{calls.push('recommendation');if(recommendationError)throw recommendationError;return {cityId:request.data.cityId};}},
-    axios: { post: async url => {
+    axios: { get: async () => ({ data: socialProfile }), post: async url => {
       calls.push('ai');
       modelUrls.push(url);
       if (fail) throw fail;
       const days = responses ? responses[responseIndex++] : [{ day: 1, date: '2026-10-01', scheduleItems: [{ title: '일정' }] }];
       return { data: { candidates: [{ content: { parts: [{ text: JSON.stringify({ days }) }] } }] } };
     } },
-    cors: () => () => {},
+    cors: () => (_req, _res, next) => next(),
   };
   const exports = {};
   vm.runInNewContext(source, { exports, console, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
-  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}) };
+  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}),
+    social: provider => new Promise(resolve => exports.verifySocialToken({ body: { data: { provider, token: 'social-token' } } }, { status: code => ({ send: body => resolve({ code, body }) }) })) };
 }
 
 test('recommendation callable allows limited guest browsing and checks signed-in account identity',async()=>{
@@ -152,5 +153,22 @@ test('only the verified administrator email bypasses empty credits', async () =>
     assert.equal((await app.getCredits()).unlimited, undefined);
     await assert.rejects(app.run(valid()), { code: 'resource-exhausted' });
     assert.ok(!app.calls.includes('ai'));
+  }
+});
+
+test('social login issues a token only for a provider profile with an id', async () => {
+  const kakao = fixture({ socialProfile: { id: 42, properties: { nickname: 'traveler' } } });
+  const ok = await kakao.social('kakao');
+  assert.equal(ok.code, 200);
+  assert.equal(ok.body.data.customToken, 'custom-token');
+  assert.ok(kakao.calls.includes('token:kakao:42'));
+
+  // Without an id every such caller would share one real account named kakao:undefined.
+  for (const [provider, socialProfile] of [['kakao', {}], ['naver', { resultcode: '024', message: 'Authentication failed' }], ['naver', { resultcode: '00', response: {} }]]) {
+    const app = fixture({ socialProfile });
+    const { code, body } = await app.social(provider);
+    assert.equal(code, 500, provider);
+    assert.equal(body.data.error, '소셜 계정 정보를 확인할 수 없습니다.', provider);
+    assert.ok(!app.calls.some(call => call.startsWith('token:')), provider);
   }
 });

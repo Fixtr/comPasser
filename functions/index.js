@@ -80,6 +80,9 @@ exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, a
 // adMobRewardCallback is paused (2026-10-21): ADMOB_REWARDED_AD_UNITS was never configured, so every callback failed.
 // admob-reward.js and grantAdReward stay; restore the export and its verifier from git history when ad units exist.
 
+// Without a provider id every such caller would share one real account named kakao:undefined.
+const SOCIAL_PROFILE_MISSING = '소셜 계정 정보를 확인할 수 없습니다.';
+
 exports.verifySocialToken = functions.https.onRequest((req, res) => {
     // CORS 및 Preflight(OPTIONS) 요청 허용을 위해 전체 로직을 cors로 래핑
     cors(req, res, async () => {
@@ -110,6 +113,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = response.data;
+                if (!data?.id) throw new Error(SOCIAL_PROFILE_MISSING);
 
                 uid = `kakao:${data.id}`;
                 userInfo.email = data.kakao_account?.email;
@@ -120,7 +124,9 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
                 const response = await axios.get("https://openapi.naver.com/v1/nid/me", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                const data = response.data.response;
+                // A failed Naver lookup still answers 200, with resultcode other than '00' and no response.
+                const data = response.data?.response;
+                if (!data?.id) throw new Error(SOCIAL_PROFILE_MISSING);
 
                 uid = `naver:${data.id}`;
                 userInfo.email = data.email;
