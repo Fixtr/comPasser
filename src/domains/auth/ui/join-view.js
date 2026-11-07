@@ -22,12 +22,17 @@ export default class JoinView extends HTMLElement {
       this._showInAppBrowserWarning();
     }
 
-    window.addEventListener('i18n-changed', () => {
+    this._i18nHandler = () => {
       this.updateTexts();
       if (isInAppBrowser()) {
         this._updateInAppBannerTexts();
       }
-    });
+    };
+    window.addEventListener('i18n-changed', this._i18nHandler);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('i18n-changed', this._i18nHandler);
   }
 
   updateTexts() {
