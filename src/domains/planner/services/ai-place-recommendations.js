@@ -5,7 +5,7 @@ import { validRecommendationWeather } from '../../../../functions/recommendation
 
 export async function getAIPlaceRecommendations(input) {
   if (!app) throw Object.assign(new Error('recommendation-config'),{code:'functions/failed-precondition'});
-  const response = await httpsCallable(getFunctions(app),'recommendPlaces',{timeout:190000})(input);
+  const response = await httpsCallable(getFunctions(app),'recommendPlaces',{timeout:310000})(input);
   const result = response.data;
   if (!result || result.cityId !== input.cityId || result.country !== input.country || result.date !== input.date || result.lang !== input.lang
     || result.interest !== (input.interest ?? 'any')

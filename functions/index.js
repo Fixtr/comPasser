@@ -82,6 +82,8 @@ exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, a
 
 // Without a provider id every such caller would share one real account named kakao:undefined.
 const SOCIAL_PROFILE_MISSING = '소셜 계정 정보를 확인할 수 없습니다.';
+// Only these validation messages reach the client; provider and SDK errors can carry internal detail.
+const socialError = message => Object.assign(new Error(message), { expose: true });
 
 exports.verifySocialToken = functions.https.onRequest((req, res) => {
     // CORS 및 Preflight(OPTIONS) 요청 허용을 위해 전체 로직을 cors로 래핑
@@ -90,14 +92,14 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
             // 클라이언트(httpsCallable) 호출 시 데이터는 req.body.data에 담겨서 옵니다.
             const requestData = req.body.data;
             if (!requestData) {
-                throw new Error("요청 데이터가 올바르지 않습니다.");
+                throw socialError("요청 데이터가 올바르지 않습니다.");
             }
 
             const { provider, token } = requestData;
 
             // 파라미터 검증
             if (!provider || !token) {
-                throw new Error("제공자(provider)와 액세스 토큰(token)은 필수 항목입니다.");
+                throw socialError("제공자(provider)와 액세스 토큰(token)은 필수 항목입니다.");
             }
 
             let uid = null;
@@ -113,7 +115,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = response.data;
-                if (!data?.id) throw new Error(SOCIAL_PROFILE_MISSING);
+                if (!data?.id) throw socialError(SOCIAL_PROFILE_MISSING);
 
                 uid = `kakao:${data.id}`;
                 userInfo.email = data.kakao_account?.email;
@@ -126,7 +128,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
                 });
                 // A failed Naver lookup still answers 200, with resultcode other than '00' and no response.
                 const data = response.data?.response;
-                if (!data?.id) throw new Error(SOCIAL_PROFILE_MISSING);
+                if (!data?.id) throw socialError(SOCIAL_PROFILE_MISSING);
 
                 uid = `naver:${data.id}`;
                 userInfo.email = data.email;
@@ -134,7 +136,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
                 userInfo.photoURL = data.profile_image;
 
             } else {
-                throw new Error("지원하지 않는 소셜 로그인 플랫폼입니다. ('kakao' 또는 'naver' 만 가능)");
+                throw socialError("지원하지 않는 소셜 로그인 플랫폼입니다. ('kakao' 또는 'naver' 만 가능)");
             }
 
             // 2. Firebase Auth 유저 확인/생성 및 커스텀 토큰 발급
@@ -179,7 +181,7 @@ exports.verifySocialToken = functions.https.onRequest((req, res) => {
             }
 
             // 클라이언트에게는 500 에러와 함께 구조화된 에러 메시지 전송
-            return res.status(500).send({ data: { error: error.message } });
+            return res.status(500).send({ data: { error: error.expose ? error.message : '소셜 로그인을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.' } });
         }
     });
 });
@@ -201,7 +203,8 @@ const recommendPlaces = createPlaceRecommendations({axios,
     getKeys: () => ({gemini:GEMINI_API_KEY.value(),maps:GOOGLE_MAPS_SERVER_KEY.value()}),
     reserveRequest:createRecommendationLimiter({db:admin.firestore()}),
 });
-exports.recommendPlaces = onCall({secrets:[GEMINI_API_KEY,GOOGLE_MAPS_SERVER_KEY],timeoutSeconds:180,maxInstances:3}, async request => {
+// 300s: worst case (search+backup, format, weather, 6 Places lookups) passes 180s; the client waits 310s.
+exports.recommendPlaces = onCall({secrets:[GEMINI_API_KEY,GOOGLE_MAPS_SERVER_KEY],timeoutSeconds:300,maxInstances:3}, async request => {
     try {
         validateRecommendationInput(request.data);
         if (request.auth) {

@@ -19,6 +19,7 @@ async function getSeoulCrowd({ fetchImpl = fetch, now = Date.now() } = {}) {
   if (cached && now < expires) return cached;
   // The official sample key is restricted to this one area; a full key can replace it on the server.
   const key = process.env.SEOUL_OPEN_API_KEY || 'sample';
+  // shortcut: Seoul API on :8088 is http only, key travels in clear; use a key with no billing until it offers TLS
   const url = `http://openapi.seoul.go.kr:8088/${encodeURIComponent(key)}/json/citydata_ppltn/1/1/${encodeURIComponent(AREA)}`;
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(7000) });
   if (!response.ok) throw new Error(`Seoul API returned ${response.status}`);

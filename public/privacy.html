@@ -33,7 +33,7 @@
 <body>
 <main>
   <h1>ComPasser 개인정보처리방침</h1>
-  <p class="meta">시행일: 2026년 11월 5일 · 이전 버전 시행일: 2026년 10월 29일<br>
+  <p class="meta">시행일: 2026년 11월 7일 · 이전 버전 시행일: 2026년 11월 5일<br>
     <a href="#en" lang="en">English translation below</a> (the Korean text is authoritative)</p>
 
   <p>ComPasser(이하 “서비스”)는 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 등 관련 법령을 준수합니다.
@@ -50,7 +50,7 @@
       <tr><td>공개 코스 (선택)</td><td>코스 제목(영문 포함), 소개 글, 방문 장소·체류 시간, 방문 정보와 출처, 공개 작성자 이름·채널명, 원본 게시물 링크</td><td>저장한 일정을 이용자가 직접 공개할 때</td></tr>
       <tr><td>여행자 후기 (선택)</td><td>방문 날짜, 후기 글, 걸은 거리, 쓴 금액, 머문 시간</td><td>공개 코스에 이용자가 후기를 쓸 때</td></tr>
       <tr><td>서비스 이용 정보</td><td>일정 생성 이용권 잔액·사용 기록, 저장한 추천 장소, 탈퇴 처리 상태</td><td>서비스 이용 중</td></tr>
-      <tr><td>요청 제한 정보</td><td>IP 주소의 해시값, 그날의 요청 횟수와 마지막 요청 시각 (IP 주소 원문은 저장하지 않음)</td><td>AI 장소 추천을 요청할 때 (로그인하지 않은 경우 포함)</td></tr>
+      <tr><td>요청 제한 정보</td><td>로그인한 경우 계정 고유 식별자의 해시값, 로그인하지 않은 경우 IP 주소의 해시값, 그날의 요청 횟수와 마지막 요청 시각 (계정 식별자와 IP 주소 원문은 저장하지 않음)</td><td>AI 장소 추천을 요청할 때 (로그인하지 않은 경우 포함)</td></tr>
       <tr><td>이용 기록</td><td>화면 조회 경로, 기능 사용 이벤트(누른 장소 이름·장소 ID·코스 ID 포함), 기기·브라우저 유형, 대략적 지역 정보, 쿠키</td><td>서비스 이용 중 자동 수집 (Google Analytics)</td></tr>
     </tbody>
   </table>
@@ -83,7 +83,7 @@
     <li>공개 코스를 비공개로 바꾸거나 장소 구성(장소, 머무는 시간 등)을 바꾸면 그 코스의 후기는 자동으로 삭제됩니다. 제목이나 소개 글만 바꾸면 후기는 유지됩니다.</li>
     <li>공유 링크로 만든 일정 사본은 탈퇴 후에도 남지만, 원본 일정이 삭제되면 더 이상 열리지 않습니다. 다만 이 기능 이전에 만든 일부 공유 링크는 원본과 관계없이 계속 열릴 수 있으며, 삭제를 원하면 아래 연락처로 요청해 주시기 바랍니다.</li>
     <li>탈퇴 처리 기록(계정 고유 식별자, 카카오·네이버 로그인은 해당 서비스의 회원 번호 포함, 처리 상태, 접수 번호, 가입·탈퇴 처리 시각)은 이미 발급된 로그인 정보가 다시 쓰이지 않도록 탈퇴 후에도 보관합니다. 이 기록에는 여행 일정이나 이메일 등 연락처가 들어 있지 않습니다.</li>
-    <li>요청 제한을 위한 IP 해시값, 요청 횟수와 마지막 요청 시각은 별도의 삭제 주기 없이 보관될 수 있습니다. IP 주소 원문은 저장하지 않습니다.</li>
+    <li>요청 제한을 위한 해시값(로그인한 경우 계정 고유 식별자, 그렇지 않은 경우 IP 주소), 요청 횟수와 마지막 요청 시각은 별도의 삭제 주기 없이 보관될 수 있으며, 회원 탈퇴 후에도 남을 수 있습니다. 계정 식별자와 IP 주소 원문은 저장하지 않습니다.</li>
     <li>폐지된 휴대전화 본인인증 기능에서 과거에 수집한 휴대전화번호와 인증 상태는 더 이상 이용하거나 다시 수집하지 않으며, 회원 탈퇴 시 함께 삭제됩니다.</li>
     <li>이용 기록은 Google Analytics 정책에 따라 보관됩니다.</li>
     <li>관계 법령이 별도의 보존 기간을 정한 경우 해당 기간 동안 보관 후 파기합니다.</li>
@@ -127,7 +127,7 @@
   <ul>
     <li>모든 통신은 HTTPS로 암호화됩니다.</li>
     <li>Firestore 보안 규칙으로 비공개 정보(저장한 일정, 생년월일, 이용권 등)는 본인만 접근할 수 있도록 서버 단에서 제한합니다. 3항의 공개 정보는 예외입니다.</li>
-    <li>요청 제한에 쓰는 IP 주소는 원문이 아닌 해시값으로 저장합니다.</li>
+    <li>요청 제한에 쓰는 계정 고유 식별자와 IP 주소는 원문이 아닌 해시값으로 저장합니다.</li>
     <li>AI 모델 API 키는 서버(Cloud Functions)에만 보관되며 앱에 포함되지 않습니다.</li>
   </ul>
 
@@ -148,7 +148,7 @@
 
   <section class="translation" id="en" lang="en">
     <h1>ComPasser Privacy Policy (English translation)</h1>
-    <p class="meta">Effective: November 5, 2026 · Previous version effective: October 29, 2026<br>
+    <p class="meta">Effective: November 7, 2026 · Previous version effective: November 5, 2026<br>
       This is a translation. If it differs from the Korean text above, the Korean text prevails.</p>
 
     <p>ComPasser (the “Service”) handles your personal information with care and follows the Korean Personal Information Protection Act and related laws.
@@ -165,7 +165,7 @@
         <tr><td>Public routes (optional)</td><td>Route title (including an English title), description, stops and visit times, visitor information and its source, public author name or channel, link to the original post</td><td>When you choose to publish a saved trip</td></tr>
         <tr><td>Traveler reviews (optional)</td><td>Visit date, review text, walking distance, money spent, time spent</td><td>When you write a review of a public route</td></tr>
         <tr><td>Service records</td><td>Itinerary generation credit balance and use, saved recommended places, account deletion status</td><td>While you use the Service</td></tr>
-        <tr><td>Rate limiting</td><td>A hash of your IP address, that day's request count and the time of the last request (the IP address itself is not stored)</td><td>When you request AI place recommendations (also when logged out)</td></tr>
+        <tr><td>Rate limiting</td><td>A hash of your account's unique identifier when you are logged in, or of your IP address when you are not, that day's request count and the time of the last request (neither the identifier nor the IP address itself is stored)</td><td>When you request AI place recommendations (also when logged out)</td></tr>
         <tr><td>Usage data</td><td>Pages viewed, feature events (including place names, place IDs and route IDs you tapped), device and browser type, approximate region, cookies</td><td>Collected automatically while you use the Service (Google Analytics)</td></tr>
       </tbody>
     </table>
@@ -198,7 +198,7 @@
       <li>When you unpublish a public route or change its stops (places, time at each place and so on), its reviews are deleted automatically. Editing only the title or description keeps them.</li>
       <li>Share-link copies remain after account deletion but stop opening once the original trip is deleted. Some share links created before this feature may keep opening regardless; email us below to have them deleted.</li>
       <li>A deletion record (your account's unique identifier, which for Kakao and Naver logins includes that service's member number, its status, receipt number, and account creation and deletion times) is kept after account deletion so that old login tokens cannot be reused. It contains no trips and no email or other contact details.</li>
-      <li>Rate-limit IP hashes, request counts and last request times may be kept without a fixed deletion schedule. The IP address itself is not stored.</li>
+      <li>Rate-limit hashes (of your account identifier when logged in, otherwise of your IP address), request counts and last request times may be kept without a fixed deletion schedule, including after you delete your account. Neither the identifier nor the IP address itself is stored.</li>
       <li>Phone numbers and verification status collected by a discontinued phone verification feature are no longer used or collected again, and are deleted with your account.</li>
       <li>Usage data is kept according to Google Analytics' policies.</li>
       <li>Where a law requires a longer retention period, we keep the data for that period and then delete it.</li>
@@ -242,7 +242,7 @@
     <ul>
       <li>All communication is encrypted with HTTPS.</li>
       <li>Firestore security rules limit private information (saved trips, date of birth, credits and so on) to its owner on the server. The public information in section 3 is the exception.</li>
-      <li>IP addresses used for rate limiting are stored as hashes, not as the addresses themselves.</li>
+      <li>Account identifiers and IP addresses used for rate limiting are stored as hashes, not as themselves.</li>
       <li>The AI model API key is kept only on the server (Cloud Functions) and is not in the app.</li>
     </ul>
 
