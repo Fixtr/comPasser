@@ -202,9 +202,9 @@ test('내 일정 카드는 제목에 도시가 없을 때 날짜 줄에 도시�
       { id: 'english', title: 'Busan · 08/20 · Walk', itineraryPlan: plan('busan') },
     ]; }
     export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-    export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
-    export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
-    export async function watchSharedItinerary() {} export async function getItineraryById() {}
+    export async function createSharedItinerary() {}
+    export async function loadItineraryDocument() {}
+    export async function watchSharedItinerary() {}
   ` }));
   await page.goto('/profile/trips');
   const cards = page.locator('profile-view:visible .trip-card');
@@ -345,9 +345,9 @@ test('공개 코스 편집은 출처 없는 방문 정보를 거부하고 승인
       { type: 'dining', title: 'Cafe', location: 'Seoul cafe', duration: 60 }
     ] }] } }]; }
     export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-    export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
-    export async function getSharedItinerary() {} export async function loadItineraryDocument() {}
-    export async function watchSharedItinerary() {} export async function getItineraryById() {}
+    export async function createSharedItinerary() {}
+    export async function loadItineraryDocument() {}
+    export async function watchSharedItinerary() {}
   ` }));
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
     export async function getPublicCourse() { return null; }
@@ -402,9 +402,9 @@ test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주�
 const missingItineraryStore = `
   export async function loadItineraryDocument() { return null; }
   export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-  export async function deleteAllUserItineraries() {} export async function createSharedItinerary() {}
-  export async function getSharedItinerary() {} export async function getUserItineraries() { return []; }
-  export function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
+  export async function createSharedItinerary() {}
+  export async function getUserItineraries() { return []; }
+  export function watchSharedItinerary() { return () => {}; }
 `;
 
 test('느린 연결에서 앱 코드가 오기 전에도 불러오는 중임을 보여 준다', async ({ page }) => {
@@ -2095,8 +2095,8 @@ async function openUnsavedDraft(page, waitForShare = '', waitForSave = '') {
     export async function saveItinerary() { ${waitForSave} return 'saved1'; }
     export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
-    export async function deleteAllUserItineraries() {} export async function getSharedItinerary() {} export async function loadItineraryDocument() { return { itineraryPlan: { days: [] }, access: 'shared' }; }
-    export async function watchSharedItinerary() { return () => {}; } export async function getItineraryById() {}
+    export async function loadItineraryDocument() { return { itineraryPlan: { days: [] }, access: 'shared' }; }
+    export async function watchSharedItinerary() { return () => {}; }
   ` }));
   await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
     contentType: 'text/javascript', body: `

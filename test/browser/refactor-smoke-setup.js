@@ -168,7 +168,6 @@ async (page) => {
           }, reject,
         }));
       }
-      export const GeminiOptimizer = { generateOptimizedItinerary };
     `,
     '/src/domains/map/services/google-maps-loader.js': `
       import fixtures from '/test/fixtures/destination-places.json?import';
