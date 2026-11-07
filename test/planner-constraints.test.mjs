@@ -773,3 +773,11 @@ test('a user-added visit matching a named end point is kept, not promoted', () =
   assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
   assert.equal(day.scheduleItems[1].title, 'My pick');
 });
+
+test('a user-added first visit matching the start point is kept, not promoted into departure', () => {
+  const request = { ...flatRequest, anchorSchedules: [] };
+  const visit = { time: '09:30', endTime: '10:00', type: 'attraction', title: 'My pick', location: flatRequest.startLocation, addedByUser: true };
+  const [day] = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit] }], request, 'ko');
+  assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
+  assert.equal(day.scheduleItems[1].title, 'My pick');
+});
