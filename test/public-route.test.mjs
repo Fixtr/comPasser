@@ -112,7 +112,10 @@ test('public pages read only the guest-readable collection and stop serving revo
 });
 
 test('directory links every route on the same site and the sitemap uses canonical route URLs', async t => {
-  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ documents: [] })));
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(url.searchParams.get('orderBy'), 'createdAt desc');
+    return new Response(JSON.stringify({ documents: [] }));
+  });
   const directory = await worker.fetch(request('/en/routes'), env);
   const html = await directory.text();
   // Each route page carries its absolute canonical URL; the directory's own links stay on the site serving it.
@@ -269,4 +272,9 @@ test('a share link preview names only the catalogue city and day count, and fall
   assert.equal(await (await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets })).text(), shell);
   // IDs no document can have go straight to the app, which shows its not-found page.
   assert.equal(await (await worker.fetch(request('/share/a-b'), { ...env, ASSETS: assets })).text(), shell);
+});
+
+test('publishing reads the previous course from the server so a stale cache cannot send an old createdAt', () => {
+  const source = readFileSync(new URL('../src/domains/itinerary/services/public-course-service.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\bgetDoc\b/);
 });

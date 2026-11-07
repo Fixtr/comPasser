@@ -20,9 +20,10 @@ export async function getPublicCourse(sourceId) {
 export async function publishCourse(sourceId, { title, stops, review, titleEn, creditName, creditUrl }) {
   const ownerId = getCurrentUser()?.uid;
   if (!ownerId || !sourceId || !title?.trim() || stops.length < 2 || stops.length > 6) throw new Error('Invalid public course');
-  const { db, doc, getDoc, setDoc, serverTimestamp } = await loadFirestore();
+  const { db, doc, getDocFromServer, setDoc, serverTimestamp } = await loadFirestore();
   const ref = doc(db, 'public_courses', sourceId);
-  const previous = await getDoc(ref);
+  // A cached copy can carry an old createdAt/stops pair that the update rule rejects.
+  const previous = await getDocFromServer(ref);
   const signature = places => JSON.stringify(places.map(stop => [stop.name, stop.location, stop.stayMinutes,
     stop.englishName || '', stop.visitorInfo ? [stop.visitorInfo.englishMenu, stop.visitorInfo.reservation,
       stop.visitorInfo.sourceUrl, stop.visitorInfo.checkedOn] : null]));
