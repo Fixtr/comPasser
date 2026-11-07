@@ -20,7 +20,8 @@ async function publicDocuments(project, id, pageSize = 18) {
   if (!/^[a-z][a-z0-9-]{4,62}$/.test(project || '')) throw new Error('Missing public project');
   const url = new URL(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/public_courses${id ? `/${id}` : ''}`);
   for (const field of fields) url.searchParams.append('mask.fieldPaths', field);
-  if (!id) url.searchParams.set('pageSize', String(pageSize));
+  // firestore.rules requires createdAt on every public course, so ordering hides none.
+  if (!id) { url.searchParams.set('pageSize', String(pageSize)); url.searchParams.set('orderBy', 'createdAt desc'); }
   // Guest rules apply. No Admin credentials or private collection reads.
   const response = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } });
   if (id && response.status === 404) return null;

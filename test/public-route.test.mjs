@@ -112,13 +112,16 @@ test('public pages read only the guest-readable collection and stop serving revo
 });
 
 test('directory links every route on the same site and the sitemap uses canonical route URLs', async t => {
-  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ documents: [] })));
+  // The directory swallows fetch errors, so the request is checked after the call, not inside the mock.
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ documents: [] })));
   const directory = await worker.fetch(request('/en/routes'), env);
   const html = await directory.text();
+  assert.equal(fetchMock.mock.calls[0].arguments[0].searchParams.get('orderBy'), 'createdAt desc');
   // Each route page carries its absolute canonical URL; the directory's own links stay on the site serving it.
   for (const city of courseCities) for (const suffix of ['', '-2', '-3']) assert.ok(html.includes(`href="/en/routes/curated-${city.id}${suffix}"`));
   const sitemap = await worker.fetch(request('/sitemap.xml'), env);
   assert.equal(sitemap.headers.get('Content-Type'), 'application/xml');
+  assert.equal(fetchMock.mock.calls[1].arguments[0].searchParams.get('orderBy'), 'createdAt desc');
   assert.equal((await sitemap.text()).match(/<loc>/g).length, courseCities.length * 3 + 1);
   assert.match(await (await worker.fetch(request('/robots.txt'), env)).text(), /Sitemap: https:\/\/example.com\/sitemap.xml/);
   // Link-preview bots may read share pages; everyone else, search crawlers included, stays out.
@@ -269,4 +272,9 @@ test('a share link preview names only the catalogue city and day count, and fall
   assert.equal(await (await worker.fetch(request('/share/share1'), { ...env, ASSETS: assets })).text(), shell);
   // IDs no document can have go straight to the app, which shows its not-found page.
   assert.equal(await (await worker.fetch(request('/share/a-b'), { ...env, ASSETS: assets })).text(), shell);
+});
+
+test('publishing reads the previous course from the server so a stale cache cannot send an old createdAt', () => {
+  const source = readFileSync(new URL('../src/domains/itinerary/services/public-course-service.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\bgetDoc\b/);
 });

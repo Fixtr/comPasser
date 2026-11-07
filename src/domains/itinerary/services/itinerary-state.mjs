@@ -210,6 +210,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if (!items || !Array.isArray(places) || !places.length) return;
       let updated = false;
       for (const result of places) {
+        if (!result) continue; // map-view event payloads are untrusted
         const { index: itemIndex, name, address } = result;
         const item = items[itemIndex];
         if (item && !isFixedPlace(item) && Object.hasOwn(item, 'placeIntent') && Object.hasOwn(result, 'verifiedPlace')) {

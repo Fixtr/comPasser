@@ -204,3 +204,10 @@ test('개인 일정 일괄 삭제는 모든 문서 캐시만 제거하고 초안
   assert.notEqual(state.activateDraft(), null);
   assert.notEqual(state.activateDocument('public', { sharedOnly: true }), null);
 });
+
+test('지도 결과에 빈 항목이 섞여도 나머지 장소는 확인된다', () => {
+  const state = make(memoryStorage());
+  state.open(plan());
+  state.resolvePlaces(1, [null, { index: 0, name: '확인된 이름', address: '주소' }]);
+  assert.equal(state.current.plan.days[1].scheduleItems[0].resolvedName, '확인된 이름');
+});
