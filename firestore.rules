@@ -50,7 +50,15 @@ service cloud.firestore {
     // (src/domains/itinerary/services/firestore-service.js: saveItinerary/updateItinerary/renameItinerary/getUserItineraries/deleteItinerary)
     match /itineraries/{itineraryId} {
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && canWriteAccountData();
+      // 생성은 saveItinerary가 쓰는 모양만 허용한다: 제목은 null 또는 수정과 같은 1–100자, 저장 시각은 serverTimestamp().
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && canWriteAccountData()
+        && request.resource.data.keys().hasOnly(['userId', 'itineraryPlan', 'title', 'createdAt'])
+        && request.resource.data.itineraryPlan is map
+        // 220a970 이전 앱 빌드(Capacitor 번들)는 title 키 없이 저장하므로, 키가 없어도 null과 같이 허용한다.
+        && (request.resource.data.get('title', null) == null || (request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 100))
+        && request.resource.data.createdAt == request.time;
 
       // 소유자는 이름(title)과 저장한 일정 내용(itineraryPlan)만 고칠 수 있다.
       // 소유자(userId)와 저장 시각(createdAt)은 바꾸거나 지울 수 없다.
@@ -167,6 +175,8 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/itineraries/$(resource.data.sourceId)).data.userId == resource.data.ownerId);
       allow create: if request.auth != null && canWriteAccountData()
         && request.resource.data.keys().hasOnly(['itineraryPlan', 'createdAt', 'sourceId', 'ownerId'])
+        && request.resource.data.itineraryPlan is map
+        && request.resource.data.createdAt == request.time
         && request.resource.data.sourceId is string
         && request.resource.data.sourceId.matches('^[a-zA-Z0-9]+$')
         && request.resource.data.ownerId == request.auth.uid
