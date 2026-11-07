@@ -10,8 +10,8 @@ test('저장 시각을 수정하지 않아도 새 이동시간에 따른 종료 
   assert.deepEqual(plan,before);
 });
 
+import { applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import {
-  buildItineraryViewModel,
   reconcileWithConstraints,
   getDayConstraints,
   getEndTimeWarning,
@@ -36,6 +36,9 @@ const airportRequest = {
 };
 
 const types = items => items.map(i => `${i.type}@${i.time}`).join(' | ');
+// itinerary-view.js 와 같은 순서: 열 때 reconcile, 실측 이동시간은 보고 있는 날짜에만 반영.
+const dayItems = (plan, dayIndex = 0, routes = []) => applyTransitDelays(
+  plan.days[dayIndex].scheduleItems, routes, getDayConstraints(plan, dayIndex)?.startTime);
 
 test('saved itinerary loaded from a link gets the guardrails re-applied', () => {
   // 실제 제보 재현: 저장된 데이터에 가짜 "OO로 이동" 항목 2개가 남아 있고
@@ -54,26 +57,25 @@ test('saved itinerary loaded from a link gets the guardrails re-applied', () => 
     }]
   };
 
-  const vm = buildItineraryViewModel({ rawItinerary: saved });
+  const items = dayItems(reconcileWithConstraints(saved));
 
   assert.equal(
-    vm.scheduleItems.some(i => /이동$/.test(i.title)),
+    items.some(i => /이동$/.test(i.title)),
     false,
     '가짜 이동 항목은 저장된 일정을 열 때도 제거돼야 한다'
   );
-  assert.equal(vm.scheduleItems.at(-1).type, 'arrival');
-  assert.equal(vm.scheduleItems.at(-1).time, '20:51');
+  assert.equal(items.at(-1).type, 'arrival');
+  assert.equal(items.at(-1).time, '20:51');
 });
 
 test('an itinerary without a saved request is left untouched instead of crashing', () => {
   // 아주 예전 저장본에는 request 가 없다. 보정 기준이 없으므로 원본 유지.
   const legacy = { days: [{ day: 1, scheduleItems: [{ time: '09:00', endTime: '10:00', type: 'attraction', title: '옛날' }] }] };
 
-  const vm = buildItineraryViewModel({ rawItinerary: legacy });
+  const reconciled = reconcileWithConstraints(legacy);
 
-  assert.equal(vm.scheduleItems.length, 1);
-  assert.equal(vm.scheduleItems[0].title, '옛날');
-  assert.equal(vm.overflowMinutes, 0);
+  assert.equal(reconciled, legacy);
+  assert.equal(getEndTimeWarning(reconciled, 0).overflowMinutes, 0);
 });
 
 test('the legacy itineraryPlan wrapper survives reconciliation', () => {
@@ -111,11 +113,12 @@ test('the end-time warning is computed for the day being viewed, not always day 
   // 1일차 마지막 방문 -> 도착 구간이 실제로 120분 걸린다.
   const transitRoutes = [{ fromIndex: 1, toIndex: 2, durationMinutes: 120 }];
 
-  const day1 = buildItineraryViewModel({ rawItinerary: multiDay, activeDayIndex: 0, transitRoutes });
+  const reconciled = reconcileWithConstraints(multiDay);
+  const day1 = getEndTimeWarning(reconciled, 0, transitRoutes);
   assert.equal(day1.endTime, '20:00');
   assert.ok(day1.overflowMinutes > 0, '1일차는 종료 시각을 초과해야 한다');
 
-  const day2 = buildItineraryViewModel({ rawItinerary: multiDay, activeDayIndex: 1, transitRoutes: [] });
+  const day2 = getEndTimeWarning(reconciled, 1, []);
   assert.equal(day2.endTime, '22:00', '2일차는 자기 종료 시각을 써야 한다');
   assert.equal(day2.overflowMinutes, 0, '여유 있는 날짜에는 경고가 없어야 한다');
 });
@@ -130,13 +133,11 @@ test('real transit time pushes the arrival honestly instead of clamping it', () 
     ] }]
   };
 
-  const vm = buildItineraryViewModel({
-    rawItinerary: raw,
-    transitRoutes: [{ fromIndex: 1, toIndex: 2, durationMinutes: 94 }]
-  });
+  const routes = [{ fromIndex: 1, toIndex: 2, durationMinutes: 94 }];
+  const reconciled = reconcileWithConstraints(raw);
 
-  assert.equal(vm.scheduleItems.at(-1).time, '21:41', '도착 시각을 종료 시각으로 눌러 담으면 안 된다');
-  assert.equal(vm.overflowMinutes, 50);
+  assert.equal(dayItems(reconciled, 0, routes).at(-1).time, '21:41', '도착 시각을 종료 시각으로 눌러 담으면 안 된다');
+  assert.equal(getEndTimeWarning(reconciled, 0, routes).overflowMinutes, 50);
 });
 
 test('no transit data yet still yields a renderable view without a false warning', () => {
@@ -147,14 +148,15 @@ test('no transit data yet still yields a renderable view without a false warning
     ] }]
   };
 
-  const vm = buildItineraryViewModel({ rawItinerary: raw, transitRoutes: [] });
+  const reconciled = reconcileWithConstraints(raw);
+  const items = dayItems(reconciled);
 
-  assert.ok(vm.scheduleItems.length >= 2);
-  assert.equal(vm.scheduleItems.at(-1).time, '20:51');
-  assert.equal(vm.overflowMinutes, 0, '실제 이동시간을 모르는 동안 허위 경고를 띄우면 안 된다');
+  assert.ok(items.length >= 2);
+  assert.equal(items.at(-1).time, '20:51');
+  assert.equal(getEndTimeWarning(reconciled, 0, []).overflowMinutes, 0, '실제 이동시간을 모르는 동안 허위 경고를 띄우면 안 된다');
 });
 
-test('building the view model twice is idempotent (generation + load both run it)', () => {
+test('reconciling twice is idempotent (generation + load both run it)', () => {
   const raw = {
     request: airportRequest,
     days: [{ day: 1, scheduleItems: [
@@ -163,29 +165,16 @@ test('building the view model twice is idempotent (generation + load both run it
     ] }]
   };
 
-  const once = buildItineraryViewModel({ rawItinerary: raw });
-  const twice = buildItineraryViewModel({ rawItinerary: once.itinerary });
+  const once = reconcileWithConstraints(raw);
+  const twice = reconcileWithConstraints(once);
 
-  assert.equal(types(once.scheduleItems), types(twice.scheduleItems));
+  assert.equal(types(once.days[0].scheduleItems), types(twice.days[0].scheduleItems));
 });
 
-test('an out-of-range day index falls back to the first day instead of throwing', () => {
-  const raw = {
-    request: airportRequest,
-    days: [{ day: 1, scheduleItems: [{ time: '10:00', endTime: '11:00', type: 'attraction', title: 'A', location: '경복궁' }] }]
-  };
-
-  const vm = buildItineraryViewModel({ rawItinerary: raw, activeDayIndex: 7 });
-
-  assert.ok(vm.scheduleItems.length > 0);
-  assert.equal(vm.endTime, '20:51');
-});
-
-test('empty and malformed inputs produce an empty view model without throwing', () => {
-  assert.deepEqual(buildItineraryViewModel({ rawItinerary: null }).scheduleItems, []);
-  assert.deepEqual(buildItineraryViewModel({}).scheduleItems, []);
-  assert.deepEqual(buildItineraryViewModel().scheduleItems, []);
-  assert.deepEqual(buildItineraryViewModel({ rawItinerary: { days: [] } }).scheduleItems, []);
+test('empty and malformed inputs are returned unchanged without throwing', () => {
+  assert.equal(reconcileWithConstraints(null), null);
+  assert.deepEqual(reconcileWithConstraints({}), {});
+  assert.deepEqual(reconcileWithConstraints({ days: [] }), { days: [] });
 });
 
 test('getDayConstraints matches by day number and falls back to index', () => {
@@ -199,7 +188,7 @@ test('getDayConstraints matches by day number and falls back to index', () => {
 });
 
 test('getEndTimeWarning reports overflow on the already-adjusted plan without normalizing it away', () => {
-  // 회귀 방지: 경고 갱신에 buildItineraryViewModel(=reconcile 포함)을 쓰면
+  // 회귀 방지: 경고 갱신 전에 reconcileWithConstraints 를 다시 돌리면
   // enforcePlannerConstraints 가 초과 항목을 정리하고 도착을 종료 시각으로
   // 되돌려 초과가 0이 돼버린다. 탭 전환 시 실제로 경고가 사라졌던 버그.
   const adjusted = {

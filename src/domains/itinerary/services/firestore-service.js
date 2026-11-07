@@ -5,8 +5,7 @@ import { watchSharedAccess } from './shared-access-watch.mjs';
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
+        const { db, collection, addDoc, serverTimestamp } = await loadFirestore();
         const itinerariesRef = collection(db, "itineraries");
         const docRef = await addDoc(itinerariesRef, {
             userId: userId,
@@ -67,8 +66,7 @@ export async function updateItinerary(documentId, itineraryPlan) {
 
 export async function getUserItineraries(userId) {
     try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
+        const { db, collection, getDocs, query, where, orderBy } = await loadFirestore();
         const itinerariesRef = collection(db, "itineraries");
         const q = query(itinerariesRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
@@ -105,24 +103,6 @@ export async function deleteItinerary(documentId) {
     }
 }
 
-export async function deleteAllUserItineraries(userId) {
-    try {
-        const { db, collection, addDoc, getDocs, query, where, orderBy,
-                serverTimestamp, doc, deleteDoc, getDoc } = await loadFirestore();
-        const itinerariesRef = collection(db, "itineraries");
-        const q = query(itinerariesRef, where("userId", "==", userId));
-        const querySnapshot = await getDocs(q);
-        
-        const deletePromises = querySnapshot.docs.map(document => deleteItinerary(document.id));
-        
-        await Promise.all(deletePromises);
-        console.log(`Deleted all ${deletePromises.length} itineraries for user ${userId}`);
-    } catch (error) {
-        console.error("Error deleting all user itineraries:", error);
-        throw error;
-    }
-}
-
 export async function createSharedItinerary(itineraryPlan, sourceId) {
     try {
         const ownerId = getCurrentUser()?.uid;
@@ -142,10 +122,6 @@ export async function createSharedItinerary(itineraryPlan, sourceId) {
     }
 }
 
-export async function getSharedItinerary(documentId) {
-    const result = await loadItineraryDocument(documentId, { sharedOnly: true });
-    return result?.itineraryPlan ?? null;
-}
 /**
  * 명시적 공유 주소와 비로그인 조회에서는 공개 공유본만 읽는다.
  * 로그인한 예전 /view 주소는 본인 일정 → 공유본 순으로 조회한다.
@@ -165,10 +141,4 @@ export async function watchSharedItinerary(documentId, onInvalidated) {
     const { db, doc, getDocFromServer } = await loadFirestore();
     return watchSharedAccess(async () =>
         (await getDocFromServer(doc(db, 'shared_itineraries', documentId))).exists(), onInvalidated);
-}
-
-// 일정 내용만 받던 기존 호출부를 위한 호환 API.
-export async function getItineraryById(documentId) {
-    const result = await loadItineraryDocument(documentId, { userId: getCurrentUser()?.uid ?? null });
-    return result?.itineraryPlan ?? null;
 }

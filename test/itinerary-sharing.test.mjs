@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
 import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
-import { reconcileWithConstraints, getDayConstraints, getEndTimeWarning, buildItineraryViewModel } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
+import { reconcileWithConstraints, getDayConstraints, getEndTimeWarning } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
@@ -82,7 +82,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     t: realTranslations ? t : key => key, getLang: realTranslations ? getLang : () => 'ko', applyTranslations,
     trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
-    insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning, buildItineraryViewModel,
+    insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning,
     suggestRouteOrder, improveMeasuredRouteOrder, createFlexibleVisitChecks: () => ({travelMinutes:routeMinutes}),
     hoursPlaceId, lookupPlaceHours, loadScheduleHours, applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {},
   };

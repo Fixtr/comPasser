@@ -106,7 +106,3 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
       { retryable: !unknown && String(error?.code).startsWith('functions/'), outcomeUnknown: unknown });
   }
 }
-
-export const GeminiOptimizer = {
-  generateOptimizedItinerary
-};
