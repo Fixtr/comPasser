@@ -67,7 +67,8 @@ export function itineraryCity(itinerary, language = 'ko') {
 export function buildItineraryTitle(itinerary, language = 'ko') {
   const city = itineraryCity(itinerary, language);
   const title = datedTitle(itinerary, language);
-  return city ? `${city} · ${title}` : title;
+  // firestore.rules rejects a saved title over 100 characters, so a long AI stop name must not block saving.
+  return (city ? `${city} · ${title}` : title).slice(0, 100);
 }
 
 function datedTitle(itinerary, language) {

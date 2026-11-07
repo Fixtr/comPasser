@@ -72,3 +72,8 @@ test('a trip whose request names a catalogue city leads with that city', () => {
   assert.equal(itineraryCity({ request: { destination: { id: 'atlantis' } }, days }), '');
   assert.equal(buildItineraryTitle({ request: {}, days }), '8월 20일~8월 22일 · 2박 3일');
 });
+
+test('a long AI stop name is capped to the 100 characters the save rule allows', () => {
+  const itinerary = { days: [day('2026-08-20', stop('가'.repeat(150)))] };
+  assert.equal(buildItineraryTitle(itinerary).length, 100);
+});

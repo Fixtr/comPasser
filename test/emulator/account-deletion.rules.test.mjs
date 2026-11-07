@@ -9,8 +9,9 @@ const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url')
 function token(uid, authTime = 2000) {
     return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: uid, user_id: uid, aud: project, iss: `https://securetoken.google.com/${project}`, iat: 2000, exp: 9999999999, auth_time: authTime, firebase: { sign_in_provider: 'password' } })}.`;
 }
+const value = v => v === null ? { nullValue: null } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'object' ? { mapValue: { fields: fields(v) } } : { stringValue: v };
 function fields(data) {
-    return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, typeof value === 'number' ? { integerValue: String(value) } : { stringValue: value }]));
+    return Object.fromEntries(Object.entries(data).map(([key, entry]) => [key, value(entry)]));
 }
 async function request(path, { method = 'GET', user, authTime, data, admin = false } = {}) {
     return fetch(`${root}/${path}`, { method, headers: { 'Content-Type': 'application/json', ...(admin ? { Authorization: 'Bearer owner' } : user ? { Authorization: `Bearer ${token(user, authTime)}` } : {}) }, ...(data ? { body: JSON.stringify({ fields: fields(data) }) } : {}) });
@@ -70,13 +71,46 @@ test('other owners retain access and existing public shares remain guest-readabl
     assert.equal((await request('users/unaffected', { user: 'other' })).status, 403);
 });
 
-async function publishLinked(id, sourceId, ownerId, user=ownerId) {
-    const base=`projects/${project}/databases/(default)/documents`;
-    return fetch(`${root}:commit`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token(user)}`},body:JSON.stringify({writes:[
-        {update:{name:`${base}/shared_itineraries/${id}`,fields:fields({sourceId,ownerId,itineraryPlan:'test snapshot'})}},
-        {update:{name:`${base}/shared_itinerary_status/${id}`,fields:fields({sourceId,ownerId})}}
-    ]})});
+const base=`projects/${project}/databases/(default)/documents`;
+// Mirrors the SDK: serverTimestamp() is sent as a REQUEST_TIME transform on the same write.
+const serverCreatedAt=[{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}];
+function commit(user, writes) {
+    return fetch(`${root}:commit`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token(user)}`},body:JSON.stringify({writes})});
 }
+async function publishLinked(id, sourceId, ownerId, user=ownerId, {snapshot={itineraryPlan:{days:'test snapshot'}}, transforms=serverCreatedAt}={}) {
+    return commit(user, [
+        {update:{name:`${base}/shared_itineraries/${id}`,fields:fields({sourceId,ownerId,...snapshot})},updateTransforms:transforms},
+        {update:{name:`${base}/shared_itinerary_status/${id}`,fields:fields({sourceId,ownerId})}}
+    ]);
+}
+function createTrip(id, user, data, transforms=serverCreatedAt) {
+    return commit(user, [{update:{name:`${base}/itineraries/${id}`,fields:fields(data)},updateTransforms:transforms,currentDocument:{exists:false}}]);
+}
+
+test('private trip creation accepts only the saveItinerary shape', async()=>{
+    const plan={days:'plan'};
+    for(const [id,title] of [['untitledTrip',null],['titledTrip','서울 · 8월 20일'],['maxTitleTrip','a'.repeat(100)]]) {
+        const created=await createTrip(id,'creator',{userId:'creator',itineraryPlan:plan,title});
+        assert.equal(created.status,200,`${id}: ${await created.text()}`);
+    }
+    for(const [id,data,transforms] of [
+        ['hugeTitle',{userId:'creator',itineraryPlan:plan,title:'a'.repeat(101)}],
+        ['emptyTitle',{userId:'creator',itineraryPlan:plan,title:''}],
+        ['stringPlan',{userId:'creator',itineraryPlan:'plan',title:null}],
+        ['extraKey',{userId:'creator',itineraryPlan:plan,title:null,isAdmin:'true'}],
+        ['clientCreatedAt',{userId:'creator',itineraryPlan:plan,title:null,createdAt:1},[]],
+        ['noCreatedAt',{userId:'creator',itineraryPlan:plan,title:null},[]],
+        ['otherOwner',{userId:'victim',itineraryPlan:plan,title:null}],
+    ]) assert.equal((await createTrip(id,'creator',data,transforms)).status,403,id);
+});
+
+test('share snapshots need a map plan and a server createdAt', async()=>{
+    await seed('itineraries/shapeTrip',{userId:'shapeOwner'});
+    assert.equal((await publishLinked('stringPlanShare','shapeTrip','shapeOwner','shapeOwner',{snapshot:{itineraryPlan:'text'}})).status,403);
+    assert.equal((await publishLinked('clientTimeShare','shapeTrip','shapeOwner','shapeOwner',{snapshot:{itineraryPlan:{days:'x'},createdAt:1},transforms:[]})).status,403);
+    const created=await publishLinked('shapeShare','shapeTrip','shapeOwner');
+    assert.equal(created.status,200,await created.text());
+});
 
 test('open-share access recheck detects source deletion despite cached Firestore content',async()=>{
     const {initializeApp,deleteApp}=await import('firebase/app');
