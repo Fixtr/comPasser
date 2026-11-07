@@ -1,11 +1,6 @@
 import { nextVisitStart } from './itinerary-hours.mjs';
-import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes } from './itinerary-schedule-adjust.mjs';
+import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes, minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
 
-const minutes = value => {
-  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')) return null;
-  const [h, m] = value.split(':').map(Number);
-  return h * 60 + m;
-};
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
 export function hasUnavoidableFixedArrivalConflict(items, routes) {

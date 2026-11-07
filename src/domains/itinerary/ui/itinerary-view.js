@@ -22,7 +22,7 @@ import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itiner
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
 import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
 import { showConfirm } from '../../../utils/confirm-dialog.js';
-import { trimScheduleToEndTime, applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
+import { trimScheduleToEndTime, applyTransitDelays, minutesOf } from '../services/itinerary-schedule-adjust.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { exportItineraryImage } from './itinerary-image-export.js';
@@ -46,13 +46,8 @@ import { showToast as showGlobalToast } from '../../../utils/toast.js';
  * 그냥 두면 화면에 "undefined" 가 그대로 노출된다.
  */
 function fallbackDuration(item) {
-  const toMinutes = (time) => {
-    if (!/^\d{2}:\d{2}$/.test(time || '')) return null;
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
-  const start = toMinutes(item?.time);
-  const end = toMinutes(item?.endTime);
+  const start = minutesOf(item?.time);
+  const end = minutesOf(item?.endTime);
   if (start === null || end === null || end <= start) return '';
 
   const total = end - start;

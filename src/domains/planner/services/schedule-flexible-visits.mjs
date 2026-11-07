@@ -1,7 +1,6 @@
 import { isSameLocation, normalizePlannerRequest } from './planner-constraints.mjs';
+import { minutesOf as parseTime } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
-const parseTime = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
-  ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
 const formatTime = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
 /** Give untimed must-visits real slots before sending the existing timed-anchor contract. */

@@ -1,5 +1,4 @@
-const minutes = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '')
-  ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
+import { minutesOf as minutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 const fixed = item => ['departure', 'arrival', 'AnchorSchedule'].includes(item.type);
 

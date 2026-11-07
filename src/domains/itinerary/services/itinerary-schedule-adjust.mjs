@@ -11,8 +11,9 @@
  * 않는다(당겨오지 않고, 필요한 만큼만 미룬다).
  */
 
-function minutesOf(time) {
-  if (!/^\d{2}:\d{2}$/.test(time || '')) return null;
+// The one "HH:mm" parser: "24:00" or "25:70" is not a clock time, so it is null like any other bad value.
+export function minutesOf(time) {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time || '')) return null;
   const [hours, mins] = time.split(':').map(Number);
   return (hours * 60) + mins;
 }
@@ -32,7 +33,7 @@ function formatMinutes(totalMinutes) {
 export function applyTransitDelays(scheduleItems, transitRoutes, requestedStartTime) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return scheduleItems;
 
-  const validTime = value => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '');
+  const validTime = value => minutesOf(value) !== null;
   const result = scheduleItems.map(item => {
     if (item.type === 'departure') {
       // The user's requested start is authoritative, not an AI preparation

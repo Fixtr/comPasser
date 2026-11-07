@@ -1,5 +1,5 @@
 import { normalizePlannerRequest } from './planner-constraints.mjs';
-const minutes = time => /^([01]\d|2[0-3]):[0-5]\d$/.test(time || '') ? Number(time.slice(0,2))*60+Number(time.slice(3)) : null;
+import { minutesOf as minutes } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 
 export async function findFixedVisitIssue(request, checks = {}) {
   const days=normalizePlannerRequest(request).dailyData;
