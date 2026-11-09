@@ -2338,6 +2338,22 @@ test('초안을 저장해 주소가 바뀌어도 되돌리기가 남고, 빈 /vi
   await expect(page).toHaveURL(/\/view\/saved1$/);
 });
 
+test('결과 화면은 여행 전체를 캘린더 파일(.ics)로 내려받는다', async ({ page }) => {
+  await openUnsavedDraft(page);
+  const view = page.locator('itinerary-view:visible');
+  const download = page.waitForEvent('download');
+  await view.getByRole('button', { name: '캘린더에 추가 (.ics)' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('compasser-trip.ics');
+  const ics = await (await import('node:fs/promises')).readFile(await file.path(), 'utf8');
+  const stops = await view.evaluate(element => element.state.current.plan.days
+    .flatMap(day => day.scheduleItems).filter(item => /^\d\d:\d\d$/.test(item.time || '') && item.title).length);
+  expect(stops).toBeGreaterThan(0);
+  expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n[\s\S]*END:VCALENDAR\r\n$/);
+  expect(ics.split('BEGIN:VEVENT').length - 1).toBe(stops);
+  await expect(page.getByText('캘린더 파일을 내려받았어요', { exact: false })).toBeVisible();
+});
+
 test('복사가 실패하고 새로고침해도 다시 공유하면 같은 링크를 쓴다', async ({ page }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.addInitScript(() => {
