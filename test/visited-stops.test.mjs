@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createVisitedStops, VISITED_STOPS_KEY, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
+import { recommendationFields } from '../src/domains/map/services/recommendation-place.mjs';
 
 const memory = () => { const values = new Map(); return { values, getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }; };
 const day = () => ({ date: '2026-09-17', scheduleItems: [
@@ -68,4 +69,20 @@ test('next stop skips visited stops', () => {
   assert.equal(pickNextStop(plan, { visited: new Set(), currentTime: '19:00' }), undefined);
   // Unverified recommendations and unset stays are still skipped as before.
   assert.equal(pickNextStop({ date: 'd', scheduleItems: [{ type: 'cafe', title: 'x', placeIntent: {}, placeStatus: 'pending' }, { type: 'arrival', title: 'y', stayUnsetLabel: 'z' }] }, { visited: new Set() }), undefined);
+});
+
+test('a recommendation keeps its key when a place lookup renames it', () => {
+  const placeIntent = { purpose: '현지 식당', category: 'restaurant', nearLocation: '' };
+  const plan = { date: '2026-09-13', scheduleItems: [
+    { type: 'dining', time: '13:00', title: '실제 식당', placeIntent, placeStatus: 'verified' },
+    { type: 'cafe', time: '15:00', title: 'C' },
+  ] };
+  const [key] = stopKeys(plan);
+  const renamed = structuredClone(plan), item = renamed.scheduleItems[0];
+  Object.assign(item, recommendationFields(item, null));
+  assert.equal(item.title, '현지 식당');
+  assert.equal(stopKeys(renamed)[0], key);
+  item.title = '다른 식당'; item.placeStatus = 'verified';
+  assert.equal(stopKeys(renamed)[0], key);
+  assert.equal(pickNextStop(renamed, { visited: new Set([key]) }).title, 'C');
 });

@@ -4,13 +4,14 @@ const MAX_TRIPS = 50;
 
 export const isVisitableStop = item => Boolean(item?.title) && !['departure', 'arrival'].includes(item.type);
 
-// A stop is keyed by day date + title + how many same-titled stops precede it that day, so time
-// recalculation and moving other stops keep the mark. Replacing or renaming a stop drops its mark,
-// and reordering two stops with the same title swaps theirs.
+// A stop is keyed by day date + name + how many same-named stops precede it that day, so time
+// recalculation and moving other stops keep the mark. The name is an AI recommendation's purpose
+// (place lookups rewrite its title on every open) or else the title. Replacing a stop drops its
+// mark, and reordering two stops with the same name swaps theirs.
 export function stopKeys(day) {
   const seen = new Map();
   return (day?.scheduleItems || []).map(item => {
-    const title = String(item?.title || '');
+    const title = String(item?.placeIntent?.purpose || item?.title || '');
     const count = seen.get(title) || 0;
     seen.set(title, count + 1);
     return `${day.date}#${count}#${title}`;

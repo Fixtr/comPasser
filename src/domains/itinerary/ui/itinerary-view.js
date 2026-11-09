@@ -1749,12 +1749,12 @@ export default class ItineraryView extends HTMLElement {
 
       item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit(), visited?.has(keys[idx]));
       item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
-        const on = visitedStops.toggle(tripId, keys[idx]);
+        // Place lookups and measured times change the day after render without rebuilding the cards.
+        const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex] || dayData;
+        const on = visitedStops.toggle(tripId, stopKeys(day)[idx]);
         e.currentTarget.setAttribute('aria-pressed', String(on));
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
-        // Measured times can change after render without rebuilding the cards.
-        const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex];
-        if (day) this.updateNextStop(day);
+        this.updateNextStop(day);
       });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
