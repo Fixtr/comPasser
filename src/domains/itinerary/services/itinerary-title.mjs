@@ -27,7 +27,7 @@ function parseDate(value) {
   return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
 }
 
-function formatDateRange(days, isKo) {
+export function formatDateRange(days, isKo) {
   const first = parseDate(days[0]?.date);
   const last = parseDate(days[days.length - 1]?.date);
   if (!first) return '';

@@ -7,12 +7,18 @@ import { t } from '../utils/i18n.js';
 // The world map data and d3 are about 50 KB gzip; home paints its text first and the globe follows.
 const TravelGlobe = lazy(() => import('./travel-globe.jsx').then(module => ({ default: module.TravelGlobe })));
 
-export function HomeScreen({ authSettled, settings }) {
+export function HomeScreen({ user, authSettled, settings }) {
   const navigate = useNavigate();
   const location = useLocation();
   const active = ['/', '/home'].includes(location.pathname);
   const [importStatus, setImportStatus] = useState('');
   const [pickedCountry, setPickedCountry] = useState(null);
+  const tripOwner = authSettled && user?.uid;
+
+  // Only signed-in users have saved trips; guests never load the card or its Firestore code.
+  useEffect(() => {
+    if (tripOwner) void import('../domains/itinerary/ui/upcoming-trip.js').catch(error => console.error('Upcoming trip card unavailable:', error));
+  }, [tripOwner]);
 
   // The saved draft is restored when auth settles; saving a pick earlier would overwrite it.
   useEffect(() => {
@@ -76,6 +82,8 @@ export function HomeScreen({ authSettled, settings }) {
         <h1>{t('flowHomeTitle')}</h1>
         <p>{t('flowHomeDescription')}</p>
       </div>
+      {/* Mounted only while home shows, so coming back after saving a trip reads the list again. */}
+      {tripOwner && active && <upcoming-trip key={tripOwner} uid={tripOwner} />}
       {/* Above the globe so the two entries stay above the tab bar on short phones. */}
       <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
       <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>
