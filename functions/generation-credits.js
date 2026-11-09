@@ -11,15 +11,21 @@ function createGenerationCredits({ db, now = Date.now }) {
     const rewardRef = transactionId => db.collection('ad_reward_events')
         .doc(createHash('sha256').update(transactionId).digest('hex'));
 
+    // Credits refill to one at midnight Korea time, once per day, so an empty balance is never permanent.
+    const today = () => new Date(now()).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+
     function state(snapshot, identityCreatedAt) {
+        const day = today();
         const saved = snapshot.exists && snapshot.data().identityCreatedAt === identityCreatedAt
-            ? snapshot.data() : { identityCreatedAt, balance: 1, pending: null };
-        const balance = Number.isSafeInteger(saved.balance) && saved.balance >= 0 ? saved.balance : 0;
+            ? snapshot.data() : { identityCreatedAt, balance: 1, pending: null, refilledOn: day };
+        let balance = Number.isSafeInteger(saved.balance) && saved.balance >= 0 ? saved.balance : 0;
+        let refilledOn = saved.refilledOn ?? null;
+        if (balance === 0 && refilledOn !== day) { balance = 1; refilledOn = day; }
         if (saved.pending && saved.pending.startedAt + LEASE_MS <= now()) {
             // ponytail: a timed-out request can get one free result if it succeeded just before a crash.
-            return { identityCreatedAt, balance: balance + (saved.pending.unlimited ? 0 : 1), pending: null };
+            return { identityCreatedAt, balance: balance + (saved.pending.unlimited ? 0 : 1), pending: null, refilledOn };
         }
-        return { identityCreatedAt, balance, pending: saved.pending || null };
+        return { identityCreatedAt, balance, pending: saved.pending || null, refilledOn };
     }
 
     async function balance(uid, identityCreatedAt, unlimited = false) {
@@ -27,7 +33,8 @@ function createGenerationCredits({ db, now = Date.now }) {
             const ref = creditRef(uid);
             const snapshot = await tx.get(ref);
             const next = state(snapshot, identityCreatedAt);
-            if (!snapshot.exists || snapshot.data().identityCreatedAt !== identityCreatedAt || snapshot.data().pending !== next.pending) {
+            if (!snapshot.exists || snapshot.data().identityCreatedAt !== identityCreatedAt || snapshot.data().pending !== next.pending
+                || (snapshot.data().refilledOn ?? null) !== next.refilledOn) {
                 tx.set(ref, next);
             }
             return { balance: next.balance, generating: !!next.pending, ...(unlimited ? { unlimited: true } : {}) };
@@ -52,7 +59,7 @@ function createGenerationCredits({ db, now = Date.now }) {
             if (!snapshot.exists || snapshot.data().identityCreatedAt !== identityCreatedAt
                 || snapshot.data().pending?.id !== requestId) return false;
             const current = snapshot.data();
-            tx.set(ref, { identityCreatedAt, balance: current.balance + (succeeded || unlimited ? 0 : 1), pending: null });
+            tx.set(ref, { identityCreatedAt, balance: current.balance + (succeeded || unlimited ? 0 : 1), pending: null, refilledOn: current.refilledOn ?? null });
             return true;
         });
     }
