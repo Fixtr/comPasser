@@ -54,7 +54,7 @@
 
 ## Home upcoming trip
 
-- `ui/upcoming-trip.js` (`<upcoming-trip uid>`) is mounted by the home screen only for a settled signed-in user while home shows, so each return re-reads the list. `services/upcoming-trip.mjs` picks the trip whose last day is today (device-local date) or later with the earliest first day; trips without a valid first/last date are skipped. Offline it reads `offlineTrips.list(uid)`. Any failure renders nothing.
+- `ui/upcoming-trip.js` (`<upcoming-trip uid>`) is mounted by the home screen only for a settled signed-in user while that home page's own route (`/` or `/home`; Ionic keeps both mounted) shows, so each return re-reads the list. `services/upcoming-trip.mjs` picks the trip whose last day is today (each trip's destination-local date, as the trip view's next stop reads it) or later with the earliest first day; trips without a valid first/last date are skipped. Offline it reads `offlineTrips.list(uid)`. Any failure renders nothing.
 
 ## Image Export
 

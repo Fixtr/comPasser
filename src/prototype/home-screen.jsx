@@ -7,7 +7,7 @@ import { t } from '../utils/i18n.js';
 // The world map data and d3 are about 50 KB gzip; home paints its text first and the globe follows.
 const TravelGlobe = lazy(() => import('./travel-globe.jsx').then(module => ({ default: module.TravelGlobe })));
 
-export function HomeScreen({ user, authSettled, settings }) {
+export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const navigate = useNavigate();
   const location = useLocation();
   const active = ['/', '/home'].includes(location.pathname);
@@ -82,8 +82,8 @@ export function HomeScreen({ user, authSettled, settings }) {
         <h1>{t('flowHomeTitle')}</h1>
         <p>{t('flowHomeDescription')}</p>
       </div>
-      {/* Mounted only while home shows, so coming back after saving a trip reads the list again. */}
-      {tripOwner && active && <upcoming-trip key={tripOwner} uid={tripOwner} />}
+      {/* Mounted only while this page's own route shows ('/' and '/home' stay mounted together), so coming back re-reads the list once. */}
+      {tripOwner && pageActive && <upcoming-trip key={tripOwner} uid={tripOwner} />}
       {/* Above the globe so the two entries stay above the tab bar on short phones. */}
       <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
       <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>

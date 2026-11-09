@@ -42,5 +42,21 @@ async (page) => {
   await card.getByRole('button', { name: /^보기: / }).click();
   await page.waitForURL('**/view/soonTrip');
   results.push('PASS view button opens the saved trip');
+
+  await page.evaluate(() => {
+    const db = JSON.parse(sessionStorage.getItem('__smoke_db'));
+    db.itineraries.nowTrip = { ...db.itineraries.soonTrip, title: '진행 중 여행', itineraryPlan: { ...db.itineraries.soonTrip.itineraryPlan, days: db.itineraries.soonTrip.itineraryPlan.days.map((day, index) => ({ ...day, date: `2026-09-1${2 + index}` })) } };
+    sessionStorage.setItem('__smoke_db', JSON.stringify(db));
+    // Ionic keeps the '/' and '/home' pages mounted together; only the shown one may read the trips.
+    window.navigate('/');
+    window.navigate('/home');
+  });
+  await page.waitForURL('**/home');
+  await card.locator('.status').filter({ hasText: '여행 중 · 2일차' }).waitFor();
+  check(await card.count() === 1, 'Only the shown home page may mount the card');
+  results.push('PASS ongoing trip shows its day number, one card after / then /home');
+  await page.getByRole('button', { name: 'English', exact: true }).first().click();
+  await card.locator('.status').filter({ hasText: 'On your trip · Day 2' }).waitFor();
+  results.push('PASS ongoing status follows the language switch');
   return { results, errors: page.smokeErrors };
 }

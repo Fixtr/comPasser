@@ -3,7 +3,6 @@ import { offlineTrips } from '../services/offline-trips.mjs';
 import { upcomingTrip } from '../services/upcoming-trip.mjs';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { buildItineraryTitle, formatDateRange } from '../services/itinerary-title.mjs';
-import { todayString } from '../../planner/services/trip-date.mjs';
 import { t, getLang } from '../../../utils/i18n.js';
 
 // Home's card for the signed-in user's nearest saved trip. Nothing shows without one, or when loading fails.
@@ -34,7 +33,7 @@ class UpcomingTrip extends HTMLElement {
     try {
       const items = navigator.onLine === false ? offlineTrips.list(uid) : await getUserItineraries(uid);
       if (run !== this.run) return;
-      this.trip = upcomingTrip(items, todayString());
+      this.trip = upcomingTrip(items, new Date());
       this.render();
     } catch {
       // getUserItineraries already logs; home stays free of an error for this optional card.
