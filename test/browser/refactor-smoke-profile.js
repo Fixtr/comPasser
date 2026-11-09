@@ -35,7 +35,26 @@ async (page) => {
 
   await page.getByRole('button',{name:'내 여행 일정',exact:true}).click();
   await page.locator('profile-view .trip-card').waitFor({state:'visible'});
-  await page.locator('profile-view .btn-view').click();
+  const savedTrips = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries);
+  const original = (await savedTrips()).smoke1;
+  const duplicateDate = page.locator('profile-view #duplicate-date');
+  await page.locator('profile-view .btn-duplicate').click();
+  check(await duplicateDate.inputValue()===original.itineraryPlan.days[0].date, 'Duplicate must prefill the first trip day');
+  check(await duplicateDate.evaluate(el => el.getRootNode().activeElement===el), 'Duplicate dialog must focus the date field');
+  await page.keyboard.press('Escape');
+  await page.locator('profile-view #duplicate-modal').waitFor({state:'hidden'});
+  await page.locator('profile-view .btn-duplicate').click();
+  await duplicateDate.fill('2026-12-30');
+  await page.locator('profile-view #btn-duplicate-confirm').click();
+  await page.getByText('일정을 복제했어요.',{exact:true}).waitFor({state:'visible'});
+  await page.locator('profile-view .trip-card').nth(1).waitFor({state:'visible'});
+  const trips = await savedTrips();
+  check(JSON.stringify(trips.smoke1)===JSON.stringify(original), 'Duplicate must not modify the original');
+  check(trips.smoke2.title.endsWith(' (복사본)') && trips.smoke2.title.length<=100, 'Duplicate title must be marked as a copy');
+  check(trips.smoke2.itineraryPlan.days.map(day => day.date).join()===['2026-12-30','2026-12-31','2027-01-01'].slice(0, original.itineraryPlan.days.length).join(), 'Duplicate must move every day');
+  await page.evaluate(() => { const db=JSON.parse(sessionStorage.getItem('__smoke_db')); delete db.itineraries.smoke2; sessionStorage.setItem('__smoke_db', JSON.stringify(db)); });
+  page.smokeResults.push('PASS profile duplicate to new dates keeps the original');
+  await page.locator('profile-view .btn-view[data-id="smoke1"]').click();
   await page.waitForURL('**/view/smoke1');
   await page.locator('itinerary-view .schedule-title').filter({hasText:'경복궁'}).waitFor({state:'visible'});
   page.smokeResults.push('PASS profile saved-list/view action/private itinerary');

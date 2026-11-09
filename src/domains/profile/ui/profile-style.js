@@ -431,6 +431,22 @@ export const profileStyles = `
                     background: var(--cp-danger-bg);
                 }
 
+                .btn-duplicate {
+                    background: transparent;
+                    color: var(--cp-ink);
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    padding: 0.5rem 0.9rem;
+                    border-radius: var(--cp-radius);
+                    font-family: inherit;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+
+                .btn-duplicate:not(:disabled):hover,
+                .btn-duplicate:focus-visible { border-color: var(--cp-ink); }
+                .btn-duplicate:disabled,
+                #btn-duplicate-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
+
                 /* ====== 위험 구역 ====== */
                 .danger-section { border-color: var(--cp-danger); }
                 .danger-header {
@@ -490,10 +506,29 @@ export const profileStyles = `
                     padding: 1rem;
                     opacity: 0;
                     pointer-events: none;
-                    transition: opacity 0.2s ease;
+                    visibility: hidden; /* a closed dialog's controls must not take Tab focus */
+                    transition: opacity 0.2s ease, visibility 0.2s;
                 }
 
-                .modal-overlay.show { opacity: 1; pointer-events: auto; }
+                /* Visible at once on open so focus() can land; the base rule delays hiding until the fade ends. */
+                .modal-overlay.show { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.2s ease; }
+
+                .duplicate-content { border-top-color: var(--cp-ink); }
+                .duplicate-content h3 { color: var(--cp-ink); }
+                .duplicate-content .btn-modal-confirm { background: var(--cp-ink); border-color: var(--cp-ink); }
+                .duplicate-field { display: flex; flex-direction: column; gap: 0.4rem; font-weight: 700; color: var(--cp-ink-2); }
+                .duplicate-field input {
+                    min-height: 44px;
+                    padding: 0 0.75rem;
+                    border: var(--cp-hair) solid var(--cp-rule);
+                    border-radius: var(--cp-radius);
+                    background: var(--cp-surface);
+                    color: var(--cp-ink);
+                    font: inherit;
+                    -webkit-appearance: none; /* iOS keeps native date fields content-box and overflows */
+                    appearance: none;
+                }
+                .duplicate-field input:focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
 
                 .modal-content {
                     background: var(--cp-surface);
@@ -620,6 +655,7 @@ export const profileStyles = `
                     .btn-edit-inline,
                     .btn-view,
                     .btn-delete-trip,
+                    .btn-duplicate,
                     .btn-rename-save,
                     .btn-rename-cancel,
                     .btn-danger-trigger,

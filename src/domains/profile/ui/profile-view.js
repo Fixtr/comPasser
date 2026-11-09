@@ -2,7 +2,8 @@ import { offlineTrips } from '../../itinerary/services/offline-trips.mjs';
 import { unblockAllAuthors } from '../../itinerary/services/blocked-authors.mjs';
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
-import { getUserItineraries, deleteItinerary, renameItinerary } from '../../itinerary/services/firestore-service.js';
+import { getUserItineraries, deleteItinerary, renameItinerary, saveItinerary } from '../../itinerary/services/firestore-service.js';
+import { shiftItineraryDates, itineraryStartDate, duplicateTitle } from '../../itinerary/services/itinerary-duplicate.mjs';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
@@ -359,6 +360,7 @@ class ProfileView extends HTMLElement {
                 </div>
                 <div class="trip-actions">
                     <button class="btn-view" data-id="${item.id}" data-i18n="viewBtn">${t('viewBtn')}</button>
+                    <button class="btn-duplicate" type="button" data-i18n="duplicateBtn">${t('duplicateBtn')}</button>
                     <button class="btn-public-course" type="button"></button><button class="btn-offline" type="button"></button><span class="offline-badge"></span>
                     <button class="btn-delete-trip" data-id="${item.id}" data-i18n="deleteBtn">${t('deleteBtn')}</button>
                 </div>
@@ -376,7 +378,7 @@ class ProfileView extends HTMLElement {
               if(saved)offlineTrips.remove(uid,item.id);else offlineTrips.save(uid,item);
               this.renderItineraries();
             } catch { showErrorToast(t('offlineFailed')); } };
-            if(navigator.onLine===false) card.querySelectorAll('.btn-rename,.btn-delete-trip,.btn-public-course,.btn-offline').forEach(button=>button.disabled=true);
+            if(navigator.onLine===false) card.querySelectorAll('.btn-rename,.btn-delete-trip,.btn-public-course,.btn-offline,.btn-duplicate').forEach(button=>button.disabled=true);
 
 
             card.querySelector('.btn-view').onclick = (e) => {
@@ -390,6 +392,10 @@ class ProfileView extends HTMLElement {
             card.querySelector('.btn-rename').onclick = (e) => {
                 e.stopPropagation();
                 this.startRename(item, card, tripTitle);
+            };
+            card.querySelector('.btn-duplicate').onclick = (e) => {
+                e.stopPropagation();
+                this.openDuplicate(item, tripTitle, e.currentTarget);
             };
 
             listContainer.appendChild(card);
@@ -586,6 +592,53 @@ class ProfileView extends HTMLElement {
         };
     }
 
+    /** Opens the new-start-date dialog; confirm saves a shifted copy and never writes the original. */
+    openDuplicate(item, title, trigger) {
+        const input = this.shadowRoot.getElementById('duplicate-date');
+        this._duplicate = { item, title, trigger };
+        input.value = itineraryStartDate(item.itineraryPlan);
+        input.setCustomValidity('');
+        this.shadowRoot.getElementById('duplicate-modal').classList.add('show');
+        input.focus();
+    }
+
+    closeDuplicate() {
+        if (this.shadowRoot.getElementById('btn-duplicate-confirm').disabled) return; // saving
+        this.shadowRoot.getElementById('duplicate-modal').classList.remove('show');
+        this._duplicate?.trigger?.focus?.();
+        this._duplicate = null;
+    }
+
+    async confirmDuplicate() {
+        const input = this.shadowRoot.getElementById('duplicate-date');
+        const confirm = this.shadowRoot.getElementById('btn-duplicate-confirm');
+        const user = getCurrentUser();
+        const { item, title, trigger } = this._duplicate || {};
+        if (!item || !user || confirm.disabled) return;
+        if (navigator.onLine === false) { showErrorToast(t('duplicateFailed')); return; }
+        let plan;
+        try { plan = shiftItineraryDates(item.itineraryPlan, input.value); } catch {
+            input.setCustomValidity(t('duplicateDateInvalid'));
+            input.reportValidity();
+            return;
+        }
+        confirm.disabled = true;
+        if (trigger) trigger.disabled = true;
+        try {
+            await saveItinerary(user.uid, plan, duplicateTitle(title, t('duplicateSuffix')));
+            confirm.disabled = false;
+            this.closeDuplicate();
+            showToast(t('duplicateDone'));
+            if (getCurrentUser()?.uid === user.uid) this.fetchItineraries();
+        } catch (error) {
+            console.error('Duplicate failed:', error);
+            showErrorToast(t('duplicateFailed'));
+        } finally {
+            confirm.disabled = false;
+            if (trigger) trigger.disabled = false;
+        }
+    }
+
     viewTrip(item) {
         if (!item.itineraryPlan || !item.id) return;
         if (window.navigate) {
@@ -651,6 +704,25 @@ class ProfileView extends HTMLElement {
                 console.error('Logout failed:', error);
                 showErrorToast(t('logoutFailed'));
             }
+        });
+
+        const duplicateModal = this.shadowRoot.getElementById('duplicate-modal');
+        const duplicateInput = this.shadowRoot.getElementById('duplicate-date');
+        const duplicateCancel = this.shadowRoot.getElementById('btn-duplicate-cancel');
+        const duplicateConfirm = this.shadowRoot.getElementById('btn-duplicate-confirm');
+        duplicateCancel?.addEventListener('click', () => this.closeDuplicate());
+        duplicateConfirm?.addEventListener('click', () => this.confirmDuplicate());
+        duplicateInput?.addEventListener('input', () => duplicateInput.setCustomValidity(''));
+        duplicateModal?.addEventListener('click', e => { if (e.target === duplicateModal) this.closeDuplicate(); });
+        // Escape closes and Tab stays inside the dialog, like the shared confirm dialog.
+        duplicateModal?.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { e.preventDefault(); this.closeDuplicate(); return; }
+            if (e.key === 'Enter' && e.target === duplicateInput) { e.preventDefault(); this.confirmDuplicate(); return; }
+            if (e.key !== 'Tab') return;
+            const focusables = [duplicateInput, duplicateCancel, duplicateConfirm].filter(control => !control.disabled);
+            const index = focusables.indexOf(this.shadowRoot.activeElement);
+            e.preventDefault();
+            focusables[(index + (e.shiftKey ? -1 : 1) + focusables.length) % focusables.length].focus();
         });
 
         const deleteBtn = this.shadowRoot.getElementById('btn-delete-account-trigger');
@@ -903,6 +975,19 @@ class ProfileView extends HTMLElement {
                             <button id="btn-delete-account-trigger" class="btn-danger-trigger" data-i18n="deleteAccountBtn">${t('deleteAccountBtn')}</button>
                             <p id="account-deletion-status" role="status" aria-live="polite"></p>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="duplicate-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="duplicate-heading">
+                <div class="modal-content duplicate-content">
+                    <h3 id="duplicate-heading" data-i18n="duplicateHeading">${t('duplicateHeading')}</h3>
+                    <p data-i18n="duplicateDesc">${t('duplicateDesc')}</p>
+                    <label class="duplicate-field"><span data-i18n="duplicateDateLabel">${t('duplicateDateLabel')}</span>
+                        <input id="duplicate-date" type="date" required></label>
+                    <div class="modal-actions">
+                        <button id="btn-duplicate-cancel" type="button" class="btn-modal-cancel" data-i18n="cancelBtn">${t('cancelBtn')}</button>
+                        <button id="btn-duplicate-confirm" type="button" class="btn-modal-confirm" data-i18n="duplicateConfirm">${t('duplicateConfirm')}</button>
                     </div>
                 </div>
             </div>
