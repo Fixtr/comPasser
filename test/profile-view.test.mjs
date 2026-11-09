@@ -85,7 +85,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
     showErrorToast: (...args) => calls.toasts.push(args),
     showToast: (...args) => calls.notices.push(args),
     navigator: hooks.navigator || { onLine: true },
-    shiftItineraryDates, itineraryStartDate, duplicateTitle,
+    shiftItineraryDates, itineraryStartDate, duplicateTitle, todayString: () => '2026-11-10',
     async saveItinerary(...args) { calls.saves.push(structuredClone(args)); await hooks.save?.(); return 'copy'; },
     getLang: () => 'ko', setLang: () => {},
     t: key => key,
@@ -312,7 +312,7 @@ test('이전 계정의 재로그인 오류로 같은 UID의 새 계정을 로그
   assert.equal(app.calls.logouts, 0); assert.deepEqual(app.calls.toasts, []);
 });
 
-const savedTrip = () => ({ id: 'trip', title: '서울 여행', itineraryPlan: {
+const savedTrip = () => ({ id: 'trip', userId: 'owner', title: '서울 여행', itineraryPlan: {
   request: { date: ['2026-11-20', '2026-11-21'] },
   days: [{ day: 1, date: '2026-11-20', scheduleItems: [] }, { day: 2, date: '2026-11-21', scheduleItems: [] }],
 } });
@@ -321,7 +321,7 @@ function openDuplicate(app, item) {
   let refreshed = 0;
   app.view.fetchItineraries = () => { refreshed++; };
   const trigger = { focus() { this.focused = true; }, disabled: false };
-  app.view.openDuplicate(item, item.title, trigger);
+  app.view.openDuplicate(item, trigger);
   return { trigger, refreshed: () => refreshed };
 }
 
@@ -333,6 +333,7 @@ test('복제는 시작일을 옮긴 새 일정을 저장하고 원본은 바꾸�
   assert.equal(app.control('duplicate-date').value, '2026-11-20');
   assert.ok(app.control('duplicate-modal').classList.contains('show'));
   assert.ok(app.control('duplicate-date').focused);
+  assert.equal(app.control('duplicate-date').min, '2026-11-10');
   app.control('duplicate-date').value = '2027-01-10';
   await app.control('btn-duplicate-confirm').listeners.click();
   assert.deepEqual(app.calls.saves, [['owner', {
@@ -369,6 +370,36 @@ test('복제 실패·빈 날짜·오프라인은 저장된 척하지 않고 다�
   await offline.control('btn-duplicate-confirm').listeners.click();
   assert.deepEqual(offline.calls.saves, []);
   assert.deepEqual(offline.calls.toasts, [['duplicateFailed']]);
+
+  const past = fixture();
+  openDuplicate(past, savedTrip());
+  past.control('duplicate-date').value = '2026-11-09';
+  await past.control('btn-duplicate-confirm').listeners.click();
+  assert.deepEqual(past.calls.saves, []);
+  assert.equal(past.control('duplicate-date').validity, 'duplicateDateInvalid');
+});
+
+test('복제 대화상자가 열린 사이 계정이 바뀌면 다른 계정에 저장하지 않고 닫는다', async () => {
+  for (const [opened, confirming, owner] of [['owner', 'other', 'owner'], ['owner', null, 'owner'], ['other', 'other', 'owner']]) {
+    const app = fixture({ user: { uid: opened } });
+    const item = { ...savedTrip(), userId: owner };
+    openDuplicate(app, item);
+    app.session.user = confirming && { uid: confirming };
+    app.control('duplicate-date').value = '2027-01-10';
+    await app.control('btn-duplicate-confirm').listeners.click();
+    assert.deepEqual(app.calls.saves, []);
+    assert.equal(app.control('duplicate-modal').classList.contains('show'), false);
+  }
+});
+
+test('직접 지은 제목이 없는 일정의 복제본은 옛 날짜가 든 제목을 물려받지 않는다', async () => {
+  const app = fixture();
+  openDuplicate(app, { ...savedTrip(), title: null });
+  app.control('duplicate-date').value = '2027-01-10';
+  await app.control('btn-duplicate-confirm').listeners.click();
+  // null lets the list build the title from the shifted dates, like older saved trips.
+  assert.equal(app.calls.saves.length, 1);
+  assert.equal(app.calls.saves[0][2], null);
 });
 
 test('프로필 화면의 문구는 코드에 한국어로 박혀 있지 않고 사전을 거친다', () => {

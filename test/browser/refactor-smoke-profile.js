@@ -48,6 +48,8 @@ async (page) => {
   await page.locator('profile-view #btn-duplicate-confirm').click();
   await page.getByText('일정을 복제했어요.',{exact:true}).waitFor({state:'visible'});
   await page.locator('profile-view .trip-card').nth(1).waitFor({state:'visible'});
+  await page.waitForFunction(() => document.querySelector('profile-view').shadowRoot.activeElement?.matches('.btn-view[data-id="smoke2"]'), null, {timeout:5000})
+    .catch(() => check(false, 'Duplicate must focus the new copy after the list refreshes'));
   const trips = await savedTrips();
   check(JSON.stringify(trips.smoke1)===JSON.stringify(original), 'Duplicate must not modify the original');
   check(trips.smoke2.title.endsWith(' (복사본)') && trips.smoke2.title.length<=100, 'Duplicate title must be marked as a copy');

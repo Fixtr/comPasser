@@ -70,9 +70,20 @@ test('an invalid or empty new date, or a plan without dates, is rejected', () =>
   assert.equal(itineraryStartDate(null), '');
 });
 
+test('a start date before today, or a shift past year 9999, is rejected', () => {
+  assert.throws(() => shiftItineraryDates(plan(), '2026-11-09', '2026-11-10'), /date/);
+  assert.equal(shiftItineraryDates(plan(), '2026-11-10', '2026-11-10').days[0].date, '2026-11-10');
+  // The first day fits but the last two would land in year 10000.
+  assert.throws(() => shiftItineraryDates(plan(), '9999-12-31'), /date/);
+});
+
 test('the copy title keeps the suffix and stays within 100 characters', () => {
   assert.equal(duplicateTitle('서울 여행', ' (복사본)'), '서울 여행 (복사본)');
   const long = duplicateTitle('가'.repeat(100), ' (copy)');
   assert.equal(long.length, 100);
   assert.ok(long.endsWith(' (copy)'));
+  // An emoji straddling the cut is dropped whole instead of leaving a lone surrogate.
+  const emoji = duplicateTitle(`${'가'.repeat(92)}😀끝`, ' (copy)');
+  assert.equal(emoji, `${'가'.repeat(92)} (copy)`);
+  assert.ok(emoji.length <= 100);
 });

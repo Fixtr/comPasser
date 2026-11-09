@@ -4,6 +4,7 @@ import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../aut
 import { icons } from '../../../ui/icons.js';
 import { getUserItineraries, deleteItinerary, renameItinerary, saveItinerary } from '../../itinerary/services/firestore-service.js';
 import { shiftItineraryDates, itineraryStartDate, duplicateTitle } from '../../itinerary/services/itinerary-duplicate.mjs';
+import { todayString } from '../../planner/services/trip-date.mjs';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
@@ -395,7 +396,7 @@ class ProfileView extends HTMLElement {
             };
             card.querySelector('.btn-duplicate').onclick = (e) => {
                 e.stopPropagation();
-                this.openDuplicate(item, tripTitle, e.currentTarget);
+                this.openDuplicate(item, e.currentTarget);
             };
 
             listContainer.appendChild(card);
@@ -593,10 +594,11 @@ class ProfileView extends HTMLElement {
     }
 
     /** Opens the new-start-date dialog; confirm saves a shifted copy and never writes the original. */
-    openDuplicate(item, title, trigger) {
+    openDuplicate(item, trigger) {
         const input = this.shadowRoot.getElementById('duplicate-date');
-        this._duplicate = { item, title, trigger };
+        this._duplicate = { item, trigger, uid: getCurrentUser()?.uid };
         input.value = itineraryStartDate(item.itineraryPlan);
+        input.min = todayString();
         input.setCustomValidity('');
         this.shadowRoot.getElementById('duplicate-modal').classList.add('show');
         input.focus();
@@ -613,11 +615,13 @@ class ProfileView extends HTMLElement {
         const input = this.shadowRoot.getElementById('duplicate-date');
         const confirm = this.shadowRoot.getElementById('btn-duplicate-confirm');
         const user = getCurrentUser();
-        const { item, title, trigger } = this._duplicate || {};
-        if (!item || !user || confirm.disabled) return;
+        const { item, trigger, uid } = this._duplicate || {};
+        if (!item || confirm.disabled) return;
+        // The account changed while the dialog was open: never save one account's trip into another.
+        if (!user || user.uid !== uid || user.uid !== item.userId) { this.closeDuplicate(); return; }
         if (navigator.onLine === false) { showErrorToast(t('duplicateFailed')); return; }
         let plan;
-        try { plan = shiftItineraryDates(item.itineraryPlan, input.value); } catch {
+        try { plan = shiftItineraryDates(item.itineraryPlan, input.value, todayString()); } catch {
             input.setCustomValidity(t('duplicateDateInvalid'));
             input.reportValidity();
             return;
@@ -625,11 +629,19 @@ class ProfileView extends HTMLElement {
         confirm.disabled = true;
         if (trigger) trigger.disabled = true;
         try {
-            await saveItinerary(user.uid, plan, duplicateTitle(title, t('duplicateSuffix')));
+            // An untitled trip shows a title built from its dates, so the copy saves none and gets one from its new dates.
+            const id = await saveItinerary(user.uid, plan, item.title ? duplicateTitle(item.title, t('duplicateSuffix')) : null);
             confirm.disabled = false;
             this.closeDuplicate();
             showToast(t('duplicateDone'));
-            if (getCurrentUser()?.uid === user.uid) this.fetchItineraries();
+            if (getCurrentUser()?.uid !== user.uid) return;
+            await this.fetchItineraries();
+            // The refresh replaced every card, so focus the copy, else the original's duplicate button, else the list.
+            const list = this.shadowRoot.getElementById('itineraries-list');
+            const target = list?.querySelector(`.btn-view[data-id="${id}"]`)
+                || list?.querySelector(`.btn-view[data-id="${item.id}"]`)?.closest('.trip-card')?.querySelector('.btn-duplicate');
+            if (target) target.focus();
+            else if (list) { list.tabIndex = -1; list.focus(); }
         } catch (error) {
             console.error('Duplicate failed:', error);
             showErrorToast(t('duplicateFailed'));

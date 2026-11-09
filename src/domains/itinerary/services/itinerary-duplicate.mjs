@@ -16,12 +16,18 @@ export function itineraryStartDate(plan) {
  * per-day constraint dates and stay check-in/out move by the same number of days; times,
  * flights (time only) and day-numbered anchors are relative to the day and stay as they are.
  * No live opening hours are stored in a plan, so nothing date-bound needs clearing.
+ * Throws when newStartDate is before today (YYYY-MM-DD) or any moved date stops being a real date.
  */
-export function shiftItineraryDates(plan, newStartDate) {
+export function shiftItineraryDates(plan, newStartDate, today = '') {
   const start = itineraryStartDate(plan);
-  if (!Number.isFinite(noon(newStartDate)) || !start) throw new Error('A valid new start date is required');
+  if (!Number.isFinite(noon(newStartDate)) || !start || newStartDate < today) throw new Error('A valid new start date is required');
   const offset = noon(newStartDate) - noon(start);
-  const shift = value => Number.isFinite(noon(value)) ? new Date(noon(value) + offset).toISOString().slice(0, 10) : value;
+  const shift = value => {
+    if (!Number.isFinite(noon(value))) return value;
+    const moved = new Date(noon(value) + offset).toISOString().slice(0, 10);
+    if (!Number.isFinite(noon(moved))) throw new Error('A shifted date is out of range');
+    return moved;
+  };
   // Only fields already present are written: Firestore rejects undefined values.
   const move = (target, key) => { if (target && Object.hasOwn(target, key)) target[key] = shift(target[key]); };
   const copy = structuredClone(plan);
@@ -35,5 +41,8 @@ export function shiftItineraryDates(plan, newStartDate) {
   return copy;
 }
 
-/** firestore.rules accept a title of at most 100 characters, so the original is clipped to keep the suffix. */
-export const duplicateTitle = (title, suffix) => `${String(title).slice(0, 100 - suffix.length)}${suffix}`;
+/**
+ * firestore.rules accept a title of at most 100 characters, so the original is clipped to keep the suffix.
+ * 100 UTF-16 units fits however the rules count, and a cut emoji's lone high surrogate is dropped.
+ */
+export const duplicateTitle = (title, suffix) => `${String(title).slice(0, 100 - suffix.length).replace(/[\uD800-\uDBFF]$/, '')}${suffix}`;
