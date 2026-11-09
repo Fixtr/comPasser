@@ -9,6 +9,7 @@ import { isEditableItem } from '../src/domains/itinerary/services/itinerary-edit
 import { isTransportEstimatedCost } from '../src/domains/itinerary/services/itinerary-cost.mjs';
 import { suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
 import { minutesOf } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
+import { buildItineraryCalendar } from '../src/domains/itinerary/services/itinerary-calendar.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
 const attributePayload = '" autofocus onfocus="alert(1)';
@@ -47,6 +48,7 @@ function viewHarness({ user = null } = {}) {
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
+    Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar,
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));

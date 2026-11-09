@@ -26,6 +26,8 @@ import { trimScheduleToEndTime, applyTransitDelays, minutesOf } from '../service
 import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { exportItineraryImage } from './itinerary-image-export.js';
+import { buildItineraryCalendar } from '../services/itinerary-calendar.mjs';
+import { Capacitor } from '@capacitor/core';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
   reconcileWithConstraints,
@@ -835,6 +837,23 @@ export default class ItineraryView extends HTMLElement {
     if (downloadBtn) {
       downloadBtn.addEventListener('click', () => this.downloadAsImage());
     }
+    this.shadowRoot.getElementById('calendar-export-btn')?.addEventListener('click', () => this.downloadCalendar());
+  }
+
+  /** The whole trip as an .ics file; calendars import it from the download. */
+  downloadCalendar() {
+    const ics = this.currentItinerary && buildItineraryCalendar(this.state.snapshot().plan);
+    if (!ics) { this.showToast(t('nothingToShare'), true); return; }
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'compasser-trip.ics';
+      link.click();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    this.showToast(t('calendarExportDone'));
   }
 
   /** 내보낼 사본과 번역을 전달하고, 화면의 버튼·결과 알림만 관리한다. */
@@ -1474,6 +1493,7 @@ export default class ItineraryView extends HTMLElement {
         </div>
         <div class="itinerary-actions">
           <button id="download-image-btn" class="download-btn" data-i18n="downloadTicketBtn">${t('downloadTicketBtn')}</button>
+          <button id="calendar-export-btn" class="download-btn" data-i18n="calendarExportBtn">${t('calendarExportBtn')}</button>
           <button id="share-itinerary-btn" class="share-btn" data-i18n="shareItineraryBtn">일정 공유하기</button>
           <button id="kakao-share-btn" class="kakao-share-btn" data-i18n="kakaoShareBtn">카카오톡 공유하기</button>
         </div>
@@ -1552,6 +1572,8 @@ export default class ItineraryView extends HTMLElement {
     if (shareBtn) shareBtn.style.display = 'none';
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'none';
+    const calendarBtn = this.shadowRoot.getElementById('calendar-export-btn');
+    if (calendarBtn) calendarBtn.style.display = 'none';
     const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
     if (kakaoBtn) kakaoBtn.style.display = 'none';
     this.renderEndTimeWarning(0);
@@ -1606,6 +1628,10 @@ export default class ItineraryView extends HTMLElement {
 
     const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
     if (downloadBtn) downloadBtn.style.display = 'block';
+
+    // shortcut: native web views do not download blob links, so the apps hide this; add a share plugin to offer it there.
+    const calendarBtn = this.shadowRoot.getElementById('calendar-export-btn');
+    if (calendarBtn) calendarBtn.style.display = Capacitor.isNativePlatform() ? 'none' : 'block';
 
     this.renderDayTabs(safePlan);
 

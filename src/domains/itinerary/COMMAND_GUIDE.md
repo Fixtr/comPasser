@@ -62,6 +62,11 @@
 - Keep the capture engine lazy-loaded. Apply the light palette only to the capture engine's cloned document via `onclone`; never modify or restore the live page's theme attributes/classes. Navigation and user theme changes must remain authoritative throughout capture, encoding, and sharing.
 - Remove the temporary ticket immediately after capture, before encoding or waiting for the share sheet. Always release download object URLs, including failures. Concurrent exports must own only their own temporary DOM and URLs.
 
+## Calendar Export
+
+- `services/itinerary-calendar.mjs` (`buildItineraryCalendar`) turns every timed stop of every day into an RFC 5545 event. Times are read in the destination's time zone (`travelRegion` + `travelInstant`, so daylight saving is right) and written in UTC, so no `VTIMEZONE` block is needed. A stop whose end is before its start ends on the next day. Location is `stayUnsetLabel`, else `resolvedAddress`, else a string `location`; coordinate objects are not written. Stops without a valid `HH:mm` time or a title are skipped; a plan with none gives `null`.
+- The view's 캘린더에 추가 button downloads `compasser-trip.ics` from a blob link and is shown with the ticket button. It is hidden in the native apps because their web views do not download blob links; offering it there needs a share or filesystem plugin.
+
 - `itinerary-gap-fill.mjs` fills only measured free gaps of at least 90 minutes. Verify both new legs, a full 60-minute visit and known opening hours, keeping 30 minutes before the next visit/day end. Reserve all other-day Place IDs; maximum two `gapFill` visits/day. Generation searches at most four gaps/day and leaves unsuitable gaps as free time. Recheck added legs before returning the generation result and roll back additions if transport no longer fits. Saved/shared reads never insert visits.
 
 ## Ionic edits and offline copies
