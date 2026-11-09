@@ -88,8 +88,8 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
     }
     if (error?.details?.reason === 'credits-empty') {
       throw new Error(currentLang === 'ko'
-        ? '남은 생성권이 없어 일정을 만들 수 없습니다. 지금은 생성권을 더 받을 수 없습니다.'
-        : 'No generation credits remain, so this itinerary cannot be created. More credits are not available right now.');
+        ? '남은 생성권이 없어 일정을 만들 수 없습니다. 한국 시간 자정이 지나면 1장이 다시 채워집니다.'
+        : 'No generation credits remain, so this itinerary cannot be created. One credit comes back after midnight Korea time.');
     }
     if (error?.details?.reason === 'generation-in-progress') {
       throw new Error(currentLang === 'ko'

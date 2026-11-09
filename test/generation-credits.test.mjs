@@ -62,6 +62,44 @@ test('one AdMob transaction grants one credit even if its signed callback is ret
     assert.deepEqual(await credits.balance('owner', 'first'), { balance: 2, generating: false });
 });
 
+test('a spent credit comes back once at midnight Korea time and does not stack', async () => {
+    const app = fixture(); // 17:00 KST
+    const { credits } = app;
+    await credits.reserve('owner', 'first', 'a');
+    await credits.settle('owner', 'first', 'a', true);
+    app.advance(7 * 60 * 60 * 1000 - 60_000); // 23:59 KST, same day
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 0, generating: false });
+    app.advance(60_000); // 00:00 KST, next day
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+    await credits.reserve('owner', 'first', 'b');
+    await credits.settle('owner', 'first', 'b', true);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 0, generating: false });
+    await assert.rejects(credits.reserve('owner', 'first', 'c'), { code: 'resource-exhausted' });
+    app.advance(3 * 24 * 60 * 60 * 1000);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+});
+
+test('a refill tops up to one: unused and ad-rewarded credits are not raised', async () => {
+    const app = fixture();
+    const { credits } = app;
+    app.advance(24 * 60 * 60 * 1000);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
+    await credits.grantAdReward('owner', 'first', 'b'.repeat(32));
+    app.advance(24 * 60 * 60 * 1000);
+    assert.deepEqual(await credits.balance('owner', 'first'), { balance: 2, generating: false });
+});
+
+test('an account spent before refills existed gets its credit back on the next read', async () => {
+    const app = fixture();
+    app.docs.set('generation_credits/owner', { identityCreatedAt: 'first', balance: 0, pending: null });
+    assert.deepEqual(await app.credits.balance('owner', 'first'), { balance: 1, generating: false });
+    assert.equal(app.docs.get('generation_credits/owner').refilledOn, '2027-01-15');
+    await app.credits.reserve('owner', 'first', 'a');
+    await app.credits.settle('owner', 'first', 'a', true);
+    assert.equal(app.docs.get('generation_credits/owner').refilledOn, '2027-01-15', 'settle keeps the refill day');
+    await assert.rejects(app.credits.reserve('owner', 'first', 'b'), { code: 'resource-exhausted' });
+});
+
 test('unlimited account can generate repeatedly at zero credits without changing its balance', async () => {
     const app = fixture();
     const { credits } = app;
