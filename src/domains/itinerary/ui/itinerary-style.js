@@ -2,6 +2,12 @@ export const itineraryStyles = `
         .visit-time-btn, .visit-time-editor button, .visit-time-editor input { min-height:44px; padding:8px; margin:4px; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
         .visit-time-editor label { display:block; }
         .visit-time-editor p { font-size:.85rem; line-height:1.5; }
+        .visited-btn { min-height: 44px; padding: 8px 12px; margin: 0 0 6px; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-muted); cursor: pointer; }
+        .visited-btn > span { visibility: hidden; }
+        .visited-btn[aria-pressed="true"] { color: var(--cp-ok); background: var(--cp-ok-bg); border-color: var(--cp-ok); }
+        .visited-btn[aria-pressed="true"] > span { visibility: visible; }
+        .visited-btn:focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
+        .schedule-card[data-visited] > :not(.visited-btn) { opacity: .55; }
         .visit-hours { font-size: .85rem; line-height: 1.5; padding: 8px; border: 1px solid var(--cp-rule); }
         .visit-hours[hidden] { display: none; }
         .visit-hours[data-status="conflict"], .visit-hours[data-status="closed"] { color: var(--cp-danger); background: var(--cp-danger-bg); border-color: var(--cp-danger); }

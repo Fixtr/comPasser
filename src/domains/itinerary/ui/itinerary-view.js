@@ -1,5 +1,6 @@
 import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument, watchSharedItinerary } from '../services/firestore-service.js';
 import { offlineTrips } from '../services/offline-trips.mjs';
+import { visitedStops, stopKeys, isVisitableStop, pickNextStop } from '../services/visited-stops.mjs';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
@@ -60,7 +61,8 @@ function fallbackDuration(item) {
   return t('durationMinutes').replace('{0}', mins);
 }
 
-function renderScheduleCard(scheduleItem, idx, editable) {
+// visited is undefined when the trip has no stable id, so no visited toggle is drawn.
+function renderScheduleCard(scheduleItem, idx, editable, visited) {
   const timeDisplay = scheduleItem.endTime ? `${escapeHtml(scheduleItem.time)} -<br>${escapeHtml(scheduleItem.endTime)}` : escapeHtml(scheduleItem.time);
 
   // location이 객체(좌표)일 수 있으므로 안전하게 문자열 변환
@@ -91,11 +93,12 @@ function renderScheduleCard(scheduleItem, idx, editable) {
 
   return `
     <div class="time-badge">${timeDisplay}</div>
-    <div class="schedule-card" data-type="${escapeHtml(scheduleItem.type)}" data-index="${idx + 1}"${scheduleItem.addedByUser ? ' data-added="true"' : ''}>
+    <div class="schedule-card" data-type="${escapeHtml(scheduleItem.type)}" data-index="${idx + 1}"${scheduleItem.addedByUser ? ' data-added="true"' : ''}${visited ? ' data-visited="true"' : ''}>
       <div class="schedule-title-row">
         <span class="schedule-title">${escapeHtml(scheduleItem.title)}</span>
         ${editHtml}
       </div>
+      ${visited === undefined || !isVisitableStop(scheduleItem) ? '' : `<button type="button" class="visited-btn" aria-pressed="${visited}" aria-label="${escapeHtml(t('visitedAria').replace('{0}', scheduleItem.title))}"><span aria-hidden="true">✓</span> ${escapeHtml(t('visitedBtn'))}</button>`}
       ${(function() {
         const info = scheduleItem.transitInfo;
         if (typeof info !== 'string' || !info) return '';
@@ -422,6 +425,11 @@ export default class ItineraryView extends HTMLElement {
   get activeDayIndex() { return this.state.current?.dayIndex || 0; }
   get isReadOnly() { return this.state.current?.source.kind === 'shared'; }
   get sharedId() { return this.isReadOnly ? this.state.current.source.id : null; }
+  // Fresh drafts have no id yet, so their visited marks would have nowhere stable to live.
+  get visitTripId() {
+    const source = this.state.current?.source;
+    return ['private', 'shared'].includes(source?.kind) && source.id ? `${source.kind}:${source.id}` : null;
+  }
 
   setSessionUser(userId) {
     const wasKnown = this.state.userId !== undefined;
@@ -1713,6 +1721,9 @@ export default class ItineraryView extends HTMLElement {
 
       let globalIdx = 0;
       const items = dayData.scheduleItems || [];
+      const tripId = this.visitTripId;
+      const visited = tripId ? visitedStops.visited(tripId) : null;
+      const keys = stopKeys(dayData);
       this.updateNextStop(dayData);
       
       // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
@@ -1736,7 +1747,15 @@ export default class ItineraryView extends HTMLElement {
       const item = document.createElement('div');
       item.className = 'timeline-item';
 
-      item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit());
+      item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit(), visited?.has(keys[idx]));
+      item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
+        const on = visitedStops.toggle(tripId, keys[idx]);
+        e.currentTarget.setAttribute('aria-pressed', String(on));
+        e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
+        // Measured times can change after render without rebuilding the cards.
+        const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex];
+        if (day) this.updateNextStop(day);
+      });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
       item.querySelectorAll('.item-edit-btn').forEach(btn => {
@@ -1800,10 +1819,8 @@ export default class ItineraryView extends HTMLElement {
     const today = localTravelDate(now, timeZone);
     const isToday = String(dayData.date).slice(0, 10) === today;
     const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(now);
-    const stop = (dayData.scheduleItems || []).find(item =>
-      item.type !== 'departure' && item.title && !item.stayUnsetLabel &&
-      (!Object.hasOwn(item, 'placeIntent') || item.placeStatus === 'verified') &&
-      (!isToday || (typeof item.time === 'string' && item.time >= currentTime)));
+    const tripId = this.visitTripId;
+    const stop = pickNextStop(dayData, { visited: tripId ? visitedStops.visited(tripId) : null, currentTime: isToday ? currentTime : undefined });
     panel.hidden = !stop;
     if (!stop) return;
     this.shadowRoot.getElementById('next-stop-label').textContent = t(isToday ? 'nextStopToday' : 'firstStop');

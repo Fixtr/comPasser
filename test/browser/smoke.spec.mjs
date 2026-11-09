@@ -67,4 +67,5 @@ for (const [title, file] of [
   ['visit time editing and earliest-start preservation', 'visit-time-smoke.js'],
   ['shared source deletion hides content and preserves independent copies', 'shared-deletion-smoke.js'],
   ['measured transit is authoritative over AI prose and fare', 'transit-authority-smoke.js'],
+  ['visited marks are device-local and skip the next stop', 'visited-stops-smoke.js'],
 ]) test(title, async ({ page }, testInfo) => { await scenario(file, page, testInfo); });
