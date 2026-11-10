@@ -97,7 +97,7 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   if (active && path === '/preference') return <Navigate to="/preference/1" replace />;
 
   let screen;
-  if (isHomePath(path)) screen = <HomeScreen authSettled={authSettled} settings={settings} />;
+  if (isHomePath(path)) screen = <HomeScreen pageActive={active} user={user} authSettled={authSettled} settings={settings} />;
   // Keyed: the saved draft is restored when auth settles, and this screen reads it at mount.
   else if (path === '/destination') screen = <DestinationScreen key={authSettled ? 'settled' : 'pending'} settings={settings} />;
   else if (path === '/recommend') screen = <RecommendScreen settings={settings} />;
