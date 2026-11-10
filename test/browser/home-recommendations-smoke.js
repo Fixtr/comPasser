@@ -12,9 +12,9 @@ async (page) => {
   const row = name => rows.filter({ has: page.locator('summary', { hasText: name }) });
   // A catalogue pick resolves through the Places fake first, so wait for it to be marked.
   const toggle = async name => {
-    const pressed = await row(name).locator('button').getAttribute('aria-pressed');
-    await row(name).locator('button').click();
-    await row(name).locator(`button[aria-pressed="${pressed === 'true' ? 'false' : 'true'}"]`).waitFor();
+    const pressed = await row(name).locator('[data-place-pick]').getAttribute('aria-pressed');
+    await row(name).locator('[data-place-pick]').click();
+    await row(name).locator(`[data-place-pick][aria-pressed="${pressed === 'true' ? 'false' : 'true'}"]`).waitFor();
   };
   const chooseCity = async (path, city) => {
     // navigate() ignores the current address, which already shows the country picker.
@@ -48,7 +48,7 @@ async (page) => {
   check(await row('경복궁').getByRole('link').isVisible(), 'Cards must link the official guide');
   await button('English').click();
   await row('Seoul Forest').waitFor();
-  check(await row('Seoul Forest').locator('button').getAttribute('aria-label') === 'Add to must-visit places: Seoul Forest', 'Place names must translate');
+  check(await row('Seoul Forest').locator('[data-place-pick]').getAttribute('aria-label') === 'Add to must-visit places: Seoul Forest', 'Place names must translate');
   await button('한국어').click();
   await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-recommend-city=busan]').click();
@@ -68,12 +68,12 @@ async (page) => {
   await button('라이트 모드').click();
 
   // Keyboard selection of the first place, then two more by pointer.
-  await row('서울숲').locator('button').focus();
+  await row('서울숲').locator('[data-place-pick]').focus();
   await page.keyboard.press('Enter');
-  await row('서울숲').locator('button[aria-pressed="true"]').waitFor();
+  await row('서울숲').locator('[data-place-pick][aria-pressed="true"]').waitFor();
   await toggle('선유도공원');
   await page.locator('.flow-place-chip', { hasText: '선유도공원' }).click();
-  await row('선유도공원').locator('button[aria-pressed="false"]').waitFor();
+  await row('선유도공원').locator('[data-place-pick][aria-pressed="false"]').waitFor();
   check(!(await page.locator('.flow-place-chip').allInnerTexts()).some(text => text.includes('선유도공원')), 'A selected place must be removable from the summary');
   await toggle('선유도공원');
   await toggle('경복궁');
@@ -149,7 +149,7 @@ async (page) => {
     'Individual selections must remain untimed visits for automatic placement');
   // Returning with the picks still in the draft: they show as chosen, and picking one again keeps a single visit.
   await chooseCity('/recommend', 'seoul');
-  for (const name of ['서울숲', '선유도공원', '경복궁']) await row(name).locator('button[aria-pressed="true"]').waitFor();
+  for (const name of ['서울숲', '선유도공원', '경복궁']) await row(name).locator('[data-place-pick][aria-pressed="true"]').waitFor();
   check((await page.locator('.flow-place-chip').allInnerTexts()).join() === '경복궁 ×,서울숲 ×,선유도공원 ×', 'Returning must show the draft’s picks');
   await toggle('선유도공원');
   await toggle('선유도공원');
