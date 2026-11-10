@@ -15,7 +15,7 @@ export default defineConfig({
     serviceWorkers: 'allow',
   },
   webServer: {
-    command: 'node scripts/test-browser-server.mjs --build && npx vite preview --outDir dist --host 127.0.0.1 --port 4185 --strictPort',
+    command: 'node scripts/test-browser-server.mjs --build && npx vite preview --outDir test-results/pwa-build --host 127.0.0.1 --port 4185 --strictPort',
     url: 'http://127.0.0.1:4185',
     reuseExistingServer: false,
     timeout: 30_000,

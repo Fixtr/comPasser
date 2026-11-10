@@ -5,7 +5,7 @@ const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { deletePublicationReviews } = require('./course-review-cleanup');
 const { error: logError } = require('firebase-functions/logger');
 const { createAccountDeletion } = require('./account-deletion');
-const { createGenerationCredits } = require('./generation-credits');
+const { createGenerationCredits, generationRecovery } = require('./generation-credits');
 const { randomUUID } = require('node:crypto');
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -33,6 +33,9 @@ function assertCurrentIdentity(request, user) {
     if (!Number.isFinite(Number(request.auth.token?.auth_time))
         || Number(request.auth.token.auth_time) < Math.floor(Date.parse(user.metadata.creationTime) / 1000)) {
         throw new HttpsError('unauthenticated', '다시 로그인해 주세요.');
+    }
+    if (request.auth.token.firebase?.sign_in_provider === 'password' && user.emailVerified !== true) {
+        throw new HttpsError('permission-denied', '이메일 인증 후 다시 로그인해 주세요.', { reason: 'email-not-verified' });
     }
 }
 const deletionHandler = handler => async request => {
@@ -74,7 +77,7 @@ exports.getGenerationCredits = onCall({ timeoutSeconds: 30, maxInstances: 5 }, a
     await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
     const user = await admin.auth().getUser(request.auth.uid);
     assertCurrentIdentity(request, user);
-    return generationCredits.balance(request.auth.uid, user.metadata.creationTime, isGenerationAdmin(user));
+    return deletionHandler(() => generationCredits.balance(request.auth.uid, user.metadata.creationTime, isGenerationAdmin(user)))(request);
 });
 
 // adMobRewardCallback is paused (2026-10-21): ADMOB_REWARDED_AD_UNITS was never configured, so every callback failed.
@@ -215,7 +218,7 @@ exports.recommendPlaces = onCall({secrets:[GEMINI_API_KEY,GOOGLE_MAPS_SERVER_KEY
         return await recommendPlaces(request);
     }
     catch (error) {
-        if (['unauthenticated','invalid-argument','failed-precondition','resource-exhausted','unavailable','not-found'].includes(error.code)) throw new HttpsError(error.code,error.message,error.details);
+        if (['unauthenticated','permission-denied','invalid-argument','failed-precondition','resource-exhausted','unavailable','not-found'].includes(error.code)) throw new HttpsError(error.code,error.message,error.details);
         throw new HttpsError('unavailable','recommendation-unavailable');
     }
 });
@@ -273,32 +276,34 @@ exports.generateItinerary = onCall(
         }
 
         // Reject malformed input before defaults, account reads, secrets or AI.
-        const issue = findPlannerRequestIssue(request.data?.request);
+        const { request: legacyRequest, recoverableRequest, lang: requestedLang, requestId } = request.data ?? {};
+        const plannerRequest = requestId === undefined ? legacyRequest : recoverableRequest;
+        const issue = findPlannerRequestIssue(plannerRequest);
         if (issue) {
             throw new HttpsError("invalid-argument", "여행 일정 조건을 확인해 주세요.", issue);
         }
-        const constraints = sanitizePlannerRequest(request.data.request);
-
-        await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
-
-        const apiKey = GEMINI_API_KEY.value();
-        if (!apiKey) {
-            throw new HttpsError("failed-precondition", "서버에 Gemini API 키가 설정되지 않았습니다.");
+        const constraints = sanitizePlannerRequest(plannerRequest);
+        const lang = requestedLang === "en" ? "en" : "ko";
+        let recovery;
+        try {
+            recovery = generationRecovery(requestId, { constraints, lang });
+        } catch (error) {
+            throw new HttpsError(error.code, error.message, error.details);
         }
 
-        const lang = request.data?.lang === "en" ? "en" : "ko";
-        const prompt = buildPrompt(constraints, lang);
+        await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
 
         const uid = request.auth.uid;
         const user = await admin.auth().getUser(uid);
         assertCurrentIdentity(request, user);
         const identityCreatedAt = user.metadata.creationTime;
         const unlimited = isGenerationAdmin(user);
-        const requestId = randomUUID();
+        const leaseId = randomUUID();
         try {
-            await generationCredits.reserve(uid, identityCreatedAt, requestId, unlimited);
+            const result = await generationCredits.reserve(uid, identityCreatedAt, leaseId, unlimited, recovery);
+            if (result) return result;
         } catch (error) {
-            if (['resource-exhausted', 'failed-precondition'].includes(error.code)) {
+            if (['resource-exhausted', 'failed-precondition', 'invalid-argument'].includes(error.code)) {
                 throw new HttpsError(error.code, error.message, error.details);
             }
             throw error;
@@ -306,7 +311,13 @@ exports.generateItinerary = onCall(
 
         let lastError = null;
         let succeeded = false;
+        let resultJson = null;
         try {
+            const apiKey = GEMINI_API_KEY.value();
+            if (!apiKey) {
+                throw new HttpsError("failed-precondition", "서버에 Gemini API 키가 설정되지 않았습니다.");
+            }
+            const prompt = buildPrompt(constraints, lang);
             for (const model of GEMINI_MODELS) {
                 try {
                     const rawText = await callGemini(model, apiKey, prompt);
@@ -321,6 +332,11 @@ exports.generateItinerary = onCall(
                         || !Array.isArray(day.scheduleItems))) {
                         throw new Error("Invalid output: days do not match the requested trip.");
                     }
+                    const result = { days, model };
+                    if (recovery) {
+                        resultJson = JSON.stringify(result);
+                        if (Buffer.byteLength(resultJson) > 900_000) throw new Error('Generation result exceeds recovery storage limit.');
+                    }
 
                     functions.logger.info("[generateItinerary] success", {
                         uid: request.auth.uid,
@@ -329,7 +345,7 @@ exports.generateItinerary = onCall(
                     });
 
                     succeeded = true;
-                    return { days, model };
+                    return result;
                 } catch (error) {
                     lastError = error;
                     // 프롬프트/키는 절대 로깅하지 않는다.
@@ -348,7 +364,8 @@ exports.generateItinerary = onCall(
             }
             throw new HttpsError("internal", "일정 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         } finally {
-            await generationCredits.settle(uid, identityCreatedAt, requestId, succeeded, unlimited);
+            const settled = await generationCredits.settle(uid, identityCreatedAt, leaseId, succeeded, recovery, resultJson);
+            if (succeeded && !settled) throw new HttpsError('failed-precondition', 'Generation reservation is no longer active.');
         }
     }
 );

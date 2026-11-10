@@ -139,6 +139,13 @@ function createAccountDeletion({ db, auth, now = Date.now, newLease = randomUUID
                 job = await change({}, async tx => {
                     const docs = await tx.get(db.collection('itineraries').where('userId', '==', uid).limit(batchSize));
                     for (const doc of docs.docs) tx.delete(doc.ref);
+                    return docs.empty ? { stage: 'generation-results' } : {};
+                });
+            }
+            for (let batch = 0; job?.stage === 'generation-results' && batch < maxBatches; batch++) {
+                job = await change({}, async tx => {
+                    const docs = await tx.get(db.collection('generation_results').where('userId', '==', uid).limit(batchSize));
+                    for (const doc of docs.docs) tx.delete(doc.ref);
                     return docs.empty ? { stage: 'profile' } : {};
                 });
             }

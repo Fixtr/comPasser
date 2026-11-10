@@ -124,6 +124,24 @@ test('이전 savedItineraryData는 로그인된 탭에서 최신 형식으로 �
   assert.equal(JSON.parse(storage.getItem(ITINERARY_SESSION_KEY)).userId, 'owner');
 });
 
+test('a restored draft keeps its calendar identity and the next draft gets another', () => {
+  const storage = memoryStorage();
+  storage.setItem('savedItineraryData', JSON.stringify(plan()));
+  const state = make(storage);
+  state.activateDraft();
+  const key = state.calendarTripKey();
+  const fresh = make(storage);
+  fresh.activateDraft();
+  assert.match(key, /^draft:/);
+  assert.equal(fresh.calendarTripKey(), key);
+  fresh.open(plan());
+  assert.notEqual(fresh.calendarTripKey(), key);
+  fresh.open(plan(), { kind: 'private', id: 'sameId' });
+  assert.equal(fresh.calendarTripKey(), 'private:sameId');
+  fresh.open(plan(), { kind: 'shared', id: 'sameId' });
+  assert.equal(fresh.calendarTripKey(), 'shared:sameId');
+});
+
 test('예전 AI 실패 임시 일정은 세션 사본·이전 형식·새로 열기 어디서도 복원하지 않고 사본에서 지운다', () => {
   const placeholder = { ...plan(), isFallback: true, fallbackReason: 'error' };
   const session = memoryStorage();

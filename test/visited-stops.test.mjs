@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { createVisitedStops, VISITED_STOPS_KEY, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
 import { recommendationFields } from '../src/domains/map/services/recommendation-place.mjs';
 
-const memory = () => { const values = new Map(); return { values, getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }; };
+const memory = () => {
+  const values = new Map();
+  return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+};
 const day = () => ({ date: '2026-09-17', scheduleItems: [
   { type: 'departure', time: '09:00', title: '호텔' },
   { type: 'cafe', time: '10:00', title: '카페' },
@@ -14,36 +17,69 @@ const day = () => ({ date: '2026-09-17', scheduleItems: [
 
 test('toggle marks and unmarks a stop for one trip only', () => {
   const storage = memory(), store = createVisitedStops({ getStorage: () => storage });
+  store.setUser('owner');
   const [, cafe] = stopKeys(day());
-  assert.equal(store.toggle('private:a', cafe), true);
-  assert.deepEqual([...store.visited('private:a')], [cafe]);
-  assert.equal(store.visited('shared:a').size, 0);
-  assert.equal(store.toggle('private:a', cafe), false);
-  assert.equal(store.visited('private:a').size, 0);
+  assert.equal(store.toggle('private:a', cafe, 'owner'), true);
+  assert.deepEqual([...store.visited('private:a', 'owner')], [cafe]);
+  assert.equal(store.visited('shared:a', 'owner').size, 0);
+  assert.equal(store.toggle('private:a', cafe, 'owner'), false);
+  assert.equal(store.visited('private:a', 'owner').size, 0);
 });
 
 test('corrupt or blocked storage means nothing is marked', () => {
   const storage = memory();
   storage.setItem(VISITED_STOPS_KEY, '{not json');
   const store = createVisitedStops({ getStorage: () => storage });
-  assert.equal(store.visited('private:a').size, 0);
-  assert.equal(store.toggle('private:a', 'k'), true);
-  assert.equal(store.visited('private:a').has('k'), true);
+  store.setUser('owner');
+  assert.equal(store.visited('private:a', 'owner').size, 0);
+  assert.equal(store.toggle('private:a', 'k', 'owner'), true);
+  assert.equal(store.visited('private:a', 'owner').has('k'), true);
   const blocked = createVisitedStops({ getStorage: () => ({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } }) });
-  assert.equal(blocked.visited('private:a').size, 0);
-  assert.equal(blocked.toggle('private:a', 'k'), false);
-  assert.equal(createVisitedStops({ getStorage: () => null }).toggle('private:a', 'k'), false);
+  blocked.setUser('owner');
+  assert.equal(blocked.visited('private:a', 'owner').size, 0);
+  assert.equal(blocked.toggle('private:a', 'k', 'owner'), false);
+  const unavailable = createVisitedStops();
+  unavailable.setUser('owner');
+  assert.equal(unavailable.toggle('private:a', 'k', 'owner'), false);
 });
 
 test('keeps only the 50 most recently changed trips', () => {
   const storage = memory();
   let clock = 0;
   const store = createVisitedStops({ getStorage: () => storage, now: () => ++clock });
-  for (let i = 0; i < 51; i++) store.toggle(`private:t${i}`, 'k');
-  assert.equal(store.visited('private:t0').size, 0);
-  assert.equal(store.visited('private:t1').size, 1);
-  assert.equal(store.visited('private:t50').size, 1);
+  store.setUser('owner');
+  for (let i = 0; i < 51; i++) store.toggle(`private:t${i}`, 'k', 'owner');
+  assert.equal(store.visited('private:t0', 'owner').size, 0);
+  assert.equal(store.visited('private:t1', 'owner').size, 1);
+  assert.equal(store.visited('private:t50', 'owner').size, 1);
   assert.equal(Object.keys(JSON.parse(storage.getItem(VISITED_STOPS_KEY)).trips).length, 50);
+});
+
+test('legacy marks are cleared; reload restores only the current account or guest scope', () => {
+  const storage = memory();
+  const open = () => createVisitedStops({ getStorage: () => storage });
+  storage.setItem(VISITED_STOPS_KEY, JSON.stringify({ version: 1, trips: { 'private:a': { stops: ['legacy'] } } }));
+  const store = open();
+  store.setUser('first');
+  assert.equal(storage.getItem(VISITED_STOPS_KEY), null);
+  assert.equal(store.toggle('shared:a', 'first mark', 'first'), true);
+
+  const reloaded = open();
+  assert.equal(reloaded.visited('shared:a', 'first').size, 0);
+  reloaded.setUser('first');
+  assert.deepEqual([...reloaded.visited('shared:a', 'first')], ['first mark']);
+  reloaded.setUser(null);
+  assert.equal(storage.getItem(VISITED_STOPS_KEY), null);
+  assert.equal(reloaded.visited('shared:a', null).size, 0);
+  assert.equal(reloaded.toggle('shared:a', 'late click', 'first'), false);
+  assert.equal(reloaded.toggle('shared:a', 'guest mark', null), true);
+
+  const guestReload = open();
+  guestReload.setUser(null);
+  assert.deepEqual([...guestReload.visited('shared:a', null)], ['guest mark']);
+  guestReload.setUser('second');
+  assert.equal(storage.getItem(VISITED_STOPS_KEY), null);
+  assert.equal(guestReload.visited('shared:a', 'second').size, 0);
 });
 
 test('stop keys survive a fresh copy and time shifts, and tell repeated titles apart', () => {

@@ -61,6 +61,18 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
     get revision() { return revision; },
     get userId() { return userId; },
 
+    calendarTripKey() {
+      const entry = current();
+      if (!entry) return null;
+      const { kind, id } = entry.source;
+      if (kind !== 'draft') return `${kind}:${id}`;
+      if (!entry.calendarDraftId) {
+        entry.calendarDraftId = crypto.randomUUID();
+        persist();
+      }
+      return `draft:${entry.calendarDraftId}`;
+    },
+
     setUser(nextUserId) {
       const next = nextUserId || null;
       if (userId === next) return false;

@@ -15,7 +15,7 @@
     "test:ionic:pwa": "playwright test --config playwright.ionic-pwa.config.mjs",
     "test:browser:install": "node scripts/install-test-browser.mjs",
     "test:emulator": "node scripts/test-emulators.mjs",
-    "check": "npm test && npm run build && npm run test:browser && npm run test:emulator",
+    "check": "npm run lint && npm test && npm run build && npm run test:browser && npm run test:ionic && npm run test:ionic:pwa && npm run test:emulator",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync",
     "cap:open:android": "npx cap open android",

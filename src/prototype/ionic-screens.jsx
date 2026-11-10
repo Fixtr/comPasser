@@ -192,6 +192,7 @@ export function PlanScreen({ user, settings }) {
   const phaseRef = useStageTransition(phase);
   const [error, setError] = useState('');
   const [retryable, setRetryable] = useState(false);
+  const [canRecover, setCanRecover] = useState(false);
   const [stage, setStage] = useState('draft');
   const retry = useRef(null);
   const run = useRef(0);
@@ -200,6 +201,7 @@ export function PlanScreen({ user, settings }) {
   useEffect(() => {
     if (pathname !== '/plan') return undefined;
     setPhase('form');
+    setCanRecover(false);
     plannerDraftStore.update({ step: search.includes('review=1') ? '/plan?review=1' : '/plan' });
     const element = form.current;
     // Another account's balance (a zero blocks the button) must not show while this one loads; the element is defined after its lazy import.
@@ -208,9 +210,11 @@ export function PlanScreen({ user, settings }) {
     let loadCredits = () => {};
     let cancelled = false;
     let stopping = null;
-    const discard = () => { run.current++; element?.discardDraft?.(); setPhase('form'); };
+    let attempt = null;
+    const draftKey = () => JSON.stringify({ ...plannerDraftStore.read(), step: null });
+    const discard = () => { run.current++; attempt = null; retry.current = null; setCanRecover(false); element?.discardDraft?.(); setPhase('form'); };
     window.addEventListener('planner-draft-discarded', discard);
-    // Leaving during generation only stops it: the server still finishes, so the inputs stay and its result is ignored.
+    // Stopping detaches the current wait. Only an explicit retry can show its eventual result.
     const stop = async () => {
       if (stopping) return;
       stopping = new AbortController();
@@ -219,6 +223,7 @@ export function PlanScreen({ user, settings }) {
       if (!accepted || !element?.isGenerating) return;
       run.current++;
       element.isGenerating = false;
+      setCanRecover(true);
       setPhase('form');
       window.dispatchEvent(new CustomEvent('itinerary-generation-complete'));
       loadCredits();
@@ -226,17 +231,28 @@ export function PlanScreen({ user, settings }) {
     };
     const exitRequested = event => { if (element?.isGenerating) { event.preventDefault(); void stop(); } };
     window.addEventListener('plan-exit-requested', exitRequested);
-    const onGenerate = async event => {
-      if (element?.isGenerating) return;
+    const runGeneration = async current => {
+      if (cancelled || element?.isGenerating || getCurrentUser()?.uid !== user?.uid) return;
+      if (current.draftKey !== draftKey()) {
+        setCanRecover(false);
+        setRetryable(false);
+        setError(t('generationRecoveryDraftChanged'));
+        setPhase('error');
+        return;
+      }
       element.isGenerating = true;
       const request = ++run.current;
       const userId = getCurrentUser()?.uid;
-      retry.current = () => onGenerate(event);
+      retry.current = () => runGeneration(current);
+      setCanRecover(false);
       setPhase('loading');
       setStage('draft');
       setError('');
       try {
-        const result = await generate(event.detail, { onStage: next => { if (request === run.current) setStage(next); } });
+        const result = await generate(current.input, {
+          requestId: current.id, lang: current.lang,
+          onStage: next => { if (request === run.current) setStage(next); },
+        });
         if (request !== run.current || getCurrentUser()?.uid !== userId) return;
         generatedPlan = { userId, plan: result };
         plannerDraftStore.clear();
@@ -245,6 +261,8 @@ export function PlanScreen({ user, settings }) {
         if (request === run.current) {
           setError(cause?.outcomeUnknown && element.generationCredits === 'unlimited' ? t('generationOutcomeUnknownUnlimited') : cause?.message || t('generationFail'));
           setRetryable(cause?.retryable === true);
+          setCanRecover(cause?.outcomeUnknown === true);
+          if (cause?.recoveryExpired) attempt = null;
           setPhase('error');
         }
       } finally {
@@ -252,6 +270,16 @@ export function PlanScreen({ user, settings }) {
         loadCredits();
         if (request === run.current) { stopping?.abort(); element.isGenerating = false; window.dispatchEvent(new CustomEvent('itinerary-generation-complete')); }
       }
+    };
+    const onGenerate = event => {
+      if (element?.isGenerating) return;
+      const inputKey = JSON.stringify(event.detail);
+      const currentDraftKey = draftKey();
+      if (attempt?.inputKey !== inputKey || attempt?.draftKey !== currentDraftKey) {
+        attempt = { inputKey, draftKey: currentDraftKey, input: structuredClone(event.detail),
+          id: `${Date.now()}.${crypto.randomUUID()}`, lang: getLang() };
+      }
+      void runGeneration(attempt);
     };
     void Promise.all([
       import('../domains/planner/ui/travel-form.js'),
@@ -267,18 +295,20 @@ export function PlanScreen({ user, settings }) {
       loadCredits();
       element?.addEventListener('generate-itinerary', onGenerate);
     });
-    return () => { cancelled = true; run.current++; stopping?.abort(); window.removeEventListener('planner-draft-discarded', discard); window.removeEventListener('plan-exit-requested', exitRequested); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
+    return () => { cancelled = true; run.current++; retry.current = null; stopping?.abort(); window.removeEventListener('planner-draft-discarded', discard); window.removeEventListener('plan-exit-requested', exitRequested); if (element) { element.isGenerating = false; element.isSubmitting = false; } element?.removeEventListener('generate-itinerary', onGenerate); };
   }, [navigate, pathname, search, user?.uid]);
 
   return <IonPage><IonContent className="ion-padding shell-content">
-    <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div><div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
+    <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div>
+    {phase === 'form' && canRecover && <IonButton onClick={() => retry.current?.()}>{t('shellRecoverGeneration')}</IonButton>}
+    <div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
     {phase !== 'form' && <div ref={phaseRef} className="ionic-generation" role="status" aria-live="polite">
       {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2>
         <ol className="ionic-generation-steps" aria-hidden="true">{GENERATION_STAGES.map(([key, label]) => <li key={key} aria-current={key === stage ? 'step' : undefined}>{t(label)}</li>)}</ol>
         <p className="ionic-visually-hidden">{t(GENERATION_STAGES.find(([key]) => key === stage)[1])}</p>
         <p>{t('shellGeneratingWait')}</p><IonProgressBar type="indeterminate" /></>
         : <><h2>{t('shellGenerationFailed')}</h2><p role="alert">{error}</p>
-          {retryable && <IonButton onClick={() => retry.current?.()}>{t('shellRetry')}</IonButton>}
+          {retryable && <IonButton onClick={() => retry.current?.()}>{t(canRecover ? 'shellRecoverGeneration' : 'shellRetry')}</IonButton>}
           <IonButton fill={retryable ? 'outline' : 'solid'} onClick={() => setPhase('form')}>{t('shellReturnToForm')}</IonButton></>}
     </div>}
   </IonContent></IonPage>;

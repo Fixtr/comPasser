@@ -6,7 +6,7 @@ import {createRequire} from 'node:module';
 const project = 'demo-hackerton-deletion';
 const root = `http://${process.env.FIRESTORE_EMULATOR_HOST}/v1/projects/${project}/databases/(default)/documents`;
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
-const token = uid => `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: uid, user_id: uid, aud: project, iss: `https://securetoken.google.com/${project}`, iat: 2000, exp: 9999999999, auth_time: 2000, firebase: { sign_in_provider: 'password' } })}.`;
+const token = uid => `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: uid, user_id: uid, aud: project, iss: `https://securetoken.google.com/${project}`, iat: 2000, exp: 9999999999, auth_time: 2000, email_verified: true, firebase: { sign_in_provider: 'password' } })}.`;
 const field = value => value === null ? { nullValue: null } : value instanceof Date ? { timestampValue: value.toISOString() } : Array.isArray(value) ? { arrayValue: { values: value.map(field) } }
   : value && typeof value === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, field(entry)])) } }
     : typeof value === 'number' ? { integerValue: String(value) } : { stringValue: value };

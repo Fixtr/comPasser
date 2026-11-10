@@ -6,17 +6,33 @@ const host = process.env.FIRESTORE_EMULATOR_HOST;
 const project = 'demo-hackerton-deletion';
 const root = `http://${host}/v1/projects/${project}/databases/(default)/documents`;
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
-function token(uid, authTime = 2000) {
-    return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: uid, user_id: uid, aud: project, iss: `https://securetoken.google.com/${project}`, iat: 2000, exp: 9999999999, auth_time: authTime, firebase: { sign_in_provider: 'password' } })}.`;
+function token(uid, authTime = 2000, { provider = 'password', emailVerified = true } = {}) {
+    return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: uid, user_id: uid, aud: project, iss: `https://securetoken.google.com/${project}`, iat: 2000, exp: 9999999999, auth_time: authTime, email_verified: emailVerified, firebase: { sign_in_provider: provider } })}.`;
 }
 const value = v => v === null ? { nullValue: null } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'object' ? { mapValue: { fields: fields(v) } } : { stringValue: v };
 function fields(data) {
     return Object.fromEntries(Object.entries(data).map(([key, entry]) => [key, value(entry)]));
 }
-async function request(path, { method = 'GET', user, authTime, data, admin = false } = {}) {
-    return fetch(`${root}/${path}`, { method, headers: { 'Content-Type': 'application/json', ...(admin ? { Authorization: 'Bearer owner' } : user ? { Authorization: `Bearer ${token(user, authTime)}` } : {}) }, ...(data ? { body: JSON.stringify({ fields: fields(data) }) } : {}) });
+async function request(path, { method = 'GET', user, authTime, identity, data, admin = false } = {}) {
+    return fetch(`${root}/${path}`, { method, headers: { 'Content-Type': 'application/json', ...(admin ? { Authorization: 'Bearer owner' } : user ? { Authorization: `Bearer ${token(user, authTime, identity)}` } : {}) }, ...(data ? { body: JSON.stringify({ fields: fields(data) }) } : {}) });
 }
 async function seed(path, data) { const response = await request(path, { method: 'PATCH', admin: true, data }); assert.equal(response.status, 200, await response.text()); }
+
+test('password account writes require verified email without blocking social accounts', async () => {
+    for (const [user, provider, emailVerified, status] of [
+        ['verify-pending', 'password', false, 403],
+        ['verify-complete', 'password', true, 200],
+        ['social-custom', 'custom', false, 200],
+        ['social-google', 'google.com', false, 200],
+    ]) {
+        const identity = { provider, emailVerified };
+        const profile = await request(`users/${user}`, { method: 'PATCH', user, identity, data: { birthday: '2000-01-01' } });
+        assert.equal(profile.status, status, await profile.text());
+        await seed(`itineraries/${user}`, { userId: user, title: 'old' });
+        const trip = await request(`itineraries/${user}?updateMask.fieldPaths=title`, { method: 'PATCH', user, identity, data: { title: 'new' } });
+        assert.equal(trip.status, status, await trip.text());
+    }
+});
 
 test('profile writes allow only birthday and cannot restore retired identity fields', async () => {
     assert.equal((await request('users/new-profile', { method: 'PATCH', user: 'new-profile', data: { birthday: '2000-01-01' } })).status, 200);

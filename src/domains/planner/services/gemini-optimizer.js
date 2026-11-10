@@ -46,13 +46,10 @@ export async function getGenerationCredits() {
  * 결정론적 가드레일(enforcePlannerConstraints)은 사용자 입력을 알고 있는
  * 클라이언트에 그대로 남겨 둔다.
  */
-export async function generateOptimizedItinerary(plannerRequest, { onStage } = {}) {
+export async function generateOptimizedItinerary(plannerRequest, { onStage, requestId, lang: currentLang = getLang() } = {}) {
   const issue = findPlannerInputIssue(plannerRequest);
   if (issue) throw new Error(plannerValidationMessage(issue));
   const normalizedRequest = normalizePlannerRequest(plannerRequest);
-  const currentLang = getLang();
-
-  console.log("Requesting itinerary from Cloud Function with constraints:", normalizedRequest);
 
   const callGenerateItinerary = httpsCallable(fns(), "generateItinerary", {
     timeout: CALL_TIMEOUT_MS
@@ -60,7 +57,8 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
 
   try {
     const response = await callGenerateItinerary({
-      request: normalizedRequest,
+      // An older server rejects the new field rather than spending credits on an untracked retry.
+      ...(requestId ? { recoverableRequest: normalizedRequest, requestId } : { request: normalizedRequest }),
       lang: currentLang
     });
 
@@ -74,6 +72,12 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
       days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget), normalizedRequest, currentLang), normalizedRequest)
     }, { onStage });
   } catch (error) {
+    if (error?.details?.reason === 'generation-request-expired' || error?.details?.reason === 'generation-request-mismatch') {
+      throw Object.assign(new Error(t('generationRecoveryExpired')), { recoveryExpired: true });
+    }
+    if (error?.details?.reason === 'email-not-verified') {
+      throw new Error(t('loginEmailNotVerified'));
+    }
     // Bad input needs editing, never a generated-looking fallback result.
     if (error?.code === 'functions/invalid-argument') {
       throw new Error(plannerValidationMessage(error.details));
@@ -98,11 +102,11 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage } = {
     }
 
     console.error("[generateItinerary] generation failed.", error);
-    // A made-up plan looked real, so failures stay errors. Only a call the server failed may be retried as is:
-    // a broken plan it returned already used its credit, and after a timeout or a lost connection
-    // (the SDK's bare 'internal') the server may still finish, so a retry would hit its lease.
-    const unknown = error?.code === 'functions/deadline-exceeded' || (error?.code === 'functions/internal' && error.message === 'internal');
+    const unknown = error?.details?.reason === 'generation-request-pending'
+      || error?.code === 'functions/deadline-exceeded'
+      || (Boolean(requestId) && error?.code === 'functions/unavailable')
+      || (error?.code === 'functions/internal' && error.message === 'internal');
     throw Object.assign(new Error(t(unknown ? 'generationOutcomeUnknown' : 'generationAiFailed')),
-      { retryable: !unknown && String(error?.code).startsWith('functions/'), outcomeUnknown: unknown });
+      { retryable: unknown ? Boolean(requestId) : String(error?.code).startsWith('functions/'), outcomeUnknown: unknown });
   }
 }

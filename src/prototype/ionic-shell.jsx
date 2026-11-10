@@ -12,6 +12,7 @@ import { decideRoute, getSafeReturnPath, isHomePath } from '../app/route-decisio
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
+import { visitedStops } from '../domains/itinerary/services/visited-stops.mjs';
 import { showErrorToast } from '../utils/toast.js';
 import { applyRouteTheme, isDarkRoute, releaseRouteTheme, ROUTE_THEME_ATTR } from '../utils/route-theme.js';
 import { installPageTransitions } from './screen-transition.js';
@@ -217,8 +218,15 @@ function Shell() {
     let stopped = false, unsubscribe;
     authService().then(({ missingFirebaseConfig, subscribeToAuthChanges }) => {
       if (stopped) return;
-      if (missingFirebaseConfig.length) { plannerDraftStore.setUser(null); offlineTrips.setUser(null); setAuth({ user: null, settled: true, failed: false }); return; }
-      unsubscribe = subscribeToAuthChanges(user => { plannerDraftStore.setUser(unverifiedEmail(user) ? null : user?.uid); offlineTrips.setUser(user?.uid); setAuth({ user, settled: true, failed: false }); });
+      const settleAuth = user => {
+        const owner = unverifiedEmail(user) ? null : user?.uid;
+        plannerDraftStore.setUser(owner);
+        offlineTrips.setUser(user?.uid);
+        visitedStops.setUser(owner);
+        setAuth({ user, settled: true, failed: false });
+      };
+      if (missingFirebaseConfig.length) { settleAuth(null); return; }
+      unsubscribe = subscribeToAuthChanges(settleAuth);
     // Not treated as signed out, which would wipe the owner's local draft and trips; nearly every screen needs this chunk too.
     }).catch(() => { if (!stopped) setAuth({ user: null, settled: false, failed: true }); });
     return () => { stopped = true; unsubscribe?.(); };

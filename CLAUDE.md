@@ -39,7 +39,7 @@ Node.js 24; Java JDK 21+ is needed for emulator tests. Install with `npm ci && n
 - `npm run test:browser`: Playwright smoke scenarios on the Ionic shell (`test/browser/smoke.spec.mjs`, port 4183; `SMOKE_PORT=<port>` runs another copy alongside). Filter with `-- --grep "planner"`. First run needs `npm run test:browser:install`.
 - `npm run test:ionic` / `npm run test:ionic:pwa`: real Ionic screens (port 4184) / PWA offline (port 4185). The PWA run overwrites `dist/` with a test build, so rebuild before deploying.
 - `npm run test:emulator`: Firebase Auth/Firestore emulator tests and security rules (`test/emulator/`, project `demo-hackerton-deletion`).
-- `npm run check`: unit, build, browser, emulator in sequence. Run before requesting review.
+- `npm run check`: lint, unit tests, build, all three browser suites, and emulator tests in sequence. Run before requesting review.
 
 Test servers ignore `.env` and stub every external boundary (auth, AI, DB, maps); see `docs/TESTING.md`. New browser callbacks must be registered in `test/browser/smoke.spec.mjs`.
 

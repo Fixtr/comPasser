@@ -849,19 +849,28 @@ export default class ItineraryView extends HTMLElement {
   }
 
   /** The whole trip as an .ics file; calendars import it from the download. */
-  downloadCalendar() {
-    const ics = this.currentItinerary && buildItineraryCalendar(this.state.snapshot().plan);
-    if (!ics) { this.showToast(t('nothingToShare'), true); return; }
-    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  async downloadCalendar() {
+    const entry = this.state.current;
+    const userId = getCurrentUser()?.uid || null;
+    if (entry && entry.source.kind !== 'shared' && entry.source.ownerId !== userId) return;
+    let url;
     try {
+      const snapshot = this.state.snapshot();
+      const ics = snapshot && await buildItineraryCalendar(snapshot.plan, this.state.calendarTripKey());
+      if (entry !== this.state.current || userId !== (getCurrentUser()?.uid || null)) return;
+      if (!ics) { this.showToast(t('nothingToShare'), true); return; }
+      url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
       const link = document.createElement('a');
       link.href = url;
       link.download = 'compasser-trip.ics';
       link.click();
+      this.showToast(t('calendarExportDone'));
+    } catch (error) {
+      console.error('Calendar export failed:', error);
+      this.showToast(t('calendarExportFailed'), true);
     } finally {
-      URL.revokeObjectURL(url);
+      if (url) URL.revokeObjectURL(url);
     }
-    this.showToast(t('calendarExportDone'));
   }
 
   /** 내보낼 사본과 번역을 전달하고, 화면의 버튼·결과 알림만 관리한다. */
@@ -1722,7 +1731,8 @@ export default class ItineraryView extends HTMLElement {
       let globalIdx = 0;
       const items = dayData.scheduleItems || [];
       const tripId = this.visitTripId;
-      const visited = tripId ? visitedStops.visited(tripId) : null;
+      const userId = this.state.userId;
+      const visited = tripId ? visitedStops.visited(tripId, userId) : null;
       const keys = stopKeys(dayData);
       this.updateNextStop(dayData);
       
@@ -1751,7 +1761,7 @@ export default class ItineraryView extends HTMLElement {
       item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
         // Place lookups and measured times change the day after render without rebuilding the cards.
         const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex] || dayData;
-        const on = visitedStops.toggle(tripId, stopKeys(day)[idx]);
+        const on = visitedStops.toggle(tripId, stopKeys(day)[idx], userId);
         e.currentTarget.setAttribute('aria-pressed', String(on));
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
         this.updateNextStop(day);
@@ -1820,7 +1830,7 @@ export default class ItineraryView extends HTMLElement {
     const isToday = String(dayData.date).slice(0, 10) === today;
     const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(now);
     const tripId = this.visitTripId;
-    const stop = pickNextStop(dayData, { visited: tripId ? visitedStops.visited(tripId) : null, currentTime: isToday ? currentTime : undefined });
+    const stop = pickNextStop(dayData, { visited: tripId ? visitedStops.visited(tripId, this.state.userId) : null, currentTime: isToday ? currentTime : undefined });
     panel.hidden = !stop;
     if (!stop) return;
     this.shadowRoot.getElementById('next-stop-label').textContent = t(isToday ? 'nextStopToday' : 'firstStop');
