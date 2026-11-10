@@ -34,4 +34,5 @@
 
 - Bottom-tab `/profile/trips` is a standalone saved list. The profile menu uses `/profile/personal?tab=trips` to retain all three profile menus and the selected profile bottom tab; result back navigation returns to its origin.
 - Language lives inside the security card after login method/password, uses existing i18n persistence, and never changes typed input or selected identities. Listing/date labels follow the current locale. Account data and credits continue to use the existing profile/auth services.
+- Own itinerary cards offer 복제/Duplicate: a dialog takes a new start date (prefilled with the first day) and saves a new private trip through `saveItinerary` with `shiftItineraryDates` (`itinerary/services/itinerary-duplicate.mjs`) and the title plus a copy suffix, clipped to 100 characters. The original document is never written. Disabled offline and while saving; no generation credit is used.
 - Own itinerary cards offer explicit offline save/remove. Offline lists use only owner-scoped saved snapshots and disable mutation/publication controls. Ignore stale remote listing responses after an account change.
