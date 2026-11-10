@@ -2400,3 +2400,17 @@ test('결과 화면만 어둡고, 그 화면에서 누른 테마 토글이 강�
   await expect(statusBar).toHaveAttribute('content', '#FFFFFF');
   await expect(toggle).toHaveText('다크 모드');
 });
+
+test('/ 다음 /home 으로 가면 숨은 / 페이지는 코스를 다시 가져오지 않는다', async ({ page }) => {
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule }));
+  await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function getPublicCourse() { window.courseLookups = (window.courseLookups || 0) + 1; return null; }
+  ` }));
+  await page.goto('/');
+  await page.locator('.ionic-home h1:visible').waitFor();
+  // Ionic keeps both home pages mounted; the hidden '/' page must not answer the /home address.
+  await page.evaluate(() => window.navigate('/home?course=travelerSeoul'));
+  await expect(page.getByRole('status').filter({ hasText: '이 코스를 찾을 수 없거나' })).toHaveCount(1);
+  expect(await page.evaluate(() => window.courseLookups)).toBe(1);
+  await expect(page.locator('.ionic-home-settings button[lang=en]:visible')).toHaveCount(1);
+});

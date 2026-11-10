@@ -10,7 +10,8 @@ const TravelGlobe = lazy(() => import('./travel-globe.jsx').then(module => ({ de
 export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const active = ['/', '/home'].includes(location.pathname);
+  // Ionic keeps the '/' and '/home' pages mounted together; only the shown one may run home's effects and globe.
+  const active = pageActive;
   const [importStatus, setImportStatus] = useState('');
   const [pickedCountry, setPickedCountry] = useState(null);
   const tripOwner = authSettled && user?.uid;
@@ -82,8 +83,8 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
         <h1>{t('flowHomeTitle')}</h1>
         <p>{t('flowHomeDescription')}</p>
       </div>
-      {/* Mounted only while this page's own route shows ('/' and '/home' stay mounted together), so coming back re-reads the list once. */}
-      {tripOwner && pageActive && <upcoming-trip key={tripOwner} uid={tripOwner} />}
+      {/* Mounted only while this page shows, so coming back re-reads the list once. */}
+      {tripOwner && active && <upcoming-trip key={tripOwner} uid={tripOwner} />}
       {/* Above the globe so the two entries stay above the tab bar on short phones. */}
       <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
       <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>
