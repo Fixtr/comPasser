@@ -18,6 +18,9 @@ export function minutesOf(time) {
   return (hours * 60) + mins;
 }
 
+export const routeDepartureClock = item => minutesOf(item?.actualDepartureTime) !== null
+  ? item.actualDepartureTime : item?.endTime || item?.time;
+
 function formatMinutes(totalMinutes) {
   const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
   const hours = Math.floor(wrapped / 60);
@@ -80,7 +83,7 @@ export function applyTransitDelays(scheduleItems, transitRoutes, requestedStartT
       if (route && route.fromIndex >= 0 && route.fromIndex < i) {
         // 이 항목으로 오는 실제 경로가 있다: 출발 항목의 종료 시각 + 소요시간
         const origin = result[route.fromIndex];
-        const originEnd = minutesOf(origin.endTime) ?? minutesOf(origin.time);
+        const originEnd = minutesOf(routeDepartureClock(origin)) ?? minutesOf(origin.time);
         if (originEnd !== null) earliestArrival = originEnd + route.durationMinutes;
       }
 

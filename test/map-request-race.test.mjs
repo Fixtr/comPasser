@@ -2,6 +2,7 @@ import { travelRegion } from '../functions/travel-region.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { routeDepartureClock } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { buildTransitDepartureTime } from '../src/domains/map/services/transit-time.mjs';
 
 const source = readFileSync(new URL('../src/domains/map/ui/map-view.js', import.meta.url), 'utf8')
@@ -93,7 +94,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
     } }),
     GeocodingService: class { geocodeSchedule(...args) { return geocode(...args); } },
     RoutingService: class { getTransitRoute(...args) { return route(...args); } },
-    getLang: () => 'ko', t: key => key, buildTransitDepartureTime,
+    getLang: () => 'ko', t: key => key, buildTransitDepartureTime, routeDepartureClock,
     getComputedStyle: () => ({ getPropertyValue: name => styles[name] || '' }),
     document: { documentElement: {}, createElement: tag => ({ tag, style: {}, children: [], append(...nodes) { this.children.push(...nodes); } }) },
     CustomEvent: class { constructor(type, { detail } = {}) { this.type = type; this.detail = detail; } },

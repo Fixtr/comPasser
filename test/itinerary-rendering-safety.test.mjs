@@ -50,7 +50,7 @@ function viewHarness({ user = null } = {}) {
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
-    Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar,
+    Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, refreshReplanButton() {},
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     stopNoteKeys: () => [], attachStopNoteControl() {},
     console,

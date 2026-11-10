@@ -17,6 +17,7 @@ import { summarizeCosts, formatCostSummary, isTransportEstimatedCost } from '../
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem, replaceSchedulePlace } from '../services/itinerary-edit.mjs';
 import { openPlaceReplacement } from './place-replacement.js';
 import { refreshHours } from './itinerary-hours.js';
+import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
 import { attachStopNoteControl } from './stop-note-editor.js';
 import { stopNoteKeys } from '../services/stop-notes.mjs';
@@ -292,6 +293,8 @@ export default class ItineraryView extends HTMLElement {
     this.setupShareListener();
     this.setupKakaoShareListener();
     this.setupDownloadListener();
+    const replanButton = this.shadowRoot.getElementById('replan-trip-btn');
+    replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
     this.shadowRoot.getElementById('recalculate-times-btn')?.addEventListener('click', () => {
       if (this.canEdit()) { this._explicitRecalculation=true; this.requestMapRoute({ scheduleEdited: true }); }
@@ -461,12 +464,14 @@ export default class ItineraryView extends HTMLElement {
   }
 
   invalidateMapRequest() {
+    this._replan?.abort();
     this._mapRequest = null;
     window.dispatchEvent(new CustomEvent('cancel-map-route'));
   }
 
   /** 생성·불러오기·날짜 전환·편집 모두 이곳에서 같은 요청 표식을 붙인다. */
   requestMapRoute({ automaticFit = false, scheduleEdited = false } = {}) {
+    this._replan?.abort();
     if (!automaticFit) { this._automaticFitCount = 0; this._routeOrderChecked = false; this._routeOrderOriginal = null; }
     if (!automaticFit) this._allowTimeAdjustment = scheduleEdited || (this.state.current?.source.kind === 'draft' && !this.state.current?.dirtyDays?.includes(this.activeDayIndex));
     const plan = this.normalizeData(this.currentItinerary);
@@ -513,6 +518,7 @@ export default class ItineraryView extends HTMLElement {
   }
 
   refreshAccessControls() {
+    refreshReplanButton(this);
     if (!this.isReadOnly) {
       this._stopSharedWatch?.();
       this._stopSharedWatch = null;
@@ -1499,6 +1505,7 @@ export default class ItineraryView extends HTMLElement {
             <button type="button" id="next-stop-directions"></button>
           </section>
           <span id="day-modified" data-i18n="flowChanged" hidden></span><button type="button" id="undo-deletion-btn" data-i18n="flowUndo" hidden></button>
+          <button type="button" id="replan-trip-btn" class="end-time-fix-btn" data-i18n="replanBtn" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
@@ -1770,6 +1777,7 @@ export default class ItineraryView extends HTMLElement {
         e.currentTarget.setAttribute('aria-pressed', String(on));
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
         this.updateNextStop(day);
+        refreshReplanButton(this);
       });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
