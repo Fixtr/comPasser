@@ -6,7 +6,7 @@ async (page) => {
   const station = { placeId: 'seoul-station', displayName: '서울역', formattedAddress: '서울 중구', lat: 37.555, lng: 126.97 };
   const hall = { placeId: 'concert-hall', displayName: '공연장', formattedAddress: '서울 종로구', lat: 37.57, lng: 126.98 };
   const request = {
-    date: ['2026-10-01', '2026-10-02'], theme: 'food', budget: 'budget',
+    date: ['2026-10-01', '2026-10-02'], theme: 'food', budget: 'budget', companion: 'family_kids',
     startTime: '09:00', endTime: '18:00', startLocation: station, endLocation: station,
     overnightLocations: ['서울역'],
     dailyTimes: [
@@ -54,7 +54,7 @@ async (page) => {
   let actual = await read();
   check(actual.date.includes('2026-10-01') && actual.date.includes('2026-10-02'), 'Edited dates must be visible');
   check(JSON.stringify(actual.request.date) === JSON.stringify(request.date), 'Submitted dates must match the edited trip');
-  check(actual.request.theme === 'food' && actual.request.budget === 'budget', 'Edited theme/budget must win');
+  check(actual.request.theme === 'food' && actual.request.budget === 'budget' && actual.request.companion === 'family_kids', 'Edited theme/budget/companion must win');
   check(actual.badges.includes('2026-10-01'), 'Badges must use the same draft');
   check(actual.days.join() === '1,2' && actual.request.anchorSchedules[0].day === 2, 'Day selector must use edited duration');
   check(actual.daily.join() === '09:00,10:00', 'Custom daily times must be restored');
@@ -74,6 +74,23 @@ async (page) => {
   check(actual.request.anchorSchedules[0].name === '수정한 공연' && saved.anchorSchedules[0].name === '수정한 공연', 'Reload must retain detail edits');
   results.push('PASS detail edits survive a cancelled route exit and a cancelled reload, and are stored');
 
+  // Change the companion from the review's style edit; the choice must reach generation.
+  await page.locator('travel-form .primary-btn').click();
+  await page.locator('travel-form [data-review-edit="style"]').click();
+  const styleStep = page.locator('preference-view:visible');
+  check(await styleStep.locator('#companion-grid [data-value="family_kids"]').getAttribute('aria-pressed') === 'true', 'Companion edit must restore the saved selection');
+  await styleStep.locator('#companion-grid [data-value="parents"]').click();
+  check(await styleStep.locator('#companion-grid [aria-pressed="true"]').count() === 1, 'Companion is a single choice');
+  // Clicking the selected card again leaves the companion unset.
+  await styleStep.locator('#companion-grid [data-value="parents"]').click();
+  check(await styleStep.locator('#companion-grid [aria-pressed="true"]').count() === 0, 'Clicking the selected companion again must deselect it');
+  check(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).companion) === null, 'Deselected companion must be stored as null');
+  await styleStep.locator('#companion-grid [data-value="parents"]').click();
+  check(await styleStep.locator('#companion-grid').getAttribute('aria-labelledby') === 'companion-title', 'Companion cards must be a labelled group');
+  await styleStep.locator('#submit-btn').click();
+  await page.waitForFunction(() => document.querySelector('travel-form').draft.companion === 'parents');
+  actual = await read();
+  check(actual.request.companion === 'parents' && actual.request.anchorSchedules[0].name === '수정한 공연', 'Companion change must keep details');
   // The Ionic planner reviews the inputs before the generate button.
   await page.locator('travel-form .primary-btn').click();
   await page.locator('travel-form #final-generate').click();
@@ -82,6 +99,7 @@ async (page) => {
   // `step` is only the planner's own position (the review sets '/plan?review=1'), not a trip condition.
   const conditions = ({ step: _step, ...rest }) => JSON.stringify(rest);
   check(conditions(sent) === conditions(actual.request), 'Generate click must send exactly the displayed form data');
+  check(sent.companion === 'parents', 'Selected companion must reach the generation request');
   results.push('PASS actual submit event delivers the displayed conditions to generation');
   // Leaving during generation asks to stop it, which keeps the inputs and returns to the review.
   await page.evaluate(() => window.navigate('/profile'));
@@ -96,7 +114,7 @@ async (page) => {
   await page.locator('travel-form #schedule-date').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.querySelector('travel-form').draft.theme === null);
   actual = await read();
-  check(actual.request.theme === null && actual.request.budget === null, 'Skip must clear both preferences');
+  check(actual.request.theme === null && actual.request.budget === null && actual.request.companion === null, 'Skip must clear all preferences');
   check(actual.request.anchorSchedules[0].name === '수정한 공연', 'Preference change must keep details');
   results.push('PASS preference re-entry/skip updates the same draft without losing details');
 
