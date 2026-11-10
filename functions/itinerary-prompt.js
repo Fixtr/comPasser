@@ -8,7 +8,7 @@ const { travelRegion } = require('./travel-region.mjs');
  */
 "use strict";
 
-const { MAX_DAYS, MAX_ANCHORS_PER_DAY } = require('./planner-request-validation.mjs');
+const { MAX_DAYS, MAX_ANCHORS_PER_DAY, TRIP_PACES } = require('./planner-request-validation.mjs');
 const MAX_TEXT = 200;
 const MAX_SHORT = 40;
 
@@ -237,7 +237,8 @@ function sanitizePlannerRequest(raw) {
     dailyData,
     theme: THEME_INSTRUCTIONS[input.theme] ? input.theme : null,
     budget: BUDGET_INSTRUCTIONS[input.budget] ? input.budget : null,
-    companion: typeof input.companion === "string" && Object.hasOwn(COMPANION_INSTRUCTIONS, input.companion) ? input.companion : null
+    companion: typeof input.companion === "string" && Object.hasOwn(COMPANION_INSTRUCTIONS, input.companion) ? input.companion : null,
+    pace: TRIP_PACES.includes(input.pace) ? input.pace : "balanced"
   };
 }
 
@@ -258,6 +259,12 @@ function buildStyleBlock(constraints) {
   block += `\n\n${companion ? "Theme, budget and companion" : "Theme and budget"} are preferences within the fixed time/place constraints; they never override them.`;
   return block;
 }
+
+const VISIT_DENSITY = {
+  relaxed: "Plan a relaxed pace. Prefer fewer nearby optional visits, longer stays and unallocated rest time. Aim for 2-3 optional visits in a full 9-hour day and 0-1 in a day of 3 hours or less, after accommodating meals and fixed appointments. Leave some usable gaps open and keep travel gaps between visits.",
+  balanced: "Use the day's free time. After those gaps, every free block of 2 hours or more should hold at least one optional visit, so a full 9-hour day usually has 3-5 optional visits and a day of 3 hours or less usually 1-2. The gaps above still separate every pair of visits; never place visits back to back. Return fewer only when fixed appointments, gaps and minimum stays leave no room; never leave most of a long day empty.",
+  packed: "Plan a busy pace. Aim for 4-6 optional visits in a full 9-hour day when they fit, preferring nearby stops and shorter stays that still meet the minimums. Keep every travel gap and return fewer visits whenever fixed appointments, travel or minimum stays leave no room. Never place visits back to back."
+};
 
 function buildPrompt(constraints, lang) {
   const { dates, dailyData } = constraints;
@@ -289,7 +296,7 @@ TIME AND TRANSPORT:
 - Google route results are the sole source of transport facts. Do not write or estimate transport modes, lines, transfers, fares or journey durations. Keep transitInfo empty.
 - Use chronological same-day HH:mm start/end times inside the requested day. Never overlap a fixed appointment. duration and endTime - time describe ONLY the visit; travel occupies separate unallocated gaps, never an item.
 - Leave conservative gaps before/after visits for later route verification. Leave at least 150 minutes unallocated before an airport end time (city-to-airport transit often takes 60-130 minutes), 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
-- Use the day's free time. After those gaps, every free block of 2 hours or more should hold at least one optional visit, so a full 9-hour day usually has 3-5 optional visits and a day of 3 hours or less usually 1-2. The gaps above still separate every pair of visits; never place visits back to back. Return fewer only when fixed appointments, gaps and minimum stays leave no room; never leave most of a long day empty.
+- ${VISIT_DENSITY[constraints.pace] || VISIT_DENSITY.balanced}${constraints.companion && constraints.pace === "packed" ? " Honor the companion’s mobility, rest and safety needs before increasing visit density." : ""}
 - Never create a visit whose only purpose is departure, arrival, transfer, travel preparation or movement inside a venue.
 
 MEALS AND ACTIVITIES:

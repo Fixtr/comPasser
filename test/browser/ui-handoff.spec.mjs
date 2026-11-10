@@ -34,7 +34,7 @@ test.beforeEach(async ({page,context,baseURL})=>{
  await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort('blockedbyclient'));
  await page.route('**/src/domains/auth/services/firebase-auth.js',route=>route.fulfill({contentType:'text/javascript',body:auth}));
  await page.route('**/src/domains/map/services/google-maps-loader.js',route=>route.fulfill({contentType:'text/javascript',body:maps}));
- await page.route('**/src/domains/itinerary/services/firestore-service.js',route=>route.fulfill({contentType:'text/javascript',body:`const trip=${JSON.stringify(trip)};export const getUserItineraries=async()=>[structuredClone(trip)];export const loadItineraryDocument=async()=>({access:'private',itineraryPlan:structuredClone(trip.itineraryPlan)});export const saveItinerary=async()=>{window.saves=(window.saves||0)+1;return trip.id};export const updateItinerary=async(id,plan)=>{window.updates=(window.updates||[]).concat([{id,plan}]);return id};export const createSharedItinerary=async()=>'';export const watchSharedItinerary=()=>()=>{};export const renameItinerary=async()=>{};export const deleteItinerary=async()=>{};`}));
+ await page.route('**/src/domains/itinerary/services/firestore-service.js',route=>route.fulfill({contentType:'text/javascript',body:`const trip=${JSON.stringify(trip)};export const getUserItineraries=async()=>[structuredClone(trip)];export const loadItineraryDocument=async()=>({access:'private',itineraryPlan:structuredClone(trip.itineraryPlan)});export const saveItinerary=async()=>{window.saves=(window.saves||0)+1;return trip.id};export const updateItinerary=async(id,plan)=>{window.updates=(window.updates||[]).concat([{id,plan}]);return id};export const createSharedItinerary=async()=>'';export const watchSharedItinerary=()=>()=>{};export const readPrivateStopNote=async()=>{};export const writePrivateStopNote=async()=>{};export const renameItinerary=async()=>{};export const deleteItinerary=async()=>{};`}));
  await page.route('**/src/domains/profile/services/account-deletion-api.js',route=>route.fulfill({contentType:'text/javascript',body:`export const accountDeletionClient={status:async()=>({state:'not-found'}),hasReceipt:()=>false};`}));
  await page.route('**/src/domains/map/ui/map-view.js',route=>route.fulfill({contentType:'text/javascript',body:`class MapView extends HTMLElement{connectedCallback(){this.handler=event=>{window.mapDays=(window.mapDays||[]).concat(event.detail.context.dayIndex);const items=event.detail.plan.days[0].scheduleItems;setTimeout(()=>window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:event.detail.context,routes:items.slice(1).map((_,index)=>({fromIndex:index,toIndex:index+1,durationMinutes:10,mode:'WALKING',steps:[]}))}})),0)};window.addEventListener('render-map-route',this.handler)}disconnectedCallback(){window.removeEventListener('render-map-route',this.handler)}}customElements.define('map-view',MapView);`}));
  await page.route('**/src/domains/planner/services/flexible-visit-checks.js',route=>route.fulfill({contentType:'text/javascript',body:`export const createFlexibleVisitChecks=()=>({travelMinutes:async()=>10,hoursStatus:async()=> 'open'});`}));
@@ -1037,7 +1037,7 @@ test('plan destination action and endpoints align on desktop and fit on mobile',
 });
 
 for (const entry of ['form', 'review']) {
- test(`plan theme and budget edit preserves inputs through cached return and skip: entry=${entry}`, async ({page}) => {
+ test(`plan travel style edit preserves inputs through cached return and skip: entry=${entry}`, async ({page}) => {
   await page.emulateMedia({reducedMotion:entry==='review'?'reduce':'no-preference'});
   const form=await openExitTestForm(page);
   await form.evaluate(async element=>{
@@ -1061,18 +1061,25 @@ for (const entry of ['form', 'review']) {
   await form.locator('#reselect-preference-btn').click();await expect(preference.locator('#step2-container')).toBeVisible();
   await preference.locator('#theme-grid [data-value=healing]').click();
   await preference.locator('#budget-grid [data-value=flex]').click();
+  await expect(preference.getByRole('combobox', { name: '여행 속도' })).toHaveValue('balanced');
+  await preference.locator('#companion-grid [data-value=friends]').click();
+  await preference.getByRole('combobox', { name: '여행 속도' }).selectOption('packed');
   await preference.locator('#submit-btn').click();await expect(page).toHaveURL(/plan$/);
   await expect(form.locator('#travel-form')).toBeVisible();
-  expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).toEqual({...before,theme:'healing',budget:'flex',step:'/plan'});
+  expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).toEqual({...before,theme:'healing',budget:'flex',companion:'friends',pace:'packed',step:'/plan'});
+  await expect(form.locator('[data-i18n=companion_friends]')).toBeVisible();
+  await expect(form.locator('[data-i18n=pace_packed]')).toHaveText('많이 보기');
   await expect(form.locator('#start-location input')).toHaveValue('First departure');
   await expect(form.locator('#end-location input')).toHaveValue('Final arrival');
   await expect(form.locator('.anchor-item')).toHaveCount(1);
   await form.locator('#reselect-preference-btn').click();await expect(preference.locator('#step2-container')).toBeVisible();
   await expect(preference.locator('#theme-grid [data-value=healing]')).toHaveAttribute('aria-pressed','true');
   await expect(preference.locator('#budget-grid [data-value=flex]')).toHaveAttribute('aria-pressed','true');
+  await expect(preference.locator('#companion-grid [data-value=friends]')).toHaveAttribute('aria-pressed','true');
+  await expect(preference.getByRole('combobox', { name: '여행 속도' })).toHaveValue('packed');
   await preference.locator('#skip-btn').click();await expect(page).toHaveURL(/plan$/);
   await expect(form.locator('#travel-form')).toBeVisible();
-  expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).toEqual({...before,theme:null,budget:null,step:'/plan'});
+  expect(await page.evaluate(async()=> (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.read())).toEqual({...before,theme:null,budget:null,companion:null,pace:null,step:'/plan'});
   expect(await page.evaluate(()=>window.generationCalls||0)).toBe(0);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
  });

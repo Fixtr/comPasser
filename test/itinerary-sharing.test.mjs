@@ -50,6 +50,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
       }; }
       setAttribute() {}
     },
+    refreshReplanButton() {},
     customElements: { define() {} },
     document: { getElementById: id => id === 'edit-itinerary-btn' ? editButton : null, createElement: fakeElement },
     window: {

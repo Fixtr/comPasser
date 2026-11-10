@@ -400,6 +400,7 @@ test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주�
 });
 
 const missingItineraryStore = `
+  export async function readPrivateStopNote() {} export async function writePrivateStopNote() {}
   export async function loadItineraryDocument() { return null; }
   export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
   export async function createSharedItinerary() {}
@@ -604,15 +605,19 @@ test('게스트를 로그인으로 보낼 때 주소의 쿼리도 돌아올 곳�
 });
 
 test('로그인 복원이 늦어도 한국 추천 목록은 표시되고 선택 없이 진행할 수 있다', async ({ page }) => {
-  const delayedAuth = authModule.replace('setTimeout(() => callback(currentUser), 0);', "setTimeout(() => { currentUser = { uid: 'test-user', emailVerified: true, providerData: [] }; callback(currentUser); }, 500);");
+  const delayedAuth = authModule.replace('setTimeout(() => callback(currentUser), 0);', '').concat(`
+    window.restoreDiscoveryAuth = () => {
+      currentUser = { uid: 'test-user', emailVerified: true, providerData: [] };
+      notify(currentUser);
+    };
+  `);
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: delayedAuth }));
   await page.route('**/src/domains/planner/services/discovery-saves.js', route => route.fulfill({ contentType: 'text/javascript', body: `
-    import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-    export async function loadDiscoverySaves() {
-      window.saveLoads = (window.saveLoads || 0) + 1;
-      if (!getCurrentUser()) throw new Error('Auth restoration is still pending');
-      return { statistics: { forest: { count: 2, updatedAt: Date.now() } }, saved: ['forest'] };
+    export async function loadSavedDiscoveryIds(userId) {
+      window.savedDiscoveryUser = userId;
+      return ['forest'];
     }
+    export async function setDiscoveryPlaceSaved() {}
   ` }));
   await page.goto('/recommend');
   await page.locator('[data-recommend-country=KOR]').click();
@@ -620,7 +625,9 @@ test('로그인 복원이 늦어도 한국 추천 목록은 표시되고 선택 
   await expect(page.locator('.flow-place-row')).toHaveCount(6);
   await expect(page.locator('home-recommendations')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '장소 선택 없이 다음', exact: true })).toBeEnabled();
-  expect(await page.evaluate(() => window.saveLoads || 0)).toBe(0);
+  expect(await page.evaluate(() => window.savedDiscoveryUser)).toBeUndefined();
+  await page.evaluate(() => window.restoreDiscoveryAuth());
+  await expect.poll(() => page.evaluate(() => window.savedDiscoveryUser)).toBe('test-user');
 });
 
 test('게스트도 추천 장소를 선택하지 않고 로그인 후 취향 선택으로 이동한다', async ({ page }) => {
@@ -2092,6 +2099,7 @@ async function openUnsavedDraft(page, waitForShare = '', waitForSave = '') {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
   await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function readPrivateStopNote() {} export async function writePrivateStopNote() {}
     export async function saveItinerary() { ${waitForSave} return 'saved1'; }
     export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}

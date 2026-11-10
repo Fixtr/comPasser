@@ -1,3 +1,4 @@
+import { routeDepartureClock } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { getMapsLoader } from "../services/google-maps-loader.js";
 import { GeocodingService } from "../services/geocoding-service.js";
@@ -482,7 +483,7 @@ export class MapView extends HTMLElement {
       // Route for the scheduled departure (origin item's end time), not "now".
       const departureTime = buildTransitDepartureTime(
         dayDate,
-        geocodedItems[i].endTime || geocodedItems[i].time, new Date(), timeZone
+        routeDepartureClock(item), new Date(), timeZone
       );
       // Same segment in the Google Maps UI, so users can verify the route.
       const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(latLngToString(origin))}&destination=${encodeURIComponent(latLngToString(destination))}&travelmode=transit`;

@@ -16,7 +16,7 @@ export function itineraryStartDate(plan) {
  * A deep copy of a saved plan whose first day falls on newStartDate. Day dates, request dates,
  * per-day constraint dates and stay check-in/out move by the same number of days; times,
  * flights (time only) and day-numbered anchors are relative to the day and stay as they are.
- * No live opening hours are stored in a plan, so nothing date-bound needs clearing.
+ * Clear the actual departure used to replan a day in progress.
  * Throws when newStartDate is before today (YYYY-MM-DD) or any moved date stops being a real date.
  */
 export function shiftItineraryDates(plan, newStartDate, today = '') {
@@ -32,7 +32,12 @@ export function shiftItineraryDates(plan, newStartDate, today = '') {
   // Only fields already present are written: Firestore rejects undefined values.
   const move = (target, key) => { if (target && Object.hasOwn(target, key)) target[key] = shift(target[key]); };
   const copy = structuredClone(plan);
-  list(copy.days).forEach(day => move(day, 'date'));
+  for (const day of list(copy.days)) {
+    move(day, 'date');
+    for (const item of list(day?.scheduleItems)) {
+      if (item) delete item.actualDepartureTime;
+    }
+  }
   for (const request of [copy.request, copy.metadata?.request]) {
     if (!request || typeof request !== 'object') continue;
     if (Array.isArray(request.date)) request.date = request.date.map(shift); else move(request, 'date');

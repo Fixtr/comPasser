@@ -39,7 +39,7 @@ function usePlacePick(path) {
   return { country, city, pick, back };
 }
 
-export function RecommendScreen({ settings }) {
+export function RecommendScreen({ settings, userId }) {
   const { country, city, pick, back } = usePlacePick('/recommend');
   const stageRef = useStageTransition(city?.id || country || 'country');
   const recommendationCities = destinations;
@@ -48,7 +48,7 @@ export function RecommendScreen({ settings }) {
       <button onClick={back}><span aria-hidden="true">←</span> {t('shellBack')}</button>
       {settings}
     </div>
-    {city ? <DestinationScreen key={city.id} browseCity={city} embedded /> : <section ref={stageRef} className="flow-page">
+    {city ? <DestinationScreen key={city.id} browseCity={city} userId={userId} embedded /> : <section ref={stageRef} className="flow-page">
       {!city && <h1>{t(country ? 'flowCity' : 'flowCountry')}</h1>}
       {!country && <CountryPicker kind="recommend" onSelect={next => pick({ country: next })} />}
       {country && !city && <div className="flow-choices country-grid city-grid">{recommendationCities.map(city => city.country === country ? <button key={city.id} data-recommend-city={city.id} onClick={() => pick({ country, city: city.id })}>{t(city.key)}</button> : null)}</div>}

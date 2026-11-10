@@ -23,6 +23,20 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     ['attraction', 'dining', 'leisure']);
 });
 
+test('pace changes optional visit density without changing the default prompt or travel safeguards', () => {
+  const prompt = (pace, companion) => buildPrompt(sanitizePlannerRequest({ pace, companion }), 'en');
+  assert.equal(prompt(), prompt('balanced'));
+  assert.equal(prompt(null), prompt('balanced'));
+  assert.match(prompt('relaxed'), /fewer nearby optional visits, longer stays and unallocated rest time/);
+  assert.match(prompt('packed'), /4-6 optional visits in a full 9-hour day when they fit/);
+  assert.match(prompt('packed', 'parents'), /Honor the companion’s mobility, rest and safety needs before increasing visit density/);
+  for (const pace of ['relaxed', 'packed']) {
+    assert.doesNotMatch(prompt(pace), /never leave most of a long day empty/);
+    assert.match(prompt(pace), /Never overlap a fixed appointment/);
+    assert.match(prompt(pace), /at least 150 minutes unallocated before an airport end time/);
+  }
+});
+
 test('place-search examples and budget words follow the request language', () => {
   const constraints = sanitizePlannerRequest({ date: ['2026-10-06'], budget: 'standard',
     dailyData: [{ day: 1, date: '2026-10-06', startTime: '11:00', endTime: '14:00', startLocation: '서울역', endLocation: '서울숲', anchors: [] }] });

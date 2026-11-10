@@ -51,6 +51,8 @@ test('overnight boundary must match both adjoining days when supplied', () => {
 });
 
 const cases = [
+  ['unknown trip pace', r => { r.pace = 'sprint'; }, 'travel-pace'],
+  ['non-string trip pace', r => { r.pace = ['relaxed']; }, 'travel-pace'],
   ['fifth day', r => { r.dailyData.push(...r.dailyData, r.dailyData[0]); }, 'day-limit'],
   ['missing date', r => { r.dailyData[0].date = ''; }, 'invalid-date'],
   ['impossible date', r => { r.dailyData[0].date = '2026-02-30'; }, 'invalid-date'],

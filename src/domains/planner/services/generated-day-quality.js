@@ -5,6 +5,8 @@ import { recommendationFields } from '../../map/services/recommendation-place.mj
 import { fitMeasuredSchedule } from '../../itinerary/services/itinerary-end-fit.mjs';
 import { fillMeasuredGaps, gapFillFits } from '../../itinerary/services/itinerary-gap-fill.mjs';
 import { loadScheduleHours } from '../../itinerary/services/itinerary-hours.mjs';
+import { isAirportName } from './flight-arrival.mjs';
+import { getLocationName } from './location-name.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { createFlexibleVisitChecks } from './flexible-visit-checks.js';
 import { getDayConstraints } from '../../itinerary/services/itinerary-view-model.mjs';
@@ -20,6 +22,8 @@ export async function verifyGeneratedItinerary(plan, {
   onStage = () => {}
 } = {}) {
   const result = structuredClone(plan);
+  const { pace, companion } = result.request || {};
+  const packedDayTrip = pace === 'packed' && companion !== 'family_kids' && companion !== 'parents';
   const excludedIds = () => result.days.flatMap(day => day.scheduleItems.map(item => identity(item)?.placeId).filter(Boolean));
   // Resolve all day identities before filling gaps so later-day visits cannot become an earlier day's extra.
   onStage('places');
@@ -59,7 +63,9 @@ export async function verifyGeneratedItinerary(plan, {
         routes = null;
       }
       routes ||= await measure();
-      if (result.days.length < 2) continue;
+      if (pace === 'relaxed') continue;
+      // Keep the day-trip extension within the airport and companion constraints.
+      if (result.days.length < 2 && (!packedDayTrip || isAirportName(getLocationName(constraints.endLocation)))) continue;
       const filled = await fillMeasuredGaps(day.scheduleItems, routes, { ...checks, date: day.date,
         endTime: constraints.endTime, excludedPlaceIds: excludedIds(), language: getLang(), budget: result.request?.budget });
       if (filled.changed) {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RoutingService } from '../src/domains/map/services/routing-service.js';
+import { verifyGeneratedItinerary } from '../src/domains/planner/services/generated-day-quality.js';
 import { selectRecommendation } from '../src/domains/map/services/recommendation-place.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { improveMeasuredRouteOrder, suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
@@ -8,6 +9,34 @@ import { improveMeasuredRouteOrder, suggestRouteOrder } from '../src/domains/iti
 const place = n => ({placeId:`q${n}`,displayName:`P${n}`,formattedAddress:'서울',lat:37.5,lng:127+n*.02});
 const stop = (n,type,time,endTime='') => ({title:`P${n}`,type,time,endTime,selectedPlace:place(n)});
 const measured = values => values.map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+
+test('optional gap search honors pace and leaves single-day airport buffers alone', async () => {
+  for (const [pace, dayCount, endLocation, expectedSearches, companion] of [
+    ['relaxed', 2, 'Hotel', 0],
+    [undefined, 2, 'Hotel', 2],
+    ['balanced', 1, 'Hotel', 0],
+    ['packed', 1, 'Hotel', 1],
+    ['packed', 1, 'Incheon Airport', 0],
+    ['packed', 1, 'Hotel', 0, 'parents'],
+    ['packed', 1, 'Hotel', 0, 'family_kids'],
+  ]) {
+    const days = Array.from({ length: dayCount }, (_, index) => ({
+      day: index + 1, date: `2030-10-0${index + 1}`,
+      scheduleItems: [stop(0, 'departure', '09:00'), stop(1, 'arrival', '18:00')],
+    }));
+    let searches = 0;
+    await verifyGeneratedItinerary({ request: { startTime: '09:00', endTime: '18:00', endLocation, pace, companion,
+      date: days.map(day => day.date) }, days }, {
+      geocoding: { geocodeSchedule: async () => [] },
+      createChecks: () => ({
+        travelMinutes: async () => 10,
+        getHours: async () => null,
+        findRecommendation: async () => { searches++; return null; },
+      }),
+    });
+    assert.equal(searches, expectedSearches, `${pace} for ${dayCount} days ending at ${endLocation}`);
+  }
+});
 
 test('reported Day 3: 07:11 + 48 minutes moves an untimed required visit to 07:59; bookings never move', () => {
   const plan = [stop(0,'departure','07:11'), {...stop(1,'AnchorSchedule','07:56','08:41'),flexible:true},

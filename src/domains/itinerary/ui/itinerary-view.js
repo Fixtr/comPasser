@@ -16,8 +16,13 @@ import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { summarizeCosts, formatCostSummary, isTransportEstimatedCost } from '../services/itinerary-cost.mjs';
 import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableItem, replaceSchedulePlace } from '../services/itinerary-edit.mjs';
 import { openPlaceReplacement } from './place-replacement.js';
+import { openIndoorAlternatives } from './indoor-alternatives.js';
+import { findIndoorAlternatives } from '../services/indoor-alternatives.mjs';
 import { refreshHours } from './itinerary-hours.js';
+import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
+import { attachStopNoteControl } from './stop-note-editor.js';
+import { stopNoteKeys } from '../services/stop-notes.mjs';
 import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/itinerary-hours.mjs';
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
@@ -116,6 +121,7 @@ function renderScheduleCard(scheduleItem, idx, editable, visited) {
       <p class="visit-hours" role="status" ${['departure', 'arrival'].includes(scheduleItem.type) ? 'hidden' : ''}></p>
       ${editable && !['departure','arrival','AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="visit-time-btn replace-place-btn-style">${escapeHtml(t('visitTimeBtn'))}</button>` : ''}
       ${editable && !['departure', 'arrival', 'AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="replace-place-btn">${escapeHtml(t('replacePlaceBtn'))}</button>` : ''}
+      ${editable && !visited && !['departure', 'arrival', 'AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="indoor-alternatives-btn">${escapeHtml(t('indoorAlternativesFind'))}</button>` : ''}
       <div class="schedule-meta">
         <span class="meta-item">${icons.pin} ${escapeHtml(scheduleItem.stayUnsetLabel || locationStr)}</span>
         <span class="meta-item">${icons.clock} ${escapeHtml(scheduleItem.duration || fallbackDuration(scheduleItem))}${(function() {
@@ -290,6 +296,8 @@ export default class ItineraryView extends HTMLElement {
     this.setupShareListener();
     this.setupKakaoShareListener();
     this.setupDownloadListener();
+    const replanButton = this.shadowRoot.getElementById('replan-trip-btn');
+    replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
     this.shadowRoot.getElementById('recalculate-times-btn')?.addEventListener('click', () => {
       if (this.canEdit()) { this._explicitRecalculation=true; this.requestMapRoute({ scheduleEdited: true }); }
@@ -459,12 +467,14 @@ export default class ItineraryView extends HTMLElement {
   }
 
   invalidateMapRequest() {
+    this._replan?.abort();
     this._mapRequest = null;
     window.dispatchEvent(new CustomEvent('cancel-map-route'));
   }
 
   /** 생성·불러오기·날짜 전환·편집 모두 이곳에서 같은 요청 표식을 붙인다. */
   requestMapRoute({ automaticFit = false, scheduleEdited = false } = {}) {
+    this._replan?.abort();
     if (!automaticFit) { this._automaticFitCount = 0; this._routeOrderChecked = false; this._routeOrderOriginal = null; }
     if (!automaticFit) this._allowTimeAdjustment = scheduleEdited || (this.state.current?.source.kind === 'draft' && !this.state.current?.dirtyDays?.includes(this.activeDayIndex));
     const plan = this.normalizeData(this.currentItinerary);
@@ -511,6 +521,7 @@ export default class ItineraryView extends HTMLElement {
   }
 
   refreshAccessControls() {
+    refreshReplanButton(this);
     if (!this.isReadOnly) {
       this._stopSharedWatch?.();
       this._stopSharedWatch = null;
@@ -1063,24 +1074,42 @@ export default class ItineraryView extends HTMLElement {
     return slot;
   }
 
-  openReplacement(card, index) {
-    if (!this.canEdit()) return;
+  openReplacement(card, index, indoor = false) {
+    if (!this.canEdit() || card.querySelector('.place-replacement') || (indoor && card.hasAttribute('data-visited'))) return;
+    const userId = getCurrentUser()?.uid;
+    const pathname = window.location.pathname;
     const entry = this.state.current;
     const day = this.activeDayIndex;
-    const item = this.normalizeData(this.currentItinerary)?.days?.[day]?.scheduleItems?.[index];
+    const plan = this.currentItinerary;
+    const dayData = this.normalizeData(plan)?.days?.[day];
+    const items = dayData?.scheduleItems;
+    const item = items?.[index];
     if (!item || ['departure', 'arrival', 'AnchorSchedule'].includes(item.type)) return;
-    const isCurrent = () => this.canEdit() && this.state.current === entry && this.activeDayIndex === day &&
-      this.normalizeData(this.currentItinerary)?.days?.[day]?.scheduleItems?.[index] === item;
-    return openPlaceReplacement(card, { isCurrent, onSelect: place => {
+    const isCurrent = () => {
+      if (!this.canEdit() || getCurrentUser()?.uid !== userId || window.location.pathname !== pathname ||
+          this.state.current !== entry || this.activeDayIndex !== day) return false;
+      const currentItems = this.normalizeData(this.currentItinerary)?.days?.[day]?.scheduleItems;
+      return indoor ? currentItems === items && !card.hasAttribute('data-visited') : currentItems?.[index] === item;
+    };
+    const onSelect = place => {
       if (!isCurrent()) return;
-      const items = this.normalizeData(this.currentItinerary).days[day].scheduleItems;
-      const result = replaceSchedulePlace(items, index, place);
+      const currentItems = this.normalizeData(this.currentItinerary).days[day].scheduleItems;
+      const result = replaceSchedulePlace(currentItems, index, place);
       if (!result.replaced) return;
       this.state.editDayItems(day, result.items);
       this.requestMapRoute();
       this.refreshAccessControls();
       showGlobalToast(t('replacePlaceDone'), { tone: 'success' });
-    } });
+    };
+    if (indoor) {
+      const resolvedPlaces = this.lastResolvedPlaces, routes = this.lastTransitRoutes;
+      const endTime = getDayConstraints(plan, day)?.endTime;
+      return openIndoorAlternatives(card, { isCurrent, onSelect, search: stillCurrent =>
+        findIndoorAlternatives(items, index, { date: dayData.date, endTime, resolvedPlaces, routes,
+          language: getLang(), checks: createFlexibleVisitChecks(3, plan.request || plan.metadata?.request),
+          isCurrent: stillCurrent }) });
+    }
+    return openPlaceReplacement(card, { isCurrent, onSelect });
   }
 
   /**
@@ -1497,6 +1526,7 @@ export default class ItineraryView extends HTMLElement {
             <button type="button" id="next-stop-directions"></button>
           </section>
           <span id="day-modified" data-i18n="flowChanged" hidden></span><button type="button" id="undo-deletion-btn" data-i18n="flowUndo" hidden></button>
+          <button type="button" id="replan-trip-btn" class="end-time-fix-btn" data-i18n="replanBtn" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
@@ -1564,6 +1594,7 @@ export default class ItineraryView extends HTMLElement {
 
   cancelPendingLoad() {
     this._failedLoad = null;
+    this.shadowRoot.querySelectorAll?.('.stop-note-editor').forEach(form => form.remove());
     this._stopSharedWatch?.();
     this._stopSharedWatch = null;
     this._loadVersion += 1;
@@ -1734,6 +1765,7 @@ export default class ItineraryView extends HTMLElement {
       const userId = this.state.userId;
       const visited = tripId ? visitedStops.visited(tripId, userId) : null;
       const keys = stopKeys(dayData);
+      const noteKeys = this.state.current?.source.kind === 'private' && this.canEdit() ? stopNoteKeys(dayData) : [];
       this.updateNextStop(dayData);
       
       // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
@@ -1758,6 +1790,7 @@ export default class ItineraryView extends HTMLElement {
       item.className = 'timeline-item';
 
       item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit(), visited?.has(keys[idx]));
+      if (noteKeys[idx]) attachStopNoteControl(this, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
       item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
         // Place lookups and measured times change the day after render without rebuilding the cards.
         const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex] || dayData;
@@ -1765,6 +1798,7 @@ export default class ItineraryView extends HTMLElement {
         e.currentTarget.setAttribute('aria-pressed', String(on));
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
         this.updateNextStop(day);
+        refreshReplanButton(this);
       });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
@@ -1780,6 +1814,8 @@ export default class ItineraryView extends HTMLElement {
       item.querySelector('.visit-time-btn')?.addEventListener('click',()=>openVisitTimeEditor(this,item.querySelector('.schedule-card'),idx));
       item.querySelector('.replace-place-btn')?.addEventListener('click', () =>
         this.openReplacement(item.querySelector('.schedule-card'), idx));
+      item.querySelector('.indoor-alternatives-btn')?.addEventListener('click', () =>
+        this.openReplacement(item.querySelector('.schedule-card'), idx, true));
       if (navBtn) {
         navBtn.addEventListener('click', (e) => {
           e.preventDefault();

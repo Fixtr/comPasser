@@ -145,6 +145,10 @@ button { font: inherit; cursor: pointer; }
 :root[data-theme="dark"] .ai-place-card .ai-place-attribution, :root[data-route-theme="dark"] .ai-place-card .ai-place-attribution { color: #fff; }
 .ai-search-suggestions { border: 0; width: 100%; height: 110px; background: #fff; color-scheme: light; }
 .catalogue-places > summary { min-height: 44px; padding: 12px 0; font-size: 15px; font-weight: 600; cursor: pointer; }
+.catalogue-saved-filter { margin-bottom: 8px; }
+.catalogue-saved-filter[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
+.flow-place-row .catalogue-bookmark { display: block; width: auto; min-height: 44px; font-size: 13px; }
+.catalogue-bookmark[aria-disabled=true] { opacity: .5; cursor: not-allowed; }
 .travel-globe { text-align: center; padding-top: 16px; }
 .travel-globe h2 { font-size: 22px; margin: 24px 0 8px; }
 .globe-stage { min-height: 320px; display: grid; place-items: center; position: relative; }

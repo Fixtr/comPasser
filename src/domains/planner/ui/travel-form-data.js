@@ -46,7 +46,7 @@ export function getFormData(shadowRoot, draft = {}) {
 
   // The caller supplies the same draft used to paint the form. A read-only
   // date is presentation text, so use that draft's raw dates, not global storage.
-  const { theme = null, budget = null, companion = null, date: draftDates = [] } = draft;
+  const { theme = null, budget = null, companion = null, pace = null, date: draftDates = [] } = draft;
   const dateInput = shadowRoot.getElementById('schedule-date');
   let finalDate = structuredClone(draftDates);
   if (dateInput && !dateInput.readOnly) {
@@ -118,6 +118,7 @@ export function getFormData(shadowRoot, draft = {}) {
     anchorSchedules: anchors,
     theme,
     budget,
-    companion
+    companion,
+    pace
   };
 }

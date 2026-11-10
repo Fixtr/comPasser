@@ -27,6 +27,17 @@ const flatRequest = {
   }]
 };
 
+test('travel pace survives normalization without changing the fixed schedule', () => {
+  const generated = [{ day: 1, date: flatRequest.date[0], scheduleItems: [] }];
+  const original = enforcePlannerConstraints(generated, flatRequest);
+  for (const pace of ['relaxed', 'balanced', 'packed']) {
+    const request = normalizePlannerRequest({ ...flatRequest, pace });
+    assert.equal(request.pace, pace);
+    assert.equal(findPlannerRequestIssue(request), null);
+    assert.deepEqual(enforcePlannerConstraints(generated, request), original);
+  }
+});
+
 test('overnight places connect each day to the next without changing the trip endpoints', () => {
   const hotelA = {placeId:'hotel-a',displayName:'첫 숙소',formattedAddress:'서울 종로',lat:37.5,lng:127};
   const hotelB = {placeId:'hotel-b',displayName:'둘째 숙소',formattedAddress:'서울 마포',lat:37.6,lng:126.9};

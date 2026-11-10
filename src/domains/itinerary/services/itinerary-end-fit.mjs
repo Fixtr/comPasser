@@ -1,5 +1,5 @@
 import { nextVisitStart } from './itinerary-hours.mjs';
-import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes, minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
+import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes, routeDepartureClock, minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
 
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
@@ -8,7 +8,7 @@ export function hasUnavoidableFixedArrivalConflict(items, routes) {
   return items.some((target, index) => {
     if (target.type !== 'AnchorSchedule' || index === 0 ||
         !['departure', 'AnchorSchedule'].includes(items[index - 1].type)) return false;
-    const departure = minutes(items[index - 1].endTime) ?? minutes(items[index - 1].time);
+    const departure = minutes(routeDepartureClock(items[index - 1])) ?? minutes(items[index - 1].time);
     const deadline = minutes(target.time);
     if (departure === null || deadline === null) return false;
     if (departure > deadline) return true;
@@ -34,7 +34,7 @@ export function hasFixedArrivalConflict(items, routes) {
   return (routes || []).some(route => {
     const to = route.toIndex ?? route.fromIndex + 1;
     const origin = items[route.fromIndex], target = items[to];
-    const departure = minutes(origin?.endTime) ?? minutes(origin?.time);
+    const departure = minutes(routeDepartureClock(origin)) ?? minutes(origin?.time);
     const deadline = minutes(target?.time);
     return target?.type === 'AnchorSchedule' && departure !== null && deadline !== null &&
       Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0 &&

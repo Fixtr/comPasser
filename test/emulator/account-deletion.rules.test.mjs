@@ -87,6 +87,18 @@ test('other owners retain access and existing public shares remain guest-readabl
     assert.equal((await request('users/unaffected', { user: 'other' })).status, 403);
 });
 
+test('only the trip owner can read or update the private stop notes map', async () => {
+    await seed('itineraries/privateNotesTrip', { userId: 'noteOwner', itineraryPlan: { days: 'private trip' } });
+    const path = 'itineraries/privateNotesTrip?updateMask.fieldPaths=stopNotes';
+    const data = { stopNotes: { 'stop-1': { text: 'Private entry', url: 'https://example.invalid/reservation' } } };
+    assert.equal((await request(path, { method: 'PATCH', user: 'noteOwner', data })).status, 200);
+    assert.equal((await request(path, { method: 'PATCH', user: 'noteOwner', data: { stopNotes: 'not a map' } })).status, 403);
+    for (const user of ['other', undefined]) {
+        assert.equal((await request('itineraries/privateNotesTrip', { user })).status, 403);
+        assert.equal((await request(path, { method: 'PATCH', user, data })).status, 403);
+    }
+});
+
 const base=`projects/${project}/databases/(default)/documents`;
 // Mirrors the SDK: serverTimestamp() is sent as a REQUEST_TIME transform on the same write.
 const serverCreatedAt=[{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}];

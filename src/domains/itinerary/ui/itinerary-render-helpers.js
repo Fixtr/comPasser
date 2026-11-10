@@ -1,6 +1,6 @@
 import { t } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
-import { minutesOf as clock } from '../services/itinerary-schedule-adjust.mjs';
+import { minutesOf as clock, routeDepartureClock } from '../services/itinerary-schedule-adjust.mjs';
 
 /**
  * itinerary-view.js 의 대중교통/일정 요약 렌더링 로직. nav-popup.js 와 같은
@@ -132,7 +132,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
       .replace('{0}', detail.fromIndex + 1)
       .replace('{1}', destIndex + 1);
 
-    const fromEnd = clock(items[detail.fromIndex]?.endTime || items[detail.fromIndex]?.time);
+    const fromEnd = clock(routeDepartureClock(items[detail.fromIndex]));
     const toStart = clock(items[destIndex]?.time);
     const spare = fromEnd !== null && toStart !== null && Number.isFinite(detail.durationMinutes) && detail.durationMinutes >= 0
       ? toStart - fromEnd - Math.ceil(detail.durationMinutes) : 0;

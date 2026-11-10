@@ -13,8 +13,9 @@ import { t, tFor, getLang } from '../utils/i18n.js';
 import { CountryPicker } from './country-picker.jsx';
 import { travelRegion } from '../../functions/travel-region.mjs';
 import { AIPlaceRecommendations } from './ai-place-recommendations.jsx';
+import { useDiscoveryBookmarks } from './use-discovery-bookmarks.js';
 
-export function DestinationScreen({ settings, browseCity, onBack, embedded = false }) {
+export function DestinationScreen({ settings, browseCity, onBack, embedded = false, userId }) {
   const navigate = useNavigate();
   const location = useLocation();
   const editingPlan = !embedded && location.state?.returnTo === '/plan';
@@ -25,6 +26,12 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const [city, setCity] = useState(() => browseCity || (draft.destinationStage === 'city' || draft.destinationStage === 'country' ? null : destinationById(draft.destination?.id)));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [savedOwner, setSavedOwner] = useState(null);
+  const savedFilter = Boolean(userId && city?.country === 'KOR');
+  const bookmarks = useDiscoveryBookmarks(savedFilter && location.pathname === (embedded ? '/recommend' : '/destination') ? userId : null);
+  const showingSaved = savedFilter && savedOwner === userId;
+  const cataloguePlaces = city?.places.filter(place => !place.pairOnly && (!showingSaved || bookmarks.ids?.includes(place.id)));
+  const savedFilterButton = useRef(null);
   const search = useRef(null);
   const version = useRef(0);
   const stageRef = useStageTransition(city?.id || country || 'country', { focusOnMount: embedded });
@@ -89,7 +96,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
   const chooseCity = next => {
     const destination = cityDestination(next);
     save(editingPlan ? { country: next.country, destinationStage: 'places', destination } : setDraftDestination(read(), destination));
-    version.current++; setBusy(false); setCity(next); setError('');
+    version.current++; setBusy(false); setCity(next); setError(''); setSavedOwner(null);
   };
   const back = () => {
     version.current++; setBusy(false);
@@ -118,13 +125,28 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         {error && <p role="alert">{error}</p>}
         <AIPlaceRecommendations key={city.id} city={city} draft={draft} onAdd={add} onRemove={placeId=>save({anchorSchedules:read().anchorSchedules.filter(anchor=>anchor.location?.placeId !== placeId)})} />
         <details className="catalogue-places" open><summary>{t('aiPlacesCatalogue').replace('{0}',t(city.key))}</summary>
-        <div className="flow-place-list">{city.places.filter(place => !place.pairOnly).map(place => {
+        {savedFilter && <button ref={savedFilterButton} type="button" className="catalogue-saved-filter" aria-pressed={showingSaved} onClick={() => setSavedOwner(showingSaved ? null : userId)}>{t('discoverFilterSaved')}</button>}
+        {showingSaved && !bookmarks.ids && <p role="status">
+          {t(bookmarks.loadError ? 'discoverSavedUnavailable' : 'discoverSavedLoading')}
+          {bookmarks.loadError && <button type="button" onClick={bookmarks.retry}>{t('tryAgainText')}</button>}
+        </p>}
+        {showingSaved && bookmarks.ids && !cataloguePlaces.length && <p role="status">{t('discoverSavedEmpty')}</p>}
+        {bookmarks.saveError && <p role="alert">{t('discoverSaveFailed')}</p>}
+        <div className="flow-place-list">{cataloguePlaces.map(place => {
           const name = placeName(place);
           const canonicalName = typeof place === 'string' ? place : place.englishName || tFor(`${place.key}Name`, 'ko');
           const chosen = selected.find(anchor => anchor.suggestionId === (typeof place === 'string' ? place : place.id) || anchor.location?.displayName === canonicalName);
           return <div className="flow-place-row" key={typeof place === 'string' ? place : place.id}>
-            <details><summary>{name}<small>{t(city.key)}</small></summary><p>{typeof place === 'string' ? name : place.name ? place.location : t(`${place.key}Description`)}</p>{typeof place !== 'string' && place.guide && <a href={place.guide} target="_blank" rel="noopener noreferrer">{t(place.guideKorean ? 'discoverGuideKorean' : 'discoverGuide')}</a>}</details>
-            <button disabled={busy} aria-pressed={!!chosen} aria-label={t(chosen ? 'flowRemovePlace' : 'flowAddPlace') + ': ' + name} onClick={() => chosen ? save({ anchorSchedules: selected.filter(anchor => anchor !== chosen) }) : addSuggestion(place)}>{chosen ? '✓' : '+'}</button>
+            <details><summary>{name}<small>{t(city.key)}</small></summary><p>{typeof place === 'string' ? name : place.name ? place.location : t(`${place.key}Description`)}</p>{typeof place !== 'string' && place.guide && <a href={place.guide} target="_blank" rel="noopener noreferrer">{t(place.guideKorean ? 'discoverGuideKorean' : 'discoverGuide')}</a>}
+              {bookmarks.ids && <button type="button" className="catalogue-bookmark" aria-pressed={bookmarks.ids.includes(place.id)} aria-disabled={Boolean(bookmarks.savingId)} onClick={async event => {
+                const button = event.currentTarget;
+                const saved = await bookmarks.toggle(place.id);
+                if (saved === false && showingSaved && document.activeElement === button) savedFilterButton.current?.focus();
+              }}>
+                {t(bookmarks.savingId === place.id ? 'discoverSaving' : bookmarks.ids.includes(place.id) ? 'discoverUnsave' : 'discoverSave')}
+              </button>}
+            </details>
+            <button type="button" data-place-pick disabled={busy} aria-pressed={!!chosen} aria-label={t(chosen ? 'flowRemovePlace' : 'flowAddPlace') + ': ' + name} onClick={() => chosen ? save({ anchorSchedules: selected.filter(anchor => anchor !== chosen) }) : addSuggestion(place)}>{chosen ? '✓' : '+'}</button>
           </div>;
         })}</div></details>
         <div className="flow-place-actions">

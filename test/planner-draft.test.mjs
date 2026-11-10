@@ -35,11 +35,13 @@ function form(draft, { readOnly = true, value = '2026-10-01 ~ 2026-10-02' } = {}
 test('editing a saved trip replaces all preferences; read-only date submit uses the displayed draft', () => {
   const { store, values } = fixture();
   values.set('userPreference', JSON.stringify({ date: ['2026-10-20'], theme: 'photo', budget: 'flex' }));
-  const draft = store.save(edited());
+  const draft = store.save({ ...edited(), pace: 'packed' });
   const result = getFormData(form(draft), draft);
   assert.deepEqual(result.date, edited().date);
   assert.equal(result.theme, 'food');
   assert.equal(result.budget, 'budget');
+  assert.equal(result.pace, 'packed');
+  assert.equal(store.resetDetails().pace, 'packed');
   assert.equal(result.anchorSchedules[0].day, 2);
   assert.equal(result.dailyTimes.length, 2);
   assert.deepEqual(JSON.parse(values.get('userPreference')).date, edited().date);
@@ -117,13 +119,15 @@ test('reload and re-entry retain edited fields even when legacy preferences are 
   assert.deepEqual(store.read(), reloaded.read());
 });
 
-test('explicit preference changes preserve detailed inputs; skipping clears theme and budget', () => {
-  const { store } = fixture();
-  store.save(edited());
-  const result = store.updatePreferences({ date: ['2026-11-01', '2026-11-02'], theme: null, budget: null });
+test('skipping travel style keeps the rest of the draft', () => {
+  const { store, storage } = fixture();
+  store.save({ ...edited(), pace: 'relaxed' });
+  assert.equal(createPlannerDraftStore({ getStorage: () => storage }).read().pace, 'relaxed');
+  const result = store.updatePreferences({ date: ['2026-11-01', '2026-11-02'], theme: null, budget: null, pace: null });
   assert.deepEqual(result.date, ['2026-11-01', '2026-11-02']);
   assert.equal(result.theme, null);
   assert.equal(result.budget, null);
+  assert.equal(result.pace, null);
   assert.deepEqual(result.anchorSchedules, edited().anchorSchedules);
   assert.equal(result.startLocation, '서울역');
 });

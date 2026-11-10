@@ -146,6 +146,14 @@ async (page) => {
             db[r.collection][r.id]={...db[r.collection][r.id],...data}; write(db);
             window.__smoke.calls.push('update:'+r.collection+':'+r.id);
           },
+          async runTransaction(_db, callback) {
+            fail('write'); const db=read();
+            const result=await callback({
+              async get(r) { return snapshot(r, db[r.collection]?.[r.id]); },
+              update(r, data) { Object.assign(db[r.collection][r.id],data); },
+            });
+            write(db); return result;
+          },
           async deleteDoc(r) {
             fail('delete'); const db=read(); delete db[r.collection]?.[r.id]; write(db);
             window.__smoke.calls.push('delete:'+r.collection+':'+r.id);
