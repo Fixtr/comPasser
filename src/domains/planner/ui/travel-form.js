@@ -167,10 +167,10 @@ export default class TravelForm extends HTMLElement {
         return chip;
       };
 
-      const { theme, budget, date } = this.draft;
+      const { theme, budget, companion, date } = this.draft;
 
       // 선택값이 하나도 없으면 '선택 없음' 배지 노출
-      if (!theme && !budget && !date?.length) {
+      if (!theme && !budget && !companion && !date?.length) {
         container.style.display = 'flex';
         container.appendChild(makeChip('no_preference'));
         return;
@@ -219,6 +219,7 @@ export default class TravelForm extends HTMLElement {
       
       if (theme) container.appendChild(makeChip(`theme_${theme}`));
       if (budget) container.appendChild(makeChip(`budget_${budget}`));
+      if (companion) container.appendChild(makeChip(`companion_${companion}`));
     } catch (error) {
       console.warn('CRITICAL: renderPreferenceBadges failed but prevented crash:', error);
     }
@@ -964,7 +965,7 @@ export default class TravelForm extends HTMLElement {
       +section('flowStays', (draft.stays || []).length ? draft.stays.map(stay=>`<p>${line(getLocationName(stay.location))} · ${line(stay.checkin)} → ${line(stay.checkout)}</p>`).join('') : `<p>${t('flowStayUnset')}</p>`)
       +section('flowPlaces', draft.anchorSchedules.map(anchor=>`<p>${t('day_n').replace('{0}', anchor.day)} · ${line(anchor.name)} · ${anchor.flexible?t('flowAutomatic'):time(anchor.time)+' – '+time(anchor.endTime)}</p>`).join('')
         +(mergedSameDayVisits(draft.anchorSchedules) ? `<p class="review-merged" role="note">${t('reviewMergedVisits')}</p>` : ''))
-      +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}</p>`,'style')
+      +section('flowStyle',`<p>${draft.theme?t('theme_'+draft.theme):t('no_preference')} · ${draft.budget?t('budget_'+draft.budget):t('no_preference')}${draft.companion?' · '+t('companion_'+draft.companion):''}</p>`,'style')
       +(draft.dailyLocations?.some(day=>getLocationName(day.startLocation)||getLocationName(day.endLocation)) ? section('dailyLocationsToggle',draft.dailyLocations.map(day=>`<p>${t('day_n').replace('{0}', day.day)} · ${line(getLocationName(day.startLocation))} → ${line(getLocationName(day.endLocation))}</p>`).join('')):'')
       +`<div id="review-issues" role="alert" hidden></div><p class="credit-balance" role="status">${t('generationCreditsLabel')}: <strong></strong><span class="credit-empty" id="review-credit-empty" hidden>${t('generationCreditsEmpty')}</span></p><button type="button" id="final-generate">${t('flowGenerate')}</button>`;
     this.shadowRoot.getElementById('travel-form').hidden=true;root.hidden=false;

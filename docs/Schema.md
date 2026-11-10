@@ -19,6 +19,7 @@
   }],
   "theme": "healing",
   "budget": "standard",
+  "companion": "family_kids",
   "flights": {
     "arrival": { "airport": "인천국제공항", "time": "10:00", "kind": "international" },
     "departure": null
@@ -27,6 +28,7 @@
 ```
 
 `startLocation`, `endLocation`, and anchor `location` accept either a plain string or a structured Google Place object. The form contract remains flat for edit/save compatibility.
+`companion` is optional: one of `solo`, `couple`, `friends`, `family_kids`, `parents`, or `null`; the server turns any other value into `null` and only then adds its fixed travel-pace guidance to the prompt.
 `flights` is optional. An arriving flight sets day 1 `startLocation` to its airport and the start time to landing + 60 minutes (`international`) or + 30 minutes (`domestic`). A departing flight sets the last day `endLocation` to its airport and the end time to 3 hours or 90 minutes before departure. The form locks those locations while a flight exists; times stay editable. The server ignores `flights` and uses the resulting locations and times.
 `selectedWaypoints` is retained for drafts created by the earlier home-card flow. Current place picks are added to `anchorSchedules` as `flexible: true` visits with blank `time`/`endTime` and no `day`; a copied course is one day's route, so its stops share one `day` (1 for the first course, then 2, and so on). When the plan form opens a multi-day trip, each flexible visit without a day inside the trip goes to the day with the fewest anchors (earliest on ties); explicit days and timed anchors never move, and a missing `day` still means day 1 to validation and normalization. The Anchor field list does not change. Existing departure and destination fields are unchanged.
 

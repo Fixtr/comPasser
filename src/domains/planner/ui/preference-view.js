@@ -43,6 +43,7 @@ export default class PreferenceView extends HTMLElement {
     this.selectedDates = draft.date;
     this.selectedTheme = draft.theme;
     this.selectedBudget = draft.budget;
+    this.selectedCompanion = draft.companion;
     this.startDateType = null;
     this.startDateValue = null;
     this.duration = null;
@@ -163,6 +164,31 @@ export default class PreferenceView extends HTMLElement {
           </button>
         </div>
 
+        <!-- Companion Selection (optional) -->
+        <div class="section-title" data-i18n="prefCompanionSection">${t('prefCompanionSection')}</div>
+        <div class="card-grid" id="companion-grid">
+          <button type="button" class="preference-card" data-value="solo" aria-pressed="false">
+            <div class="card-title" data-i18n="companion_solo">${t('companion_solo')}</div>
+            <div class="card-desc" data-i18n="companion_soloDesc">${t('companion_soloDesc')}</div>
+          </button>
+          <button type="button" class="preference-card" data-value="couple" aria-pressed="false">
+            <div class="card-title" data-i18n="companion_couple">${t('companion_couple')}</div>
+            <div class="card-desc" data-i18n="companion_coupleDesc">${t('companion_coupleDesc')}</div>
+          </button>
+          <button type="button" class="preference-card" data-value="friends" aria-pressed="false">
+            <div class="card-title" data-i18n="companion_friends">${t('companion_friends')}</div>
+            <div class="card-desc" data-i18n="companion_friendsDesc">${t('companion_friendsDesc')}</div>
+          </button>
+          <button type="button" class="preference-card" data-value="family_kids" aria-pressed="false">
+            <div class="card-title" data-i18n="companion_family_kids">${t('companion_family_kids')}</div>
+            <div class="card-desc" data-i18n="companion_family_kidsDesc">${t('companion_family_kidsDesc')}</div>
+          </button>
+          <button type="button" class="preference-card" data-value="parents" aria-pressed="false">
+            <div class="card-title" data-i18n="companion_parents">${t('companion_parents')}</div>
+            <div class="card-desc" data-i18n="companion_parentsDesc">${t('companion_parentsDesc')}</div>
+          </button>
+        </div>
+
         <!-- Submit -->
         <div class="submit-section">
           <div class="submit-row">
@@ -192,6 +218,7 @@ export default class PreferenceView extends HTMLElement {
     const customDateText = this.shadowRoot.getElementById('custom-date-text');
     const themeGrid = this.shadowRoot.getElementById('theme-grid');
     const budgetGrid = this.shadowRoot.getElementById('budget-grid');
+    const companionGrid = this.shadowRoot.getElementById('companion-grid');
     
     const nextStepBtn = this.shadowRoot.getElementById('next-step-btn');
     const prevStepBtn = this.shadowRoot.getElementById('prev-step-btn');
@@ -371,6 +398,22 @@ export default class PreferenceView extends HTMLElement {
       this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     });
 
+    // Optional: clicking the selected card again leaves it unset.
+    companionGrid.addEventListener('click', (e) => {
+      const card = e.target.closest('.preference-card');
+      if (!card) return;
+      const isAlreadySelected = card.classList.contains('selected');
+      companionGrid.querySelectorAll('.preference-card').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
+      if (isAlreadySelected) {
+        this.selectedCompanion = null;
+      } else {
+        card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
+        this.selectedCompanion = card.dataset.value;
+      }
+      plannerDraftStore.updatePreferences({ companion: this.selectedCompanion });
+    });
+
     if (this.selectedDates && Array.isArray(this.selectedDates) && this.selectedDates.length > 0) {
       let isStandard = false;
       const firstDate = this.selectedDates[0];
@@ -408,6 +451,8 @@ export default class PreferenceView extends HTMLElement {
       const budgetCard = budgetGrid.querySelector(`[data-value="${this.selectedBudget}"]`);
       if (budgetCard) budgetCard.classList.add('selected');
     }
+    const companionCard = this.selectedCompanion && companionGrid.querySelector(`[data-value="${this.selectedCompanion}"]`);
+    if (companionCard) { companionCard.classList.add('selected'); companionCard.setAttribute('aria-pressed', 'true'); }
     this._updateButtonState(nextStepBtn, submitBtn, step1Helper, step2Helper);
     restoring = false;
 
@@ -441,7 +486,8 @@ export default class PreferenceView extends HTMLElement {
       const preference = {
         date: this.selectedDates,
         theme: this.selectedTheme,
-        budget: this.selectedBudget
+        budget: this.selectedBudget,
+        companion: this.selectedCompanion
       };
 
       plannerDraftStore.updatePreferences(preference);
@@ -454,14 +500,16 @@ export default class PreferenceView extends HTMLElement {
 
     // [Step 2] Skip Button
     skipBtn.addEventListener('click', () => {
-      // Save what we have in Step 1, but null for theme/budget
+      // Save what we have in Step 1, but null for theme/budget/companion
       const preference = {
         date: this.selectedDates,
         theme: null,
-        budget: null
+        budget: null,
+        companion: null
       };
       this.selectedTheme = null;
       this.selectedBudget = null;
+      this.selectedCompanion = null;
       plannerDraftStore.updatePreferences(preference);
       plannerDraftStore.update({ step: '/plan' });
 
@@ -499,8 +547,8 @@ export default class PreferenceView extends HTMLElement {
   setStep(step, { returnToPlan = this.returnToPlan || false } = {}) {
     this.returnToPlan = returnToPlan;
     this.currentStep = step;
-    const { date, theme, budget } = plannerDraftStore.read();
-    if (JSON.stringify([date, theme, budget]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget])) {
+    const { date, theme, budget, companion } = plannerDraftStore.read();
+    if (JSON.stringify([date, theme, budget, companion]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget, this.selectedCompanion])) {
       this.restoreSelection();
       this.render();
       this.setupEventListeners();
