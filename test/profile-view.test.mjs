@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createEmptyProfile, createProfileService } from '../src/domains/profile/services/profile-service.mjs';
-import { shiftItineraryDates, itineraryStartDate, duplicateTitle } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
+import { shiftItineraryDates, itineraryStartDate, copyTitle } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
 
 // 실제 화면 핸들러와 서비스를 함께 실행한다. DOM 표시와 외부 SDK만 대체한다.
 const source = readFileSync(new URL('../src/domains/profile/ui/profile-view.js', import.meta.url), 'utf8')
@@ -85,7 +85,7 @@ function fixture({ user = { uid: 'owner' }, data, hooks = {} } = {}) {
     showErrorToast: (...args) => calls.toasts.push(args),
     showToast: (...args) => calls.notices.push(args),
     navigator: hooks.navigator || { onLine: true },
-    shiftItineraryDates, itineraryStartDate, duplicateTitle, todayString: () => '2026-11-10',
+    shiftItineraryDates, itineraryStartDate, copyTitle, todayString: () => '2026-11-10',
     async saveItinerary(...args) { calls.saves.push(structuredClone(args)); await hooks.save?.(); return 'copy'; },
     getLang: () => 'ko', setLang: () => {},
     t: key => key,

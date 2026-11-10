@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shiftItineraryDates, itineraryStartDate, duplicateTitle } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
+import { shiftItineraryDates, itineraryStartDate, duplicateTitle, copyTitle } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
 
 const plan = () => ({
   request: {
@@ -86,4 +86,19 @@ test('the copy title keeps the suffix and stays within 100 characters', () => {
   const emoji = duplicateTitle(`${'가'.repeat(92)}😀끝`, ' (copy)');
   assert.equal(emoji, `${'가'.repeat(92)} (copy)`);
   assert.ok(emoji.length <= 100);
+});
+
+test('a title holding the old trip dates gets the new dates instead of a copy suffix', () => {
+  const from = { days: [{ date: '2026-11-04' }, { date: '2026-11-05' }] };
+  const to = { days: [{ date: '2026-11-17' }, { date: '2026-11-18' }] };
+  // Saving stores the auto title, so a copy must not keep "11월 4일~11월 5일" (seen on production).
+  assert.equal(copyTitle('부산 · 11월 4일~11월 5일 · 1박 2일', from, to, ' (복사본)'), '부산 · 11월 17일~11월 18일 · 1박 2일');
+  assert.equal(copyTitle('Busan · 11/04–11/05 · 2 days', from, to, ' (copy)'), 'Busan · 11/17–11/18 · 2 days');
+  // A stop count changed by later edits still matches on the dates alone.
+  assert.equal(copyTitle('11월 4일~11월 5일 · 감천 외 9곳', from, to, ' (복사본)'), '11월 17일~11월 18일 · 감천 외 9곳');
+  assert.equal(copyTitle('엄마랑 부산', from, to, ' (복사본)'), '엄마랑 부산 (복사본)');
+  assert.equal(copyTitle('', from, to, ' (복사본)'), null);
+  const single = { days: [{ date: '2026-10-31' }] };
+  assert.equal(copyTitle('서울 · 10월 31일 · 감고당길 외 5곳', single, { days: [{ date: '2026-12-01' }] }, ' (복사본)'), '서울 · 12월 1일 · 감고당길 외 5곳');
+  assert.ok(copyTitle(`${'가'.repeat(95)} 11월 4일~11월 5일`, from, to, ' (copy)').length <= 100);
 });

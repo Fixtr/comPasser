@@ -1,4 +1,5 @@
 import { dateRange } from '../../../../functions/travel-region.mjs';
+import { formatDateRange } from './itinerary-title.mjs';
 
 // Noon UTC keeps whole-day arithmetic clear of any offset; NaN for anything that is not a real YYYY-MM-DD.
 const noon = value => dateRange(value, 1).length ? Date.parse(`${value}T12:00:00Z`) : NaN;
@@ -46,3 +47,17 @@ export function shiftItineraryDates(plan, newStartDate, today = '') {
  * 100 UTF-16 units fits however the rules count, and a cut emoji's lone high surrogate is dropped.
  */
 export const duplicateTitle = (title, suffix) => `${String(title).slice(0, 100 - suffix.length).replace(/[\uD800-\uDBFF]$/, '')}${suffix}`;
+
+/**
+ * The saved title for a copy, or null for an untitled trip (the list then builds one from the new dates).
+ * Saving stores the auto title, dates included, so a title holding the old range (ko or en form)
+ * gets the new range; any other title is the user's own and is marked as a copy.
+ */
+export function copyTitle(title, plan, shifted, suffix) {
+  if (!title) return null;
+  for (const isKo of [true, false]) {
+    const old = formatDateRange(list(plan?.days), isKo);
+    if (old && title.includes(old)) return duplicateTitle(title.replace(old, formatDateRange(list(shifted?.days), isKo)), '');
+  }
+  return duplicateTitle(title, suffix);
+}
