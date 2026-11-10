@@ -63,6 +63,10 @@ test('companion is whitelisted and adds its instruction block only when set', ()
     assert.equal(build(garbage).companion, null);
   }
   assert.doesNotMatch(buildPrompt(build(null), 'en'), /COMPANION/);
+  // Without a companion the style block keeps its original closing sentence.
+  const noCompanion = buildPrompt(sanitizePlannerRequest({ date: ['2026-10-06'], dailyData: day, theme: 'healing', budget: 'standard' }), 'en');
+  assert.match(noCompanion, /Theme and budget are preferences within the fixed time\/place constraints/);
+  assert.doesNotMatch(noCompanion, /Theme, budget and companion are preferences/);
   const kids = buildPrompt(build('family_kids'), 'en');
   assert.match(kids, /\[COMPANION: /);
   assert.match(kids, /indoor/);

@@ -165,8 +165,8 @@ export default class PreferenceView extends HTMLElement {
         </div>
 
         <!-- Companion Selection (optional) -->
-        <div class="section-title" data-i18n="prefCompanionSection">${t('prefCompanionSection')}</div>
-        <div class="card-grid" id="companion-grid">
+        <div class="section-title" id="companion-title" data-i18n="prefCompanionSection">${t('prefCompanionSection')}</div>
+        <div class="card-grid" id="companion-grid" role="group" aria-labelledby="companion-title">
           <button type="button" class="preference-card" data-value="solo" aria-pressed="false">
             <div class="card-title" data-i18n="companion_solo">${t('companion_solo')}</div>
             <div class="card-desc" data-i18n="companion_soloDesc">${t('companion_soloDesc')}</div>

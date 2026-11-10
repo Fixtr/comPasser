@@ -257,6 +257,7 @@ test('before sign-in restores, a guest draft keeps being saved', () => {
 test('companion survives draft storage, saved-trip edit, preference updates and reset', () => {
   const { store } = fixture();
   assert.equal(toPlannerDraft().companion, null);
+  for (const garbage of ['kids', '<img>', { value: 'solo' }]) assert.equal(toPlannerDraft({ companion: garbage }).companion, null);
   const draft = store.save({ ...edited(), companion: 'family_kids' });
   assert.equal(draft.companion, 'family_kids');
   assert.equal(getFormData(form(draft), draft).companion, 'family_kids');

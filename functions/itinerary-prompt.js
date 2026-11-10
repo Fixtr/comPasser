@@ -255,7 +255,7 @@ function buildStyleBlock(constraints) {
   if (companion) {
     block += `\n\n[COMPANION: ${COMPANION_LABELS[companion]}]\n${COMPANION_INSTRUCTIONS[companion]}`;
   }
-  block += "\n\nTheme, budget and companion are preferences within the fixed time/place constraints; they never override them.";
+  block += `\n\n${companion ? "Theme, budget and companion" : "Theme and budget"} are preferences within the fixed time/place constraints; they never override them.`;
   return block;
 }
 

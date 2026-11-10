@@ -81,6 +81,12 @@ async (page) => {
   check(await styleStep.locator('#companion-grid [data-value="family_kids"]').getAttribute('aria-pressed') === 'true', 'Companion edit must restore the saved selection');
   await styleStep.locator('#companion-grid [data-value="parents"]').click();
   check(await styleStep.locator('#companion-grid [aria-pressed="true"]').count() === 1, 'Companion is a single choice');
+  // Clicking the selected card again leaves the companion unset.
+  await styleStep.locator('#companion-grid [data-value="parents"]').click();
+  check(await styleStep.locator('#companion-grid [aria-pressed="true"]').count() === 0, 'Clicking the selected companion again must deselect it');
+  check(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).companion) === null, 'Deselected companion must be stored as null');
+  await styleStep.locator('#companion-grid [data-value="parents"]').click();
+  check(await styleStep.locator('#companion-grid').getAttribute('aria-labelledby') === 'companion-title', 'Companion cards must be a labelled group');
   await styleStep.locator('#submit-btn').click();
   await page.waitForFunction(() => document.querySelector('travel-form').draft.companion === 'parents');
   actual = await read();

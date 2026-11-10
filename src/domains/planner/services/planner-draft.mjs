@@ -34,7 +34,7 @@ export function toPlannerDraft(request = {}) {
     })) } : {}),
     theme: input.theme ?? null,
     budget: input.budget ?? null,
-    companion: input.companion ?? null,
+    companion: ['solo', 'couple', 'friends', 'family_kids', 'parents'].includes(input.companion) ? input.companion : null,
     // Optional flights; the form copies their airports and times into the first and last day.
     flights: { arrival: flightEntry(input.flights?.arrival), departure: flightEntry(input.flights?.departure) },
     startTime: input.startTime ?? first.startTime ?? '',
