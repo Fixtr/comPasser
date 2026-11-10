@@ -1,7 +1,7 @@
 import { distanceMeters, isFixedPlace } from '../../map/services/recommendation-place.mjs';
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { assessVisitHours } from './itinerary-hours.mjs';
-import { minutesOf } from './itinerary-schedule-adjust.mjs';
+import { minutesOf, routeDepartureClock } from './itinerary-schedule-adjust.mjs';
 
 const indoorTypes = [
   ['museum', '박물관', 'museum'],
@@ -17,7 +17,7 @@ export async function findIndoorAlternatives(items, index, {
   const item = items[index], previous = items[index - 1], next = items[index + 1];
   if (!item || !previous || !next || isFixedPlace(item)) return [];
   const time = minutesOf(item.time), end = minutesOf(item.endTime);
-  const departure = previous.endTime || previous.time;
+  const departure = routeDepartureClock(previous);
   const earliest = minutesOf(departure), latest = minutesOf(next.time);
   if ([time, end, earliest, latest].includes(null) || time < earliest || end <= time || latest < end) return [];
   const arrivalDeadline = next.type === 'arrival' ? Math.min(latest, minutesOf(endTime) ?? latest) : latest;

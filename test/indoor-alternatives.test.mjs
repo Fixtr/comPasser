@@ -43,3 +43,8 @@ test('discard cancelled searches before the following provider requests', async 
   config.isCurrent = () => false;
   assert.deepEqual(await findIndoorAlternatives(items, 1, config), []);
 });
+
+test('a later departure from a completed stop invalidates an otherwise reachable alternative', async () => {
+  const resumed = [{ ...items[0], actualDepartureTime: '09:55' }, ...items.slice(1)];
+  assert.deepEqual(await findIndoorAlternatives(resumed, 1, setup()), []);
+});
