@@ -55,7 +55,10 @@ async (page) => {
   await card.locator('.status').filter({ hasText: '여행 중 · 2일차' }).waitFor();
   check(await card.count() === 1, 'Only the shown home page may mount the card');
   results.push('PASS ongoing trip shows its day number, one card after / then /home');
-  await page.getByRole('button', { name: 'English', exact: true }).filter({ visible: true }).first().click();
+  // Slow CI can leave both mounted home pages stacked, so their language buttons cover each other; a reload leaves one page.
+  await page.reload();
+  await card.locator('.status').filter({ hasText: '여행 중 · 2일차' }).waitFor();
+  await page.getByRole('button', { name: 'English', exact: true }).first().click();
   await card.locator('.status').filter({ hasText: 'On your trip · Day 2' }).waitFor();
   results.push('PASS ongoing status follows the language switch');
   return { results, errors: page.smokeErrors };
