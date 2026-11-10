@@ -2,6 +2,13 @@ export const itineraryStyles = `
         .visit-time-btn, .visit-time-editor button, .visit-time-editor input { min-height:44px; padding:8px; margin:4px; color:var(--cp-ink); background:var(--cp-surface); border:1px solid var(--cp-rule); }
         .visit-time-editor label { display:block; }
         .visit-time-editor p { font-size:.85rem; line-height:1.5; }
+        .stop-note-btn, .stop-note-editor button, .stop-note-editor input, .stop-note-editor textarea {
+          min-height: 44px; padding: 8px; margin: 4px; color: var(--cp-ink);
+          background: var(--cp-surface); border: 1px solid var(--cp-rule);
+        }
+        .stop-note-editor label { display: block; }
+        .stop-note-editor input, .stop-note-editor textarea { display: block; box-sizing: border-box; width: calc(100% - 8px); font: inherit; }
+        .stop-note-editor p { font-size: .85rem; line-height: 1.5; }
         .visited-btn { min-height: 44px; padding: 8px 12px; margin: 0 0 6px; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-muted); cursor: pointer; }
         .visited-btn > span { visibility: hidden; }
         .visited-btn[aria-pressed="true"] { color: var(--cp-ok); background: var(--cp-ok-bg); border-color: var(--cp-ok); }

@@ -66,6 +66,7 @@ for (const [title, file] of [
   ['backtracking suggestion, confirmation and persistence', 'route-order-smoke.js'],
   ['sharing an unsaved draft saves it after one confirm', 'share-before-save-smoke.js'],
   ['visit time editing and earliest-start preservation', 'visit-time-smoke.js'],
+  ['private stop notes persist and stay out of shares', 'stop-notes-smoke.js'],
   ['shared source deletion hides content and preserves independent copies', 'shared-deletion-smoke.js'],
   ['measured transit is authoritative over AI prose and fare', 'transit-authority-smoke.js'],
   ['home upcoming trip card for signed-in users', 'upcoming-trip-smoke.js'],

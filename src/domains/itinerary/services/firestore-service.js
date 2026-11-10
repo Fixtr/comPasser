@@ -2,6 +2,8 @@ import { loadFirestore } from "../../../lib/firestore-lazy.mjs";
 import { getCurrentUser } from "../../auth/services/firebase-auth.js";
 import { createItineraryDocumentLoader } from "./itinerary-document-loader.mjs";
 import { watchSharedAccess } from './shared-access-watch.mjs';
+import { normalizeData } from './itinerary-normalize.mjs';
+import { normalizeStopNote, stopNoteKeys } from './stop-notes.mjs';
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
@@ -25,8 +27,8 @@ export async function saveItinerary(userId, itineraryPlan, title) {
 /**
  * 저장된 일정의 이름만 바꾼다.
  *
- * firestore.rules 는 소유자에게 title(100자 이내)과 itineraryPlan 수정만
- * 허용한다. 소유자(userId)와 저장 시각(createdAt)은 바꿀 수 없다.
+ * firestore.rules 는 소유자에게 title(100자 이내) 수정을 허용한다.
+ * 소유자(userId)와 저장 시각(createdAt)은 바꿀 수 없다.
  *
  * @param {string} documentId
  * @param {string} title 새 이름(빈 문자열/100자 초과는 거부)
@@ -62,6 +64,38 @@ export async function updateItinerary(documentId, itineraryPlan) {
         console.error("Error updating itinerary:", error);
         throw error;
     }
+}
+
+function checkPrivateStop(trip, userId, key) {
+    if (trip?.userId !== userId || getCurrentUser()?.uid !== userId) throw new Error('Private trip required');
+    if (!normalizeData(trip.itineraryPlan)?.days.some(day => stopNoteKeys(day).includes(key))) {
+        throw Object.assign(new Error('Saved stop required'), { code: 'saved-stop-required' });
+    }
+}
+
+export async function readPrivateStopNote(id, userId, key) {
+    const { db, doc, getDocFromServer } = await loadFirestore();
+    if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
+    const trip = (await getDocFromServer(doc(db, 'itineraries', id))).data();
+    checkPrivateStop(trip, userId, key);
+    const note = trip.stopNotes?.[key];
+    return normalizeStopNote(note?.text, note?.url) || { text: '', url: '' };
+}
+
+export async function writePrivateStopNote(id, userId, key, note) {
+    const { db, doc, runTransaction } = await loadFirestore();
+    if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
+    const ref = doc(db, 'itineraries', id);
+    // Notes are separate from the plan, and simultaneous writes to other stops
+    // are kept. The trip's existing deletion and account rules apply.
+    await runTransaction(db, async transaction => {
+        const trip = (await transaction.get(ref)).data();
+        checkPrivateStop(trip, userId, key);
+        const stopNotes = { ...trip.stopNotes };
+        if (note.text || note.url) stopNotes[key] = note;
+        else delete stopNotes[key];
+        transaction.update(ref, { stopNotes });
+    });
 }
 
 export async function getUserItineraries(userId) {

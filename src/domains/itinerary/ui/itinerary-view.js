@@ -18,6 +18,8 @@ import { removeScheduleItem, moveScheduleItem, insertScheduleItem, isEditableIte
 import { openPlaceReplacement } from './place-replacement.js';
 import { refreshHours } from './itinerary-hours.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
+import { attachStopNoteControl } from './stop-note-editor.js';
+import { stopNoteKeys } from '../services/stop-notes.mjs';
 import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/itinerary-hours.mjs';
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
@@ -1564,6 +1566,7 @@ export default class ItineraryView extends HTMLElement {
 
   cancelPendingLoad() {
     this._failedLoad = null;
+    this.shadowRoot.querySelectorAll?.('.stop-note-editor').forEach(form => form.remove());
     this._stopSharedWatch?.();
     this._stopSharedWatch = null;
     this._loadVersion += 1;
@@ -1734,6 +1737,7 @@ export default class ItineraryView extends HTMLElement {
       const userId = this.state.userId;
       const visited = tripId ? visitedStops.visited(tripId, userId) : null;
       const keys = stopKeys(dayData);
+      const noteKeys = this.state.current?.source.kind === 'private' && this.canEdit() ? stopNoteKeys(dayData) : [];
       this.updateNextStop(dayData);
       
       // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
@@ -1758,6 +1762,7 @@ export default class ItineraryView extends HTMLElement {
       item.className = 'timeline-item';
 
       item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit(), visited?.has(keys[idx]));
+      if (noteKeys[idx]) attachStopNoteControl(this, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
       item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
         // Place lookups and measured times change the day after render without rebuilding the cards.
         const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex] || dayData;

@@ -62,7 +62,7 @@ service cloud.firestore {
           && request.resource.data.title.size() <= 100))
         && request.resource.data.createdAt == request.time;
 
-      // 소유자는 이름(title)과 저장한 일정 내용(itineraryPlan)만 고칠 수 있다.
+      // 소유자는 이름(title), 저장한 일정 내용(itineraryPlan), 개인 메모(stopNotes)를 고칠 수 있다.
       // 소유자(userId)와 저장 시각(createdAt)은 바꾸거나 지울 수 없다.
       // 바뀐 필드만 검사해 이름이 없던 예전 일정도 내용을 고칠 수 있다.
       allow update: if request.auth != null
@@ -72,11 +72,13 @@ service cloud.firestore {
     }
 
     function validItineraryEdit(changed) {
-      return changed.hasOnly(['title', 'itineraryPlan'])
+      return changed.hasOnly(['title', 'itineraryPlan', 'stopNotes'])
         && (!changed.hasAny(['title']) || (request.resource.data.title is string
           && request.resource.data.title.size() > 0
           && request.resource.data.title.size() <= 100))
-        && (!changed.hasAny(['itineraryPlan']) || request.resource.data.itineraryPlan is map);
+        && (!changed.hasAny(['itineraryPlan']) || request.resource.data.itineraryPlan is map)
+        && (!changed.hasAny(['stopNotes']) || (request.resource.data.stopNotes is map
+          && request.resource.data.stopNotes.size() <= 200));
     }
 
     function validVisitorInfo(info) {

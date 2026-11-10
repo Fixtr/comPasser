@@ -52,6 +52,7 @@ function viewHarness({ user = null } = {}) {
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
     Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar,
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
+    stopNoteKeys: () => [], attachStopNoteControl() {},
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
