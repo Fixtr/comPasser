@@ -9,7 +9,7 @@ if (process.argv.includes('--build')) {
     VITE_FIREBASE_API_KEY: 'browser-fixture-api-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-hackerton-deletion.localhost',
     VITE_FIREBASE_PROJECT_ID: 'demo-hackerton-deletion', VITE_FIREBASE_APP_ID: 'browser-fixture-app',
   });
-  await build({ root: fileURLToPath(new URL('../', import.meta.url)), envDir: false });
+  await build({ root: fileURLToPath(new URL('../', import.meta.url)), envDir: false, build: { outDir: 'test-results/pwa-build' } });
   process.exit(0);
 }
 const portFlag = process.argv.indexOf('--port');

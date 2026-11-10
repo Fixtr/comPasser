@@ -29,29 +29,43 @@ export function pickNextStop(day, { visited, currentTime } = {}) {
 }
 
 export function createVisitedStops({ getStorage = () => null, now = Date.now } = {}) {
+  let owner;
   const read = () => {
     try {
-      const saved = JSON.parse(getStorage()?.getItem(VISITED_STOPS_KEY) || 'null');
-      return saved?.version === 1 && saved.trips && typeof saved.trips === 'object' && !Array.isArray(saved.trips) ? saved.trips : {};
-    } catch { return {}; }
+      return JSON.parse(getStorage()?.getItem(VISITED_STOPS_KEY) || 'null');
+    } catch { return null; }
   };
-  const visited = tripId => {
-    const stops = read()[tripId]?.stops;
-    return new Set(Array.isArray(stops) ? stops : []);
+  const tripsFor = userId => {
+    if (owner === undefined || owner !== userId) return {};
+    const saved = read();
+    return saved?.version === 2 && saved.owner === owner && saved.trips
+      && typeof saved.trips === 'object' && !Array.isArray(saved.trips) ? saved.trips : {};
   };
+  const marked = trip => new Set(Array.isArray(trip?.stops) ? trip.stops : []);
   return {
-    visited,
+    setUser(userId) {
+      const next = userId || null;
+      if (next === owner) return;
+      owner = next;
+      try {
+        const saved = read();
+        // Unowned legacy marks cannot be assigned safely to the account restoring this page.
+        if (saved?.version !== 2 || saved.owner !== owner) getStorage()?.removeItem(VISITED_STOPS_KEY);
+      } catch { /* The owner check still protects reads when storage cannot be changed. */ }
+    },
+    visited(tripId, userId) { return marked(tripsFor(userId)[tripId]); },
     // Returns whether the stop is now marked; false when storage is unavailable.
-    toggle(tripId, key) {
+    toggle(tripId, key, userId) {
+      if (owner === undefined || owner !== userId || !key) return false;
       try {
         const storage = getStorage();
         if (!storage) return false;
-        const trips = read(), stops = visited(tripId), on = !stops.has(key);
+        const trips = tripsFor(userId), stops = marked(trips[tripId]), on = !stops.has(key);
         if (on) stops.add(key); else stops.delete(key);
         if (stops.size) trips[tripId] = { at: now(), stops: [...stops] };
         else delete trips[tripId];
         const kept = Object.entries(trips).sort(([, a], [, b]) => (b?.at || 0) - (a?.at || 0)).slice(0, MAX_TRIPS);
-        storage.setItem(VISITED_STOPS_KEY, JSON.stringify({ version: 1, trips: Object.fromEntries(kept) }));
+        storage.setItem(VISITED_STOPS_KEY, JSON.stringify({ version: 2, owner, trips: Object.fromEntries(kept) }));
         return on;
       } catch { return false; }
     },

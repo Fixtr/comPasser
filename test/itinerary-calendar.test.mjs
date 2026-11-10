@@ -21,8 +21,10 @@ const events = ics => ics.split('BEGIN:VEVENT').slice(1).map(block => Object.fro
   block.split('\r\n').filter(line => line.includes(':')).map(line => [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]),
 ));
 
-test('every timed stop of every day becomes a UTC event; broken times are skipped', () => {
-  const ics = buildItineraryCalendar(seoul, new Date('2026-11-09T00:00:00Z'));
+const calendar = (plan, now) => buildItineraryCalendar(plan, 'private:seoulTrip', now);
+
+test('every timed stop of every day becomes a UTC event; broken times are skipped', async () => {
+  const ics = await calendar(seoul, new Date('2026-11-09T00:00:00Z'));
   assert.match(ics, /^BEGIN:VCALENDAR\r\nVERSION:2\.0\r\n/);
   assert.match(ics, /END:VCALENDAR\r\n$/);
   assert.doesNotMatch(ics.replace(/\r\n/g, ''), /\n/, 'every line ends in CRLF');
@@ -37,31 +39,56 @@ test('every timed stop of every day becomes a UTC event; broken times are skippe
   assert.equal(new Set(list.map(e => e.UID)).size, 4);
 });
 
-test('a stop that ends after midnight ends on the next day', () => {
-  const night = events(buildItineraryCalendar(seoul))[2];
+test('a stop that ends after midnight ends on the next day', async () => {
+  const night = events(await calendar(seoul))[2];
   assert.equal(night.DTSTART, '20261120T140000Z');
   assert.equal(night.DTEND, '20261120T160000Z', '01:00 KST on 11-21');
 });
 
-test('times follow the destination time zone, including daylight saving', () => {
+test('times follow the destination time zone, including daylight saving', async () => {
   const paris = date => ({ request: { destination: { id: 'paris', country: 'FRA' } }, days: [{ date, scheduleItems: [{ time: '10:00', endTime: '11:00', title: 'Louvre' }] }] });
-  assert.equal(events(buildItineraryCalendar(paris('2026-07-01')))[0].DTSTART, '20260701T080000Z', 'CEST is UTC+2');
-  assert.equal(events(buildItineraryCalendar(paris('2026-11-20')))[0].DTSTART, '20261120T090000Z', 'CET is UTC+1');
+  assert.equal(events(await calendar(paris('2026-07-01')))[0].DTSTART, '20260701T080000Z', 'CEST is UTC+2');
+  assert.equal(events(await calendar(paris('2026-11-20')))[0].DTSTART, '20261120T090000Z', 'CET is UTC+1');
   const shared = { metadata: { request: paris('x').request }, days: paris('2026-11-20').days };
-  assert.equal(events(buildItineraryCalendar(shared))[0].DTSTART, '20261120T090000Z', 'a snapshot keeps its request under metadata');
+  assert.equal(events(await calendar(shared))[0].DTSTART, '20261120T090000Z', 'a snapshot keeps its request under metadata');
+  assert.equal(events(await calendar({ itineraryPlan: shared }))[0].DTSTART, '20261120T090000Z', 'wrapped legacy data also exports');
 });
 
-test('text is escaped and long lines are folded at 75 octets', () => {
+test('text is escaped and long lines are folded at 75 octets', async () => {
   const plan = { request: seoul.request, days: [{ date: '2026-11-20', scheduleItems: [
     { time: '10:00', endTime: '11:00', title: 'A, B; C\\D\nE', location: '서울 '.repeat(40) },
   ] }] };
-  const ics = buildItineraryCalendar(plan);
+  const ics = await calendar(plan);
   assert.match(ics, /SUMMARY:A\\, B\\; C\\\\D\\nE\r\n/);
   for (const line of ics.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, `too long: ${line}`);
   assert.equal(events(ics.replace(/\r\n /g, ''))[0].LOCATION, '서울 '.repeat(40), 'unfolding restores the text');
 });
 
-test('a plan with no timed stops gives no calendar', () => {
-  assert.equal(buildItineraryCalendar(null), null);
-  assert.equal(buildItineraryCalendar({ days: [{ date: '2026-11-20', scheduleItems: [{ title: 'no time' }] }] }), null);
+test('a plan with no timed stops gives no calendar', async () => {
+  assert.equal(await calendar(null), null);
+  assert.equal(await calendar({ days: [{ date: '2026-11-20', scheduleItems: [{ title: 'no time' }] }] }), null);
+});
+
+test('the same schedule in different trips gets distinct opaque event IDs', async () => {
+  const ids = events(await calendar(seoul)).map(event => event.UID);
+  for (const tripKey of ['private:anotherTrip', 'shared:seoulTrip', 'draft:anotherTrip']) {
+    const ics = await buildItineraryCalendar(seoul, tripKey);
+    assert.equal(events(ics).some(event => ids.includes(event.UID)), false);
+    assert.equal(ics.includes(tripKey.split(':')[1]), false, 'no source ID or share token appears in the file');
+  }
+});
+
+test('reordering and rescheduling stops keeps event IDs, including repeated places', async () => {
+  const plan = structuredClone(seoul);
+  const items = plan.days[0].scheduleItems;
+  items.push({ ...items[1], time: '16:00' });
+  const before = events(await calendar(plan));
+  assert.notEqual(before[1].UID, before[3].UID, 'two visits to the same place are distinct');
+  items[1].time = '11:00';
+  [items[1], items[3]] = [items[3], items[1]];
+  const after = events(await calendar(plan));
+  assert.equal(after[1].UID, before[2].UID);
+  assert.equal(after[2].UID, before[1].UID);
+  assert.notEqual(after[2].DTSTART, before[1].DTSTART);
+  assert.equal(after[3].UID, before[3].UID);
 });

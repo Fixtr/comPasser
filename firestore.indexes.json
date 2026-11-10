@@ -34,5 +34,8 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "generation_results", "fieldPath": "expiresAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "generation_results", "fieldPath": "resultJson", "indexes": [] }
+  ]
 }

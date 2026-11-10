@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { createGenerationCredits, LEASE_MS } = createRequire(import.meta.url)('../functions/generation-credits.js');
+const { createGenerationCredits, generationRecovery, LEASE_MS, RECOVERY_MS } = createRequire(import.meta.url)('../functions/generation-credits.js');
 
 function fixture() {
     const docs = new Map();
@@ -27,13 +27,13 @@ function fixture() {
             return work;
         },
     };
-    return { credits: createGenerationCredits({ db, now: () => time }), docs, advance: ms => { time += ms; } };
+    return { credits: createGenerationCredits({ db, now: () => time }), docs, now: () => time, advance: ms => { time += ms; } };
 }
 
 test('first account gets one credit; success spends it and cannot spend twice', async () => {
     const { credits } = fixture();
     assert.deepEqual(await credits.balance('owner', 'first'), { balance: 1, generating: false });
-    assert.equal(await credits.reserve('owner', 'first', 'a'), 0);
+    assert.equal(await credits.reserve('owner', 'first', 'a'), null);
     await assert.rejects(credits.reserve('owner', 'first', 'b'), { code: 'failed-precondition' });
     assert.equal(await credits.settle('owner', 'first', 'a', true), true);
     assert.deepEqual(await credits.balance('owner', 'first'), { balance: 0, generating: false });
@@ -107,14 +107,46 @@ test('unlimited account can generate repeatedly at zero credits without changing
     await credits.settle('admin', 'first', 'starter', true);
     await credits.reserve('admin', 'first', 'a', true);
     await assert.rejects(credits.reserve('admin', 'first', 'overlap', true), { code: 'failed-precondition' });
-    await credits.settle('admin', 'first', 'a', true, true);
+    await credits.settle('admin', 'first', 'a', true);
     await credits.reserve('admin', 'first', 'b', true);
-    await credits.settle('admin', 'first', 'b', false, true);
+    await credits.settle('admin', 'first', 'b', false);
     assert.deepEqual(await credits.balance('admin', 'first', true), { balance: 0, generating: false, unlimited: true });
     await credits.reserve('admin', 'first', 'c', true);
-    await credits.settle('admin', 'first', 'c', true, true);
+    await credits.settle('admin', 'first', 'c', true);
     await credits.reserve('admin', 'first', 'timed-out', true);
     app.advance(LEASE_MS + 1);
     assert.deepEqual(await credits.balance('admin', 'first', true), { balance: 0, generating: false, unlimited: true });
     assert.deepEqual(await credits.balance('admin', 'first'), { balance: 0, generating: false });
+});
+
+
+test('a result and its debit commit together, then retry returns the same result within the owner and request lifetime', async () => {
+    const { credits, now, advance } = fixture();
+    const id = `${now()}.50ac3d3c-e8e6-420c-8133-c249c483382c`;
+    const recovery = generationRecovery(id, { date: '2027-02-10' }, now());
+    const different = generationRecovery(id, { date: '2027-02-11' }, now());
+    const outcome = { days: [{ day: 1 }] };
+    assert.equal(await credits.reserve('owner', 'first', 'a', false, recovery), null);
+    await assert.rejects(credits.reserve('owner', 'first', 'overlap', false, recovery),
+        { details: { reason: 'generation-request-pending' } });
+    await assert.rejects(credits.reserve('owner', 'first', 'mismatch', false, different),
+        { details: { reason: 'generation-request-mismatch' } });
+    assert.equal(await credits.settle('owner', 'first', 'a', true, recovery, JSON.stringify(outcome)), true);
+    assert.deepEqual(await credits.reserve('owner', 'first', 'retry', false, recovery), outcome);
+    assert.equal((await credits.balance('owner', 'first')).balance, 0);
+    assert.equal(await credits.reserve('other', 'first', 'other', false, recovery), null);
+    advance(RECOVERY_MS);
+    await assert.rejects(credits.reserve('owner', 'first', 'expired', false, recovery),
+        { details: { reason: 'generation-request-expired' } });
+});
+
+test('deletion fences both a pending settlement and later recovery by the deleted identity', async () => {
+    const { credits, docs, now } = fixture();
+    const recovery = generationRecovery(`${now()}.50ac3d3c-e8e6-420c-8133-c249c483382c`, {}, now());
+    await credits.reserve('owner', 'first', 'a', false, recovery);
+    docs.set('account_deletions/owner', { state: 'pending', identityCreatedAt: 'first' });
+    assert.equal(await credits.settle('owner', 'first', 'a', true, recovery, '{}'), false);
+    docs.set('account_deletions/owner', { state: 'completed', identityCreatedAt: 'first' });
+    await assert.rejects(credits.balance('owner', 'first'), { details: { reason: 'account-deletion-pending' } });
+    assert.equal(await credits.reserve('owner', 'replacement', 'b', false, recovery), null);
 });

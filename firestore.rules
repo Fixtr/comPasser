@@ -6,8 +6,10 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/account_deletions/$(request.auth.uid);
       // Completed jobs still fence old ID tokens. A new sign-in after completion
       // can write again; a pending/blocked job can only be changed by Admin.
-      return !exists(path) || (get(path).data.state == 'completed'
-        && request.auth.token.auth_time > get(path).data.completedAt / 1000);
+      return (request.auth.token.firebase.sign_in_provider != 'password'
+          || request.auth.token.get('email_verified', false) == true)
+        && (!exists(path) || (get(path).data.state == 'completed'
+          && request.auth.token.auth_time > get(path).data.completedAt / 1000));
     }
 
     match /account_deletions/{userId} {
@@ -201,7 +203,7 @@ service cloud.firestore {
 
     // Anonymous reports of public courses and reviews: write-only for signed-in users, read by the operator in the console.
     match /content_reports/{reportId} {
-      allow create: if request.auth != null
+      allow create: if request.auth != null && canWriteAccountData()
         && request.resource.data.keys().hasOnly(['kind', 'targetId', 'authorId', 'text', 'createdAt'])
         && request.resource.data.keys().hasAll(['kind', 'targetId', 'authorId', 'text', 'createdAt'])
         && request.resource.data.kind in ['course', 'review']

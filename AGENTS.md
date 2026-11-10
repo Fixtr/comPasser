@@ -15,7 +15,7 @@ Use Node.js 24 and Java JDK 21 or newer for the complete test suite.
 - `npm run test:browser:install`: install the test browser before first use.
 - `npm run test:browser`: run Playwright smoke scenarios on the Ionic shell.
 - `npm run test:emulator`: run Firebase Auth/Firestore integration and security-rule tests.
-- `npm run check`: run tests, build, browser scenarios, and emulator tests sequentially.
+- `npm run check`: run lint, unit tests, build, all three browser suites, and emulator tests sequentially.
 - `npm run cap:sync`: build and synchronize the native projects.
 
 ## Coding Style & Naming Conventions

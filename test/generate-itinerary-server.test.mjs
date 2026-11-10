@@ -18,6 +18,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 function fixture({ fail, empty = false, responses, user = {}, recommendationError, socialProfile } = {}) {
   const calls = [];
   const modelUrls = [];
+  const recovered = new Map();
   let responseIndex = 0;
   class HttpsError extends Error {
     constructor(code, message, details) { super(message); Object.assign(this, { code, details }); }
@@ -29,10 +30,19 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     'firebase-functions/params': { defineSecret: () => ({ value: () => { calls.push('secret'); return 'test-only-key'; } }) },
     'firebase-admin': { initializeApp() {}, firestore() {}, auth: () => ({ getUser: async () => { calls.push('user'); return { metadata: { creationTime: '2026-01-01' }, ...user }; }, createCustomToken: async uid => { calls.push(`token:${uid}`); return 'custom-token'; } }) },
     './account-deletion': { createAccountDeletion: () => ({ assertNotDeleting: async () => calls.push('account-check') }) },
-    './generation-credits': { createGenerationCredits: () => ({
+    './generation-credits': { generationRecovery: require('./generation-credits').generationRecovery, createGenerationCredits: () => ({
       balance: async (_uid, _createdAt, unlimited) => ({ balance: 1, generating: false, ...(unlimited ? { unlimited: true } : {}) }),
-      reserve: async (_uid, _createdAt, _id, unlimited) => { calls.push('reserve'); if (empty && !unlimited) throw Object.assign(new Error('credits-empty'), { code: 'resource-exhausted', details: { reason: 'credits-empty' } }); },
-      settle: async (_uid, _createdAt, _id, succeeded) => { calls.push(succeeded ? 'debit' : 'refund'); },
+      reserve: async (_uid, _createdAt, _id, unlimited, recovery) => {
+        calls.push('reserve');
+        if (recovered.has(recovery?.id)) return recovered.get(recovery.id);
+        if (empty && !unlimited) throw Object.assign(new Error('credits-empty'), { code: 'resource-exhausted', details: { reason: 'credits-empty' } });
+        return null;
+      },
+      settle: async (_uid, _createdAt, _id, succeeded, recovery, resultJson) => {
+        calls.push(succeeded ? 'debit' : 'refund');
+        if (succeeded && recovery) recovered.set(recovery.id, JSON.parse(resultJson));
+        return true;
+      },
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
     './place-recommendations': {validateRecommendationInput:require('./place-recommendations').validateRecommendationInput,createRecommendationLimiter:()=>()=>{},createPlaceRecommendations:()=>async request=>{calls.push('recommendation');if(recommendationError)throw recommendationError;return {cityId:request.data.cityId};}},
@@ -46,8 +56,11 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     cors: () => (_req, _res, next) => next(),
   };
   const exports = {};
-  vm.runInNewContext(source, { exports, console, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
-  return { calls, modelUrls, run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}),
+  vm.runInNewContext(source, { exports, console, Buffer, process: { env: {} }, require: id => Object.hasOwn(modules, id) ? modules[id] : require(id) }, { filename: 'functions/index.js' });
+  return { calls, modelUrls,
+    recover: (request, requestId) => exports.generateItinerary({ data: { recoverableRequest: request, requestId },
+      auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }),
+    run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}),
     social: provider => new Promise(resolve => exports.verifySocialToken({ body: { data: { provider, token: 'social-token' } } }, { status: code => ({ send: body => resolve({ code, body }) }) })) };
 }
 
@@ -94,13 +107,13 @@ test('authentication remains required, even for valid input', async () => {
 test('an old token cannot spend a recreated account’s starter credit', async () => {
   const app = fixture();
   await assert.rejects(app.run(valid(), { uid: 'test-user', token: { auth_time: 1 } }), { code: 'unauthenticated' });
-  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user']);
+  assert.deepEqual(app.calls, ['account-check', 'user']);
 });
 
 test('valid input still passes account guard, prompt and AI exactly once', async () => {
   const app = fixture(), response = await app.run(valid());
   assert.equal(response.days.length, 1);
-  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'debit']);
+  assert.deepEqual(app.calls, ['account-check', 'user', 'reserve', 'secret', 'prompt', 'ai', 'debit']);
 });
 
 test('an incomplete first model retries; only a complete trip spends a credit', async () => {
@@ -109,7 +122,7 @@ test('an incomplete first model retries; only a complete trip spends a credit', 
   const app = fixture({ responses: [[first], [second, first]] });
   const response = await app.run(twoDays());
   assert.deepEqual(Array.from(response.days, day => day.day), [1, 2]);
-  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'debit']);
+  assert.deepEqual(app.calls, ['account-check', 'user', 'reserve', 'secret', 'prompt', 'ai', 'ai', 'debit']);
 });
 
 test('an empty recommendation array is valid: fixed stops are inserted by the app', async () => {
@@ -125,14 +138,14 @@ test('missing, duplicate, or wrong-date days from both models refund the credit'
   for (const days of [[first], [first, first], [first, { ...second, date: '2026-10-03' }]]) {
     const app = fixture({ responses: [days, days] });
     await assert.rejects(app.run(twoDays()), { code: 'internal' });
-    assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'refund']);
+    assert.deepEqual(app.calls, ['account-check', 'user', 'reserve', 'secret', 'prompt', 'ai', 'ai', 'refund']);
   }
 });
 
 test('model fallback and quota error mapping remain unchanged', async () => {
   const app = fixture({ fail: Object.assign(new Error('quota'), { response: { status: 429 } }) });
   await assert.rejects(app.run(valid()), { code: 'resource-exhausted' });
-  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve', 'ai', 'ai', 'refund']);
+  assert.deepEqual(app.calls, ['account-check', 'user', 'reserve', 'secret', 'prompt', 'ai', 'ai', 'refund']);
   assert.deepEqual(app.modelUrls.map(url => url.match(/\/models\/(.*):generateContent$/)?.[1]),
     ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite']);
 });
@@ -140,7 +153,7 @@ test('model fallback and quota error mapping remain unchanged', async () => {
 test('empty credits stop generation before paid AI call', async () => {
   const app = fixture({ empty: true });
   await assert.rejects(app.run(valid()), error => error.code === 'resource-exhausted' && error.details.reason === 'credits-empty');
-  assert.deepEqual(app.calls, ['account-check', 'secret', 'prompt', 'user', 'reserve']);
+  assert.deepEqual(app.calls, ['account-check', 'user', 'reserve']);
 });
 
 test('only the verified administrator email bypasses empty credits', async () => {
@@ -178,4 +191,27 @@ test('social login issues a token only for a provider profile with an id', async
   assert.equal(down.body.data.error, '소셜 로그인을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
   const unsupported = await fixture().social('google');
   assert.equal(unsupported.body.data.error, "지원하지 않는 소셜 로그인 플랫폼입니다. ('kakao' 또는 'naver' 만 가능)");
+});
+
+
+test('email verification is required before allocating resources for a password sign-in', async () => {
+  const auth = sign_in_provider => ({ uid: 'test-user', token: { auth_time: 1800000000, firebase: { sign_in_provider } } });
+  const unverified = fixture({ user: { emailVerified: false } });
+  await assert.rejects(unverified.run(valid(), auth('password')),
+    error => error.code === 'permission-denied' && error.details.reason === 'email-not-verified');
+  assert.deepEqual(unverified.calls, ['account-check', 'user']);
+  const verified = fixture({ user: { emailVerified: true } });
+  assert.equal((await verified.run(valid(), auth('password'))).days.length, 1);
+  const social = fixture({ user: { emailVerified: false } });
+  assert.equal((await social.run(valid(), auth('custom'))).days.length, 1);
+});
+
+test('an identical recovery request returns the committed result without a second model call', async () => {
+  const app = fixture();
+  const id = `${Date.now()}.50ac3d3c-e8e6-420c-8133-c249c483382c`;
+  const first = await app.recover(valid(), id);
+  const retry = await app.recover(valid(), id);
+  assert.equal(JSON.stringify(retry), JSON.stringify(first));
+  assert.deepEqual(app.calls, ['account-check', 'user', 'reserve', 'secret', 'prompt', 'ai', 'debit',
+    'account-check', 'user', 'reserve']);
 });

@@ -10,6 +10,7 @@
 
 - The Ionic `/login` and `/join` (`AuthScreen`) show one reason line chosen by `next`: a planning return (`/preference/1`, `/preference/2`, `/plan`) names only what the guest draft holds (the city and the number of picked places, or the city alone, or a generic line when the draft has no city); a `/profile...` return says trips and profile need an account; a plain visit shows nothing.
 - An email account that is not verified yet never owns the planner draft: the shell keeps the guest owner for it and signs it out with `logout({ keepLocalData: true })`, so signing up by email keeps the guest's picks. Every other `logout()` call still clears local travel data.
+- Protected callables and Firestore writes also require verified email for password sign-ins. Google and custom-token sign-ins remain eligible, and the account deletion endpoints keep their own recent-login and identity checks.
 - Signup and login link to the privacy policy at its public address (`PRIVACY_POLICY_URL`, `https://hackerton-48w.pages.dev/privacy`) in a new tab, because a bare `/privacy` falls back to `index.html` inside the native app. The policy is Korean only, so the English link says so. `public/sw.js` leaves `/privacy` to the network, so offline the browser shows its own error instead of the app's not-found page.
 
 ## Form Accessibility

@@ -1244,6 +1244,31 @@ test('an AI failure offers 다시 시도 with the same request and keeps the inp
  const requests=await page.evaluate(()=>window.generationRequests);expect(requests).toHaveLength(2);expect(requests[1]).toEqual(requests[0]);
 });
 
+test('checking an interrupted generation sends the same request ID and opens the result', async ({ page }) => {
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
+    contentType: 'text/javascript', body: `
+      export const getGenerationCredits = async () => 0;
+      export async function generateOptimizedItinerary(request, { requestId, lang }) {
+        window.generationRequests ??= [];
+        window.generationRequests.push({ request, requestId, lang });
+        if (window.generationRequests.length === 1) {
+          throw Object.assign(new Error('아직 결과를 받지 못했어요.'), { retryable: true, outcomeUnknown: true });
+        }
+        return { ...${JSON.stringify(trip.itineraryPlan)}, request };
+      }
+    `,
+  }));
+  const form = await openExitTestForm(page);
+  await form.evaluate(el => el.dispatchEvent(new CustomEvent('generate-itinerary', { detail: el.getFormData() })));
+  await expect(page.getByRole('alert').filter({ hasText: '아직 결과를 받지 못했어요.' })).toBeVisible();
+  await page.getByRole('button', { name: '이전 생성 요청 다시 확인' }).click();
+  await expect(page).toHaveURL(/view$/);
+  const requests = await page.evaluate(() => window.generationRequests);
+  expect(requests).toHaveLength(2);
+  expect(requests[0].requestId).toMatch(/^\d{13}\.[\da-f-]{36}$/);
+  expect(requests[1]).toEqual(requests[0]);
+});
+
 test('the review lists every blocking field at once and keeps 일정 생성하기 off until they are fixed', async ({page}) => {
  const form=await openExitTestForm(page,{startTime:'',endTime:'',startLocation:'',endLocation:'',anchorSchedules:[{name:'Booked visit',day:1,time:'12:00',endTime:'',location:place}]});
  await form.locator('button[type=submit].primary-btn').click();

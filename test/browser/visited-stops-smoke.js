@@ -24,5 +24,21 @@ async page=>{
   await page.locator('itinerary-view .visited-btn').first().click();
   if(await page.locator('itinerary-view .schedule-card[data-visited]').count()) throw Error('Unmark failed');
   if(JSON.stringify(await page.evaluate(()=>document.querySelector('itinerary-view').currentItinerary)).includes('visited')) throw Error('Visited state leaked into the plan');
+
+  await page.evaluate(()=>{
+    const db=JSON.parse(sessionStorage.getItem('__smoke_db'));
+    const itineraryPlan=structuredClone(db.itineraries.smoke1.itineraryPlan);
+    itineraryPlan.days[0].scheduleItems[1].title='공유 카페';
+    db.shared_itineraries={visitedShare:{itineraryPlan}};
+    sessionStorage.setItem('__smoke_db',JSON.stringify(db));
+    window.navigate('/share/visitedShare');
+  });
+  const sharedToggle=page.locator('.schedule-card').filter({hasText:'공유 카페'}).locator('.visited-btn');
+  await page.waitForURL('**/share/visitedShare');
+  await sharedToggle.click();
+  if(await sharedToggle.getAttribute('aria-pressed')!=='true') throw Error('Shared trip did not record the signed-in visit');
+  await page.evaluate(()=>window.__smoke.setUser(null));
+  await sharedToggle.and(page.locator('[aria-pressed="false"]')).waitFor({state:'visible'});
+  if(await page.evaluate(()=>localStorage.getItem('compasser.visited.v1'))!==null) throw Error('Signed-in visit survived logout');
   return {errors:page.smokeErrors};
 }

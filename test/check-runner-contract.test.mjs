@@ -7,9 +7,11 @@ import vm from 'node:vm';
 const read = name => readFileSync(new URL('../' + name, import.meta.url), 'utf8');
 const root = new URL('../', import.meta.url);
 
-test('the aggregate command fails fast and includes all four verification layers', () => {
+const checks = ['npm run lint', 'npm test', 'npm run build', 'npm run test:browser', 'npm run test:ionic', 'npm run test:ionic:pwa', 'npm run test:emulator'];
+
+test('the aggregate command fails fast and includes every CI check', () => {
   const { scripts } = JSON.parse(read('package.json'));
-  assert.equal(scripts.check, 'npm test && npm run build && npm run test:browser && npm run test:emulator');
+  assert.deepEqual(scripts.check.split(' && '), checks);
   assert.equal(scripts.test, 'node --test test/*.test.mjs', 'keep the fast default suite');
 });
 
@@ -60,7 +62,7 @@ test('CI stays read-only and directly deploys main only after every check passes
   assert.match(workflow, /contents: read/);
   assert.doesNotMatch(workflow, /pull_request_target|git push/);
   assert.match(workflow, /npm ci --prefix functions/);
-  for (const script of ['npm test', 'npm run build', 'npm run test:browser', 'npm run test:emulator']) assert.ok(workflow.includes(script));
+  for (const script of checks) assert.ok(workflow.split('\n').some(line => line.trim() === `- run: ${script}`), script);
   assert.match(workflow, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /needs: \[unit-build, browser, emulator\]/);
   assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);

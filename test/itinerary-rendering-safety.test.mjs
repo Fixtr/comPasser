@@ -28,6 +28,7 @@ function element() {
 // 실제 타임라인 렌더러를 실행한다. 외부 SDK와 브라우저의 DOM 저장 부분만 대체한다.
 function viewHarness({ user = null } = {}) {
   const controls = new Map();
+  const downloads = [];
   const control = id => {
     if (!controls.has(id)) controls.set(id, element());
     return controls.get(id);
@@ -42,7 +43,7 @@ function viewHarness({ user = null } = {}) {
       hasAttribute() { return false; }
     },
     customElements: { define() {} },
-    document: { createElement: element, getElementById: () => null },
+    document: { createElement: tag => tag === 'a' ? { click() { downloads.push(this.download); } } : element(), getElementById: () => null },
     window: { dispatchEvent() {} }, CustomEvent: class {},
     getCurrentUser: () => user, escapeHtml, safeHttpUrl, normalizeData, isEditableItem, isTransportEstimatedCost, createItineraryState, suggestRouteOrder, minutesOf,
     createItineraryActions, saveItinerary() {}, updateItinerary() {}, offlineTrips: { get: () => null, save() {} }, createSharedItinerary() {}, getSharedItineraryUrl() {},
@@ -62,7 +63,7 @@ function viewHarness({ user = null } = {}) {
   view.applyResolvedPlaces = () => {};
   view.renderTransitInfo = () => {};
   view.buildInsertSlot = () => element();
-  return { view, control };
+  return { view, control, downloads };
 }
 
 function planWith(item) {
@@ -196,4 +197,18 @@ test('visited toggles appear only for a trip with a stable id and only on titled
   assert.deepEqual(shared.map(html => html.includes('visited-btn')), [false, true, false, false]);
   assert.match(shared[1], /aria-pressed="false"/);
   assert.doesNotMatch(shared[1], /<img|" autofocus/);
+});
+
+test('an async calendar export cannot download after the active account changes', async () => {
+  const user = { uid: 'owner' };
+  const { view, downloads } = viewHarness({ user });
+  view.state.setUser('owner');
+  view.state.open(planWith({ type: 'cafe', title: '경복궁', time: '10:00' }), { kind: 'private', id: 'trip123' });
+  view.showToast = () => {};
+  await view.downloadCalendar();
+  assert.deepEqual(downloads, ['compasser-trip.ics']);
+  const pending = view.downloadCalendar();
+  user.uid = 'other';
+  await pending;
+  assert.deepEqual(downloads, ['compasser-trip.ics']);
 });
