@@ -52,6 +52,10 @@
 - Shared loads always read the server, not persistent or in-memory cached content. While open, recheck server access every 15 seconds (8-second request deadline), without overlapping requests; focus/offline events also recheck. Do not rely on shared-document listeners to detect private-source deletion. Clear dates, places, map and actions before displaying a deletion/error state. Cancel checks and ignore late responses when leaving. Independent recipient copies remain private and unaffected. Legacy unlinked snapshots cannot be safely mapped to their source and remain compatible.
 - `ui/itinerary-share-delivery.js` only delivers a prepared URL to the clipboard or Kakao. Keep SDK loading lazy and propagate errors so the view can restore its buttons and show an error.
 
+## Home upcoming trip
+
+- `ui/upcoming-trip.js` (`<upcoming-trip uid>`) is mounted by the home screen only for a settled signed-in user while that home page's own route (`/` or `/home`; Ionic keeps both mounted) shows, so each return re-reads the list. `services/upcoming-trip.mjs` picks the trip whose last day is today (each trip's destination-local date, as the trip view's next stop reads it) or later with the earliest first day; trips without a valid first/last date are skipped. Offline it reads `offlineTrips.list(uid)`. Any failure renders nothing.
+
 ## Image Export
 
 - New saved titles lead with the trip's catalogue city when `request.destination.id` names one (`itineraryCity`), e.g. '서울 · 8월 20일~8월 22일 · 2박 3일'. Stored titles are never rewritten; the trip list adds the city to a card's date line when its title (saved earlier, renamed, or in the other language) does not name it.
