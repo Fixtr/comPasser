@@ -400,6 +400,7 @@ test('공유 URL은 직접 열리고, 보호 화면은 로그인 후 원래 주�
 });
 
 const missingItineraryStore = `
+  export async function readPrivateStopNote() {} export async function writePrivateStopNote() {}
   export async function loadItineraryDocument() { return null; }
   export async function saveItinerary() {} export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
   export async function createSharedItinerary() {}
@@ -2092,6 +2093,7 @@ async function openUnsavedDraft(page, waitForShare = '', waitForSave = '') {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({ contentType: 'text/javascript', body: authModule.replace('let currentUser = null;', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true };") }));
   await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
+    export async function readPrivateStopNote() {} export async function writePrivateStopNote() {}
     export async function saveItinerary() { ${waitForSave} return 'saved1'; }
     export async function createSharedItinerary() { window.shares = (window.shares || 0) + 1; ${waitForShare} return 'public1'; }
     export async function getUserItineraries() { return []; } export async function updateItinerary() {} export async function renameItinerary() {} export async function deleteItinerary() {}
