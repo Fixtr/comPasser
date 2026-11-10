@@ -39,6 +39,7 @@
 - Shared copies stay read-only and are not written to local personal recovery storage. Saving creates a private snapshot; it never updates the shared source.
 - Schedule mutators (`replaceDayItems`, `editDayItems`, and undo through them) mark the entry `unsaved`; opening, day selection and place resolution do not. `markSaved()` clears only that flag, keeping `dirtyDays` and undo snapshots. Session copies written before the flag existed count as unsaved when they carry dirty days or undo snapshots. Changing the language rebuilds the day tabs and the active day's cards without a new map request.
 - The router calls `restoreDraft()` or `loadItineraryById()` and does not parse itinerary JSON or maintain a separate loaded-document cache. Duplicate pending loads are coalesced by the itinerary view.
+- `services/visited-stops.mjs` keeps device-local 방문 완료 marks in `localStorage` (`compasser.visited.v1`, 50 most recently changed trips), keyed by `private:`/`shared:` trip id and day date + title + same-title occurrence. Toggles show only for saved/shared trips on titled stops other than departure/arrival; the next-stop panel (`pickNextStop`) skips marked stops. Marks are never written to Firestore or the plan, and blocked/corrupt storage just means nothing is marked.
 - Successful profile deletion emits `itinerary-deleted` with `{ id, userId }` (`id: null` for all private documents), removing the same owner's local recovery copy too.
 
 ## Save and Link Sharing

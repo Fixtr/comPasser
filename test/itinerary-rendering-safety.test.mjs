@@ -10,6 +10,7 @@ import { isTransportEstimatedCost } from '../src/domains/itinerary/services/itin
 import { suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
 import { minutesOf } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { buildItineraryCalendar } from '../src/domains/itinerary/services/itinerary-calendar.mjs';
+import { createVisitedStops, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
 const attributePayload = '" autofocus onfocus="alert(1)';
@@ -49,6 +50,7 @@ function viewHarness({ user = null } = {}) {
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
     Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar,
+    visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
@@ -175,4 +177,23 @@ test('an unset-stay endpoint shows its label without reviews or directions to a 
   const { view: other, control: otherControl } = viewHarness();
   other.showResults(planWith({ type: 'departure', title: '출발 · 서울역', time: '09:00', location: '서울역', googleMapsUrl: '' }), { access: 'shared', id: 'public123' });
   assert.match(otherControl('timeline-container').children[0].innerHTML, /nav-btn/);
+});
+
+test('visited toggles appear only for a trip with a stable id and only on titled visits', () => {
+  const plan = { days: [{ day: 1, date: '2026-09-06', scheduleItems: [
+    { type: 'departure', title: '출발', time: '09:00' },
+    { type: 'cafe', title: payload + attributePayload, time: '10:00' },
+    { type: 'cafe', title: '', time: '11:00' },
+    { type: 'arrival', title: '도착', time: '18:00' }] }] };
+  const cards = (open) => {
+    const { view, control } = viewHarness({ user: { uid: 'owner' } });
+    view.state.setUser('owner');
+    open(view, structuredClone(plan));
+    return control('timeline-container').children.filter(child => child.className === 'timeline-item').map(child => child.innerHTML);
+  };
+  assert.equal(cards((view, data) => view.showResults(data)).filter(html => html.includes('visited-btn')).length, 0);
+  const shared = cards((view, data) => view.showResults(data, { access: 'shared', id: 'public123' }));
+  assert.deepEqual(shared.map(html => html.includes('visited-btn')), [false, true, false, false]);
+  assert.match(shared[1], /aria-pressed="false"/);
+  assert.doesNotMatch(shared[1], /<img|" autofocus/);
 });
