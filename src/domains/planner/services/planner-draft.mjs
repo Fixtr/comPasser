@@ -1,3 +1,4 @@
+import { TRIP_PACES } from '../../../../functions/planner-request-validation.mjs';
 import { TRAVEL_REGIONS } from '../../../../functions/travel-region.mjs';
 import { getLocationName } from './location-name.mjs';
 import { nightlyStays } from './trip-stays.mjs';
@@ -35,6 +36,7 @@ export function toPlannerDraft(request = {}) {
     theme: input.theme ?? null,
     budget: input.budget ?? null,
     companion: ['solo', 'couple', 'friends', 'family_kids', 'parents'].includes(input.companion) ? input.companion : null,
+    pace: TRIP_PACES.includes(input.pace) ? input.pace : null,
     // Optional flights; the form copies their airports and times into the first and last day.
     flights: { arrival: flightEntry(input.flights?.arrival), departure: flightEntry(input.flights?.departure) },
     startTime: input.startTime ?? first.startTime ?? '',
@@ -177,14 +179,14 @@ export function createPlannerDraftStore({ getStorage = () => null, getRecoverySt
     },
     updatePreferences(changes) {
       const draft = read();
-      for (const field of ['date', 'theme', 'budget', 'companion']) {
+      for (const field of ['date', 'theme', 'budget', 'companion', 'pace']) {
         if (Object.hasOwn(changes, field)) draft[field] = changes[field];
       }
       return save(draft);
     },
     resetDetails() {
-      const { date, theme, budget, companion } = read();
-      return save({ date, theme, budget, companion, destination: read().destination, step: read().step, stays: [] });
+      const { date, theme, budget, companion, pace, destination, step } = read();
+      return save({ date, theme, budget, companion, pace, destination, step, stays: [] });
     },
   };
 }

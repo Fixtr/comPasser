@@ -3,6 +3,7 @@ import { TRAVEL_REGIONS, travelRegion, travelInstant } from './travel-region.mjs
 // inside functions/ so Firebase's deployment includes the same validation rules.
 export const MAX_DAYS = 4;
 export const MAX_ANCHORS_PER_DAY = 10;
+export const TRIP_PACES = Object.freeze(['relaxed', 'balanced', 'packed']);
 
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasText = value => typeof value === 'string' && value.replace(/[\u0000-\u001F\u007F]/g, ' ').trim().length > 0;
@@ -37,6 +38,7 @@ export function findPlannerRequestIssue(request) {
     return { reason: 'missing-days' };
   }
   if (request.destination && (!Object.hasOwn(TRAVEL_REGIONS, request.destination.country) || !travelRegion(request).cities.includes(request.destination.id) || typeof request.destination.name !== 'string' || !request.destination.name.trim() || request.destination.name.length > 100)) return { reason: 'travel-region' };
+  if (request.pace != null && !TRIP_PACES.includes(request.pace)) return { reason: 'travel-pace' };
   const days = request.dailyData;
   if (days.length > MAX_DAYS) return { reason: 'day-limit' };
   const dates = request.date === undefined ? null : (Array.isArray(request.date) ? request.date : [request.date]);

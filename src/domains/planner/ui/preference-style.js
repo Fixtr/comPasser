@@ -66,6 +66,20 @@ export const preferenceStyles = `
           border-bottom: var(--cp-hair) solid var(--cp-rule);
         }
 
+        .pace-label { display: block; }
+
+        #pace-select {
+          width: 100%;
+          min-height: 44px;
+          margin-bottom: 1rem;
+          padding: 0.5rem 0.75rem;
+          font: inherit;
+          color: var(--cp-ink);
+          background: var(--cp-surface);
+          border: var(--cp-hair) solid var(--cp-rule);
+          border-radius: var(--cp-radius);
+        }
+
         .section-title + .section-title {
           margin-top: 1.5rem;
         }

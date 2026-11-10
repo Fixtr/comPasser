@@ -1,10 +1,11 @@
+import { TRIP_PACES } from '../../../../functions/planner-request-validation.mjs';
 import { dateRange, travelRegion, localTravelDate } from '../../../../functions/travel-region.mjs';
 import { moveTripDates } from '../services/trip-stays.mjs';
 import { destinationById } from '../services/travel-destinations.mjs';
 /**
  * preference-view.js
  * 
- * 여행 테마 & 예산 스타일 선택 Web Component
+ * 여행 스타일 선택 Web Component
  * - 로그인 직후 /preference 경로에서 표시
  * - 선택 완료 후 sessionStorage에 저장 → /plan으로 이동
  */
@@ -44,6 +45,7 @@ export default class PreferenceView extends HTMLElement {
     this.selectedTheme = draft.theme;
     this.selectedBudget = draft.budget;
     this.selectedCompanion = draft.companion;
+    this.selectedPace = draft.pace;
     this.startDateType = null;
     this.startDateValue = null;
     this.duration = null;
@@ -188,6 +190,11 @@ export default class PreferenceView extends HTMLElement {
             <div class="card-desc" data-i18n="companion_parentsDesc">${t('companion_parentsDesc')}</div>
           </button>
         </div>
+
+        <label for="pace-select" class="section-title pace-label" data-i18n="prefPaceSection">${t('prefPaceSection')}</label>
+        <select id="pace-select">
+          ${TRIP_PACES.map(pace => `<option value="${pace}" data-i18n="pace_${pace}">${t(`pace_${pace}`)}</option>`).join('')}
+        </select>
 
         <!-- Submit -->
         <div class="submit-section">
@@ -414,6 +421,13 @@ export default class PreferenceView extends HTMLElement {
       plannerDraftStore.updatePreferences({ companion: this.selectedCompanion });
     });
 
+    const paceSelect = this.shadowRoot.getElementById('pace-select');
+    paceSelect.value = this.selectedPace || 'balanced';
+    paceSelect.addEventListener('change', () => {
+      this.selectedPace = paceSelect.value;
+      plannerDraftStore.updatePreferences({ pace: this.selectedPace });
+    });
+
     if (this.selectedDates && Array.isArray(this.selectedDates) && this.selectedDates.length > 0) {
       let isStandard = false;
       const firstDate = this.selectedDates[0];
@@ -487,7 +501,8 @@ export default class PreferenceView extends HTMLElement {
         date: this.selectedDates,
         theme: this.selectedTheme,
         budget: this.selectedBudget,
-        companion: this.selectedCompanion
+        companion: this.selectedCompanion,
+        pace: this.selectedPace
       };
 
       plannerDraftStore.updatePreferences(preference);
@@ -500,16 +515,19 @@ export default class PreferenceView extends HTMLElement {
 
     // [Step 2] Skip Button
     skipBtn.addEventListener('click', () => {
-      // Save what we have in Step 1, but null for theme/budget/companion
+      // Keep dates and reset travel style.
       const preference = {
         date: this.selectedDates,
         theme: null,
         budget: null,
-        companion: null
+        companion: null,
+        pace: null
       };
       this.selectedTheme = null;
       this.selectedBudget = null;
       this.selectedCompanion = null;
+      this.selectedPace = null;
+      paceSelect.value = 'balanced';
       plannerDraftStore.updatePreferences(preference);
       plannerDraftStore.update({ step: '/plan' });
 
@@ -547,8 +565,8 @@ export default class PreferenceView extends HTMLElement {
   setStep(step, { returnToPlan = this.returnToPlan || false } = {}) {
     this.returnToPlan = returnToPlan;
     this.currentStep = step;
-    const { date, theme, budget, companion } = plannerDraftStore.read();
-    if (JSON.stringify([date, theme, budget, companion]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget, this.selectedCompanion])) {
+    const { date, theme, budget, companion, pace } = plannerDraftStore.read();
+    if (JSON.stringify([date, theme, budget, companion, pace]) !== JSON.stringify([this.selectedDates, this.selectedTheme, this.selectedBudget, this.selectedCompanion, this.selectedPace])) {
       this.restoreSelection();
       this.render();
       this.setupEventListeners();
