@@ -3,7 +3,7 @@ import { unblockAllAuthors } from '../../itinerary/services/blocked-authors.mjs'
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { icons } from '../../../ui/icons.js';
 import { getUserItineraries, deleteItinerary, renameItinerary, saveItinerary } from '../../itinerary/services/firestore-service.js';
-import { shiftItineraryDates, itineraryStartDate, duplicateTitle } from '../../itinerary/services/itinerary-duplicate.mjs';
+import { shiftItineraryDates, itineraryStartDate, copyTitle } from '../../itinerary/services/itinerary-duplicate.mjs';
 import { todayString } from '../../planner/services/trip-date.mjs';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
@@ -630,7 +630,7 @@ class ProfileView extends HTMLElement {
         if (trigger) trigger.disabled = true;
         try {
             // An untitled trip shows a title built from its dates, so the copy saves none and gets one from its new dates.
-            const id = await saveItinerary(user.uid, plan, item.title ? duplicateTitle(item.title, t('duplicateSuffix')) : null);
+            const id = await saveItinerary(user.uid, plan, copyTitle(item.title, item.itineraryPlan, plan, t('duplicateSuffix')));
             confirm.disabled = false;
             this.closeDuplicate();
             showToast(t('duplicateDone'));
