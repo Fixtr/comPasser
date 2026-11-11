@@ -1,4 +1,5 @@
 import { normalizeData } from './itinerary-normalize.mjs';
+import { assignStopIds } from './visited-stops.mjs';
 import { isFixedPlace, recommendationFields } from '../../map/services/recommendation-place.mjs';
 
 export const ITINERARY_SESSION_KEY = 'compasser.itineraries.v1';
@@ -95,6 +96,8 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
             entry.dayIndex = Number.isInteger(entry.dayIndex) && days[entry.dayIndex] ? entry.dayIndex : 0;
             // Copies kept before the unsaved flag existed count as edited when they carry edit marks.
             if (source.kind === 'private' && entry.unsaved === undefined) entry.unsaved = Boolean(entry.dirtyDays?.length || Object.keys(entry.undoByDay || {}).length);
+            // Old keys keep this device's marks. Notes trust the id alone; see the shortcut in privateStop (firestore-service.js).
+            assignStopIds(entry.plan, { legacy: true });
             entries.set(keyOf(source), entry);
           }
         } else if (initial && userId && !saved) {
@@ -102,6 +105,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
           let plan;
           try { plan = JSON.parse(target.getItem(LEGACY_DRAFT_KEY)); } catch { /* 잘못된 JSON은 무시한다. */ }
           if (validPlan(plan)) {
+            assignStopIds(plan, { legacy: true });
             const source = { kind: 'draft', ownerId: userId };
             entries.set(keyOf(source), { source, plan, dayIndex: 0 });
           }
@@ -120,6 +124,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if (!['draft', 'private', 'shared'].includes(kind)) return null;
       if (kind !== 'draft' && !id) return null;
       if (kind === 'private' && !userId) return null;
+      assignStopIds(plan, { legacy: true });
       const source = kind === 'shared' ? { kind, id } : { kind, id, ownerId: userId || null };
       const entry = { source, plan, dayIndex: 0, dirtyDays: [], undoByDay: {}, ...(savedFromDraft ? { savedFromDraft } : {}) };
       activeKey = keyOf(source);
@@ -174,6 +179,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       const day = normalizeData(entry?.plan)?.days?.[index];
       if (!day || !Array.isArray(items)) return false;
       day.scheduleItems = items;
+      assignStopIds(entry.plan);
       // 저장한 일정이 저장본과 달라졌다는 표시. dirtyDays(시간 재계산 필요)와는 별개다.
       entry.unsaved = true;
       changed();
@@ -188,7 +194,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       if (undo) entry.undoByDay[index]=structuredClone(day.scheduleItems); else delete entry.undoByDay[index];
       entry.dirtyDays ||= [];
       if (!entry.dirtyDays.includes(index)) entry.dirtyDays.push(index);
-      day.scheduleItems=items;entry.unsaved=true;changed();return true;
+      day.scheduleItems=items;assignStopIds(entry.plan);entry.unsaved=true;changed();return true;
     },
     undoDeletion(index) {
       const entry=current(),items=entry?.undoByDay?.[index];

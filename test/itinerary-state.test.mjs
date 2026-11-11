@@ -1,3 +1,4 @@
+import { assignStopIds } from '../src/domains/itinerary/services/visited-stops.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createItineraryState, ITINERARY_SESSION_KEY } from '../src/domains/itinerary/services/itinerary-state.mjs';
@@ -119,7 +120,9 @@ test('이전 savedItineraryData는 로그인된 탭에서 최신 형식으로 �
   const storage = memoryStorage();
   storage.setItem('savedItineraryData', JSON.stringify(plan()));
   const state = make(storage);
-  assert.deepEqual(state.activateDraft().plan, plan());
+  const expected = plan();
+  assignStopIds(expected, { legacy: true });
+  assert.deepEqual(state.activateDraft().plan, expected);
   assert.equal(storage.getItem('savedItineraryData'), null);
   assert.equal(JSON.parse(storage.getItem(ITINERARY_SESSION_KEY)).userId, 'owner');
 });

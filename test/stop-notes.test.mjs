@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeStopNote, stopNoteKeys } from '../src/domains/itinerary/services/stop-notes.mjs';
+import { normalizeStopNote, legacyStopNoteKeys } from '../src/domains/itinerary/services/stop-notes.mjs';
 
 test('notes accept text and absolute web links within their limits', () => {
   assert.deepEqual(normalizeStopNote(' <b>entrance</b> ', 'https://example.com/ticket'), {
@@ -13,10 +13,10 @@ test('notes accept text and absolute web links within their limits', () => {
   assert.deepEqual(normalizeStopNote(' ', ' '), { text: '', url: '' });
 });
 
-test('notes stay with identified places after time and display-name changes without conflating visits', () => {
+test('old note keys followed identified places and gave repeated visits none', () => {
   const cafe = { title: 'Cafe', type: 'cafe', time: '09:00', verifiedPlace: { placeId: 'cafe' } };
   const anchor = { ...cafe, type: 'AnchorSchedule' };
-  const keys = (...scheduleItems) => stopNoteKeys({ date: '2026-11-10', scheduleItems });
+  const keys = (...scheduleItems) => legacyStopNoteKeys({ date: '2026-11-10', scheduleItems });
   const [cafeKey] = keys(cafe);
   assert.ok(cafeKey);
   assert.deepEqual(keys({ ...cafe, title: 'Cafe renamed by map', time: '10:00' }), [cafeKey]);

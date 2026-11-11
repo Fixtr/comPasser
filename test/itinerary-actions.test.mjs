@@ -1,3 +1,4 @@
+import { assignStopIds } from '../src/domains/itinerary/services/visited-stops.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
@@ -140,7 +141,10 @@ test('공유본 저장은 공개 원본을 수정하지 않고 로그인 계정�
   assert.notEqual(state.current.plan, original);
   assert.equal(state.activateDocument('public123', { sharedOnly: true }), shared);
   assert.equal(shared.plan, original);
-  assert.deepEqual(original, plan());
+  // Opening adds only the derived stop ids; the content is untouched.
+  const expected = plan();
+  assignStopIds(expected, { legacy: true });
+  assert.deepEqual(original, expected);
 });
 
 test('저장 중 편집한 최신 일정은 저장 시작 시점의 사본으로 덮거나 이동시키지 않는다', async () => {
