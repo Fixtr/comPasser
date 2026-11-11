@@ -15,7 +15,8 @@ async page => {
     window.__smoke.weatherRequests = [];
     await window.__smoke.openPlan(trip);
   }, [trip, weather]);
-  const banner = page.locator('itinerary-view #rain-banner');
+  // Ionic keeps the left /view page mounted after saving; only the visible screen counts.
+  const banner = page.locator('itinerary-view #rain-banner').filter({ visible: true });
   const requests = () => page.evaluate(() => window.__smoke.weatherRequests);
   const settle = () => page.waitForTimeout(400);
 
@@ -24,10 +25,53 @@ async page => {
   if ((await banner.innerText()).replace(/\s+/g, ' ').trim() !== '오후 2시 ~ 5시 비 예보 실내 대안 보기') throw Error(`Unexpected banner: ${await banner.innerText()}`);
   const [request] = await requests();
   if (request.cityId !== 'seoul' || request.country !== 'KOR' || request.date !== '2026-09-13' || request.lng !== 127.003) throw Error('Weather asked for the wrong day or place');
-  await banner.getByRole('button', { name: '실내 대안 보기' }).click();
+  // The banner can arrive before the day's cards fade in; the button needs the card.
   const park = page.locator('itinerary-view .schedule-card').filter({ hasText: '한강 공원' });
+  await park.waitFor();
+  await banner.getByRole('button', { name: '실내 대안 보기' }).click();
   await park.locator('.indoor-alternatives').waitFor();
   if (await page.locator('itinerary-view .indoor-alternatives').count() !== 1) throw Error('Indoor alternatives opened on the wrong stop');
+
+  // Fresh plans and legacy visits have no saved place: the banner waits for the map's coordinates.
+  const today = { status: 'forecast', date: '2026-09-13', hours: rain };
+  const legacy = plan('2026-09-13');
+  legacy.days[0].scheduleItems[2] = { type: 'attraction', title: '한강 공원', time: '14:30', endTime: '15:30' };
+  await open(legacy, today);
+  await settle();
+  if (await banner.count() || (await requests()).length) throw Error('Banner without a known location');
+  await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    window.dispatchEvent(new CustomEvent('places-resolved', { detail: { context: view._mapRequest,
+      places: [{ index: 2, name: '한강 공원', address: '서울', resolvedPlace: null, coordinates: { lat: 37.52, lng: 126.99 } }] } }));
+  });
+  await banner.waitFor();
+
+  // Measured transit can move a dry visit into the rain without re-rendering the day.
+  const shifted = plan('2026-09-13');
+  shifted.days[0].scheduleItems.splice(1, 1);
+  shifted.days[0].scheduleItems[1] = { ...shifted.days[0].scheduleItems[1], time: '12:30', endTime: '13:30' };
+  await open(shifted, today);
+  await settle();
+  if (await banner.count()) throw Error('Dry visit got a banner');
+  await page.evaluate(() => {
+    const view = document.querySelector('itinerary-view');
+    // Past the automatic-fit budget the measured delay is applied in place, without re-rendering the day.
+    view._automaticFitCount = 4;
+    window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context: view._mapRequest,
+      routes: [{ fromIndex: 0, toIndex: 1, durationMinutes: 300, mode: 'TRANSIT' }, { fromIndex: 1, toIndex: 2, durationMinutes: 20, mode: 'TRANSIT' }] } }));
+  });
+  await banner.waitFor();
+  const parkTime = await page.evaluate(() => document.querySelector('itinerary-view').currentItinerary.days[0].scheduleItems[1].time);
+  if (parkTime < '14:00') throw Error(`Transit did not move the park into the rain: ${parkTime}`);
+
+  // Switching to an empty day removes the previous day's banner.
+  const twoDays = plan('2026-09-13');
+  twoDays.days.push({ day: 2, date: '2026-09-14', scheduleItems: [] });
+  await open(twoDays, today);
+  await banner.waitFor();
+  await page.locator('itinerary-view .day-tab-btn').nth(1).click();
+  await settle();
+  if (await banner.count()) throw Error('Previous day banner stayed on an empty day');
 
   for (const [label, trip, weather] of [
     ['missing forecast', plan('2026-09-13'), { status: 'unavailable' }],
@@ -53,6 +97,17 @@ async page => {
   if (await banner.count() || (await requests()).length) throw Error('Offline view asked for weather');
   await page.context().setOffline(false);
   await open(plan('2026-09-14'), { status: 'forecast', date: '2026-09-14', hours: rain });
+  await banner.waitFor();
+
+  // Marking the affected stop visited clears the banner; unmarking brings it back.
+  await page.locator('itinerary-view #save-itinerary-btn').click();
+  await page.waitForURL('**/view/*');
+  await banner.waitFor();
+  const visit = park.locator('.visited-btn');
+  await visit.click();
+  await settle();
+  if (await banner.count()) throw Error('Banner still points at a visited stop');
+  await visit.click();
   await banner.waitFor();
 
   // A shared read-only copy never shows the banner.

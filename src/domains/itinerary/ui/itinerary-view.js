@@ -1055,6 +1055,7 @@ export default class ItineraryView extends HTMLElement {
       target.classList.toggle('mismatch', mismatch);
     });
     refreshHours(this);
+    refreshRainBanner(this);
   }
 
   /**
@@ -1502,6 +1503,7 @@ export default class ItineraryView extends HTMLElement {
     });
     this.updateNextStop({ ...dayData, scheduleItems });
     refreshHours(this);
+    refreshRainBanner(this);
   }
 
   render() {
@@ -1733,6 +1735,7 @@ export default class ItineraryView extends HTMLElement {
     this.refreshEndTimeWarning();
     this.refreshTransitNotice();
     this.refreshCostSummary();
+    refreshRainBanner(this);
     
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
@@ -1800,6 +1803,7 @@ export default class ItineraryView extends HTMLElement {
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
         this.updateNextStop(day);
         refreshReplanButton(this);
+        refreshRainBanner(this);
       });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
@@ -1849,7 +1853,6 @@ export default class ItineraryView extends HTMLElement {
       this.applyResolvedPlaces(this.lastResolvedPlaces);
       this.renderTransitInfo(this.lastTransitRoutes);
       refreshHours(this);
-      refreshRainBanner(this, index => visited?.has(keys[index]));
 
       // Fade In
       requestAnimationFrame(() => {

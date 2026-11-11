@@ -56,9 +56,14 @@ function createTripWeather({ axios, getKey, db, now = () => new Date(), reserve 
         for (const entry of entries) {
           if (localDate(entry.displayDateTime) !== date) continue;
           const { percent, type } = entry.precipitation?.probability || {};
+          // Proto3 JSON omits a zero "hours", so midnight arrives without it.
+          const local = entry.displayDateTime.hours ?? 0;
           // Only a rain-type probability counts as rain; snow, NONE with a percent, or no value stays unknown.
-          hours.push({ hour: entry.displayDateTime.hours,
-            rainPercent: Number.isFinite(percent) && (percent === 0 || /RAIN/.test(type || '')) ? percent : null });
+          const rainPercent = Number.isFinite(percent) && (percent === 0 || /RAIN/.test(type || '')) ? percent : null;
+          const last = hours.at(-1);
+          // A DST fall-back repeats a local hour: keep one entry with the higher known chance.
+          if (last?.hour === local) last.rainPercent = rainPercent === null ? last.rainPercent : Math.max(rainPercent, last.rainPercent ?? 0);
+          else hours.push({ hour: local, rainPercent });
         }
         pageToken = response.data?.nextPageToken;
         if (!pageToken || entries.some(entry => localDate(entry.displayDateTime) > date)) break;

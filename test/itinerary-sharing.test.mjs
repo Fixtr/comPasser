@@ -85,7 +85,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning,
     suggestRouteOrder, improveMeasuredRouteOrder, createFlexibleVisitChecks: () => ({travelMinutes:routeMinutes}),
-    hoursPlaceId, lookupPlaceHours, loadScheduleHours, applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {},
+    hoursPlaceId, lookupPlaceHours, loadScheduleHours, applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {}, refreshRainBanner() {},
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
   const view = new View();

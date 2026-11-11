@@ -63,6 +63,15 @@ test('the forecast keeps only the requested local date and never turns snow or m
   assert.equal(requests[1].options.params.pageToken, 'next');
 });
 
+test('a midnight hour without "hours" is 0, and a repeated fall-back hour keeps its higher chance', async () => {
+  // Proto3 JSON omits zero fields: Google sends midnight as {year, month, day} only.
+  const midnight = { displayDateTime: { year: 2026, month: 9, day: 14 }, precipitation: { probability: { percent: 70, type: 'RAIN' } } };
+  const pages = [{ forecastHours: [hour(13, 23, 10), midnight, hour(14, 1, 20), hour(14, 2, 30), hour(14, 2, 60), hour(14, 2, null), hour(14, 3, 0)] }];
+  const weather = createTripWeather({ axios: { get: async () => ({ data: pages[0] }) }, getKey: () => 'k', db: fakeDb(), now: () => now });
+  assert.deepEqual(await weather('owner', validateTripWeatherInput(input({ date: '2026-09-14' }), now)), { status: 'forecast', date: '2026-09-14',
+    hours: [{ hour: 0, rainPercent: 70 }, { hour: 1, rainPercent: 20 }, { hour: 2, rainPercent: 60 }, { hour: 3, rainPercent: 0 }] });
+});
+
 test('provider errors and malformed forecasts become unavailable, not invented weather', async () => {
   for (const get of [async () => { throw new Error('quota'); }, async () => ({ data: { forecastHours: [hour(13, 14, 140)] } }),
     async () => ({ data: { forecastHours: [hour(15, 14, 80)] } }), async () => ({ data: null })]) {
