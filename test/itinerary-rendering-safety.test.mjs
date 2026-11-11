@@ -49,7 +49,7 @@ function viewHarness({ user = null } = {}) {
     createItineraryActions, saveItinerary() {}, updateItinerary() {}, offlineTrips: { get: () => null, save() {} }, createSharedItinerary() {}, getSharedItineraryUrl() {},
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
-    setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {},
+    setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {}, refreshRainBanner() {},
     Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, refreshReplanButton() {},
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     stopNoteKeys: () => [], attachStopNoteControl() {},

@@ -19,6 +19,7 @@ import { openPlaceReplacement } from './place-replacement.js';
 import { openIndoorAlternatives } from './indoor-alternatives.js';
 import { findIndoorAlternatives } from '../services/indoor-alternatives.mjs';
 import { refreshHours } from './itinerary-hours.js';
+import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
 import { attachStopNoteControl } from './stop-note-editor.js';
@@ -1054,6 +1055,7 @@ export default class ItineraryView extends HTMLElement {
       target.classList.toggle('mismatch', mismatch);
     });
     refreshHours(this);
+    refreshRainBanner(this);
   }
 
   /**
@@ -1501,6 +1503,7 @@ export default class ItineraryView extends HTMLElement {
     });
     this.updateNextStop({ ...dayData, scheduleItems });
     refreshHours(this);
+    refreshRainBanner(this);
   }
 
   render() {
@@ -1732,6 +1735,7 @@ export default class ItineraryView extends HTMLElement {
     this.refreshEndTimeWarning();
     this.refreshTransitNotice();
     this.refreshCostSummary();
+    refreshRainBanner(this);
     
     // Update Tabs UI
     const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
@@ -1799,6 +1803,7 @@ export default class ItineraryView extends HTMLElement {
         e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
         this.updateNextStop(day);
         refreshReplanButton(this);
+        refreshRainBanner(this);
       });
 
       // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산

@@ -73,4 +73,5 @@ for (const [title, file] of [
   ['home upcoming trip card for signed-in users', 'upcoming-trip-smoke.js'],
   ['remaining itinerary replan previews and undoes changes', 'itinerary-replan-smoke.js'],
   ['visited marks are device-local and skip the next stop', 'visited-stops-smoke.js'],
+  ['trip-day rain banner opens indoor alternatives for the affected outdoor stop', 'rain-banner-smoke.js'],
 ]) test(title, async ({ page }, testInfo) => { await scenario(file, page, testInfo); });

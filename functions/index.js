@@ -15,6 +15,7 @@ const { findPlannerRequestIssue } = require('./planner-request-validation.mjs');
 const { getSeoulCrowd } = require('./seoul-crowd');
 const { createDiscoverySaves } = require('./discovery-saves');
 const { createPlaceRecommendations, createRecommendationLimiter, validateRecommendationInput } = require('./place-recommendations');
+const { createTripWeather, validateTripWeatherInput } = require('./trip-weather');
 
 const {
     ITINERARY_SCHEMA,
@@ -220,6 +221,23 @@ exports.recommendPlaces = onCall({secrets:[GEMINI_API_KEY,GOOGLE_MAPS_SERVER_KEY
     catch (error) {
         if (['unauthenticated','permission-denied','invalid-argument','failed-precondition','resource-exhausted','unavailable','not-found'].includes(error.code)) throw new HttpsError(error.code,error.message,error.details);
         throw new HttpsError('unavailable','recommendation-unavailable');
+    }
+});
+
+const tripWeather = createTripWeather({axios, getKey: () => GOOGLE_MAPS_SERVER_KEY.value(), db: admin.firestore()});
+// Hourly rain for a trip day today or tomorrow. Signed-in only, per-uid hourly limit, hourly shared cache.
+exports.getTripWeather = onCall({secrets:[GOOGLE_MAPS_SERVER_KEY],timeoutSeconds:40,maxInstances:3}, async request => {
+    try {
+        if (!request.auth) throw Object.assign(new Error('weather-auth'), {code:'unauthenticated'});
+        const input = validateTripWeatherInput(request.data);
+        await deletionHandler(() => accountDeletion.assertNotDeleting(request.auth.uid))(request);
+        const user = await admin.auth().getUser(request.auth.uid);
+        assertCurrentIdentity(request,user);
+        return await tripWeather(request.auth.uid,input);
+    }
+    catch (error) {
+        if (['unauthenticated','permission-denied','invalid-argument','failed-precondition','resource-exhausted'].includes(error.code)) throw new HttpsError(error.code,error.message,error.details);
+        throw new HttpsError('unavailable','weather-unavailable');
     }
 });
 
