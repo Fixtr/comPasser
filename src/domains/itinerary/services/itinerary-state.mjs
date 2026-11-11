@@ -96,9 +96,8 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
             entry.dayIndex = Number.isInteger(entry.dayIndex) && days[entry.dayIndex] ? entry.dayIndex : 0;
             // Copies kept before the unsaved flag existed count as edited when they carry edit marks.
             if (source.kind === 'private' && entry.unsaved === undefined) entry.unsaved = Boolean(entry.dirtyDays?.length || Object.keys(entry.undoByDay || {}).length);
-            // An edited trip copy may differ in order from the stored plan, so old keys could name another
-            // stop there; random ids keep its notes apart until saved (then the place-key copies follow).
-            assignStopIds(entry.plan, { legacy: !(source.kind === 'private' && entry.unsaved) });
+            // Old keys keep this device's marks; the note service checks each stop's place against the stored plan.
+            assignStopIds(entry.plan, { legacy: true });
             entries.set(keyOf(source), entry);
           }
         } else if (initial && userId && !saved) {

@@ -34,27 +34,60 @@ export function legacyStopNoteKeys(day) {
   return keys.map((key, index) => key && keys.indexOf(key) === index && keys.lastIndexOf(key) === index ? key : null);
 }
 
+// A note records the old place key of the stop it was written for (legacy notes are keyed by it).
+const placeOf = (key, note) => note && typeof note === 'object' && Object.hasOwn(note, 'place') ? note.place : key;
+
 /**
- * The stored trip as the view sees it: every stop id filled (ids added now report idsAdded, so the
- * caller can persist them and fix them in place) and each note still under an old place key copied
- * to its stop's id. The place-key copy stays until that stop's note is written, so builds without
- * stop ids still show it and an id-less save of the plan can recover from it.
+ * The stored trip as the view sees it, deterministic for one document: every stop id filled, and
+ * each note keyed by its stop's id. Old place-keyed notes move to the id. A build without stop ids
+ * can save the plan without them, so ids are filled again by position; such an id takes only the
+ * note of its own place, else the stop gets a fresh id. Notes whose stop left the plan stay under
+ * their key and come back if a stop with their place appears. update is what to save (empty once
+ * migrated): the plan when ids changed, so ids stay fixed once notes depend on them.
  */
 export function migrateStopNotes(trip) {
   const plan = structuredClone(trip?.itineraryPlan);
   const days = (normalizeData(plan)?.days || []).filter(day => Array.isArray(day?.scheduleItems));
   const previous = new Map(days.flatMap(day => day.scheduleItems.map(item => [item, item?.stopId])));
-  const idsAdded = assignStopIds(plan, { legacy: true });
+  let planChanged = assignStopIds(plan, { legacy: true });
   const notes = { ...trip?.stopNotes };
-  for (const day of days) {
-    legacyStopNoteKeys(day).forEach((old, index) => {
-      const item = day.scheduleItems[index];
-      if (!old || !Object.hasOwn(notes, old)) return;
-      // An id filled just now can equal another stop's id from before an id-less save; the place note is this stop's.
-      if (previous.get(item) !== item.stopId) notes[item.stopId] = notes[old];
-      else notes[item.stopId] ??= notes[old];
-    });
+  const stops = days.flatMap(day => {
+    const places = legacyStopNoteKeys(day);
+    return day.scheduleItems.map((item, index) => ({ item, place: places[index] ?? null })).filter(stop => isVisitableStop(stop.item));
+  });
+  const ids = new Set(stops.map(stop => stop.item.stopId));
+  const freeKey = base => {
+    let key = base;
+    for (let n = 1; ids.has(key) || Object.hasOwn(notes, key); n++) key = `${base}~${n}`;
+    return key;
+  };
+  const detached = place => place !== null && Object.keys(notes).find(key => !ids.has(key) && placeOf(key, notes[key]) === place);
+  for (const { item, place } of stops) {
+    const id = item.stopId, note = notes[id];
+    if (!note || (place !== null && placeOf(id, note) === place)) continue;
+    if (previous.get(item) !== id) {
+      ids.delete(id);
+      item.stopId = freeKey(id);
+      ids.add(item.stopId);
+      planChanged = true;
+    } else if (detached(place)) {
+      // This stop's own note is elsewhere, so the one under its id belongs to a removed stop.
+      notes[freeKey(id)] = note;
+      delete notes[id];
+    } else {
+      // Same slot, place replaced: the note stays with the stop.
+      notes[id] = { ...note, place };
+    }
   }
-  // shortcut: copies can push a trip with over 100 notes past the rules' 200-entry cap, which fails the write; trim old copies if that ever happens.
-  return { plan, notes, idsAdded };
+  for (const { item, place } of stops) {
+    const key = !Object.hasOwn(notes, item.stopId) && detached(place);
+    if (!key) continue;
+    notes[item.stopId] = { ...notes[key], place };
+    delete notes[key];
+  }
+  const update = {
+    ...(planChanged ? { itineraryPlan: plan } : {}),
+    ...(JSON.stringify(notes) !== JSON.stringify(trip?.stopNotes || {}) ? { stopNotes: notes } : {}),
+  };
+  return { plan, notes, update };
 }

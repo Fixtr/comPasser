@@ -97,52 +97,86 @@ test('notes key by stop id, so the same place twice a day holds two notes', () =
   assert.notEqual(keys[1], keys[3]);
 });
 
-test('notes under old place keys are copied to the stop ids, and new ids are reported for saving', () => {
-  const stored = plan();
-  stored.days[0].scheduleItems[3].verifiedPlace = { placeId: 'other-cafe' };
-  const [, cafe, museum, other] = legacyStopNoteKeys(stored.days[0]);
-  const trip = { itineraryPlan: stored, stopNotes: { [cafe]: { text: 'cafe', url: '' }, [other]: { text: 'other', url: '' }, unknown: { text: 'kept', url: '' } } };
-  const migrated = migrateStopNotes(trip);
-  const [, a, b, c] = ids(migrated.plan);
-  assert.equal(migrated.idsAdded, true);
-  assert.equal(a, legacyStopKeys(stored.days[0])[1]);
-  assert.deepEqual(migrated.notes, { ...trip.stopNotes, [a]: { text: 'cafe', url: '' }, [c]: { text: 'other', url: '' } });
-  assert.equal(stored.days[0].scheduleItems[1].stopId, undefined, 'the stored plan is not mutated');
-  // Once ids are saved, a migrated trip has nothing left to change.
-  const saved = { itineraryPlan: migrated.plan, stopNotes: migrated.notes };
-  assert.deepEqual(migrateStopNotes(saved), { plan: migrated.plan, notes: migrated.notes, idsAdded: false });
-  // A note already written under a saved id wins over a leftover old one.
-  saved.stopNotes = { ...saved.stopNotes, [b]: { text: 'new', url: '' }, [museum]: { text: 'old', url: '' } };
-  assert.deepEqual(migrateStopNotes(saved).notes[b], { text: 'new', url: '' });
-});
-
-test('an id-less save after migration cannot move a note onto another same-named stop', () => {
+const twoCafes = () => {
   const stored = plan();
   stored.days[0].scheduleItems[3].verifiedPlace = { placeId: 'cafe-b' };
+  return stored;
+};
+const note = (text, place) => ({ text, url: '', ...(place === undefined ? {} : { place }) });
+
+test('notes under old place keys move to the stop ids and record their place', () => {
+  const stored = twoCafes();
   const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
-  const first = migrateStopNotes({ itineraryPlan: stored, stopNotes: { [placeA]: { text: 'A', url: '' }, [placeB]: { text: 'B', url: '' } } });
-  // A build without ids deletes cafe A and saves the plan without ids.
-  const older = structuredClone(stored);
-  older.days[0].scheduleItems.splice(1, 1);
-  const { plan: reopened, notes } = migrateStopNotes({ itineraryPlan: older, stopNotes: first.notes });
-  const cafeB = reopened.days[0].scheduleItems[2];
-  assert.equal(cafeB.verifiedPlace.placeId, 'cafe-b');
-  assert.equal(cafeB.stopId, ids(first.plan)[1], 'cafe B now gets cafe A\'s old id');
-  assert.deepEqual(notes[cafeB.stopId], { text: 'B', url: '' });
+  const trip = { itineraryPlan: stored, stopNotes: { [placeA]: note('A'), [placeB]: note('B'), unknown: note('kept') } };
+  const migrated = migrateStopNotes(trip);
+  const [, a, , c] = ids(migrated.plan);
+  assert.equal(a, legacyStopKeys(stored.days[0])[1]);
+  assert.deepEqual(migrated.notes, { unknown: note('kept'), [a]: note('A', placeA), [c]: note('B', placeB) });
+  assert.deepEqual(Object.keys(migrated.update), ['itineraryPlan', 'stopNotes']);
+  assert.equal(stored.days[0].scheduleItems[1].stopId, undefined, 'the stored plan is not mutated');
 });
 
-test('a restored edited trip copy gets random ids; drafts and unedited copies keep old keys', () => {
+test('a migrated trip has nothing to save, so opening it costs no extra server read', () => {
+  const first = migrateStopNotes({ itineraryPlan: twoCafes(), stopNotes: { [legacyStopNoteKeys(twoCafes().days[0])[1]]: note('A') } });
+  const again = migrateStopNotes({ itineraryPlan: first.plan, stopNotes: first.notes });
+  assert.deepEqual(again.update, {});
+  assert.deepEqual(again.notes, first.notes);
+});
+
+test('an id refilled after an id-less save takes only the note of its own place', () => {
+  const stored = twoCafes();
+  const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
+  const migrated = migrateStopNotes({ itineraryPlan: stored, stopNotes: { [placeA]: note('A') } });
+  const [, idA, , idB] = ids(migrated.plan);
+  // A build without ids deletes cafe A and saves the plan it loaded before the ids were saved.
+  const older = structuredClone(stored);
+  older.days[0].scheduleItems.splice(1, 1);
+  const noNote = migrateStopNotes({ itineraryPlan: older, stopNotes: migrated.notes });
+  const cafeB = noNote.plan.days[0].scheduleItems[2];
+  assert.notEqual(cafeB.stopId, idA, 'cafe B must not take cafe A\'s id and note');
+  assert.equal(noNote.notes[cafeB.stopId], undefined);
+  assert.deepEqual(noNote.notes[idA], note('A', placeA), 'cafe A\'s note is kept for its place');
+  assert.ok(noNote.update.itineraryPlan);
+  // Cafe B's own note, written on a new build under its id, follows it to the fresh id.
+  const withB = migrateStopNotes({ itineraryPlan: older, stopNotes: { ...migrated.notes, [idB]: note('B', placeB) } });
+  const refilled = withB.plan.days[0].scheduleItems[2].stopId;
+  assert.deepEqual(withB.notes[refilled], note('B', placeB));
+  assert.deepEqual(withB.notes[idA], note('A', placeA));
+  // An id-less save that changes nothing about the stops keeps every note where it was.
+  assert.deepEqual(migrateStopNotes({ itineraryPlan: stored, stopNotes: { ...migrated.notes, [idB]: note('B', placeB) } }).notes,
+    { [idA]: note('A', placeA), [idB]: note('B', placeB) });
+});
+
+test('a saved id from an edited copy gives the note under it back to its own stop', () => {
+  const stored = twoCafes();
+  const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
+  const migrated = migrateStopNotes({ itineraryPlan: stored, stopNotes: { [placeA]: note('A'), [placeB]: note('B') } });
+  const [, idA] = ids(migrated.plan);
+  // A pre-id session copy deleted cafe A and was saved with old keys, so cafe B now holds cafe A's id.
+  const edited = structuredClone(stored);
+  edited.days[0].scheduleItems.splice(1, 1);
+  assignStopIds(edited, { legacy: true });
+  assert.equal(edited.days[0].scheduleItems[2].stopId, idA);
+  const result = migrateStopNotes({ itineraryPlan: edited, stopNotes: migrated.notes });
+  assert.deepEqual(result.notes[idA], note('B', placeB));
+  assert.ok(Object.values(result.notes).some(value => value.text === 'A'), 'cafe A\'s note is kept, not deleted');
+  // Replacing a place keeps the slot's note and records the new place.
+  const replaced = structuredClone(migrated.plan);
+  replaced.days[0].scheduleItems[1].verifiedPlace = { placeId: 'new-cafe' };
+  const kept = migrateStopNotes({ itineraryPlan: replaced, stopNotes: migrated.notes });
+  assert.equal(kept.notes[idA].text, 'A');
+  assert.equal(kept.notes[idA].place, legacyStopNoteKeys(replaced.days[0])[1]);
+});
+
+test('restored copies, edited or not, and old drafts keep the old keys so device marks still match', () => {
   const values = new Map(), storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
   const oldKeys = legacyStopKeys(plan().days[0]);
   values.set('compasser.itineraries.v1', JSON.stringify({ version: 1, userId: 'owner', entries: [
     { source: { kind: 'private', id: 'edited', ownerId: 'owner' }, plan: plan(), dayIndex: 0, unsaved: true },
-    { source: { kind: 'private', id: 'clean', ownerId: 'owner' }, plan: plan(), dayIndex: 0, unsaved: false },
   ] }));
   const state = createItineraryState({ getStorage: () => storage });
   state.setUser('owner');
   state.activateDocument('edited', { userId: 'owner' });
-  assert.ok(ids(state.current.plan).slice(1, 4).every(id => id && !oldKeys.includes(id)));
-  state.activateDocument('clean', { userId: 'owner' });
   assert.deepEqual(ids(state.current.plan).slice(1, 4), oldKeys.slice(1, 4));
 
   const legacyValues = new Map([['savedItineraryData', JSON.stringify(plan())]]);

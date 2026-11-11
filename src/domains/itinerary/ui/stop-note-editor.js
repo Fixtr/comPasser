@@ -2,7 +2,7 @@ import { t } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { readPrivateStopNote, writePrivateStopNote } from '../services/firestore-service.js';
-import { MAX_RESERVATION_URL_LENGTH, MAX_STOP_NOTE_LENGTH, normalizeStopNote, stopNoteKeys } from '../services/stop-notes.mjs';
+import { MAX_RESERVATION_URL_LENGTH, MAX_STOP_NOTE_LENGTH, legacyStopNoteKeys, normalizeStopNote, stopNoteKeys } from '../services/stop-notes.mjs';
 
 export function attachStopNoteControl(view, card, index, key) {
   const { id, ownerId } = view.state.current.source;
@@ -15,6 +15,7 @@ export function attachStopNoteControl(view, card, index, key) {
   button.setAttribute('aria-expanded', 'false');
   card.append(button);
 
+  const place = () => legacyStopNoteKeys(view.normalizeData(view.currentItinerary)?.days[dayIndex])[index] ?? null;
   const isCurrent = () => {
     const source = view.state.current?.source;
     return button.isConnected && source?.kind === 'private' && source.id === id && source.ownerId === ownerId
@@ -59,7 +60,7 @@ export function attachStopNoteControl(view, card, index, key) {
     button.setAttribute('aria-expanded', 'true');
     cancel.focus();
     try {
-      const note = await readPrivateStopNote(id, ownerId, key);
+      const note = await readPrivateStopNote(id, ownerId, key, place());
       if (!currentEditor()) { close(); return; }
       textarea.value = note.text;
       url.value = note.url;
@@ -83,7 +84,7 @@ export function attachStopNoteControl(view, card, index, key) {
       cancel.disabled = true;
       status.textContent = t('stopNoteSaving');
       try {
-        await writePrivateStopNote(id, ownerId, key, note);
+        await writePrivateStopNote(id, ownerId, key, place(), note);
         if (currentEditor()) view.showToast(t('stopNoteSaved'));
         close();
       } catch (error) {

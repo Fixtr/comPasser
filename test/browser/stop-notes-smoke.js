@@ -70,7 +70,7 @@ async page => {
     const id = trip.itineraryPlan.days[0].scheduleItems[2].stopId;
     return id && trip.stopNotes[id] ? { id, keys: Object.keys(trip.stopNotes) } : null;
   }).then(handle => handle.jsonValue());
-  if (!migrated.keys.includes(placeKey)) throw Error('Old place-key note must stay for builds without stop ids');
+  if (JSON.stringify(migrated.keys) !== JSON.stringify([migrated.id])) throw Error('Old place-key note was not moved to the stop id: ' + migrated.keys);
   await notes.nth(0).click();
   await editor.locator('textarea:not([disabled])').waitFor();
   if (await editor.getByLabel('메모', { exact: true }).inputValue() !== '') throw Error('Old note shown on the wrong stop');
@@ -82,6 +82,6 @@ async page => {
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
   const rewritten = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
-  if (JSON.stringify(rewritten) !== JSON.stringify({ [migrated.id]: { text: 'B동 새 메모', url: '' } })) throw Error('Note write did not replace the old copy: ' + JSON.stringify(rewritten));
+  if (JSON.stringify(rewritten) !== JSON.stringify({ [migrated.id]: { text: 'B동 새 메모', url: '', place: placeKey } })) throw Error('Note write did not keep the note on its stop: ' + JSON.stringify(rewritten));
   return { errors: page.smokeErrors };
 }
