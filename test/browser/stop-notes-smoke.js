@@ -49,9 +49,9 @@ async page => {
   const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
   if (Object.keys(stored).length) throw Error('Clearing both fields did not delete the note');
 
-  // A trip saved before stop ids: two same-named stops, a note under the second one's old place key.
-  const placeKey = JSON.stringify(['2026-09-17', 'cafe', '', ['카페', 'B동']]);
-  await page.evaluate(placeKey => {
+  // A plan saved without ids (before the backfill): the view and the note service give it the same old-key ids.
+  const cafeB = '2026-09-17#1#카페';
+  await page.evaluate(cafeB => {
     const db = JSON.parse(sessionStorage.getItem('__smoke_db'));
     db.itineraries.smoke1.itineraryPlan = { request: { startTime: '09:00', endTime: '18:00' }, days: [{ day: 1, date: '2026-09-17', scheduleItems: [
       { type: 'departure', time: '09:00', title: '출발' },
@@ -59,34 +59,27 @@ async page => {
       { type: 'cafe', time: '12:00', endTime: '13:00', title: '카페', location: 'B동' },
       { type: 'arrival', time: '18:00', title: '도착' },
     ] }] };
-    db.itineraries.smoke1.stopNotes = { [placeKey]: { text: 'B동 메모', url: '' } };
+    db.itineraries.smoke1.stopNotes = { [cafeB]: { text: 'B동 메모', url: '' } };
     sessionStorage.setItem('__smoke_db', JSON.stringify(db));
     sessionStorage.removeItem('compasser.itineraries.v1');
-  }, placeKey);
+  }, cafeB);
   await page.goto('/view/smoke1');
   await notes.nth(1).waitFor({ state: 'visible' });
-  const migrated = await page.waitForFunction(() => {
-    const trip = JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1;
-    const id = trip.itineraryPlan.days[0].scheduleItems[2].stopId;
-    return id && trip.stopNotes[id] ? { id, keys: Object.keys(trip.stopNotes) } : null;
-  }).then(handle => handle.jsonValue());
-  if (JSON.stringify(migrated.keys) !== JSON.stringify([migrated.id])) throw Error('Old place-key note was not moved to the stop id: ' + migrated.keys);
   await notes.nth(0).click();
   await editor.locator('textarea:not([disabled])').waitFor();
-  if (await editor.getByLabel('메모', { exact: true }).inputValue() !== '') throw Error('Old note shown on the wrong stop');
+  if (await editor.getByLabel('메모', { exact: true }).inputValue() !== '') throw Error('Note shown on the wrong stop');
   await editor.getByRole('button', { name: '취소', exact: true }).click();
   await notes.nth(1).click();
   await editor.locator('textarea:not([disabled])').waitFor();
-  if (await editor.getByLabel('메모', { exact: true }).inputValue() !== 'B동 메모') throw Error('Old note did not reach its stop');
+  if (await editor.getByLabel('메모', { exact: true }).inputValue() !== 'B동 메모') throw Error('Note did not reach its stop');
   await editor.getByLabel('메모', { exact: true }).fill('B동 새 메모');
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
   const rewritten = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
-  if (JSON.stringify(rewritten) !== JSON.stringify({ [migrated.id]: { text: 'B동 새 메모', url: '', place: placeKey } })) throw Error('Note write did not keep the note on its stop: ' + JSON.stringify(rewritten));
+  if (JSON.stringify(rewritten) !== JSON.stringify({ [cafeB]: { text: 'B동 새 메모', url: '' } })) throw Error('Note write did not keep the note on its stop: ' + JSON.stringify(rewritten));
 
   // A saved recommendation stop that the map re-resolves on screen only (never saved) keeps its note.
-  const recPlace = JSON.stringify(['2026-09-17', 'attraction', '', 'saved-place']);
-  await page.evaluate(recPlace => {
+  await page.evaluate(() => {
     const db = JSON.parse(sessionStorage.getItem('__smoke_db'));
     db.itineraries.smoke1.itineraryPlan = { request: { startTime: '09:00', endTime: '18:00' }, days: [{ day: 1, date: '2026-09-17', scheduleItems: [
       { type: 'departure', time: '09:00', title: '출발' },
@@ -94,10 +87,10 @@ async page => {
         placeStatus: 'verified', verifiedPlace: { placeId: 'saved-place', displayName: '공원', formattedAddress: '서울', lat: 37.5, lng: 127, source: 'google_places' } },
       { type: 'arrival', time: '18:00', title: '도착' },
     ] }] };
-    db.itineraries.smoke1.stopNotes = { rec1: { text: '추천 메모', url: '', place: recPlace } };
+    db.itineraries.smoke1.stopNotes = { rec1: { text: '추천 메모', url: '' } };
     sessionStorage.setItem('__smoke_db', JSON.stringify(db));
     sessionStorage.removeItem('compasser.itineraries.v1');
-  }, recPlace);
+  });
   await page.goto('/view/smoke1');
   await notes.first().waitFor({ state: 'visible' });
   await page.evaluate(() => document.querySelector('itinerary-view').state.resolvePlaces(0, [{ index: 1, verifiedPlace: null }]));
@@ -109,6 +102,6 @@ async page => {
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
   const recNotes = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
-  if (JSON.stringify(recNotes) !== JSON.stringify({ rec1: { text: '추천 새 메모', url: '', place: recPlace } })) throw Error('Re-resolved stop note write: ' + JSON.stringify(recNotes));
+  if (JSON.stringify(recNotes) !== JSON.stringify({ rec1: { text: '추천 새 메모', url: '' } })) throw Error('Re-resolved stop note write: ' + JSON.stringify(recNotes));
   return { errors: page.smokeErrors };
 }

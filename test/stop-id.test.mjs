@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assignStopIds, legacyStopKeys, stopKeys } from '../src/domains/itinerary/services/visited-stops.mjs';
-import { legacyStopNoteKeys, migrateStopNotes, stopNoteKeys } from '../src/domains/itinerary/services/stop-notes.mjs';
+import { backfillStopIds, legacyStopNoteKeys, stopNoteKeys } from '../src/domains/itinerary/services/stop-notes.mjs';
 import { editVisitTime, moveScheduleItem, removeScheduleItem, replaceSchedulePlace, insertScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { replanRemaining } from '../src/domains/itinerary/services/itinerary-replan.mjs';
 import { shiftItineraryDates } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
@@ -104,68 +104,22 @@ const twoCafes = () => {
 };
 const note = (text, place) => ({ text, url: '', ...(place === undefined ? {} : { place }) });
 
-test('notes under old place keys move to the stop ids and record their place', () => {
+test('the backfill saves the ids the view would give and moves place-keyed notes to them, once', () => {
   const stored = twoCafes();
   const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
   const trip = { itineraryPlan: stored, stopNotes: { [placeA]: note('A'), [placeB]: note('B'), unknown: note('kept') } };
-  const migrated = migrateStopNotes(trip);
-  const [, a, , c] = ids(migrated.plan);
-  assert.equal(a, legacyStopKeys(stored.days[0])[1]);
-  assert.deepEqual(migrated.notes, { unknown: note('kept'), [a]: note('A', placeA), [c]: note('B', placeB) });
-  assert.deepEqual(Object.keys(migrated.update), ['itineraryPlan', 'stopNotes']);
-  assert.equal(stored.days[0].scheduleItems[1].stopId, undefined, 'the stored plan is not mutated');
-});
-
-test('a migrated trip has nothing to save, so opening it costs no extra server read', () => {
-  const first = migrateStopNotes({ itineraryPlan: twoCafes(), stopNotes: { [legacyStopNoteKeys(twoCafes().days[0])[1]]: note('A') } });
-  const again = migrateStopNotes({ itineraryPlan: first.plan, stopNotes: first.notes });
-  assert.deepEqual(again.update, {});
-  assert.deepEqual(again.notes, first.notes);
-});
-
-test('an id refilled after an id-less save takes only the note of its own place', () => {
-  const stored = twoCafes();
-  const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
-  const migrated = migrateStopNotes({ itineraryPlan: stored, stopNotes: { [placeA]: note('A') } });
-  const [, idA, , idB] = ids(migrated.plan);
-  // A build without ids deletes cafe A and saves the plan it loaded before the ids were saved.
-  const older = structuredClone(stored);
-  older.days[0].scheduleItems.splice(1, 1);
-  const noNote = migrateStopNotes({ itineraryPlan: older, stopNotes: migrated.notes });
-  const cafeB = noNote.plan.days[0].scheduleItems[2];
-  assert.notEqual(cafeB.stopId, idA, 'cafe B must not take cafe A\'s id and note');
-  assert.equal(noNote.notes[cafeB.stopId], undefined);
-  assert.deepEqual(noNote.notes[idA], note('A', placeA), 'cafe A\'s note is kept for its place');
-  assert.ok(noNote.update.itineraryPlan);
-  // Cafe B's own note, written on a new build under its id, follows it to the fresh id.
-  const withB = migrateStopNotes({ itineraryPlan: older, stopNotes: { ...migrated.notes, [idB]: note('B', placeB) } });
-  const refilled = withB.plan.days[0].scheduleItems[2].stopId;
-  assert.deepEqual(withB.notes[refilled], note('B', placeB));
-  assert.deepEqual(withB.notes[idA], note('A', placeA));
-  // An id-less save that changes nothing about the stops keeps every note where it was.
-  assert.deepEqual(migrateStopNotes({ itineraryPlan: stored, stopNotes: { ...migrated.notes, [idB]: note('B', placeB) } }).notes,
-    { [idA]: note('A', placeA), [idB]: note('B', placeB) });
-});
-
-test('a saved id from an edited copy gives the note under it back to its own stop', () => {
-  const stored = twoCafes();
-  const [, placeA, , placeB] = legacyStopNoteKeys(stored.days[0]);
-  const migrated = migrateStopNotes({ itineraryPlan: stored, stopNotes: { [placeA]: note('A'), [placeB]: note('B') } });
-  const [, idA] = ids(migrated.plan);
-  // A pre-id session copy deleted cafe A and was saved with old keys, so cafe B now holds cafe A's id.
-  const edited = structuredClone(stored);
-  edited.days[0].scheduleItems.splice(1, 1);
-  assignStopIds(edited, { legacy: true });
-  assert.equal(edited.days[0].scheduleItems[2].stopId, idA);
-  const result = migrateStopNotes({ itineraryPlan: edited, stopNotes: migrated.notes });
-  assert.deepEqual(result.notes[idA], note('B', placeB));
-  assert.ok(Object.values(result.notes).some(value => value.text === 'A'), 'cafe A\'s note is kept, not deleted');
-  // Replacing a place keeps the slot's note and records the new place.
-  const replaced = structuredClone(migrated.plan);
-  replaced.days[0].scheduleItems[1].verifiedPlace = { placeId: 'new-cafe' };
-  const kept = migrateStopNotes({ itineraryPlan: replaced, stopNotes: migrated.notes });
-  assert.equal(kept.notes[idA].text, 'A');
-  assert.equal(kept.notes[idA].place, legacyStopNoteKeys(replaced.days[0])[1]);
+  const { update, moved } = backfillStopIds(trip);
+  const opened = structuredClone(stored);
+  assignStopIds(opened, { legacy: true });
+  const [, a, , c] = ids(opened);
+  assert.deepEqual(ids(update.itineraryPlan), ids(opened), 'same ids as on open, so device marks still match');
+  assert.deepEqual(update.stopNotes, { unknown: note('kept'), [a]: note('A'), [c]: note('B') });
+  assert.equal(moved, 2);
+  assert.equal(stored.days[0].scheduleItems[1].stopId, undefined, 'the stored trip is not mutated');
+  assert.deepEqual(backfillStopIds({ itineraryPlan: update.itineraryPlan, stopNotes: update.stopNotes }), { update: {}, moved: 0 });
+  // A trip without notes saves only its ids; a note already under an id wins over an old one.
+  assert.deepEqual(Object.keys(backfillStopIds({ itineraryPlan: twoCafes() }).update), ['itineraryPlan']);
+  assert.deepEqual(backfillStopIds({ itineraryPlan: twoCafes(), stopNotes: { [a]: note('new'), [placeA]: note('old') } }).update.stopNotes, { [a]: note('new') });
 });
 
 test('restored copies, edited or not, and old drafts keep the old keys so device marks still match', () => {
