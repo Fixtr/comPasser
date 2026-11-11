@@ -96,7 +96,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
             entry.dayIndex = Number.isInteger(entry.dayIndex) && days[entry.dayIndex] ? entry.dayIndex : 0;
             // Copies kept before the unsaved flag existed count as edited when they carry edit marks.
             if (source.kind === 'private' && entry.unsaved === undefined) entry.unsaved = Boolean(entry.dirtyDays?.length || Object.keys(entry.undoByDay || {}).length);
-            // Old keys keep this device's marks; the note service checks each stop's place against the stored plan.
+            // Old keys keep this device's marks. Notes trust the id alone; see the shortcut in privateStop (firestore-service.js).
             assignStopIds(entry.plan, { legacy: true });
             entries.set(keyOf(source), entry);
           }
