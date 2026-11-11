@@ -3,8 +3,7 @@ import { getCurrentUser } from "../../auth/services/firebase-auth.js";
 import { createItineraryDocumentLoader } from "./itinerary-document-loader.mjs";
 import { watchSharedAccess } from './shared-access-watch.mjs';
 import { normalizeData } from './itinerary-normalize.mjs';
-import { migrateStopNotes, normalizeStopNote, stopNoteKeys } from './stop-notes.mjs';
-import { assignStopIds } from './visited-stops.mjs';
+import { legacyStopNoteKeys, migrateStopNotes, normalizeStopNote, stopNoteKeys } from './stop-notes.mjs';
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
@@ -67,24 +66,30 @@ export async function updateItinerary(documentId, itineraryPlan) {
     }
 }
 
-function checkPrivateStop(trip, userId, key) {
+// The stored trip with its ids and notes migrated, and the old place key of the stop the key names.
+function privateStop(trip, userId, key) {
     if (trip?.userId !== userId || getCurrentUser()?.uid !== userId) throw new Error('Private trip required');
-    // A plan saved before stop ids gets the same ids the view gives it on open.
-    const plan = structuredClone(trip.itineraryPlan);
-    assignStopIds(plan, { legacy: true });
-    if (!key || !normalizeData(plan)?.days.some(day => stopNoteKeys(day).includes(key))) {
-        throw Object.assign(new Error('Saved stop required'), { code: 'saved-stop-required' });
+    const migrated = migrateStopNotes(trip);
+    for (const day of normalizeData(migrated.plan)?.days || []) {
+        const index = stopNoteKeys(day).indexOf(key);
+        if (key && index >= 0) return { ...migrated, placeKey: legacyStopNoteKeys(day)[index] };
     }
+    throw Object.assign(new Error('Saved stop required'), { code: 'saved-stop-required' });
 }
 
 export async function readPrivateStopNote(id, userId, key) {
     const { db, doc, getDocFromServer } = await loadFirestore();
     if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
     const trip = (await getDocFromServer(doc(db, 'itineraries', id))).data();
-    checkPrivateStop(trip, userId, key);
-    const note = migrateStopNotes(trip)[key];
+    const note = privateStop(trip, userId, key).notes[key];
     return normalizeStopNote(note?.text, note?.url) || { text: '', url: '' };
 }
+
+// Saving migrated notes also saves the plan's new ids, so the ids notes depend on never move again.
+const migrationUpdate = (trip, { plan, notes, idsAdded }) => ({
+    ...(idsAdded ? { itineraryPlan: plan } : {}),
+    ...(JSON.stringify(notes) !== JSON.stringify(trip.stopNotes || {}) ? { stopNotes: notes } : {}),
+});
 
 export async function writePrivateStopNote(id, userId, key, note) {
     const { db, doc, runTransaction } = await loadFirestore();
@@ -94,23 +99,24 @@ export async function writePrivateStopNote(id, userId, key, note) {
     // are kept. The trip's existing deletion and account rules apply.
     await runTransaction(db, async transaction => {
         const trip = (await transaction.get(ref)).data();
-        checkPrivateStop(trip, userId, key);
-        const stopNotes = migrateStopNotes(trip);
-        if (note.text || note.url) stopNotes[key] = note;
-        else delete stopNotes[key];
-        transaction.update(ref, { stopNotes });
+        const stop = privateStop(trip, userId, key);
+        // The old place-key copy would come back after a cleared or edited note.
+        if (stop.placeKey) delete stop.notes[stop.placeKey];
+        if (note.text || note.url) stop.notes[key] = note;
+        else delete stop.notes[key];
+        transaction.update(ref, { ...migrationUpdate(trip, stop), stopNotes: stop.notes });
     });
 }
 
-// Moves notes written before stop ids to their stop ids once, so a later place change cannot orphan them.
+// Fixes ids and copies old place-keyed notes once; a migrated trip needs no transaction.
 async function migratePrivateStopNotes(id) {
     const { db, doc, runTransaction } = await loadFirestore();
     const ref = doc(db, 'itineraries', id);
     await runTransaction(db, async transaction => {
         const trip = (await transaction.get(ref)).data();
         if (!trip?.stopNotes || trip.userId !== getCurrentUser()?.uid) return;
-        const stopNotes = migrateStopNotes(trip);
-        if (JSON.stringify(stopNotes) !== JSON.stringify(trip.stopNotes)) transaction.update(ref, { stopNotes });
+        const update = migrationUpdate(trip, migrateStopNotes(trip));
+        if (Object.keys(update).length) transaction.update(ref, update);
     });
 }
 
@@ -184,7 +190,8 @@ export const loadItineraryDocument = createItineraryDocumentLoader({
         const read = collectionName === 'itineraries' ? getDoc : getDocFromServer;
         const snapshot = await read(doc(db, collectionName, documentId));
         const trip = snapshot.exists() ? snapshot.data() : null;
-        if (collectionName === 'itineraries' && trip?.stopNotes) {
+        if (collectionName === 'itineraries' && Object.keys(trip?.stopNotes || {}).length
+            && Object.keys(migrationUpdate(trip, migrateStopNotes(trip))).length) {
             // Reading and writing a note migrate too, so a failure here (offline) only defers it.
             migratePrivateStopNotes(documentId).catch(error => console.warn('Stop note migration deferred:', error));
         }

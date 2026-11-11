@@ -92,11 +92,13 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
             const source = entry?.source;
             if (!source || source.ownerId !== userId || !['draft', 'private'].includes(source.kind) || !validPlan(entry.plan)) continue;
             if (source.kind === 'private' && (typeof source.id !== 'string' || !source.id)) continue;
-            assignStopIds(entry.plan, { legacy: true });
             const days = normalizeData(entry.plan).days;
             entry.dayIndex = Number.isInteger(entry.dayIndex) && days[entry.dayIndex] ? entry.dayIndex : 0;
             // Copies kept before the unsaved flag existed count as edited when they carry edit marks.
             if (source.kind === 'private' && entry.unsaved === undefined) entry.unsaved = Boolean(entry.dirtyDays?.length || Object.keys(entry.undoByDay || {}).length);
+            // An edited trip copy may differ in order from the stored plan, so old keys could name another
+            // stop there; random ids keep its notes apart until saved (then the place-key copies follow).
+            assignStopIds(entry.plan, { legacy: !(source.kind === 'private' && entry.unsaved) });
             entries.set(keyOf(source), entry);
           }
         } else if (initial && userId && !saved) {
@@ -104,6 +106,7 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
           let plan;
           try { plan = JSON.parse(target.getItem(LEGACY_DRAFT_KEY)); } catch { /* 잘못된 JSON은 무시한다. */ }
           if (validPlan(plan)) {
+            assignStopIds(plan, { legacy: true });
             const source = { kind: 'draft', ownerId: userId };
             entries.set(keyOf(source), { source, plan, dayIndex: 0 });
           }

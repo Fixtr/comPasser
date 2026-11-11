@@ -34,17 +34,27 @@ export function legacyStopNoteKeys(day) {
   return keys.map((key, index) => key && keys.indexOf(key) === index && keys.lastIndexOf(key) === index ? key : null);
 }
 
-/** The trip's notes with any still under an old place key moved to its stop's id, as the view assigns ids on open. */
+/**
+ * The stored trip as the view sees it: every stop id filled (ids added now report idsAdded, so the
+ * caller can persist them and fix them in place) and each note still under an old place key copied
+ * to its stop's id. The place-key copy stays until that stop's note is written, so builds without
+ * stop ids still show it and an id-less save of the plan can recover from it.
+ */
 export function migrateStopNotes(trip) {
-  const notes = { ...trip?.stopNotes };
   const plan = structuredClone(trip?.itineraryPlan);
-  assignStopIds(plan, { legacy: true });
-  for (const day of normalizeData(plan)?.days || []) {
+  const days = (normalizeData(plan)?.days || []).filter(day => Array.isArray(day?.scheduleItems));
+  const previous = new Map(days.flatMap(day => day.scheduleItems.map(item => [item, item?.stopId])));
+  const idsAdded = assignStopIds(plan, { legacy: true });
+  const notes = { ...trip?.stopNotes };
+  for (const day of days) {
     legacyStopNoteKeys(day).forEach((old, index) => {
+      const item = day.scheduleItems[index];
       if (!old || !Object.hasOwn(notes, old)) return;
-      notes[day.scheduleItems[index].stopId] ??= notes[old];
-      delete notes[old];
+      // An id filled just now can equal another stop's id from before an id-less save; the place note is this stop's.
+      if (previous.get(item) !== item.stopId) notes[item.stopId] = notes[old];
+      else notes[item.stopId] ??= notes[old];
     });
   }
-  return notes;
+  // shortcut: copies can push a trip with over 100 notes past the rules' 200-entry cap, which fails the write; trim old copies if that ever happens.
+  return { plan, notes, idsAdded };
 }
