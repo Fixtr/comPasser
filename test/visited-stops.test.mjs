@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVisitedStops, VISITED_STOPS_KEY, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
+import { assignStopIds, createVisitedStops, VISITED_STOPS_KEY, stopKeys, legacyStopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
 import { recommendationFields } from '../src/domains/map/services/recommendation-place.mjs';
 
+const withIds = tripDay => { assignStopIds({ days: [tripDay] }, { legacy: true }); return tripDay; };
 const memory = () => {
   const values = new Map();
   return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
 };
-const day = () => ({ date: '2026-09-17', scheduleItems: [
+const day = () => withIds({ date: '2026-09-17', scheduleItems: [
   { type: 'departure', time: '09:00', title: '호텔' },
   { type: 'cafe', time: '10:00', title: '카페' },
   { type: 'attraction', time: '11:00', title: '궁', selectedPlace: { placeId: 'p1' } },
@@ -82,11 +83,11 @@ test('legacy marks are cleared; reload restores only the current account or gues
   assert.equal(guestReload.visited('shared:a', 'second').size, 0);
 });
 
-test('stop keys survive a fresh copy and time shifts, and tell repeated titles apart', () => {
-  const keys = stopKeys(day());
+test('old keys tell repeated titles apart and ignore time shifts', () => {
+  const keys = legacyStopKeys(day());
   const copy = structuredClone(day());
   copy.scheduleItems[1].time = '10:20';
-  assert.deepEqual(stopKeys(copy), keys);
+  assert.deepEqual(legacyStopKeys(copy), keys);
   assert.equal(new Set(keys).size, keys.length);
   assert.notEqual(keys[1], keys[3]);
 });
@@ -107,18 +108,19 @@ test('next stop skips visited stops', () => {
   assert.equal(pickNextStop({ date: 'd', scheduleItems: [{ type: 'cafe', title: 'x', placeIntent: {}, placeStatus: 'pending' }, { type: 'arrival', title: 'y', stayUnsetLabel: 'z' }] }, { visited: new Set() }), undefined);
 });
 
-test('a recommendation keeps its key when a place lookup renames it', () => {
+test('a recommendation keeps its old key when a place lookup renames it', () => {
   const placeIntent = { purpose: '현지 식당', category: 'restaurant', nearLocation: '' };
   const plan = { date: '2026-09-13', scheduleItems: [
     { type: 'dining', time: '13:00', title: '실제 식당', placeIntent, placeStatus: 'verified' },
     { type: 'cafe', time: '15:00', title: 'C' },
   ] };
-  const [key] = stopKeys(plan);
+  const [key] = legacyStopKeys(plan);
   const renamed = structuredClone(plan), item = renamed.scheduleItems[0];
   Object.assign(item, recommendationFields(item, null));
   assert.equal(item.title, '현지 식당');
-  assert.equal(stopKeys(renamed)[0], key);
+  assert.equal(legacyStopKeys(renamed)[0], key);
   item.title = '다른 식당'; item.placeStatus = 'verified';
-  assert.equal(stopKeys(renamed)[0], key);
+  assert.equal(legacyStopKeys(renamed)[0], key);
+  withIds(renamed);
   assert.equal(pickNextStop(renamed, { visited: new Set([key]) }).title, 'C');
 });

@@ -111,7 +111,10 @@ test('공유 제목·시각·장소·팁·추천 이름은 실행 가능한 마�
   assert.ok(html.includes(escapeHtml(payload)));
   assert.ok(html.includes(`data-type="${escapeHtml(attributePayload)}"`));
   assert.ok(html.includes('href="https://www.google.com/maps/search/?api=1&amp;query='));
-  assert.deepEqual(item, before, '표시할 때만 escape하고 저장된 일정 내용을 바꾸지 않는다');
+  // Opening adds only the client-only stop id, which is never rendered.
+  const { stopId, ...content } = item;
+  assert.equal(typeof stopId, 'string');
+  assert.deepEqual(content, before, '표시할 때만 escape하고 저장된 일정 내용을 바꾸지 않는다');
 });
 
 test('정상 웹 링크는 유지하고 속성 밖으로 빠져나올 수 없게 인코딩한다', () => {

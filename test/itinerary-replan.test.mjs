@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { replanDeparture, replanOrigin, replanRemaining } from '../src/domains/itinerary/services/itinerary-replan.mjs';
 import { shiftItineraryDates } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
-import { stopKeys } from '../src/domains/itinerary/services/visited-stops.mjs';
+import { assignStopIds, stopKeys } from '../src/domains/itinerary/services/visited-stops.mjs';
 
 const day = () => ({ date: '2026-11-10', scheduleItems: [
   { type: 'departure', title: 'Hotel', time: '09:00' },
@@ -21,6 +21,7 @@ const request = day => ({
 
 test('uses the destination day and the last checked place', () => {
   const tripDay = day();
+  assignStopIds({ days: [tripDay] });
   const now = new Date('2026-11-09T18:00:00Z');
   assert.equal(replanDeparture(tripDay, 'Asia/Seoul', now).time, '03:01');
   assert.equal(replanDeparture(tripDay, 'America/New_York', now), null);

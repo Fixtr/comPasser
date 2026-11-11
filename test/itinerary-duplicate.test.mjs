@@ -34,6 +34,7 @@ test('every date moves by the same offset across month and year; times stay', ()
   // Times, flights and day-numbered anchors are relative to the day, so they are unchanged.
   const unshifted = structuredClone(copy);
   for (const day of [...unshifted.days, ...unshifted.request.dailyData]) delete day.date;
+  for (const day of unshifted.days) for (const item of day.scheduleItems) delete item.stopId;
   delete unshifted.request.date; delete unshifted.request.stays;
   const expected = structuredClone(before);
   for (const day of [...expected.days, ...expected.request.dailyData]) delete day.date;
