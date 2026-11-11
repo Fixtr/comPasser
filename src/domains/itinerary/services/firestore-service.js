@@ -3,7 +3,8 @@ import { getCurrentUser } from "../../auth/services/firebase-auth.js";
 import { createItineraryDocumentLoader } from "./itinerary-document-loader.mjs";
 import { watchSharedAccess } from './shared-access-watch.mjs';
 import { normalizeData } from './itinerary-normalize.mjs';
-import { normalizeStopNote, stopNoteKeys } from './stop-notes.mjs';
+import { migrateStopNotes, normalizeStopNote, stopNoteKeys } from './stop-notes.mjs';
+import { assignStopIds } from './visited-stops.mjs';
 
 export async function saveItinerary(userId, itineraryPlan, title) {
     try {
@@ -68,7 +69,10 @@ export async function updateItinerary(documentId, itineraryPlan) {
 
 function checkPrivateStop(trip, userId, key) {
     if (trip?.userId !== userId || getCurrentUser()?.uid !== userId) throw new Error('Private trip required');
-    if (!normalizeData(trip.itineraryPlan)?.days.some(day => stopNoteKeys(day).includes(key))) {
+    // A plan saved before stop ids gets the same ids the view gives it on open.
+    const plan = structuredClone(trip.itineraryPlan);
+    assignStopIds(plan, { legacy: true });
+    if (!key || !normalizeData(plan)?.days.some(day => stopNoteKeys(day).includes(key))) {
         throw Object.assign(new Error('Saved stop required'), { code: 'saved-stop-required' });
     }
 }
@@ -78,7 +82,7 @@ export async function readPrivateStopNote(id, userId, key) {
     if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
     const trip = (await getDocFromServer(doc(db, 'itineraries', id))).data();
     checkPrivateStop(trip, userId, key);
-    const note = trip.stopNotes?.[key];
+    const note = migrateStopNotes(trip)[key];
     return normalizeStopNote(note?.text, note?.url) || { text: '', url: '' };
 }
 
@@ -91,10 +95,22 @@ export async function writePrivateStopNote(id, userId, key, note) {
     await runTransaction(db, async transaction => {
         const trip = (await transaction.get(ref)).data();
         checkPrivateStop(trip, userId, key);
-        const stopNotes = { ...trip.stopNotes };
+        const stopNotes = migrateStopNotes(trip);
         if (note.text || note.url) stopNotes[key] = note;
         else delete stopNotes[key];
         transaction.update(ref, { stopNotes });
+    });
+}
+
+// Moves notes written before stop ids to their stop ids once, so a later place change cannot orphan them.
+async function migratePrivateStopNotes(id) {
+    const { db, doc, runTransaction } = await loadFirestore();
+    const ref = doc(db, 'itineraries', id);
+    await runTransaction(db, async transaction => {
+        const trip = (await transaction.get(ref)).data();
+        if (!trip?.stopNotes || trip.userId !== getCurrentUser()?.uid) return;
+        const stopNotes = migrateStopNotes(trip);
+        if (JSON.stringify(stopNotes) !== JSON.stringify(trip.stopNotes)) transaction.update(ref, { stopNotes });
     });
 }
 
@@ -167,7 +183,12 @@ export const loadItineraryDocument = createItineraryDocumentLoader({
         // Never resurrect revoked shared content from the persistent offline cache.
         const read = collectionName === 'itineraries' ? getDoc : getDocFromServer;
         const snapshot = await read(doc(db, collectionName, documentId));
-        return snapshot.exists() ? snapshot.data() : null;
+        const trip = snapshot.exists() ? snapshot.data() : null;
+        if (collectionName === 'itineraries' && trip?.stopNotes) {
+            // Reading and writing a note migrate too, so a failure here (offline) only defers it.
+            migratePrivateStopNotes(documentId).catch(error => console.warn('Stop note migration deferred:', error));
+        }
+        return trip;
     }
 });
 

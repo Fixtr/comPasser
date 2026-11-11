@@ -1,14 +1,15 @@
-// Device-local "visited" marks for a saved or shared trip. Never written to Firestore or the plan.
+import { normalizeData } from './itinerary-normalize.mjs';
+
+// Device-local "visited" marks for a saved or shared trip, keyed by stopId. Never written to Firestore or the plan.
 export const VISITED_STOPS_KEY = 'compasser.visited.v1';
 const MAX_TRIPS = 50;
 
 export const isVisitableStop = item => Boolean(item?.title) && !['departure', 'arrival'].includes(item.type);
 
-// A stop is keyed by day date + name + how many same-named stops precede it that day, so time
-// recalculation and moving other stops keep the mark. The name is an AI recommendation's purpose
-// (place lookups rewrite its title on every open) or else the title. Replacing a stop drops its
-// mark, and reordering two stops with the same name swaps theirs.
-export function stopKeys(day) {
+// Before stop ids, a mark was keyed by day date + how many same-named stops precede it that day +
+// the name (an AI recommendation's purpose, since place lookups rewrite its title, or else the title).
+// Plans saved before then take these keys as their ids, so existing marks keep matching.
+export function legacyStopKeys(day) {
   const seen = new Map();
   return (day?.scheduleItems || []).map(item => {
     const title = String(item?.placeIntent?.purpose || item?.title || '');
@@ -17,6 +18,39 @@ export function stopKeys(day) {
     return `${day.date}#${count}#${title}`;
   });
 }
+
+const randomStopId = () => crypto.randomUUID().replaceAll('-', '').slice(0, 12);
+
+/**
+ * Gives every visitable stop a client-only stopId that edits carry along (they copy the item).
+ * With legacy, a missing id is the stop's old mark key, so a plan saved before ids, or a read-only
+ * share of one, gets the same ids on every open; otherwise (a stop added by an edit) it is random.
+ * Kept ids never change; a repeated or non-string one is replaced. Mutates the plan.
+ */
+export function assignStopIds(plan, { legacy = false } = {}) {
+  const days = (normalizeData(plan)?.days || []).filter(day => Array.isArray(day?.scheduleItems));
+  const used = new Set();
+  const missing = [];
+  for (const day of days) {
+    day.scheduleItems.forEach((item, index) => {
+      if (!isVisitableStop(item)) return;
+      if (typeof item.stopId === 'string' && item.stopId && !used.has(item.stopId)) used.add(item.stopId);
+      else missing.push([day, index]);
+    });
+  }
+  const legacyKeys = new Map();
+  for (const [day, index] of missing) {
+    if (legacy && !legacyKeys.has(day)) legacyKeys.set(day, legacyStopKeys(day));
+    const base = legacy ? legacyKeys.get(day)[index] : randomStopId();
+    let id = base;
+    for (let n = 1; used.has(id); n++) id = `${base}~${n}`;
+    used.add(id);
+    day.scheduleItems[index].stopId = id;
+  }
+  return missing.length > 0;
+}
+
+export const stopKeys = day => (day?.scheduleItems || []).map(item => isVisitableStop(item) ? item.stopId : undefined);
 
 // currentTime ('HH:mm') is given only when the day is today in the destination's time zone.
 export function pickNextStop(day, { visited, currentTime } = {}) {

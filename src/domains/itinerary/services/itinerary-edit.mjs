@@ -42,6 +42,8 @@ export function replaceSchedulePlace(scheduleItems, index, value) {
     resolvedName: selectedPlace.displayName, resolvedAddress: selectedPlace.formattedAddress,
     googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPlace.displayName)}&query_place_id=${encodeURIComponent(selectedPlace.placeId)}`,
     addedByUser: true,
+    // The slot keeps its id, so its visit mark and private note stay (the note may still say what changed).
+    ...(previous.stopId ? { stopId: previous.stopId } : {}),
   };
   return { items: scheduleItems.map((item, i) => i === index ? replaced : item), replaced };
 }

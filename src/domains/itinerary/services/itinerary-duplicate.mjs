@@ -1,5 +1,6 @@
 import { dateRange } from '../../../../functions/travel-region.mjs';
 import { formatDateRange } from './itinerary-title.mjs';
+import { assignStopIds } from './visited-stops.mjs';
 
 // Noon UTC keeps whole-day arithmetic clear of any offset; NaN for anything that is not a real YYYY-MM-DD.
 const noon = value => dateRange(value, 1).length ? Date.parse(`${value}T12:00:00Z`) : NaN;
@@ -16,7 +17,7 @@ export function itineraryStartDate(plan) {
  * A deep copy of a saved plan whose first day falls on newStartDate. Day dates, request dates,
  * per-day constraint dates and stay check-in/out move by the same number of days; times,
  * flights (time only) and day-numbered anchors are relative to the day and stay as they are.
- * Clear the actual departure used to replan a day in progress.
+ * Clear the actual departure used to replan a day in progress, and give every stop a new stopId.
  * Throws when newStartDate is before today (YYYY-MM-DD) or any moved date stops being a real date.
  */
 export function shiftItineraryDates(plan, newStartDate, today = '') {
@@ -35,7 +36,7 @@ export function shiftItineraryDates(plan, newStartDate, today = '') {
   for (const day of list(copy.days)) {
     move(day, 'date');
     for (const item of list(day?.scheduleItems)) {
-      if (item) delete item.actualDepartureTime;
+      if (item) { delete item.actualDepartureTime; delete item.stopId; }
     }
   }
   for (const request of [copy.request, copy.metadata?.request]) {
@@ -44,6 +45,8 @@ export function shiftItineraryDates(plan, newStartDate, today = '') {
     list(request.dailyData).forEach(day => move(day, 'date'));
     list(request.stays).forEach(stay => { move(stay, 'checkin'); move(stay, 'checkout'); });
   }
+  // A copy is a new trip: its stops must not share ids with the original's.
+  assignStopIds(copy);
   return copy;
 }
 
