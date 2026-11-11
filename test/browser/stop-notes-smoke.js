@@ -83,5 +83,32 @@ async page => {
   await editor.waitFor({ state: 'detached' });
   const rewritten = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
   if (JSON.stringify(rewritten) !== JSON.stringify({ [migrated.id]: { text: 'B동 새 메모', url: '', place: placeKey } })) throw Error('Note write did not keep the note on its stop: ' + JSON.stringify(rewritten));
+
+  // A saved recommendation stop that the map re-resolves on screen only (never saved) keeps its note.
+  const recPlace = JSON.stringify(['2026-09-17', 'attraction', '', 'saved-place']);
+  await page.evaluate(recPlace => {
+    const db = JSON.parse(sessionStorage.getItem('__smoke_db'));
+    db.itineraries.smoke1.itineraryPlan = { request: { startTime: '09:00', endTime: '18:00' }, days: [{ day: 1, date: '2026-09-17', scheduleItems: [
+      { type: 'departure', time: '09:00', title: '출발' },
+      { type: 'attraction', time: '10:00', endTime: '11:00', title: '공원', stopId: 'rec1', placeIntent: { purpose: '공원', category: 'park', nearLocation: '' },
+        placeStatus: 'verified', verifiedPlace: { placeId: 'saved-place', displayName: '공원', formattedAddress: '서울', lat: 37.5, lng: 127, source: 'google_places' } },
+      { type: 'arrival', time: '18:00', title: '도착' },
+    ] }] };
+    db.itineraries.smoke1.stopNotes = { rec1: { text: '추천 메모', url: '', place: recPlace } };
+    sessionStorage.setItem('__smoke_db', JSON.stringify(db));
+    sessionStorage.removeItem('compasser.itineraries.v1');
+  }, recPlace);
+  await page.goto('/view/smoke1');
+  await notes.first().waitFor({ state: 'visible' });
+  await page.evaluate(() => document.querySelector('itinerary-view').state.resolvePlaces(0, [{ index: 1, verifiedPlace: null }]));
+  if (await page.evaluate(() => document.querySelector('itinerary-view').currentItinerary.days[0].scheduleItems[1].verifiedPlace?.placeId) === 'saved-place') throw Error('Re-resolution did not change the place on screen');
+  await notes.first().click();
+  await editor.locator('textarea:not([disabled])').waitFor();
+  if (await editor.getByLabel('메모', { exact: true }).inputValue() !== '추천 메모') throw Error('Re-resolved stop lost its saved note');
+  await editor.getByLabel('메모', { exact: true }).fill('추천 새 메모');
+  await editor.getByRole('button', { name: '저장', exact: true }).click();
+  await editor.waitFor({ state: 'detached' });
+  const recNotes = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
+  if (JSON.stringify(recNotes) !== JSON.stringify({ rec1: { text: '추천 새 메모', url: '', place: recPlace } })) throw Error('Re-resolved stop note write: ' + JSON.stringify(recNotes));
   return { errors: page.smokeErrors };
 }

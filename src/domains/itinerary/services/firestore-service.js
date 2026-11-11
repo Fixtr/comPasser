@@ -66,28 +66,28 @@ export async function updateItinerary(documentId, itineraryPlan) {
     }
 }
 
-// The stored trip with its ids and notes migrated, and the stop the key names with its old place key.
-// The client's place for that stop must match, so an id from an edited copy cannot reach another stop's note.
-function privateStop(trip, userId, key, place) {
+// The stored trip with its ids and notes migrated, and the old place key of the stop the key names.
+// The saved id alone identifies the stop: map lookups change a recommendation's place on screen without saving it.
+// shortcut: a session copy edited before stop ids can hold an old-key id naming another stored stop; no such copies have notes yet, so add a check if one ever does.
+function privateStop(trip, userId, key) {
     if (trip?.userId !== userId || getCurrentUser()?.uid !== userId) throw new Error('Private trip required');
     const migrated = migrateStopNotes(trip);
     for (const day of normalizeData(migrated.plan)?.days || []) {
         const index = stopNoteKeys(day).indexOf(key);
-        const stopPlace = legacyStopNoteKeys(day)[index] ?? null;
-        if (key && index >= 0 && (stopPlace === null || place === stopPlace)) return { ...migrated, place: stopPlace };
+        if (key && index >= 0) return { ...migrated, place: legacyStopNoteKeys(day)[index] ?? null };
     }
     throw Object.assign(new Error('Saved stop required'), { code: 'saved-stop-required' });
 }
 
-export async function readPrivateStopNote(id, userId, key, place) {
+export async function readPrivateStopNote(id, userId, key) {
     const { db, doc, getDocFromServer } = await loadFirestore();
     if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
     const trip = (await getDocFromServer(doc(db, 'itineraries', id))).data();
-    const note = privateStop(trip, userId, key, place).notes[key];
+    const note = privateStop(trip, userId, key).notes[key];
     return normalizeStopNote(note?.text, note?.url) || { text: '', url: '' };
 }
 
-export async function writePrivateStopNote(id, userId, key, place, note) {
+export async function writePrivateStopNote(id, userId, key, note) {
     const { db, doc, runTransaction } = await loadFirestore();
     if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
     const ref = doc(db, 'itineraries', id);
@@ -95,7 +95,7 @@ export async function writePrivateStopNote(id, userId, key, place, note) {
     // are kept. The trip's existing deletion and account rules apply.
     await runTransaction(db, async transaction => {
         const trip = (await transaction.get(ref)).data();
-        const stop = privateStop(trip, userId, key, place);
+        const stop = privateStop(trip, userId, key);
         if (note.text || note.url) stop.notes[key] = { ...note, place: stop.place };
         else delete stop.notes[key];
         transaction.update(ref, { ...stop.update, stopNotes: stop.notes });
