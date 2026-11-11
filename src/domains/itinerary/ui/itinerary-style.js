@@ -61,6 +61,10 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
+        .rain-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; padding: 0.6rem 0.9rem;
+          background: var(--cp-warn-bg); border: 1px solid var(--cp-rule); border-left: 4px solid var(--cp-warn); color: var(--cp-ink); font-size: 0.9rem; }
+        .rain-banner button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
+
         .shared-notice {
           background: var(--cp-sunken);
           border: 1px solid var(--cp-rule);

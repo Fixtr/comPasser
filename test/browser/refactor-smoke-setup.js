@@ -50,6 +50,13 @@ async (page) => {
         },
       });
     `,
+    // getTripWeather boundary: a test sets window.__weatherFixture; the default is no forecast (no banner).
+    '/src/domains/itinerary/services/trip-weather-api.js': `
+      export async function fetchTripWeather(input) {
+        (window.__smoke.weatherRequests ||= []).push(input);
+        return window.__weatherFixture ?? { status: 'unavailable' };
+      }
+    `,
     '/src/domains/auth/services/firebase-auth.js': `
       import { createAccountDeletionGuard } from '/src/domains/auth/services/account-deletion-guard.mjs';
       export const app = null, missingFirebaseConfig = [];

@@ -19,6 +19,7 @@ import { openPlaceReplacement } from './place-replacement.js';
 import { openIndoorAlternatives } from './indoor-alternatives.js';
 import { findIndoorAlternatives } from '../services/indoor-alternatives.mjs';
 import { refreshHours } from './itinerary-hours.js';
+import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
 import { attachStopNoteControl } from './stop-note-editor.js';
@@ -1848,6 +1849,7 @@ export default class ItineraryView extends HTMLElement {
       this.applyResolvedPlaces(this.lastResolvedPlaces);
       this.renderTransitInfo(this.lastTransitRoutes);
       refreshHours(this);
+      refreshRainBanner(this, index => visited?.has(keys[index]));
 
       // Fade In
       requestAnimationFrame(() => {

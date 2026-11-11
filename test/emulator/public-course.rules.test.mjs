@@ -34,6 +34,27 @@ test('AI recommendation limits reserve atomically and cannot be read or reset by
   } finally {await db.terminate();await deleteApp(app);}
 });
 
+test('trip weather limits reserve atomically and limits/cache stay server-only',async()=>{
+  const require=createRequire(new URL('../../functions/index.js',import.meta.url));
+  const {initializeApp,deleteApp}=require('firebase-admin/app');
+  const {getFirestore}=require('firebase-admin/firestore');
+  const {createTripWeatherLimiter}=require('./trip-weather');
+  const app=initializeApp({projectId:project},'weather-limits-test');const db=getFirestore(app);
+  try {
+    const reserve=createTripWeatherLimiter({db,now:()=>new Date('2026-11-11T03:00:00Z')});
+    const results=await Promise.allSettled(Array.from({length:25},()=>reserve('emulator-weather-user')));
+    // Contended transactions may abort, but the stored count must equal the granted calls and never pass 20.
+    const granted=results.filter(result=>result.status==='fulfilled').length;
+    assert.ok(granted>0 && granted<=20);
+    assert.equal((await db.collection('weather_limits').doc('global').get()).data().count,granted);
+    await db.collection('weather_cache').doc('37.6_127_2026-11-11_1').set({result:{status:'unavailable'}});
+    for(const user of [undefined,'limits-user']) for(const path of ['weather_limits/global','weather_cache/37.6_127_2026-11-11_1']) {
+      assert.equal((await request(path,{user})).status,403);
+      assert.equal((await request(path,{user,method:'PATCH',data:{count:0}})).status,403);
+    }
+  } finally {await db.terminate();await deleteApp(app);}
+});
+
 test('discovery counts are public, personal saves are owner-only, and clients cannot inflate counts', async () => {
   await request('discovery_popularity/forest', { method: 'PATCH', admin: true, data: { count: 2, updatedAt: 2000000 } });
   await request('discovery_saves/saveOwner', { method: 'PATCH', admin: true, data: { placeIds: ['forest'], identityCreatedAt: 'first' } });

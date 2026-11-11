@@ -15,7 +15,7 @@ const twoDays = () => normalizePlannerRequest({ date: ['2026-10-01', '2026-10-02
 
 // Run the actual exported callback with fake SDK/HTTP boundaries. No credentials,
 // account reads, network, paid AI or production initialization are involved.
-function fixture({ fail, empty = false, responses, user = {}, recommendationError, socialProfile } = {}) {
+function fixture({ fail, empty = false, responses, user = {}, recommendationError, weatherError, socialProfile } = {}) {
   const calls = [];
   const modelUrls = [];
   const recovered = new Map();
@@ -46,6 +46,8 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     }) },
     './itinerary-prompt': { ...prompt, buildPrompt: (...args) => { calls.push('prompt'); return prompt.buildPrompt(...args); } },
     './place-recommendations': {validateRecommendationInput:require('./place-recommendations').validateRecommendationInput,createRecommendationLimiter:()=>()=>{},createPlaceRecommendations:()=>async request=>{calls.push('recommendation');if(recommendationError)throw recommendationError;return {cityId:request.data.cityId};}},
+    './trip-weather': { validateTripWeatherInput: require('./trip-weather').validateTripWeatherInput,
+      createTripWeather: () => async (uid, input) => { calls.push(`weather:${uid}:${input.lat}`); if (weatherError) throw weatherError; return { status: 'unavailable' }; } },
     axios: { get: async () => { if (socialProfile instanceof Error) throw socialProfile; return { data: socialProfile }; }, post: async url => {
       calls.push('ai');
       modelUrls.push(url);
@@ -61,9 +63,29 @@ function fixture({ fail, empty = false, responses, user = {}, recommendationErro
     recover: (request, requestId) => exports.generateItinerary({ data: { recoverableRequest: request, requestId },
       auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }),
     run: (request, auth = { uid: 'test-user', token: { auth_time: 1800000000 } }) => exports.generateItinerary({ data: { request }, auth }), getCredits: () => exports.getGenerationCredits({ auth: { uid: 'test-user', token: { auth_time: 1800000000 } } }), recommend:(auth,data={cityId:'seoul',country:'KOR',date:'2099-10-01',lang:'ko'})=>exports.recommendPlaces({data,auth,rawRequest:{ip:'fixture'}}),
+    weather: (auth, data) => exports.getTripWeather({ data, auth }),
     social: provider => new Promise(resolve => exports.verifySocialToken({ body: { data: { provider, token: 'social-token' } } }, { status: code => ({ send: body => resolve({ code, body }) }) })) };
 }
 
+test('trip weather callable requires a current account and passes only validated, rounded input', async () => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  const data = { country: 'KOR', cityId: 'seoul', date: today, lat: 37.5512, lng: 126.9882 };
+  const guest = fixture();
+  await assert.rejects(guest.weather(null, data), { code: 'unauthenticated' });
+  assert.deepEqual(guest.calls, []);
+  const app = fixture();
+  await assert.rejects(app.weather({ uid: 'test-user', token: { auth_time: 1800000000 } }, { ...data, lat: 'x' }), { code: 'invalid-argument' });
+  assert.deepEqual(app.calls, []);
+  assert.deepEqual(await app.weather({ uid: 'test-user', token: { auth_time: 1800000000 } }, data), { status: 'unavailable' });
+  assert.deepEqual(app.calls, ['account-check', 'user', 'weather:test-user:37.6']);
+  const old = fixture();
+  await assert.rejects(old.weather({ uid: 'test-user', token: { auth_time: 1 } }, data), { code: 'unauthenticated' });
+  assert.ok(!old.calls.some(call => call.startsWith('weather:')));
+  const limited = fixture({ weatherError: Object.assign(new Error('weather-limit'), { code: 'resource-exhausted', details: { reason: 'weather-limit' } }) });
+  await assert.rejects(limited.weather({ uid: 'test-user', token: { auth_time: 1800000000 } }, data), { code: 'resource-exhausted', details: { reason: 'weather-limit' } });
+  const broken = fixture({ weatherError: new Error('private provider failure') });
+  await assert.rejects(broken.weather({ uid: 'test-user', token: { auth_time: 1800000000 } }, data), { code: 'unavailable', message: 'weather-unavailable' });
+});
 test('recommendation callable allows limited guest browsing and checks signed-in account identity',async()=>{
  const guest=fixture();assert.equal((await guest.recommend(null)).cityId,'seoul');assert.deepEqual(guest.calls,['recommendation']);
  const old=fixture();await assert.rejects(old.recommend({uid:'test-user',token:{auth_time:1}}),{code:'unauthenticated'});assert.deepEqual(old.calls,['account-check','user']);
