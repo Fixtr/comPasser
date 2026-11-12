@@ -204,6 +204,8 @@ function sanitizePlannerRequest(raw) {
     .slice(0, MAX_DAYS);
 
   const rawDaily = Array.isArray(input.dailyData) ? input.dailyData : [];
+  // The trip city is a search center alternative to airports (findPlannerRequestIssue checks it).
+  const destinationName = clampText(input.destination && input.destination.name, 100);
   const dayCount = Math.min(Math.max(dates.length, rawDaily.length), MAX_DAYS);
 
   const dailyData = Array.from({ length: dayCount }, (_, index) => {
@@ -225,7 +227,7 @@ function sanitizePlannerRequest(raw) {
       endTime: clampText(day.endTime, MAX_SHORT),
       startLocationText: formatLocationForPrompt(day.startLocation),
       endLocationText: formatLocationForPrompt(day.endLocation),
-      nearLocations: [...new Set([getLocationName(day.startLocation), getLocationName(day.endLocation), ...anchors.map(a => a.locationName)].filter(Boolean))],
+      nearLocations: [...new Set([getLocationName(day.startLocation), getLocationName(day.endLocation), ...anchors.map(a => a.locationName), destinationName].filter(Boolean))],
       anchors
     };
   });
@@ -235,6 +237,7 @@ function sanitizePlannerRequest(raw) {
     timeZone: travelRegion(input).timeZone,
     dates: dates.length > 0 ? dates : dailyData.map(day => day.date).filter(Boolean),
     dailyData,
+    destinationName,
     theme: THEME_INSTRUCTIONS[input.theme] ? input.theme : null,
     budget: BUDGET_INSTRUCTIONS[input.budget] ? input.budget : null,
     companion: typeof input.companion === "string" && Object.hasOwn(COMPANION_INSTRUCTIONS, input.companion) ? input.companion : null,
@@ -287,6 +290,7 @@ PLACE SEARCH:
 - Google Places selects the actual venue. Each item needs a nonempty placeIntent.purpose in ${language}: a short searchable phrase such as ${lang === "ko" ? '"한식 식당", "카페", "공원 산책", "미술관"' : '"Korean restaurant", "cafe", "park walk", "art museum"'}. Avoid long wishes, transport narration, business names, district names and street addresses in purpose.
 - When a budget is selected, make each restaurant/cafe purpose include both the cuisine or visit kind and its budget style (${lang === "ko" ? "저렴한, 중간 가격대 or 고급" : "inexpensive, moderate or premium"}). Avoid generic purposes such as "카페" or "점심 식사". A search phrase is a preference, not proof of a venue's price.
 - Pick placeIntent.nearLocation EXACTLY from that day's Allowed nearLocation values; copy it into location. Never use a previous recommendation or an invented area as the next search center.
+- Airports are poor search centers: do not pick an airport as nearLocation when another allowed value exists${constraints.destinationName ? `; prefer the trip city ${JSON.stringify(constraints.destinationName)} over an airport` : ""}.
 - category must be one of restaurant, cafe, park, museum, tourist_attraction, shopping_mall. Title and description describe the visit purpose. Never invent venue names, addresses, Place IDs, ratings, opening hours, ticket availability or reservations.
 - Prefer visits around the fixed location preceding or following their time slot. Do not claim a specific detour or walking distance before actual routing.
 ${dailyData.length > 1 ? '- Plan all days as one continuous trip: use each day’s exact departure and destination listed above. They normally connect through an overnight place, but explicit day overrides may differ. Do not replace these endpoints or invent lodging or cross-day transfers; transfers outside the daily time windows are not part of the generated visits. Give different parts of the trip distinct activities. Avoid repeating the same attraction, area or visit purpose on different days, except ordinary meals.\n' : ''}

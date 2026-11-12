@@ -31,6 +31,8 @@
 - 사용자가 직접 교체한 일반 장소(`addedByUser` + 유효한 `selectedPlace`)도 고정 장소처럼 선택 ID/좌표를 우선한다. 오래된 `latLng`나 이름 재검색으로 대체하지 않는다. 교체 서비스는 이전 AI `placeIntent`를 제거하므로 추천 검색이 사용자의 선택을 다시 바꾸지 않는다.
 
 - **신규 추천 계약**: `placeIntent`가 있는 일반 항목은 `recommendation-place.mjs`의 목적/유형 계약을 사용한다. 실제 검색은 `GeocodingService.resolveRecommendation()`에서만 한다. 사용자 고정 장소를 기준으로 국가·유형·5km 직선거리·폐업·중복 ID를 검사하고, 미확인 항목을 주소 검색으로 대체하지 않는다. `placeIntent` 없는 구버전 항목에만 위의 이름 일치 규칙을 적용한다.
+  - 검색 중심에서 공항(`isAirportName`, 표시 이름 기준)은 뺀다. 그날 다른 고정 장소가 없으면 `geocodeSchedule(..., countryCode, cityId)`로 받은 여행 도시의 중심(`functions/recommendation-cities.mjs` 좌표, ID `city:<cityId>`)을 쓰고, 도시도 없을 때만 공항을 쓴다. 카탈로그 좌표가 시내가 아닌 도시(제주: 한라산)는 `recommendation-place.mjs`의 `CITY_DOWNTOWNS` 시내 좌표를 쓴다. 이 규칙은 `recommendationCenters()` 하나로, 빈 시간 채우기(`fillMeasuredGaps`)도 같은 함수를 써서 저장된 추천이 지도에서 그대로 재사용된다. 이전에 공항을 중심으로 저장된 추천은 중심 ID가 달라 한 번 다시 검색된다.
+  - Text Search는 점이 아니라 같은 5km 반경의 원(`{center, radius}`)으로 편향한다. 이전 정류장으로의 편향은 그 정류장이 중심에서 5km 안일 때만 쓴다. 평점 필터는 Places 과금 등급을 올리므로 쓰지 않는다.
 - **확정 정보 전달**: 신규 추천의 `places-resolved` 결과는 `verifiedPlace` JSON 사본 또는 명시적 `null`을 포함한다. 전부 미확인이어도 결과를 보내 이전 확정 정보를 지운다. UI는 현재 요청인지 확인하고 state에서만 저장 필드를 갱신한다. AI 생성 경계에서 확정 정보 주장을 제거하되 저장본 재열기는 정상 사본을 보존한다.
 - **제한**: 검색당 최대 6초, 하루 추천 검색 총 30초의 대기 예산. 첫 검색어에서 유효 후보가 없으면 동일 유형의 일반 검색어로 한 번만 재시도한다. 유형별 후보는 최대 10개이며 유효한 후보를 선택한다. 거리 조건은 실제 이동시간/영업 여부 검증이 아니다.
 - **마커 렌더링 색상 규칙**: 

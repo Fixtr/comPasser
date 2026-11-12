@@ -1,6 +1,7 @@
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { assessVisitHours, nextVisitStart } from './itinerary-hours.mjs';
 import { minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
+import { isFixedPlace, recommendationCenters } from '../../map/services/recommendation-place.mjs';
 
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 const place = item => normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.verifiedPlace)
@@ -23,7 +24,7 @@ export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } 
 
 // ponytail: one candidate per measured gap, at most four searches/day; leave unsuitable gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
-  findRecommendation, travelMinutes, getHours, language = 'ko', budget } = {}) {
+  findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId } = {}) {
   const unchanged = { items, changed: false };
   const limit = 2 - items.filter(item => item.gapFill === true).length;
   if (limit <= 0 || !findRecommendation || !travelMinutes || !getHours) return unchanged;
@@ -38,13 +39,13 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     return start !== null && end !== null && end - start - Math.ceil(route.durationMinutes) >= 90 && identities[index] && identities[next]
       ? [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }] : [];
   }).sort((a, b) => b.free - a.free || a.index - b.index).slice(0, 4);
+  // Same center rule as geocodeSchedule (airports skipped), so the verified ID is reused there.
+  const centers = recommendationCenters(identities.flatMap((place, index) =>
+    place && isFixedPlace(items[index]) ? [{ index, place }] : []), cityId);
   const additions = [];
   for (const gap of gaps) {
     if (additions.length >= limit) break;
-    // Match the same nearest authoritative center used by geocodeSchedule so the verified ID is reused.
-    const center = identities.map((identity, index) => ({ identity, index }))
-      .filter(p => p.identity && ['departure', 'arrival', 'AnchorSchedule'].includes(items[p.index].type))
-      .sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.identity;
+    const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
     if (!center) continue;
     const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
       placeIntent: { purpose: language === 'ko' ? '관광 명소' : 'tourist attraction',

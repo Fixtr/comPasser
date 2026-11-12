@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { GeocodingService } from '../src/domains/map/services/geocoding-service.js';
 import { selectRecommendation, normalizePlaceIntent, recommendationFields, prepareGeneratedPlaces, reusableRecommendation } from '../src/domains/map/services/recommendation-place.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
+import { fillMeasuredGaps } from '../src/domains/itinerary/services/itinerary-gap-fill.mjs';
 
 const center = { placeId:'station', displayName:'서울역', formattedAddress:'서울특별시 중구', lat:37.55, lng:126.97 };
 const intent = { purpose:'점심 식사', category:'restaurant', nearLocation:'서울역' };
@@ -91,7 +92,7 @@ test('actual candidate becomes canonical JSON identity and Place ID link, never 
   assert.equal(requests[0].useStrictTypeFiltering,true);
   assert.equal(requests[0].textQuery,'점심 식사');
   assert.ok(requests[0].fields.includes('id'));
-  assert.deepEqual(requests[0].locationBias,{lat:center.lat,lng:center.lng});
+  assert.deepEqual(requests[0].locationBias,{center:{lat:center.lat,lng:center.lng},radius:5000});
   assert.deepEqual(JSON.parse(JSON.stringify(item.verifiedPlace)),item.verifiedPlace);
 });
 
@@ -116,7 +117,7 @@ test('new intents resolve against a fixed anchor before it, not just the first d
   const {geocoder,requests}=service([candidate('near',{location:{lat:37.524,lng:126.98}})]);
   await geocoder.geocodeSchedule([fixed,{...recommendation,placeIntent:{...intent,nearLocation: museum.displayName}},
     {type:'AnchorSchedule',selectedPlace:museum}]);
-  assert.deepEqual(requests[0].locationBias,{lat:museum.lat,lng:museum.lng});
+  assert.deepEqual(requests[0].locationBias,{center:{lat:museum.lat,lng:museum.lng},radius:5000});
 });
 
 test('known-closed recommendation is skipped for an open alternative on the visit date', async () => {
@@ -178,7 +179,54 @@ test('the next recommendation search is biased toward the previous resolved stop
   const museumPlace = candidate('museum', {types:['museum'],location:{lat:37.57,lng:126.98}});
   const {geocoder,requests}=service([museumPlace,candidate()]);
   await geocoder.geocodeSchedule([fixed,museum,recommendation]);
-  assert.deepEqual(requests[1].locationBias,{lat:37.57,lng:126.98});
+  assert.deepEqual(requests[1].locationBias,{center:{lat:37.57,lng:126.98},radius:5000});
+});
+
+test('an airport is not the search center when another fixed stop or the trip city exists', async () => {
+  const airport={placeId:'icn',displayName:'인천국제공항',formattedAddress:'인천광역시 중구 공항로 272',lat:37.4602,lng:126.4407};
+  const hotel={...center,placeId:'hotel',displayName:'서울 호텔'};
+  const visit={...recommendation,placeIntent:{...intent,nearLocation:'인천국제공항'}};
+  const start={type:'departure',selectedPlace:airport,displayIndex:1};
+  const {geocoder,requests}=service([candidate()]);
+  const [,found]=await geocoder.geocodeSchedule([start,visit,{type:'arrival',selectedPlace:hotel,displayIndex:3}]);
+  assert.deepEqual(requests[0].locationBias,{center:{lat:hotel.lat,lng:hotel.lng},radius:5000});
+  assert.equal(found.verifiedPlace.centerPlaceId,'hotel');
+  const end={type:'arrival',selectedPlace:airport,displayIndex:3};
+  const city=service([candidate()]);
+  const [,inCity]=await city.geocoder.geocodeSchedule([start,visit,end],'',[],null,'KR','seoul');
+  assert.deepEqual(city.requests[0].locationBias,{center:{lat:37.5665,lng:126.978},radius:5000});
+  assert.equal(inCity.verifiedPlace.centerPlaceId,'city:seoul');
+  const reused=service([]);
+  assert.equal((await reused.geocoder.geocodeSchedule([start,JSON.parse(JSON.stringify(inCity)),end],'',[],null,'KR','seoul'))[1].verifiedPlace.placeId,'restaurant');
+  assert.equal(reused.requests.length,0);
+  const legacy=service([candidate()]);
+  await legacy.geocoder.geocodeSchedule([start,visit,end]);
+  assert.deepEqual(legacy.requests[0].locationBias.center,{lat:airport.lat,lng:airport.lng});
+});
+
+test('an airport-only Jeju day searches around Jeju City, not the Hallasan catalogue point', async () => {
+  const airport={placeId:'cju',displayName:'제주국제공항',formattedAddress:'제주특별자치도 제주시 공항로 2',lat:33.5104,lng:126.4914};
+  const {geocoder}=service([candidate('hallasan-food',{location:{lat:33.3617,lng:126.5292}}),candidate('jeju-food',{location:{lat:33.5,lng:126.53}})]);
+  const [,found]=await geocoder.geocodeSchedule([{type:'departure',selectedPlace:airport,displayIndex:1},
+    {...recommendation,placeIntent:{...intent,nearLocation:'제주국제공항'}},{type:'arrival',selectedPlace:airport,displayIndex:3}],'',[],null,'KR','jeju');
+  assert.equal(found.verifiedPlace.placeId,'jeju-food');
+  assert.equal(found.verifiedPlace.centerPlaceId,'city:jeju');
+});
+
+test('gap fill on an airport day picks the map center, so the map reuses its venue without searching', async () => {
+  const airport={placeId:'icn',displayName:'인천국제공항',formattedAddress:'인천광역시 중구 공항로 272',lat:37.4602,lng:126.4407};
+  const hotel={...center,placeId:'hotel',displayName:'서울 호텔'};
+  const items=[{type:'departure',time:'09:00',selectedPlace:airport},{type:'arrival',time:'18:00',selectedPlace:hotel}];
+  const open={utcOffsetMinutes:540,regularOpeningHours:{periods:Array.from({length:7},(_,day)=>({open:{day,hour:9,minute:0},close:{day,hour:20,minute:0}}))}};
+  const fill=service([candidate('sight',{types:['tourist_attraction']})]);
+  const {items:filled}=await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:60}],{date:'2030-10-09',endTime:'18:00',
+    travelMinutes:async()=>30,getHours:async()=>open,cityId:'seoul',
+    findRecommendation:(item,searchCenter,excluded)=>fill.geocoder.resolveRecommendation(item,searchCenter,excluded,6000,'',searchCenter)});
+  assert.equal(filled[1].verifiedPlace.centerPlaceId,'hotel');
+  const map=service([]);
+  const [,reused]=await map.geocoder.geocodeSchedule(JSON.parse(JSON.stringify(filled)),'',[],null,'KR','seoul');
+  assert.equal(reused.verifiedPlace.placeId,'sight');
+  assert.equal(map.requests.length,0);
 });
 
 test('untrusted location hint cannot move the search away from the user locations', async () => {

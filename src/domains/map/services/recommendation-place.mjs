@@ -1,8 +1,25 @@
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
+import { isAirportName } from '../../planner/services/flight-arrival.mjs';
+import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 
 export const RECOMMENDATION_RADIUS_METERS = 5000;
 export const PLACE_CATEGORIES = ['restaurant', 'cafe', 'park', 'museum', 'tourist_attraction', 'shopping_mall'];
 export const isFixedPlace = item => ['departure', 'arrival', 'AnchorSchedule'].includes(item?.type);
+
+// Catalogue points are search-boundary centres; override where that is not a town (Jeju's is Hallasan).
+const CITY_DOWNTOWNS = { jeju: [33.4996, 126.5312] };
+
+// Shared by map search and gap fill so both pick the same center and saved results are reused.
+// Airports are poor centers: use the other fixed stops, else the trip city (stable synthetic ID),
+// else the airport for trips without a known city. centers: [{ index, place }].
+export function recommendationCenters(centers, cityId) {
+  const others = centers.filter(c => !isAirportName(c.place.displayName));
+  if (others.length) return others;
+  if (!Object.hasOwn(RECOMMENDATION_CITIES, cityId)) return centers;
+  const [name, cityLat, cityLng] = RECOMMENDATION_CITIES[cityId];
+  const [lat, lng] = CITY_DOWNTOWNS[cityId] || [cityLat, cityLng];
+  return [{ index: -1, place: { placeId: `city:${cityId}`, displayName: name, formattedAddress: name, lat, lng } }];
+}
 
 export function normalizePlaceIntent(value) {
   if (!value || !PLACE_CATEGORIES.includes(value.category) || typeof value.purpose !== 'string' || !value.purpose.trim()) return null;

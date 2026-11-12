@@ -1,6 +1,6 @@
 import { matchesPlaceIdentity, matchesPlaceArea, schedulePlaceName } from './place-match.mjs';
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
-import { isFixedPlace, normalizePlaceIntent, recommendationFields, reusableRecommendation, selectRecommendation } from './recommendation-place.mjs';
+import { RECOMMENDATION_RADIUS_METERS, distanceMeters, isFixedPlace, normalizePlaceIntent, recommendationCenters, recommendationFields, reusableRecommendation, selectRecommendation } from './recommendation-place.mjs';
 import { assessVisitHours, lookupPlaceHours } from '../../itinerary/services/itinerary-hours.mjs';
 
 /** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
@@ -155,7 +155,8 @@ export class GeocodingService {
                             textQuery: query,
                             language: this.resolveLanguage(), region: this.countryCode.toLowerCase(),
                             includedType: intent.category, useStrictTypeFiltering: true,
-                            locationBias: { lat: biasCenter.lat, lng: biasCenter.lng },
+                            // A circle the size of the hard distance limit, so fewer results are discarded.
+                            locationBias: { center: { lat: biasCenter.lat, lng: biasCenter.lng }, radius: RECOMMENDATION_RADIUS_METERS },
                             fields: ['id', 'displayName', 'formattedAddress', 'location', 'types', 'businessStatus', 'addressComponents'],
                             maxResultCount: 10,
                         });
@@ -215,8 +216,8 @@ export class GeocodingService {
      * @param {Array} scheduleItems List of items containing a location string
      * @returns {Promise<Array>} The same list but with .latLng objects attached
      */
-    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = [], budget = null, countryCode = this.countryCode) {
-        if (countryCode !== this.countryCode) return new GeocodingService(this.loader, { getLanguage:this.getLanguage, getHours:this.getHours, countryCode }).geocodeSchedule(scheduleItems,date,excludedPlaceIds,budget);
+    async geocodeSchedule(scheduleItems, date = '', excludedPlaceIds = [], budget = null, countryCode = this.countryCode, cityId = '') {
+        if (countryCode !== this.countryCode) return new GeocodingService(this.loader, { getLanguage:this.getLanguage, getHours:this.getHours, countryCode }).geocodeSchedule(scheduleItems,date,excludedPlaceIds,budget,countryCode,cityId);
         if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) return [];
 
         const geocodeOne = async (item, biasCenter) => {
@@ -259,12 +260,13 @@ export class GeocodingService {
                 return place ? [{ index, place }] : [];
             });
             const excluded = new Set([...centers.map(c => c.place.placeId), ...excludedPlaceIds]);
+            const searchCenters = recommendationCenters(centers, cityId);
             const results = [...fixed];
             const deadline = Date.now() + 30000;
             for (const [index, item] of scheduleItems.entries()) {
                 if (isFixedPlace(item)) continue;
                 const hint = normalizePlaceIntent(item.placeIntent)?.nearLocation;
-                const nearestCenter = [...centers].sort((a, b) => {
+                const nearestCenter = [...searchCenters].sort((a, b) => {
                     const exact = c => hint && [c.place.displayName, c.place.formattedAddress].includes(hint) ? 0 : 1;
                     return exact(a) - exact(b) || Math.abs(a.index - index) - Math.abs(b.index - index);
                 })[0];
@@ -276,8 +278,9 @@ export class GeocodingService {
                         continue;
                     }
                     const previous = results.slice(0, index).reverse().find(result => result?.latLng)?.latLng;
+                    // A previous stop outside the radius (e.g. a skipped airport) would bias toward rejects.
                     const bias = nearestCenter?.index > index ? nearest
-                        : previous && typeof previous.lat === 'number' ? previous : nearest;
+                        : nearest && previous && typeof previous.lat === 'number' && distanceMeters(previous, nearest) <= RECOMMENDATION_RADIUS_METERS ? previous : nearest;
                     results[index] = await this.resolveRecommendation(item, nearest, excluded, Math.min(6000, deadline - Date.now()), date, bias, budget);
                     if (results[index]) excluded.add(results[index].verifiedPlace.placeId);
                 } else {

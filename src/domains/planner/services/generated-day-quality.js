@@ -30,7 +30,7 @@ export async function verifyGeneratedItinerary(plan, {
   try {
     for (const day of result.days) {
       const items = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
-      const resolved = await geocoding.geocodeSchedule(items, day.date, excludedIds(), result.request?.budget);
+      const resolved = await geocoding.geocodeSchedule(items, day.date, excludedIds(), result.request?.budget, travelRegion(result.request).countryCode, result.request?.destination?.id);
       day.scheduleItems = items.map((item, index) => {
         const found = resolved.find(place => place.displayIndex === index + 1);
         const clean = { ...item };
@@ -67,7 +67,7 @@ export async function verifyGeneratedItinerary(plan, {
       // Keep the day-trip extension within the airport and companion constraints.
       if (result.days.length < 2 && (!packedDayTrip || isAirportName(getLocationName(constraints.endLocation)))) continue;
       const filled = await fillMeasuredGaps(day.scheduleItems, routes, { ...checks, date: day.date,
-        endTime: constraints.endTime, excludedPlaceIds: excludedIds(), language: getLang(), budget: result.request?.budget });
+        endTime: constraints.endTime, excludedPlaceIds: excludedIds(), language: getLang(), budget: result.request?.budget, cityId: result.request?.destination?.id });
       if (filled.changed) {
         const original = day.scheduleItems;
         day.scheduleItems = filled.items;
