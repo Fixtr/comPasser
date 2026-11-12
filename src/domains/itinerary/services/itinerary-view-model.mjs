@@ -94,6 +94,8 @@ export function getTransitCoverage(scheduleItems, transitRoutes, mapFailed = fal
 
   const resolved = (Array.isArray(transitRoutes) ? transitRoutes : []).filter(route => (
     route &&
+    // 직선거리 도보 추정은 실제로 확인한 소요시간이 아니다.
+    !route.estimated &&
     typeof route.durationMinutes === 'number' &&
     Number.isFinite(route.durationMinutes)
   )).length;

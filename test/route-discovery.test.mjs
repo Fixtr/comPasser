@@ -39,6 +39,8 @@ test('no unmeasured, excessive, closed or duplicate detours are recommended', as
   }
   const result=await findRouteStops(request(),1,services({getRoute:async()=>{throw new Error('denied');}}));
   assert.equal(result.status,'unavailable');
+  const estimated=await findRouteStops(request(),1,services({getRoute:async()=>({estimated:true,routes:[{legs:[{duration:{value:600}}]}]})}));
+  assert.deepEqual(estimated,{status:'unavailable',suggestions:[]},'a straight-line estimate is not a measured baseline');
 });
 test('selected day overrides and hotel boundaries drive the measured route; other-day visits are excluded', async () => {
   const input={...request(),date:['2026-10-08','2026-10-09'],overnightLocations:[place('hotel')],

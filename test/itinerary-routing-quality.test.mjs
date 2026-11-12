@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RoutingService } from '../src/domains/map/services/routing-service.js';
+import { RoutingService, routeCache } from '../src/domains/map/services/routing-service.js';
+import { buildTransitDepartureTime } from '../src/domains/map/services/transit-time.mjs';
+import { routeDepartureClock } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { verifyGeneratedItinerary } from '../src/domains/planner/services/generated-day-quality.js';
 import { selectRecommendation } from '../src/domains/map/services/recommendation-place.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
@@ -126,11 +128,12 @@ test('automatic airport-internal attractions require verified access and are exc
   assert.equal(rejected['restricted-access'],1);
 });
 
-test('short legs choose a real walking route when faster; unavailable walking keeps transit; failures never become estimates', async () => {
+test('short legs choose a real walking route when faster; unavailable walking keeps transit; long failures never become estimates', async () => {
   const prior=globalThis.google;
   globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
   try {
     for (const [walk,bus,expected] of [[600,840,600],[null,840,840],[1200,600,600],[600,null,600]]) {
+      routeCache.clear();
       const calls=[];
       const routing=new RoutingService({importLibrary:async()=>({DirectionsService:class {
         async route(request) {
@@ -149,4 +152,82 @@ test('short legs choose a real walking route when faster; unavailable walking ke
       assert.equal(calls.length,1);
     }
   } finally {globalThis.google=prior;}
+});
+
+const directions = (calls, seconds) => ({importLibrary:async()=>({DirectionsService:class {
+  async route(request) {
+    calls.push(request);const value=seconds(request);
+    if(value===null) throw Error('ZERO_RESULTS');
+    return {routes:[{legs:[{duration:{value}}]}]};
+  }
+}})});
+
+test('generation checks and the result map share one route request for the same final leg', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];
+    const item={time:'10:00',endTime:'11:30'};
+    // Generation (flexible-visit-checks) uses endTime || time; the map uses routeDepartureClock(item).
+    const generation=buildTransitDepartureTime('2030-10-02',item.endTime||item.time,new Date('2030-01-01T00:00:00Z'));
+    const mapDeparture=buildTransitDepartureTime('2030-10-02',routeDepartureClock(item),new Date('2030-01-01T00:00:00Z'));
+    const first=await new RoutingService(directions(calls,()=>1800)).getTransitRoute(place(0),place(1),generation);
+    const latLng={lat:()=>place(0).lat,lng:()=>place(0).lng}, to={lat:()=>place(1).lat,lng:()=>place(1).lng};
+    assert.equal(await new RoutingService(directions(calls,()=>1800)).getTransitRoute(latLng,to,mapDeparture),first);
+    assert.equal(calls.length,1);
+    await new RoutingService(directions(calls,()=>1800)).getTransitRoute(place(0),place(1),new Date(generation.getTime()+60000));
+    assert.equal(calls.length,2);
+  } finally {globalThis.google=prior;routeCache.clear();}
+});
+
+test('failed route lookups are not shared, so the next caller asks again', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];let fail=true;
+    const routing=new RoutingService(directions(calls,()=>fail?null:900));
+    await assert.rejects(routing.getTransitRoute(place(0),place(4)));
+    fail=false;
+    assert.equal((await routing.getTransitRoute(place(0),place(4))).routes[0].legs[0].duration.value,900);
+    assert.equal(calls.length,2);
+  } finally {globalThis.google=prior;routeCache.clear();}
+});
+
+test('a short leg Google cannot route gets a flagged straight-line walking estimate up to 1.5 km only', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];
+    const routing=new RoutingService(directions(calls,()=>null));
+    const near={lat:37.5,lng:127.01}; // about 884 m east of {37.5,127}
+    const estimate=await routing.getTransitRoute({lat:37.5,lng:127},near,new Date());
+    assert.equal(estimate.estimated,true);
+    const seconds=estimate.routes[0].legs[0].duration.value;
+    assert.ok(seconds>=1000&&seconds<=1100,`${seconds}`); // 884 m x 1.3 at 4 km/h ~ 17-18 min
+    assert.equal(calls.length,2);
+    await routing.getTransitRoute({lat:37.5,lng:127},near,new Date());
+    assert.equal(calls.length,4,'estimates are not cached as measured routes');
+    await assert.rejects(routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.02},new Date()));
+    await assert.rejects(routing.getTransitRoute('서울역','남대문시장',new Date()));
+  } finally {globalThis.google=prior;routeCache.clear();}
+});
+
+test('a measured walk beats the estimate at any duration when transit fails, up to 1.5 km', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];
+    const routing=new RoutingService(directions(calls,request=>request.travelMode==='WALKING'?1500:null));
+    const detour=await routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.01},new Date());
+    assert.equal(detour.estimated,undefined);
+    assert.equal(detour.routes[0].legs[0].duration.value,1500);
+    // About 1.33 km: past the old 1 km walking limit but still estimable, so walking is asked first.
+    const farther=await routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.015},new Date());
+    assert.equal(farther.routes[0].legs[0].duration.value,1500);
+    assert.equal(calls.filter(request=>request.travelMode==='WALKING').length,2);
+  } finally {globalThis.google=prior;routeCache.clear();}
 });
