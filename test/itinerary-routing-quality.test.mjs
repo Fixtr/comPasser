@@ -38,6 +38,70 @@ test('optional gap search honors pace and leaves single-day airport buffers alon
   }
 });
 
+const twoStopDays = count => Array.from({ length: count }, (_, index) => ({ day: index + 1, date: `2030-10-0${index + 1}`,
+  scheduleItems: [stop(0, 'departure', '09:00'), stop(1, 'arrival', '18:00')] }));
+const tripOf = (days, extra = {}) => ({ request: { startTime: '09:00', endTime: '18:00', endLocation: 'Hotel',
+  date: days.map(day => day.date), ...extra }, days });
+const quiet = async run => { const warn = console.warn; console.warn = () => {}; try { return await run(); } finally { console.warn = warn; } };
+
+test('one failing day or stage leaves the other days verified, in place-then-route stage order', async () => {
+  const days = twoStopDays(2), stages = [], geocoded = [], searched = [];
+  const result = await quiet(() => verifyGeneratedItinerary(tripOf(days, { theme: 'food' }), {
+    onStage: stage => stages.push(stage),
+    geocoding: { geocodeSchedule: async (_items, date) => { geocoded.push(date); if (date === days[0].date) throw new Error('maps'); return []; } },
+    createChecks: () => ({
+      travelMinutes: async (_from, _to, date) => { if (date === days[0].date) throw new Error('maps'); return 10; },
+      getHours: async () => null,
+      findRecommendation: async (item, _center, _excluded, date) => { searched.push([date, item.placeIntent]); return null; },
+    }),
+  }));
+  assert.deepEqual(stages, ['places', 'routes']);
+  assert.deepEqual(geocoded, days.map(day => day.date));
+  assert.deepEqual(searched.map(([date]) => date), [days[1].date]);
+  // The trip theme reaches gap filling: a food trip fills a gap with a cafe, never a second full meal.
+  assert.equal(searched[0][1].category, 'cafe');
+  assert.deepEqual(result.days.map(day => day.scheduleItems.map(item => item.title)), [['P0', 'P1'], ['P0', 'P1']]);
+});
+
+test('days are fitted concurrently but gap searches stay one at a time', async () => {
+  const days = twoStopDays(3), live = { travel: 0, search: 0 }, peak = { travel: 0, search: 0 };
+  const track = async (kind, value) => {
+    peak[kind] = Math.max(peak[kind], ++live[kind]);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    live[kind]--;
+    return value;
+  };
+  await verifyGeneratedItinerary(tripOf(days), {
+    geocoding: { geocodeSchedule: async () => [] },
+    createChecks: () => ({ travelMinutes: () => track('travel', 10), getHours: async () => null,
+      findRecommendation: () => track('search', null) }),
+  });
+  assert.equal(peak.travel, 3);
+  assert.equal(peak.search, 1);
+});
+
+test('a gap visit whose confirming route lookup fails is not kept', async () => {
+  const days = twoStopDays(2);
+  const open = { utcOffsetMinutes: 540, regularOpeningHours: { periods: Array.from({ length: 7 }, (_, day) =>
+    ({ open: { day, hour: 9, minute: 0 }, close: { day, hour: 18, minute: 0 } })) } };
+  let created = 0;
+  const result = await quiet(() => verifyGeneratedItinerary(tripOf(days), {
+    geocoding: { geocodeSchedule: async () => [] },
+    createChecks: () => {
+      const gapStage = ++created > days.length;
+      let calls = 0;
+      return {
+        // fillMeasuredGaps measures the two new legs; the third call is the confirmation.
+        travelMinutes: async () => { if (gapStage && ++calls > 2) throw new Error('maps'); return 10; },
+        getHours: async () => open,
+        findRecommendation: async () => ({ ...stop(5, 'attraction', '09:00', '10:00'), placeStatus: 'verified' }),
+      };
+    },
+  }));
+  assert.equal(created, 4);
+  assert.deepEqual(result.days.map(day => day.scheduleItems.map(item => item.title)), [['P0', 'P1'], ['P0', 'P1']]);
+});
+
 test('reported Day 3: 07:11 + 48 minutes moves an untimed required visit to 07:59; bookings never move', () => {
   const plan = [stop(0,'departure','07:11'), {...stop(1,'AnchorSchedule','07:56','08:41'),flexible:true},
     stop(2,'AnchorSchedule','10:00','11:00'),stop(0,'arrival','17:11')];

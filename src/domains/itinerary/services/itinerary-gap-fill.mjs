@@ -4,6 +4,14 @@ import { minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
 import { isFixedPlace, recommendationCenters } from '../../map/services/recommendation-place.mjs';
 
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+// A 60-minute filler is never a full meal: the generator owns meal windows, so the food theme gets a cafe.
+const GAP_INTENTS = {
+  food: { category: 'cafe', ko: '디저트 카페', en: 'dessert cafe' },
+  activity: { category: 'park', ko: '공원', en: 'park' },
+  healing: { category: 'park', ko: '조용한 공원', en: 'quiet park' },
+  photo: { category: 'tourist_attraction', ko: '전망 좋은 명소', en: 'scenic viewpoint' }
+};
+const DEFAULT_GAP_INTENT = { category: 'tourist_attraction', ko: '관광 명소', en: 'tourist attraction' };
 const place = item => normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.verifiedPlace)
   || normalizeSelectedPlace(item?.resolvedPlace);
 
@@ -24,7 +32,7 @@ export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } 
 
 // ponytail: one candidate per measured gap, at most four searches/day; leave unsuitable gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
-  findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId } = {}) {
+  findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId, theme } = {}) {
   const unchanged = { items, changed: false };
   const limit = 2 - items.filter(item => item.gapFill === true).length;
   if (limit <= 0 || !findRecommendation || !travelMinutes || !getHours) return unchanged;
@@ -42,14 +50,18 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   // Same center rule as geocodeSchedule (airports skipped), so the verified ID is reused there.
   const centers = recommendationCenters(identities.flatMap((place, index) =>
     place && isFixedPlace(items[index]) ? [{ index, place }] : []), cityId);
+  const themed = Object.hasOwn(GAP_INTENTS, theme ?? '') ? GAP_INTENTS[theme] : DEFAULT_GAP_INTENT;
+  // The meal rules allow at most two cafe/snack stops per day.
+  let cafes = items.filter(item => item.placeIntent?.category === 'cafe').length;
   const additions = [];
   for (const gap of gaps) {
     if (additions.length >= limit) break;
+    const intent = themed.category === 'cafe' && cafes >= 2 ? DEFAULT_GAP_INTENT : themed;
     const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
     if (!center) continue;
     const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
-      placeIntent: { purpose: language === 'ko' ? '관광 명소' : 'tourist attraction',
-        category: 'tourist_attraction', nearLocation: center.displayName } };
+      placeIntent: { purpose: language === 'ko' ? intent.ko : intent.en,
+        category: intent.category, nearLocation: center.displayName } };
     const candidate = await findRecommendation(provisional, center, excluded, date, budget);
     const identity = candidate?.placeStatus === 'verified' && place(candidate);
     if (!identity || excluded.has(identity.placeId)) continue;
@@ -62,6 +74,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) continue;
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
+    if (intent.category === 'cafe') cafes++;
   }
   if (!additions.length) return unchanged;
   const result = items.slice();
