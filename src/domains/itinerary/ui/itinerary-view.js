@@ -1238,7 +1238,7 @@ export default class ItineraryView extends HTMLElement {
     } else {
       const { items, moved } = moveScheduleItem(dayData.scheduleItems, index, action === 'up' ? -1 : 1);
       if (!moved) {
-        showGlobalToast('더 옮길 수 없습니다.', { tone: 'warning' });
+        showGlobalToast(t('moveItemBlocked'), { tone: 'warning' });
         return;
       }
       this.state.editDayItems(this.activeDayIndex, items);

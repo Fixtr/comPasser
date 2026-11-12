@@ -69,7 +69,7 @@ export async function generateOptimizedItinerary(plannerRequest, { onStage, requ
 
     return await verifyGeneratedItinerary({
       request: normalizedRequest,
-      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget), normalizedRequest, currentLang), normalizedRequest)
+      days: addSelectedWaypoint(enforcePlannerConstraints(prepareGeneratedPlaces(days, normalizedRequest.budget, currentLang), normalizedRequest, currentLang), normalizedRequest)
     }, { onStage });
   } catch (error) {
     if (error?.details?.reason === 'generation-request-expired' || error?.details?.reason === 'generation-request-mismatch') {

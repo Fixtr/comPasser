@@ -230,6 +230,9 @@ test('generation search purposes carry the selected budget without contradictory
   const moderate=prepareGeneratedPlaces([{scheduleItems:['moderate korean restaurant','moderately priced 카페'].map(purpose=>
     ({...recommendation,placeIntent:{purpose,category:'restaurant',nearLocation:'서울역'}}))}],'standard');
   assert.deepEqual(moderate[0].scheduleItems.map(item=>item.placeIntent.purpose),['중간 가격대 korean restaurant','중간 가격대 카페']);
+  const english=prepareGeneratedPlaces([{scheduleItems:['고급 French bistro','premium'].map(purpose=>
+    ({...recommendation,placeIntent:{purpose,category:'restaurant',nearLocation:'서울역'}}))}],'budget','en');
+  assert.deepEqual(english[0].scheduleItems.map(item=>item.placeIntent.purpose),['inexpensive French bistro','inexpensive restaurant']);
 });
 
 test('verified identity and coordinates survive state persistence; failure clears stale identity even if names unchanged', () => {
