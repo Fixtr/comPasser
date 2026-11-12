@@ -81,3 +81,31 @@ test('automatic required visits choose an earlier-open venue first and remeasure
       hoursStatus:async(_anchor,_date,time)=>time<'11:00'?'conflict':'regular'});
   assert.equal(blocked.request.anchorSchedules[0].time,undefined);assert.ok(blocked.issue);
 });
+
+test('gap search follows the trip theme and keeps tourist attractions without one', async()=>{
+  const items=[s('station','departure','07:11'),s('hotel','arrival','15:00')];
+  for (const [theme, language, category, purpose] of [[undefined,'ko','tourist_attraction','관광 명소'],
+    ['food','ko','cafe','디저트 카페'],['healing','en','park','quiet park'],['unknown','en','tourist_attraction','tourist attraction'],['toString','en','tourist_attraction','tourist attraction']]) {
+    const intents=[];
+    await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({theme,language,
+      findRecommendation:async item=>{intents.push(item.placeIntent);return null;}}));
+    assert.deepEqual(intents.map(i=>[i.category,i.purpose]),[[category,purpose]],String(theme));
+  }
+});
+
+test('food-theme gap fill keeps the day at two cafe stops', async()=>{
+  const cafe={...s('cafe-1','dining','10:00','11:00'),placeIntent:{category:'cafe'}};
+  const items=[s('station','departure','07:11'),cafe,s('hotel','arrival','17:11')];
+  const routes=[{fromIndex:0,durationMinutes:10},{fromIndex:1,durationMinutes:10}];
+  const searchAs=intents=>async(item,center,excluded,...rest)=>{
+    intents.push(item.placeIntent.category);
+    return options().findRecommendation({...item,placeIntent:{...item.placeIntent,category:'tourist_attraction'}},center,excluded,...rest);
+  };
+  const one=[];
+  assert.equal((await fillMeasuredGaps(items,routes,options({theme:'food',findRecommendation:searchAs(one)}))).changed,true);
+  assert.deepEqual(one,['cafe','tourist_attraction']);
+  const two=[];
+  await fillMeasuredGaps([items[0],cafe,{...cafe,time:'12:00',endTime:'13:00'},items[2]],
+    [...routes,{fromIndex:2,durationMinutes:10}],options({theme:'food',findRecommendation:searchAs(two)}));
+  assert.ok(two.length&&two.every(category=>category==='tourist_attraction'),two.join());
+});
