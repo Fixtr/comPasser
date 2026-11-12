@@ -192,7 +192,7 @@ test('automatic airport-internal attractions require verified access and are exc
   assert.equal(rejected['restricted-access'],1);
 });
 
-test('short legs choose a real walking route when faster; unavailable walking keeps transit; long failures never become estimates', async () => {
+test('short legs choose a real walking route when faster; unavailable walking keeps transit; long failures with no driving route never become estimates', async () => {
   const prior=globalThis.google;
   globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
   try {
@@ -213,7 +213,7 @@ test('short legs choose a real walking route when faster; unavailable walking ke
       calls.length=0;
       if(bus===null) await assert.rejects(routing.getTransitRoute(place(0),place(4)));
       else await routing.getTransitRoute(place(0),place(4));
-      assert.equal(calls.length,1);
+      assert.equal(calls.length,bus===null?2:1); // a failed long leg also asks for driving
     }
   } finally {globalThis.google=prior;}
 });
@@ -255,7 +255,7 @@ test('failed route lookups are not shared, so the next caller asks again', async
     await assert.rejects(routing.getTransitRoute(place(0),place(4)));
     fail=false;
     assert.equal((await routing.getTransitRoute(place(0),place(4))).routes[0].legs[0].duration.value,900);
-    assert.equal(calls.length,2);
+    assert.equal(calls.length,3); // transit + driving fallback, then transit
   } finally {globalThis.google=prior;routeCache.clear();}
 });
 
@@ -276,6 +276,34 @@ test('a short leg Google cannot route gets a flagged straight-line walking estim
     assert.equal(calls.length,4,'estimates are not cached as measured routes');
     await assert.rejects(routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.02},new Date()));
     await assert.rejects(routing.getTransitRoute('서울역','남대문시장',new Date()));
+  } finally {globalThis.google=prior;routeCache.clear();}
+});
+
+test('a longer leg Google cannot route by transit gets a flagged transit estimate from its driving time', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];let drive=1620; // Haneda → Shinjuku by car, 27 min
+    const routing=new RoutingService(directions(calls,request=>request.travelMode==='DRIVING'?drive:null));
+    const estimate=await routing.getTransitRoute(place(0),place(4),new Date());
+    assert.equal(estimate.estimated,true);
+    assert.equal(estimate.mode,'TRANSIT');
+    assert.equal(estimate.routes[0].legs[0].duration.value,Math.ceil(1620*1.3)+600); // ~46 min
+    assert.deepEqual(calls.map(request=>request.travelMode),['TRANSIT','DRIVING']);
+    assert.equal(calls[1].transitOptions,undefined);
+    await routing.getTransitRoute(place(0),place(4),new Date());
+    assert.equal(calls.length,4,'estimates are not cached as measured routes');
+    // Beyond a 90-minute drive the leg is intercity rail, so no estimate.
+    drive=5401;
+    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()));
+    drive=null;
+    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()));
+    // A short leg keeps the straight-line walking estimate and never asks for driving.
+    calls.length=0;
+    const walk=await routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.01},new Date());
+    assert.equal(walk.mode,undefined);
+    assert.ok(!calls.some(request=>request.travelMode==='DRIVING'));
   } finally {globalThis.google=prior;routeCache.clear();}
 });
 

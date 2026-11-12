@@ -5,6 +5,10 @@ export const routeCache = new Map();
 const ROUTE_TTL_MS = 300000;
 // Slow pace (4 km/h) with a street detour on the straight line, so the estimate errs long.
 const WALK_METERS_PER_SECOND = 4000 / 3600, WALK_DETOUR = 1.3, ESTIMATE_MAX_METERS = 1500;
+// Google Maps Platform has no Japan transit data (TRANSIT returns ZERO_RESULTS), but driving works there.
+// Transit time ~ drive x 1.3 plus 10 min of station walks and waits, so it errs long; past a
+// 90-minute drive the leg is intercity rail (shinkansen), which driving cannot approximate.
+const DRIVE_TO_TRANSIT = 1.3, TRANSIT_OVERHEAD_SECONDS = 600, DRIVE_ESTIMATE_MAX_SECONDS = 5400;
 
 const coordinate = value => {
     const lat = typeof value?.lat === 'function' ? value.lat() : value?.lat;
@@ -47,7 +51,9 @@ export class RoutingService {
      *   moment instead of the itinerary.
      * @returns {Promise<google.maps.DirectionsResult>} or, when the provider
      *   cannot route a leg of at most 1.5 km, `{ estimated: true, routes }`
-     *   with a straight-line walking duration that must not be shown as a route.
+     *   with a straight-line walking duration; for a longer leg it cannot route
+     *   by transit, `{ estimated: true, mode: 'TRANSIT', routes }` from the
+     *   driving time. Neither estimate may be shown as a route.
      */
     getTransitRoute(origin, destination, departureTime = null) {
         const now = Date.now();
@@ -90,7 +96,13 @@ export class RoutingService {
             if (Number.isFinite(walkSeconds) && walkSeconds >= 0) return walk.value;
             // Google Maps Platform coverage lists no walking directions for KR (ZERO_RESULTS), and transit
             // can fail for a short hop too; without this the leg stays unknown and blocks schedule fitting.
-            if (meters > ESTIMATE_MAX_METERS) throw bus.reason;
+            if (meters > ESTIMATE_MAX_METERS) {
+                const driveSeconds = seconds(await this.directionsService.route({ origin, destination, travelMode: 'DRIVING' }).catch(() => null));
+                if (!Number.isFinite(driveSeconds) || driveSeconds < 0 || driveSeconds > DRIVE_ESTIMATE_MAX_SECONDS) throw bus.reason;
+                return { estimated: true, mode: 'TRANSIT', routes: [{ legs: [{
+                    duration: { value: Math.ceil(driveSeconds * DRIVE_TO_TRANSIT) + TRANSIT_OVERHEAD_SECONDS }
+                }] }] };
+            }
             return { estimated: true, routes: [{ legs: [{
                 duration: { value: Math.ceil(meters * WALK_DETOUR / WALK_METERS_PER_SECOND) },
                 distance: { value: Math.round(meters) }

@@ -524,12 +524,13 @@ export class MapView extends HTMLElement {
       return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {
         if (!isCurrent()) return null;
         if (response.estimated) {
-          // A straight-line guess, not a route: no DirectionsRenderer path, and the card says so.
+          // A guess (straight-line walk, or transit from driving time), not a route: no DirectionsRenderer path, and the card says so.
           drawDashed();
           const minutes = Math.ceil(response.routes[0].legs[0].duration.value / 60);
-          return { fromIndex, toIndex, duration: t('estimatedWalkDuration').replace('{0}', minutes),
-            durationMinutes: minutes, distance: '', mode: 'WALKING', estimated: true, steps: [],
-            directionsUrl, warnings: [t('estimatedWalkNote')] };
+          const transit = response.mode === 'TRANSIT';
+          return { fromIndex, toIndex, duration: t(transit ? 'estimatedTransitDuration' : 'estimatedWalkDuration').replace('{0}', minutes),
+            durationMinutes: minutes, distance: '', mode: transit ? 'TRANSIT' : 'WALKING', estimated: true, steps: [],
+            directionsUrl, warnings: [t(transit ? 'estimatedTransitNote' : 'estimatedWalkNote')] };
         }
         const renderer = new DirectionsRenderer({
           map: this.map,
