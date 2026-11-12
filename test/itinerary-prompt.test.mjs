@@ -59,6 +59,14 @@ test('each day exposes exact permitted center names, with addresses kept as cont
   assert.match(prompt, /서울 용산구 한강대로 405/);
 });
 
+test('the trip city is an allowed center and preferred over airports', () => {
+  const constraints = sanitizePlannerRequest({ date: ['2026-10-06'], destination: { id: 'seoul', country: 'KOR', name: 'Seoul, South Korea' },
+    dailyData: [{ day: 1, date: '2026-10-06', startTime: '09:00', endTime: '18:00', startLocation: '인천국제공항', endLocation: '인천국제공항', anchors: [] }] });
+  assert.deepEqual(constraints.dailyData[0].nearLocations, ['인천국제공항', 'Seoul, South Korea']);
+  assert.match(buildPrompt(constraints, 'ko'), /do not pick an airport as nearLocation when another allowed value exists; prefer the trip city "Seoul, South Korea"/);
+  assert.doesNotMatch(buildPrompt(sanitizePlannerRequest({ date: ['2026-10-06'] }), 'ko'), /prefer the trip city/);
+});
+
 test('multi-day prompt connects overnight boundaries and asks for distinct visits', () => {
   const constraints = sanitizePlannerRequest({date:['2026-10-06','2026-10-07'],dailyData:[
     {day:1,date:'2026-10-06',startTime:'09:00',endTime:'18:00',startLocation:'서울역',endLocation:'호텔',anchors:[]},
