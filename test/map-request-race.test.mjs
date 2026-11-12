@@ -253,3 +253,19 @@ test('a merged pin uses a pill that widens with its numbers instead of a pin the
   assert.equal(merged.title, 'Hotel / Hotel again');
   assert.equal(single.content.glyphText, '12');
 });
+
+test('an estimated walking leg is drawn dashed and labelled as an estimate, never as a Google route', async () => {
+  const app = harness({ route: async () => ({ estimated: true, routes: [{ legs: [{ duration: { value: 1050 }, distance: { value: 884 } }] }] }) });
+  await app.map.renderTransitSegments([
+    { latLng: { lat: 37.5, lng: 127 }, displayIndex: 1, endTime: '10:00' },
+    { latLng: { lat: 37.5, lng: 127.01 }, displayIndex: 2 },
+  ], '2026-09-14', context(0));
+  assert.equal(app.created.routes.length, 0);
+  assert.equal(app.created.fallbacks.length, 1);
+  const [leg] = app.events.find(e => e.type === 'transit-info-ready').detail.routes;
+  assert.equal(leg.estimated, true);
+  assert.equal(leg.durationMinutes, 18);
+  assert.equal(leg.mode, 'WALKING');
+  assert.equal(leg.duration, 'estimatedWalkDuration');
+  assert.deepEqual(leg.warnings, ['estimatedWalkNote']);
+});

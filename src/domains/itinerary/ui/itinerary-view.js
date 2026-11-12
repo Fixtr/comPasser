@@ -342,7 +342,7 @@ export default class ItineraryView extends HTMLElement {
       if (this.startRouteImprovement(transitRoutes)) return;
       if (transitRoutes.length && this.applyTransitDelaysToActiveDay(transitRoutes)) return;
       this.renderTransitInfo(transitRoutes);
-      if (this._explicitRecalculation && transitRoutes.length===Math.max(day.scheduleItems.length-1,0) && transitRoutes.every(route=>Number.isFinite(route.durationMinutes))) {
+      if (this._explicitRecalculation && transitRoutes.length===Math.max(day.scheduleItems.length-1,0) && transitRoutes.every(route=>!route.estimated&&Number.isFinite(route.durationMinutes))) {
         this.state.markDayRecalculated(this.activeDayIndex);this._explicitRecalculation=false;this.refreshAccessControls();
       }
     };

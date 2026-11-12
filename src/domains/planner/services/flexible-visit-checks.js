@@ -16,7 +16,8 @@ const within = (work, ms = 8000) => {
 };
 
 /** Reuse the same Maps and opening-hours sources that verify the result screen. */
-export function createFlexibleVisitChecks(visitCount = 1, request = {}) {
+/** `measuredOnly` drops the routing service's straight-line walking estimates (route discovery shows detours as measured). */
+export function createFlexibleVisitChecks(visitCount = 1, request = {}, { measuredOnly = false } = {}) {
   const region = travelRegion(request);
   const loader = getMapsLoader();
   const routing = new RoutingService(loader);
@@ -45,7 +46,7 @@ export function createFlexibleVisitChecks(visitCount = 1, request = {}) {
       const key = JSON.stringify([origin, destination, date, time]);
       if (!routes.has(key)) routes.set(key, within(routing.getTransitRoute(origin, destination,
         buildTransitDepartureTime(date, time, new Date(), region.timeZone)), remaining()).then(result => {
-        const seconds = result?.routes?.[0]?.legs?.[0]?.duration?.value;
+        const seconds = measuredOnly && result?.estimated ? NaN : result?.routes?.[0]?.legs?.[0]?.duration?.value;
         return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds / 60) : null;
       }).catch(() => null));
       return routes.get(key);

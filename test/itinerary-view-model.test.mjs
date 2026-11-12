@@ -257,6 +257,13 @@ test('transit coverage reports "none" when the map explicitly failed, even with 
   assert.equal(getTransitCoverage(items, routes, true).status, 'none', '지도가 실패를 알리면 검증됐다고 하면 안 된다');
 });
 
+test('a straight-line walking estimate is not counted as a measured leg', () => {
+  const items = [{ time: '09:00' }, { time: '10:00' }, { time: '11:00' }];
+  const measured = { fromIndex: 0, durationMinutes: 20 }, estimate = { fromIndex: 1, durationMinutes: 18, estimated: true };
+  assert.deepEqual(getTransitCoverage(items, [measured, estimate]), { expected: 2, resolved: 1, status: 'partial' });
+  assert.equal(getTransitCoverage(items.slice(1), [{ ...estimate, fromIndex: 0 }]).status, 'none');
+});
+
 test('a single-stop day needs no transit verification', () => {
   assert.deepEqual(getTransitCoverage([{ time: '09:00' }], []), { expected: 0, resolved: 0, status: 'verified' });
   assert.deepEqual(getTransitCoverage([], []), { expected: 0, resolved: 0, status: 'verified' });

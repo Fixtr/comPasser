@@ -31,7 +31,7 @@ async function mapServices(request) {
   const loader = getMapsLoader();
   const routing = new RoutingService(loader);
   const geocoding = new GeocodingService(loader, {getLanguage:getLang, countryCode:travelRegion(request).countryCode});
-  const checks = createFlexibleVisitChecks(3, request);
+  const checks = createFlexibleVisitChecks(3, request, {measuredOnly:true});
   return {
     ...checks,
     async resolvePlace(value) {
@@ -89,7 +89,7 @@ export async function findRouteStops(request, dayNumber, services) {
       if (!from || !to) continue;
       excluded.add(from.placeId); excluded.add(to.placeId);
       const route = await within(services.getRoute(from, to, day.date, clock(gap.start)));
-      const seconds = route?.routes?.[0]?.legs?.[0]?.duration?.value;
+      const seconds = route?.estimated ? NaN : route?.routes?.[0]?.legs?.[0]?.duration?.value;
       if (!Number.isFinite(seconds) || seconds < 0) continue;
       measured = true;
       const baseline = Math.ceil(seconds / 60);

@@ -509,8 +509,28 @@ export class MapView extends HTMLElement {
       }
 
       // Delegate to RoutingService
+      const drawDashed = () => this.fallbackPolylines.push(new Polyline({
+        path: [origin, destination],
+        strokeOpacity: 0,
+        icons: [{
+          icon: { path: SymbolPath.CIRCLE, fillOpacity: 1, scale: 3 },
+          offset: "0",
+          repeat: "20px"
+        }],
+        strokeColor: segmentColor,
+        strokeWeight: 2,
+        map: this.map
+      }));
       return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {
         if (!isCurrent()) return null;
+        if (response.estimated) {
+          // A straight-line guess, not a route: no DirectionsRenderer path, and the card says so.
+          drawDashed();
+          const minutes = Math.ceil(response.routes[0].legs[0].duration.value / 60);
+          return { fromIndex, toIndex, duration: t('estimatedWalkDuration').replace('{0}', minutes),
+            durationMinutes: minutes, distance: '', mode: 'WALKING', estimated: true, steps: [],
+            directionsUrl, warnings: [t('estimatedWalkNote')] };
+        }
         const renderer = new DirectionsRenderer({
           map: this.map,
           suppressMarkers: true,
@@ -606,19 +626,7 @@ export class MapView extends HTMLElement {
         if (!isCurrent()) return null;
         console.warn(`Transit route failed between "${geocodedItems[i].title}" and "${geocodedItems[i + 1].title}".Drawing walking line.`, err.message);
 
-        const dashedPolyline = new Polyline({
-          path: [origin, destination],
-          strokeOpacity: 0,
-          icons: [{
-            icon: { path: SymbolPath.CIRCLE, fillOpacity: 1, scale: 3 },
-            offset: "0",
-            repeat: "20px"
-          }],
-          strokeColor: segmentColor,
-          strokeWeight: 2,
-          map: this.map
-        });
-        this.fallbackPolylines.push(dashedPolyline);
+        drawDashed();
 
         return {
           fromIndex,
