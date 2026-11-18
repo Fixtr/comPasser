@@ -51,8 +51,8 @@ import {
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
 
 /**
- * duration 이 없는 항목(사용자가 넣었거나 구버전 데이터)에 쓸 표시값.
- * 그냥 두면 화면에 "undefined" 가 그대로 노출된다.
+ * 체류 시간 표시값. AI 의 duration 문구는 언어·형식이 제각각("2 hours", "01:30")이라
+ * 시각이 있으면 시각으로 화면 언어에 맞춰 만들고, 없을 때만 저장된 문구를 쓴다.
  */
 function fallbackDuration(item) {
   const start = minutesOf(item?.time);
@@ -125,7 +125,7 @@ function renderScheduleCard(scheduleItem, idx, editable, visited) {
       ${editable && !visited && !['departure', 'arrival', 'AnchorSchedule'].includes(scheduleItem.type) ? `<button type="button" class="indoor-alternatives-btn">${escapeHtml(t('indoorAlternativesFind'))}</button>` : ''}
       <div class="schedule-meta">
         <span class="meta-item">${icons.pin} ${escapeHtml(scheduleItem.stayUnsetLabel || locationStr)}</span>
-        <span class="meta-item">${icons.clock} ${escapeHtml(scheduleItem.duration || fallbackDuration(scheduleItem))}${(function() {
+        <span class="meta-item">${icons.clock} ${escapeHtml(fallbackDuration(scheduleItem) || scheduleItem.duration || '')}${(function() {
           const info = typeof scheduleItem.transitInfo === 'string' ? scheduleItem.transitInfo : '';
           // 시간 정보 추출 정규식 (예: 약 15분, 1시간 10분 등)
           const timeMatch = info.match(/(?:약\s*)?(\d+\s*시간)?\s*(\d+\s*분)/);
