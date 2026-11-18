@@ -25,3 +25,6 @@ export const RECOMMENDATION_CITIES = {
   washingtondc: ['Washington DC',38.9072,-77.0369,25,['Washington','District of Columbia']],
   honolulu: ['Honolulu',21.3099,-157.8581,35,['Honolulu']],
 };
+
+// Catalogue points are search-boundary centres; override where that is not a town (Jeju's is Hallasan).
+export const CITY_DOWNTOWNS = { jeju: [33.4996, 126.5312] };

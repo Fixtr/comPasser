@@ -1,13 +1,10 @@
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { isAirportName } from '../../planner/services/flight-arrival.mjs';
-import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
+import { CITY_DOWNTOWNS, RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 
 export const RECOMMENDATION_RADIUS_METERS = 5000;
 export const PLACE_CATEGORIES = ['restaurant', 'cafe', 'park', 'museum', 'tourist_attraction', 'shopping_mall'];
 export const isFixedPlace = item => ['departure', 'arrival', 'AnchorSchedule'].includes(item?.type);
-
-// Catalogue points are search-boundary centres; override where that is not a town (Jeju's is Hallasan).
-const CITY_DOWNTOWNS = { jeju: [33.4996, 126.5312] };
 
 // Shared by map search and gap fill so both pick the same center and saved results are reused.
 // Airports are poor centers: use the other fixed stops, else the trip city (stable synthetic ID),

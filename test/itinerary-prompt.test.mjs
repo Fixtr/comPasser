@@ -15,7 +15,8 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     assert.match(prompt, /a day of 3 hours or less usually 1-2\. The gaps above still separate every pair of visits/);
     assert.match(prompt, /move lunch before or after a fixed appointment rather than skip it/);
     // Both models put a 19:00 dinner before a 21:00 Incheon arrival; measured transit was about 130 minutes.
-    assert.match(prompt, /at least 150 minutes unallocated before an airport end time/);
+    assert.match(prompt, /Before an airport end time leave the unallocated minutes listed for that day/);
+    assert.doesNotMatch(prompt, /Airport end:/);
     assert.match(prompt, /A restaurant visit before 11:00 must be an explicit breakfast or brunch/);
     assert.doesNotMatch(prompt, /ALL transportation|occasional taxi|tips in localTip|estimate the real travel time|MUST include ScheduleItems with type/);
   }
@@ -33,8 +34,19 @@ test('pace changes optional visit density without changing the default prompt or
   for (const pace of ['relaxed', 'packed']) {
     assert.doesNotMatch(prompt(pace), /never leave most of a long day empty/);
     assert.match(prompt(pace), /Never overlap a fixed appointment/);
-    assert.match(prompt(pace), /at least 150 minutes unallocated before an airport end time/);
+    assert.match(prompt(pace), /Before an airport end time leave the unallocated minutes listed for that day/);
   }
+});
+
+test('an airport end lists its own buffer: short for Jeju, long for Incheon, 150 without coordinates', () => {
+  const day = endLocation => ({ day: 1, date: '2026-11-19', startTime: '10:00', endTime: '19:00', startLocation: '제주국제공항', endLocation, anchors: [] });
+  const prompt = (endLocation, id) => buildPrompt(sanitizePlannerRequest({ date: ['2026-11-19'], destination: { id, country: 'KOR', name: id },
+    dailyData: [day(endLocation)] }), 'ko');
+  assert.match(prompt({ displayName: '제주국제공항', lat: 33.5070772, lng: 126.4934311 }, 'jeju'), /Airport end: leave 45 minutes unallocated before 19:00/);
+  assert.match(prompt({ displayName: '인천국제공항', lat: 37.4602, lng: 126.4407 }, 'seoul'), /Airport end: leave 1[34]\d minutes unallocated before 19:00/);
+  assert.match(prompt('인천국제공항', 'seoul'), /Airport end: leave 150 minutes unallocated before 19:00/);
+  assert.doesNotMatch(prompt('제주시청', 'jeju'), /Airport end:/);
+  assert.doesNotMatch(prompt({ displayName: '제주국제공항', lat: 33.5070772, lng: 126.4934311 }, 'jeju'), /at least 150 minutes/);
 });
 
 test('place-search examples and budget words follow the request language', () => {

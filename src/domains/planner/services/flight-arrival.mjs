@@ -5,7 +5,7 @@ export const FLIGHT_BUFFER_MINUTES = { international: 180, domestic: 90 };
 export const LANDING_BUFFER_MINUTES = { international: 60, domestic: 30 };
 
 // shortcut: airports are recognised by name only; use Places types if endpoints ever store them.
-export const isAirportName = name => /공항|airport|空港|a[ée]roport/i.test(String(name || ''));
+export { isAirportName } from '../../../../functions/airport-buffer.mjs';
 
 function shift(time, delta) {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time || '');
