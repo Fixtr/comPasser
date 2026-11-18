@@ -42,13 +42,16 @@ export function createFlexibleVisitChecks(visitCount = 1, request = {}, { measur
       if (!origin || !destination) return null;
       if ((selectedFrom && selectedTo && selectedFrom.placeId === selectedTo.placeId) ||
           (typeof origin === 'string' ? origin === destination : origin.lat === destination.lat && origin.lng === destination.lng)) return 0;
-      if (!remaining()) return null;
       const key = JSON.stringify([origin, destination, date, time]);
-      if (!routes.has(key)) routes.set(key, within(routing.getTransitRoute(origin, destination,
-        buildTransitDepartureTime(date, time, new Date(), region.timeZone)), remaining()).then(result => {
-        const seconds = measuredOnly && result?.estimated ? NaN : result?.routes?.[0]?.legs?.[0]?.duration?.value;
-        return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds / 60) : null;
-      }).catch(() => null));
+      // An already measured leg stays known after the deadline, so a re-check cannot roll back a fill it confirmed.
+      if (!routes.has(key)) {
+        if (!remaining()) return null;
+        routes.set(key, within(routing.getTransitRoute(origin, destination,
+          buildTransitDepartureTime(date, time, new Date(), region.timeZone)), remaining()).then(result => {
+          const seconds = measuredOnly && result?.estimated ? NaN : result?.routes?.[0]?.legs?.[0]?.duration?.value;
+          return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds / 60) : null;
+        }).catch(() => null));
+      }
       return routes.get(key);
     },
     async hoursStatus(anchor, date, time, endTime) {
