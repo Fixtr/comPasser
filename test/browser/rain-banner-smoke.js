@@ -86,6 +86,14 @@ async page => {
   await settle();
   if (await banner.count() || (await requests()).length) throw Error('A day beyond tomorrow asked for weather');
 
+  // Rain through midnight must not print dates: all-day rain says so, an evening window ends at midnight.
+  for (const [hours, expected] of [[Array.from({ length: 24 }, (_, hour) => ({ hour, rainPercent: 80 })), '종일 비 예보'],
+    [Array.from({ length: 24 }, (_, hour) => ({ hour, rainPercent: hour >= 14 ? 80 : 10 })), '오후 2시 ~ 오전 12시 비 예보']]) {
+    await open(plan('2026-09-13'), { status: 'forecast', date: '2026-09-13', hours });
+    await banner.filter({ hasText: expected }).waitFor({ timeout: 3000 })
+      .catch(async () => { throw Error(`Expected "${expected}", got: ${await banner.innerText().catch(() => 'no banner')}`); });
+  }
+
   // Going offline swaps the screen for the offline reader; nothing there may ask for weather.
   await open(plan('2026-09-14'), { status: 'unavailable' });
   await page.evaluate(([hours]) => {
