@@ -2,10 +2,9 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { localTravelDate, dateRange, travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { visitedStops, stopKeys } from '../services/visited-stops.mjs';
-import { isOutdoorStop, rainAlert } from '../services/rain-alert.mjs';
+import { isOutdoorStop, rainAlert, rainHours } from '../services/rain-alert.mjs';
 import { fetchTripWeather } from '../services/trip-weather-api.js';
 
-const hourAt = hour => new Date(Date.UTC(2000, 0, 1, hour));
 const activeDay = view => view.normalizeData(view.currentItinerary)?.days?.[view.activeDayIndex];
 const point = (item, resolved) => normalizeSelectedPlace(item.selectedPlace) || normalizeSelectedPlace(item.verifiedPlace)
   || normalizeSelectedPlace(resolved?.resolvedPlace) || normalizeSelectedPlace(item.resolvedPlace)
@@ -47,8 +46,7 @@ export async function refreshRainBanner(view) {
   Object.assign(banner, { id: 'rain-banner', className: 'rain-banner', source, dayIndex });
   banner.setAttribute('role', 'status');
   const text = document.createElement('span');
-  const range = new Intl.DateTimeFormat(getLang() === 'ko' ? 'ko-KR' : 'en-US', { hour: 'numeric', timeZone: 'UTC' })
-    .formatRange(hourAt(alert.from), hourAt(alert.to));
+  const range = rainHours(alert, getLang() === 'ko' ? 'ko-KR' : 'en-US') ?? t('rainBannerAllDay');
   text.textContent = t('rainBannerText').replace('{0}', range);
   const action = document.createElement('button');
   action.type = 'button';
