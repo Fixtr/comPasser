@@ -2,7 +2,7 @@ import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { getLocationName } from './location-name.mjs';
 import { minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
-import { isAirportName } from './flight-arrival.mjs';
+import { airportBufferMinutes } from '../../../../functions/airport-buffer.mjs';
 import { destinationById } from './travel-destinations.mjs';
 import { tFor } from '../../../utils/i18n.js';
 
@@ -335,9 +335,10 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     const timed = item => minutes(item.time) < minutes(item.endTime) && minutes(item.endTime) !== Number.MAX_SAFE_INTEGER;
     const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
     // gemini-2.5-flash-lite ignored the prompt's airport gap and ended dinner 30 minutes before a 21:00
-    // Incheon arrival; measured transit was about 130 minutes. Same 150 minutes as the prompt.
-    const latestVisitEnd = isAirportName(getLocationName(constraints.endLocation))
-      ? endTimeMinutes - 150 : Number.MAX_SAFE_INTEGER;
+    // Incheon arrival; measured transit was about 130 minutes. Same buffer as the prompt, scaled by distance.
+    const airportBuffer = airportBufferMinutes(getLocationName(constraints.endLocation), constraints.endLocation,
+      normalizedRequest.destination?.id, constraints.startLocation);
+    const latestVisitEnd = airportBuffer === null ? Number.MAX_SAFE_INTEGER : endTimeMinutes - airportBuffer;
     scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
       || (minutes(item.endTime) <= latestVisitEnd
         && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));

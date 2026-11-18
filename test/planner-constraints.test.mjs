@@ -110,6 +110,26 @@ test('an airport day keeps 150 minutes free before arrival; other destinations k
   assert.deepEqual(titles('서울역'), ['출발 · 서울역', '점심', '이른 저녁', '늦은 저녁', '도착 · 서울역']);
 });
 
+test('a nearby airport keeps the afternoon: the buffer follows the airport\'s distance to the trip city', () => {
+  const visit = (title, time, endTime) => ({ title, type: 'attraction', time, endTime, location: '제주시',
+    placeIntent: { purpose: title, category: 'museum', nearLocation: '제주국제공항' } });
+  const titles = (endLocation, id) => enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('오전', '10:30', '12:00'),
+    visit('늦은 오후', '16:30', '18:00')] }], { date: ['2026-11-19'], startTime: '10:00', endTime: '19:00',
+    destination: { id, country: 'KOR', name: id }, startLocation: endLocation, endLocation, anchorSchedules: [] })[0].scheduleItems.map(item => item.title);
+  const cju = { placeId: 'cju', displayName: '제주국제공항', formattedAddress: '제주특별자치도 제주시 공항로 2', lat: 33.5070772, lng: 126.4934311 };
+  const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
+  // Jeju: 45 minutes, so an 18:00 finish before a 19:00 airport arrival stays.
+  assert.deepEqual(titles(cju, 'jeju'), ['출발 · 제주국제공항', '오전', '늦은 오후', '도착 · 제주국제공항']);
+  // Incheon to Seoul still needs well over an hour, so the same finish is removed.
+  assert.deepEqual(titles(icn, 'seoul'), ['출발 · 인천국제공항', '오전', '도착 · 인천국제공항']);
+  // A day starting at a Seogwipo hotel is about 30 km out: the same finish is removed for a Jeju Airport end.
+  const hotel = { placeId: 'hotel', displayName: '서귀포 호텔', formattedAddress: '제주특별자치도 서귀포시', lat: 33.2541, lng: 126.5601 };
+  const fromHotel = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('오전', '10:30', '12:00'), visit('늦은 오후', '16:30', '18:00')] }],
+    { date: ['2026-11-19'], startTime: '10:00', endTime: '19:00', destination: { id: 'jeju', country: 'KOR', name: 'jeju' },
+      startLocation: hotel, endLocation: cju, anchorSchedules: [] })[0].scheduleItems.map(item => item.title);
+  assert.deepEqual(fromHotel, ['출발 · 서귀포 호텔', '오전', '도착 · 제주국제공항']);
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [

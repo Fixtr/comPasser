@@ -104,6 +104,18 @@ test('a gap visit whose confirming route lookup fails is not kept', async () => 
   assert.deepEqual(result.days.map(day => day.scheduleItems.map(item => item.title)), [['P0', 'P1'], ['P0', 'P1']]);
 });
 
+test('compacting visits keeps the arrival at the requested end time; the leftover shows as free time', () => {
+  const visit = (n,time,endTime) => ({...stop(n,'attraction',time,endTime),placeIntent:{purpose:'museum',category:'museum',nearLocation:'P0'},placeStatus:'verified'});
+  // Jeju airport day: the AI left padding; measured legs are short.
+  const plan = [stop(0,'departure','10:00'),visit(1,'10:40','12:00'),visit(2,'12:30','13:30'),visit(3,'14:30','16:00'),stop(0,'arrival','19:00')];
+  const fitted = fitMeasuredSchedule(plan,measured([20,10,15,20]),'19:00','10:00',{compact:true});
+  assert.equal(fitted.adjusted,true);
+  assert.equal(fitted.items[1].time,'10:20');
+  assert.equal(fitted.items.at(-1).time,'19:00');
+  // Fitting the fitted day again changes nothing, so the result screen does not refit in a loop.
+  assert.equal(fitMeasuredSchedule(fitted.items,measured([20,10,15,20]),'19:00','10:00',{compact:true}).adjusted,false);
+});
+
 test('reported Day 3: 07:11 + 48 minutes moves an untimed required visit to 07:59; bookings never move', () => {
   const plan = [stop(0,'departure','07:11'), {...stop(1,'AnchorSchedule','07:56','08:41'),flexible:true},
     stop(2,'AnchorSchedule','10:00','11:00'),stop(0,'arrival','17:11')];
