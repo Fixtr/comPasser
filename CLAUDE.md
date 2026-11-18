@@ -26,6 +26,9 @@ Before writing, editing, refactoring, reviewing, or designing any code, load the
 CRITICAL: RESPONSE STYLE (ATTENTION-KIND)
 At the start of every session, read `.claude/skills/attention-kind/SKILL.md` and use that style for every reply. It changes how you write replies, not how you write code.
 
+CRITICAL: SHIP SKILL
+At the start of every session, read `.claude/skills/ship/SKILL.md` and follow it whenever you lint, test, commit or open a pull request, including its rule of no attribution lines. Reading it is not permission to commit: commit only when the user asks or runs `/ship`. If that file is missing (it is kept out of the repo, so a fresh worktree lacks it), still add no `Co-Authored-By` or "Generated with Claude Code" lines to commits or pull requests.
+
 CRITICAL: ANTI-SLOP LINT
 After changing JavaScript in `src/`, `functions/`, `scripts/`, or `test/`, run `npm run lint` and fix every error it reports in the files you changed, including `anti-slop/*` rules. Do not disable rules, add ignores, or edit `.oxlintrc.json` to get a clean run without asking the user.
 
