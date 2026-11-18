@@ -33,6 +33,7 @@ import { trimScheduleToEndTime, applyTransitDelays, minutesOf } from '../service
 import { fitMeasuredSchedule, hasFixedArrivalConflict, hasUnavoidableFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
 import { exportItineraryImage } from './itinerary-image-export.js';
+import { measuredTransit } from '../services/boarding-pass.mjs';
 import { buildItineraryCalendar } from '../services/itinerary-calendar.mjs';
 import { Capacitor } from '@capacitor/core';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
@@ -903,6 +904,8 @@ export default class ItineraryView extends HTMLElement {
         plan: snapshot.plan,
         dayIndex: snapshot.dayIndex,
         language: getLang(),
+        // lastTransitRoutes always belongs to the active day, which is the day being exported.
+        transit: measuredTransit(this.normalizeData(snapshot.plan)?.days?.[snapshot.dayIndex]?.scheduleItems, this.lastTransitRoutes),
         labels: {
           fixedLabel: t('anchorBadge'),
           fromLabel: t('ticketFromLabel'),
