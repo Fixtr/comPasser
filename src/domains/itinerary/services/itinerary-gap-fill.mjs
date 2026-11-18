@@ -30,7 +30,8 @@ export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } 
   });
 }
 
-// ponytail: one candidate per measured gap, at most four searches/day; leave unsuitable gaps as free time.
+// ponytail: one candidate per measured gap, plus one chained after it when 120+ minutes remain and the daily
+// limit allows; at most four searches/day; leave unsuitable gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
   findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId, theme } = {}) {
   // Why gaps or candidates were dropped: fixed reason strings and counts only, for debugging.
@@ -62,9 +63,11 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   // The meal rules allow at most two cafe/snack stops per day.
   let cafes = items.filter(item => item.placeIntent?.category === 'cafe').length;
   const additions = [];
+  // gaps.entries() rereads the length, so a chained remainder pushed below is visited after the original gaps.
   for (const [tried, gap] of gaps.entries()) {
     if (additions.length >= limit) { for (let i = tried; i < gaps.length; i++) skip('not-tried'); break; }
-    const intent = themed.category === 'cafe' && cafes >= 2 ? DEFAULT_GAP_INTENT : themed;
+    // A chained visit is a general attraction, so a gap never gets two cafes or two parks in a row.
+    const intent = gap.from || (themed.category === 'cafe' && cafes >= 2) ? DEFAULT_GAP_INTENT : themed;
     const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
     if (!center) { skip('no-center'); continue; }
     const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
@@ -75,10 +78,11 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     const identity = candidate.placeStatus === 'verified' && place(candidate);
     if (!identity) { skip('unverified'); continue; }
     if (excluded.has(identity.placeId)) { skip('excluded'); continue; }
-    const inbound = await travelMinutes(identities[gap.index], identity, date, time(gap.start));
+    const inbound = await travelMinutes(gap.from || identities[gap.index], identity, date, time(gap.start));
     if (!Number.isFinite(inbound) || inbound < 0) { skip('inbound'); continue; }
     const hours = await getHours(identity.placeId);
-    const earliest = gap.start + Math.ceil(inbound);
+    // After an earlier fill, keep the same 30 minutes gapFillFits requires before the next visit.
+    const earliest = gap.start + Math.ceil(inbound) + (gap.from ? 30 : 0);
     const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: true });
     if (start === null) {
       // window: inbound travel left no 60-minute slot; hours-missing: lookup failed or deadline ran out;
@@ -93,9 +97,13 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
+    // The rest needs two 30-minute slacks around a 60-minute visit: 120 minutes, not the 90 of a fresh gap.
+    const rest = gap.end - end - Math.ceil(outbound);
+    if (rest >= 120 && gaps.length < 4 && additions.length < limit) gaps.push({ index: gap.index, from: identity, start: end, end: gap.end });
   }
   if (!additions.length) return unchanged();
   const result = items.slice();
-  for (const addition of additions.sort((a, b) => b.index - a.index)) result.splice(addition.index + 1, 0, addition.item);
+  // Reverse first so the stable sort splices a gap's later visit before its earlier one, keeping time order.
+  for (const addition of additions.reverse().sort((a, b) => b.index - a.index)) result.splice(addition.index + 1, 0, addition.item);
   return { items: result, changed: true, skipped };
 }

@@ -84,6 +84,35 @@ test('gaps past the four-search cap and after the daily limit are counted, not s
   assert.deepEqual(result.skipped,{cap:2,hours:1,'not-tried':1});
 });
 
+test('a long remaining gap after the first fill gets a chained second visit (Seoul day 2 shape)', async()=>{
+  // tower 13:40 -> airport 20:00 with a 123-minute airport leg is one large gap; the daily limit of two is not reached.
+  const items=[s('hotel','departure','10:00'),s('tower','AnchorSchedule','12:10','13:40'),s('airport','arrival','20:00')];
+  const routes=[{fromIndex:0,durationMinutes:130},{fromIndex:1,durationMinutes:123}];
+  const searched=[];
+  const findRecommendation=async(item,center,excluded)=>{
+    searched.push(item.placeIntent.category);
+    const id=['extra-a','extra-b'].find(id=>!excluded.has(id));if(!id)return null;
+    const candidate={...p(id),id,location:{lat:37.5,lng:127},types:['tourist_attraction','cafe'],addressComponents:[{types:['country'],shortText:'KR'}]};
+    return {...item,...recommendationFields(item,selectRecommendation([candidate],item.placeIntent,center,excluded))};
+  };
+  const base=options({endTime:'20:00',theme:'food',findRecommendation,travelMinutes:async(_from,to)=>to.placeId==='airport'?123:20});
+  const result=await fillMeasuredGaps(items,routes,base);
+  assert.deepEqual(result.items.map(i=>[i.title,i.time,i.endTime]),[['hotel','10:00',''],['tower','12:10','13:40'],
+    ['extra-a','14:00','15:00'],['extra-b','15:50','16:50'],['airport','20:00','']]);
+  // The chained visit is a general attraction, never a second cafe/park in a row; 30 minutes separate the two visits.
+  assert.deepEqual(searched,['cafe','tourist_attraction']);
+  assert.deepEqual(result.skipped,{short:1});
+  const confirmed=result.items.slice(1).map((item,fromIndex)=>({fromIndex,toIndex:fromIndex+1,
+    durationMinutes:fromIndex===0?130:result.items[fromIndex+1].title==='airport'?123:20}));
+  assert.equal(gapFillFits(result.items,confirmed,{date:'2030-10-09',endTime:'20:00',hoursByIndex:result.items.map(()=>hours())}),true);
+  // Under 120 minutes left after the first visit: no chained search.
+  searched.length=0;
+  const tight=await fillMeasuredGaps([s('hotel','departure','10:00'),s('tower','AnchorSchedule','12:10','13:40'),s('airport','arrival','18:00')],routes,
+    {...base,endTime:'18:00'});
+  assert.equal(tight.items.filter(i=>i.gapFill).length,1);
+  assert.equal(searched.length,1);
+});
+
 test('automatic required visits choose an earlier-open venue first and remeasure return travel after waiting', async()=>{
   const request={date:['2030-10-09'],startTime:'09:00',endTime:'12:30',startLocation:'hotel',endLocation:'end',anchorSchedules:[
     {day:1,name:'late',location:'late',flexible:true,stayMinutes:60},
@@ -121,7 +150,8 @@ test('food-theme gap fill keeps the day at two cafe stops', async()=>{
   };
   const one=[];
   assert.equal((await fillMeasuredGaps(items,routes,options({theme:'food',findRecommendation:searchAs(one)}))).changed,true);
-  assert.deepEqual(one,['cafe','tourist_attraction']);
+  // The big afternoon gap gets the cafe; the closed early gap and the chained remainder search attractions.
+  assert.deepEqual(one,['cafe','tourist_attraction','tourist_attraction']);
   const two=[];
   await fillMeasuredGaps([items[0],cafe,{...cafe,time:'12:00',endTime:'13:00'},items[2]],
     [...routes,{fromIndex:2,durationMinutes:10}],options({theme:'food',findRecommendation:searchAs(two)}));
