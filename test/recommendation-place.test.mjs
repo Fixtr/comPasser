@@ -213,6 +213,29 @@ test('an airport-only Jeju day searches around Jeju City, not the Hallasan catal
   assert.equal(found.verifiedPlace.centerPlaceId,'city:jeju');
 });
 
+test('a venue inside an airport terminal is rejected by its address, a venue on an airport road is not', () => {
+  const near = (id, displayName, formattedAddress) => candidate(id, {displayName, formattedAddress});
+  const rejected={};
+  assert.equal(selectRecommendation([near('jeju-terminal','제주향토음식점','제주특별자치도 제주시 특별자치도 공항로 2 제주국제공항여객청사 4층')],intent,center,new Set(),rejected),null);
+  assert.equal(selectRecommendation([near('icn-t1','한식당','인천광역시 중구 공항로 272 인천국제공항 제1여객터미널 3층')],intent,center),null);
+  assert.equal(selectRecommendation([near('hnd-t3','Sushi bar','Haneda Airport Terminal 3, 2 Chome-6-5 Hanedakuko, Ota City, Tokyo')],intent,center),null);
+  assert.equal(rejected['restricted-access'],1);
+  for (const address of ['제주특별자치도 제주시 공항로 2 제주국제공항 국내선 3층','제주특별자치도 제주시 공항로 2 제주국제공항 3층',
+    '서울특별시 강서구 하늘길 111 김포공항 국내선청사 3층','부산광역시 강서구 공항진입로 108 김해국제공항 국내선 2층']) {
+    assert.equal(selectRecommendation([near('terminal','한식당',address)],intent,center),null,address);
+  }
+  assert.equal(selectRecommendation([near('road','공항로 식당','인천광역시 중구 공항로 424')],intent,center)?.placeId,'road');
+  assert.equal(selectRecommendation([near('cat','카페','서울특별시 강남구 테헤란로87길 22 한국도심공항터미널빌딩 2층')],intent,center)?.placeId,'cat');
+});
+
+test('an airport previous stop does not pull the search bias away from the trip city', async () => {
+  const airport={placeId:'cju',displayName:'제주국제공항',formattedAddress:'제주특별자치도 제주시 공항로 2',lat:33.5070772,lng:126.4934311};
+  const {geocoder,requests}=service([candidate('jeju-food',{location:{lat:33.5,lng:126.53}})]);
+  await geocoder.geocodeSchedule([{type:'departure',selectedPlace:airport,displayIndex:1},
+    {...recommendation,placeIntent:{...intent,nearLocation:'제주국제공항'}},{type:'arrival',selectedPlace:airport,displayIndex:3}],'',[],null,'KR','jeju');
+  assert.deepEqual(requests[0].locationBias,{center:{lat:33.4996,lng:126.5312},radius:5000});
+});
+
 test('gap fill on an airport day picks the map center, so the map reuses its venue without searching', async () => {
   const airport={placeId:'icn',displayName:'인천국제공항',formattedAddress:'인천광역시 중구 공항로 272',lat:37.4602,lng:126.4407};
   const hotel={...center,placeId:'hotel',displayName:'서울 호텔'};

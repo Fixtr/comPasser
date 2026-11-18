@@ -2,6 +2,7 @@ import { matchesPlaceIdentity, matchesPlaceArea, schedulePlaceName } from './pla
 import { normalizeSelectedPlace } from '../../planner/services/selected-place.mjs';
 import { RECOMMENDATION_RADIUS_METERS, distanceMeters, isFixedPlace, normalizePlaceIntent, recommendationCenters, recommendationFields, reusableRecommendation, selectRecommendation } from './recommendation-place.mjs';
 import { assessVisitHours, lookupPlaceHours } from '../../itinerary/services/itinerary-hours.mjs';
+import { isAirportName } from '../../planner/services/flight-arrival.mjs';
 
 /** Places 요청에 실을 수 있는 언어. 그 밖의 값은 한국어로 떨어진다. */
 const SUPPORTED_LANGUAGES = new Set(['ko', 'en']);
@@ -277,7 +278,9 @@ export class GeocodingService {
                         console.warn('[Recommendation] unresolved', { reason: 'search-budget-exhausted' });
                         continue;
                     }
-                    const previous = results.slice(0, index).reverse().find(result => result?.latLng)?.latLng;
+                    const last = results.slice(0, index).reverse().find(result => result?.latLng);
+                    // An airport would pull results back to the terminal even when it lies inside the city's radius (Jeju).
+                    const previous = last && !isAirportName(last.selectedPlace?.displayName || last.resolvedName) ? last.latLng : null;
                     // A previous stop outside the radius (e.g. a skipped airport) would bias toward rejects.
                     const bias = nearestCenter?.index > index ? nearest
                         : nearest && previous && typeof previous.lat === 'number' && distanceMeters(previous, nearest) <= RECOMMENDATION_RADIUS_METERS ? previous : nearest;
