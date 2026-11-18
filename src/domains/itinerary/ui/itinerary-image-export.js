@@ -15,16 +15,17 @@ export function createItineraryImageExporter({
   renderTicket = renderBoardingPass,
 } = {}) {
   /**
-   * @param {{plan: object, dayIndex?: number, language?: string, labels?: object}} input 일정 상태의 snapshot
+   * @param {{plan: object, dayIndex?: number, language?: string, labels?: object, transit?: {minutes: number, estimated: boolean}|null}} input 일정 상태의 snapshot (transit: 지도가 계산한 그날 이동 합계)
    * @returns {Promise<'empty'|'shared'|'cancelled'|'downloaded'>}
    * 캡처·다운로드 실패는 호출자에게 전달한다. 취소는 오류도 다운로드 요청도 아니다.
    */
-  return async function exportImage({ plan, dayIndex = 0, language = 'ko', labels = {} }) {
+  return async function exportImage({ plan, dayIndex = 0, language = 'ko', labels = {}, transit = null }) {
     const pass = buildBoardingPass({
       plan: normalizeData(plan),
       dayIndex,
       title: buildItineraryTitle(plan, language),
       language,
+      transit,
     });
     if (!pass) return 'empty';
 

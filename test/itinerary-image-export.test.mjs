@@ -157,6 +157,17 @@ test('빈 일정이나 선택한 날에 방문지가 없으면 캡처와 공유�
   h.assertClean();
 });
 
+test('지도가 계산한 이동 합계를 티켓에 그대로 넘기고, 추정이 섞이면 약/~ 로 적는다', async () => {
+  const h = harness({ theme: null, routeTheme: 'custom-route' });
+  const input = plan();
+  for (const day of input.days) for (const item of day.scheduleItems) item.transitInfo = '';
+  await h.exportImage({ plan: input, dayIndex: 1, language: 'ko', transit: { minutes: 65, estimated: false } });
+  await h.exportImage({ plan: input, dayIndex: 1, language: 'en', transit: { minutes: 65, estimated: true } });
+  await h.exportImage({ plan: input, dayIndex: 1, language: 'en' });
+  assert.deepEqual(h.calls.render.map(call => call.pass.transit), ['1시간 5분', '~1h 5m', null]);
+  h.assertClean();
+});
+
 test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변경하지 않는다', async () => {
   const h = harness({ theme: null, routeTheme: 'custom-route' });
   const input = plan();

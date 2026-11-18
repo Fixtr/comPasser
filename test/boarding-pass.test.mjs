@@ -6,6 +6,7 @@ import {
   formatMinutes,
   buildBoardingPass,
   MAX_ROWS,
+  measuredTransit,
 } from '../src/domains/itinerary/services/boarding-pass.mjs';
 
 const day = {
@@ -164,4 +165,31 @@ test('체류 시간은 AI 문구가 아니라 시작·종료 시각으로 화면
   ] }] };
   assert.deepEqual(buildBoardingPass({ plan: stops }).rows.map(r => r.duration), ['2시간', '1시간 30분', '01:00']);
   assert.deepEqual(buildBoardingPass({ plan: stops, language: 'en' }).rows.map(r => r.duration), ['2h', '1h 30m', '01:00']);
+});
+
+test('이동 합계는 지도가 계산한 구간 시간에서 온다 (AI 이동 문구는 비어 있다)', () => {
+  const items = [
+    { type: 'departure', title: '출발', time: '10:00' },
+    { type: 'attraction', title: 'A', time: '10:41', endTime: '12:11', transitInfo: '' },
+    { type: 'dining', title: 'B', time: '12:38', endTime: '14:08', transitInfo: '' },
+    { type: 'arrival', title: '도착', time: '18:00' },
+  ];
+  const leg = (fromIndex, durationMinutes, extra = {}) => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes, ...extra });
+  // 지도는 실패한 구간을 빼고 보내므로 배열 순서가 아니라 fromIndex 로 맞춘다.
+  assert.deepEqual(measuredTransit(items, [leg(2, 43), leg(0, 41), leg(1, 26)]), { minutes: 110, estimated: false });
+  assert.deepEqual(measuredTransit(items, [leg(0, 41), leg(1, 25.6, { estimated: true }), leg(2, 43)]), { minutes: 110, estimated: true });
+  // 구간이 하나라도 비거나 건너뛴 구간이면 틀린 합계 대신 칸을 뺀다.
+  assert.equal(measuredTransit(items, [leg(0, 41), leg(1, 26)]), null);
+  assert.equal(measuredTransit(items, [leg(0, 41), leg(1, 26), leg(1, 26)]), null);
+  assert.equal(measuredTransit(items, [leg(0, 41), leg(1, null), leg(2, 43)]), null);
+  assert.equal(measuredTransit(items, [leg(0, 41), { fromIndex: 1, toIndex: 3, durationMinutes: 60 }, leg(2, 43)]), null);
+  assert.equal(measuredTransit(items, []), null);
+
+  const plan = { days: [{ date: '2026-11-19', scheduleItems: items }] };
+  assert.equal(buildBoardingPass({ plan }).transit, null);
+  assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: false } }).transit, '1시간 50분');
+  assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: true } }).transit, '약 1시간 50분');
+  assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: true }, language: 'en' }).transit, '~1h 50m');
+  // 예전 일정처럼 AI 문구만 있으면 그대로 읽는다.
+  assert.equal(buildBoardingPass({ plan: { days: [day] } }).transit, '34분');
 });

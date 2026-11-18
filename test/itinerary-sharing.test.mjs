@@ -8,6 +8,7 @@ import { reconcileWithConstraints, getDayConstraints, getEndTimeWarning } from '
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
+import { measuredTransit } from '../src/domains/itinerary/services/boarding-pass.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
@@ -74,6 +75,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     createSharedItinerary: async plan => { calls.shares.push(plan); return 'published123'; },
     watchSharedItinerary: watch,
     exportItineraryImage: input => { calls.exports.push(input); return exportImage(input); },
+    measuredTransit,
     getSharedItineraryUrl: id => `https://app.example/share/${id}`,
     itineraryShareDelivery: {
       copyLink: async url => { calls.copies.push(url); await copyLink(url); },
@@ -573,6 +575,7 @@ test('이미지 내보내기에는 선택 날짜의 사본을 전달하고 대�
   assert.equal(input.dayIndex, 1);
   assert.equal(input.language, 'ko');
   assert.deepEqual(input.labels, { fixedLabel: 'anchorBadge', fromLabel: 'ticketFromLabel', toLabel: 'ticketToLabel', transitLabel: 'transitTotalLabel', costLabel: 'costLabel' });
+  assert.equal(input.transit, null, '경로를 아직 계산하지 않은 날은 이동 합계를 넘기지 않는다');
   assert.deepEqual(input.plan, app.view.currentItinerary);
   assert.notEqual(input.plan, app.view.currentItinerary);
   app.view.state.replaceDayItems(1, []);
@@ -582,6 +585,20 @@ test('이미지 내보내기에는 선택 날짜의 사본을 전달하고 대�
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, 'downloadTicketBtn');
   assert.deepEqual(app.calls.toasts, [['saveImageDone']]);
+});
+
+test('이미지 내보내기는 지도 이벤트로 받은 그날 구간 시간 합계를 티켓에 넘긴다', async () => {
+  const app = itineraryView({ user: { uid: 'owner' }, mapEvents: true });
+  app.view.showResults(samplePlan());
+  const { context } = latestMapRequest(app);
+  const legs = app.view.state.snapshot().plan.days[0].scheduleItems.length - 1;
+  const routes = Array.from({ length: legs }, (_, i) => ({ fromIndex: i, toIndex: i + 1, durationMinutes: 0, estimated: i === 1 }));
+  await app.emit('transit-info-ready', { context, routes });
+  await app.view.downloadAsImage();
+  assert.deepEqual(app.calls.exports[0].transit, { minutes: 0, estimated: true });
+  await app.emit('transit-info-ready', { context, routes: routes.slice(1) });
+  await app.view.downloadAsImage();
+  assert.equal(app.calls.exports[1].transit, null, '모르는 구간이 있으면 합계를 넘기지 않는다');
 });
 
 test('공유 성공·취소·빈 일정의 내보내기 결과에 맞게 알리고 버튼을 복구한다', async () => {

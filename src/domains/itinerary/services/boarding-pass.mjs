@@ -38,6 +38,29 @@ export function parseDurationMinutes(text) {
   return (hour ? Number(hour[1]) * 60 : 0) + (minute ? Number(minute[1]) : 0);
 }
 
+/**
+ * 지도가 계산한 그날 구간 시간의 합: { minutes, estimated } 또는 null.
+ * AI 이동 문구(transitInfo)는 더 이상 채워지지 않으므로 이것이 티켓 이동 합계의 출처다.
+ * 구간은 fromIndex(일정 i → i+1)로 맞춘다. 한 구간이라도 모르면 틀린 합계 대신 null.
+ * estimated: 직선거리·자동차 시간 기반 추정 구간이 섞였으면 true (화면처럼 "약"으로 적는다).
+ */
+export function measuredTransit(scheduleItems, routes) {
+  const legs = Math.max(0, (Array.isArray(scheduleItems) ? scheduleItems.length : 0) - 1);
+  if (!legs || !Array.isArray(routes)) return null;
+  const byLeg = new Map();
+  for (const route of routes) {
+    const from = route?.fromIndex;
+    if (Number.isInteger(from) && from >= 0 && from < legs && (route.toIndex ?? from + 1) === from + 1
+      && Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0) byLeg.set(from, route);
+  }
+  if (byLeg.size !== legs) return null;
+  const known = [...byLeg.values()];
+  return {
+    minutes: Math.round(known.reduce((sum, route) => sum + route.durationMinutes, 0)),
+    estimated: known.some(route => route.estimated === true),
+  };
+}
+
 /** 분을 다시 사람이 읽는 길이로. 0 이면 보여줄 것이 없으므로 null. */
 export function formatMinutes(minutes, language = 'ko') {
   const total = Number(minutes) || 0;
@@ -101,7 +124,7 @@ const isFixed = item => item?.type === 'AnchorSchedule' && item?.flexible !== tr
  *   anchorCount: number
  * }}
  */
-export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = 'ko' } = {}) {
+export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = 'ko', transit: measured = null } = {}) {
   const day = plan?.days?.[dayIndex];
   const items = Array.isArray(day?.scheduleItems) ? day.scheduleItems : [];
   const stops = items.filter(item => !BOUNDARY.has(item?.type));
@@ -125,8 +148,10 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
 
   // 이동 시간은 전체를 더한다. 잘라낸 뒤의 것도 실제로는 이동하므로
   // rows 가 아니라 stops 전체에서 센다.
-  const transitMinutes = stops.reduce(
+  // Saved plans from before measured routes still carry AI transit prose.
+  const transitTotal = Number.isFinite(measured?.minutes) ? measured.minutes : stops.reduce(
     (sum, item) => sum + (parseDurationMinutes(item?.transitInfo) || 0), 0);
+  const transitText = formatMinutes(transitTotal, language);
 
   const dateLabel = formatDate(day?.date);
   // 일련번호는 날짜와 일차에서만 나온다. 시계를 읽으면 같은 일정을 두 번
@@ -145,7 +170,7 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
     to,
     rows,
     more: Math.max(0, stops.length - rows.length),
-    transit: formatMinutes(transitMinutes, language),
+    transit: transitText && measured?.estimated ? `${language === 'en' ? '~' : '약 '}${transitText}` : transitText,
     cost,
     costNote,
     anchorCount: stops.filter(isFixed).length,
