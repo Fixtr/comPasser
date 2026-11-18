@@ -28,3 +28,11 @@ export function rainAlert(items, weather, { skip = () => false } = {}) {
   }
   return null;
 }
+
+const hourAt = hour => new Date(Date.UTC(2000, 0, 1, hour % 24));
+// The rain window as a short hour range, or null when it covers the whole day.
+// Hour 24 is formatted as that day's midnight so the range never spans two dates.
+export function rainHours({ from, to }, locale) {
+  if (from === 0 && to === 24) return null;
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' }).formatRange(hourAt(from), hourAt(to));
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rainAlert, isOutdoorStop } from '../src/domains/itinerary/services/rain-alert.mjs';
+import { rainAlert, isOutdoorStop, rainHours } from '../src/domains/itinerary/services/rain-alert.mjs';
 
 const forecast = hours => ({ status: 'forecast', date: '2026-09-13',
   hours: Array.from({ length: 24 }, (_, hour) => ({ hour, rainPercent: hours[hour] ?? 0 })) });
@@ -44,4 +44,14 @@ test('skipped (visited) stops and stops without valid times are ignored', () => 
   const rain = forecast({ 14: 80, 15: 80, 16: 80 });
   assert.deepEqual(rainAlert(day, rain, { skip: index => index === 3 }), { index: 4, from: 14, to: 17 });
   assert.equal(rainAlert([stop('15:00', '14:00'), stop('', '15:00'), stop('14:00', null)], rain), null);
+});
+
+test('rain hours read as one day: midnight ends stay on the same date and all-day rain has no range', () => {
+  // ICU uses thin and narrow no-break spaces, which vary by version.
+  const hours = (window, locale) => rainHours(window, locale)?.replace(/\s/g, ' ') ?? null;
+  assert.equal(hours({ from: 0, to: 24 }, 'ko-KR'), null);
+  assert.equal(hours({ from: 15, to: 24 }, 'ko-KR'), '오후 3시 ~ 오전 12시');
+  assert.equal(hours({ from: 15, to: 24 }, 'en-US'), '3 PM – 12 AM');
+  assert.equal(hours({ from: 14, to: 17 }, 'ko-KR'), '오후 2시 ~ 5시');
+  assert.equal(hours({ from: 0, to: 6 }, 'en-US'), '12 – 6 AM');
 });
