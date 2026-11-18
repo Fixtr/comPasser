@@ -33,20 +33,28 @@ export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } 
 // ponytail: one candidate per measured gap, at most four searches/day; leave unsuitable gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
   findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId, theme } = {}) {
-  const unchanged = { items, changed: false };
+  // Why gaps or candidates were dropped: fixed reason strings and counts only, for debugging.
+  const skipped = {};
+  const skip = reason => { skipped[reason] = (skipped[reason] || 0) + 1; };
+  const unchanged = () => ({ items, changed: false, skipped });
   const limit = 2 - items.filter(item => item.gapFill === true).length;
-  if (limit <= 0 || !findRecommendation || !travelMinutes || !getHours) return unchanged;
+  if (limit <= 0) { skip('limit'); return unchanged(); }
+  if (!findRecommendation || !travelMinutes || !getHours) { skip('no-checks'); return unchanged(); }
   const identities = items.map((item, index) => place(item) || normalizeSelectedPlace(resolvedPlaces.find(p => p.index === index)?.resolvedPlace));
   const excluded = new Set([...excludedPlaceIds, ...identities.map(p => p?.placeId).filter(Boolean)]);
   const gaps = (routes || []).flatMap(route => {
     const index = route.fromIndex, next = index + 1;
     if (!Number.isInteger(index) || index < 0 || next >= items.length || (route.toIndex ?? next) !== next ||
-        !Number.isFinite(route.durationMinutes) || route.durationMinutes < 0) return [];
+        !Number.isFinite(route.durationMinutes) || route.durationMinutes < 0) { skip('leg'); return []; }
     const start = minutes(items[index].endTime || items[index].time);
     const end = minutes(items[next].type === 'arrival' ? endTime : items[next].time);
-    return start !== null && end !== null && end - start - Math.ceil(route.durationMinutes) >= 90 && identities[index] && identities[next]
-      ? [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }] : [];
-  }).sort((a, b) => b.free - a.free || a.index - b.index).slice(0, 4);
+    if (start === null || end === null) { skip('no-time'); return []; }
+    if (end - start - Math.ceil(route.durationMinutes) < 90) { skip('short'); return []; }
+    if (!identities[index] || !identities[next]) { skip('no-identity'); return []; }
+    return [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }];
+  }).sort((a, b) => b.free - a.free || a.index - b.index);
+  for (let i = 4; i < gaps.length; i++) skip('cap');
+  gaps.length = Math.min(gaps.length, 4);
   // Same center rule as geocodeSchedule (airports skipped), so the verified ID is reused there.
   const centers = recommendationCenters(identities.flatMap((place, index) =>
     place && isFixedPlace(items[index]) ? [{ index, place }] : []), cityId);
@@ -54,30 +62,40 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   // The meal rules allow at most two cafe/snack stops per day.
   let cafes = items.filter(item => item.placeIntent?.category === 'cafe').length;
   const additions = [];
-  for (const gap of gaps) {
-    if (additions.length >= limit) break;
+  for (const [tried, gap] of gaps.entries()) {
+    if (additions.length >= limit) { for (let i = tried; i < gaps.length; i++) skip('not-tried'); break; }
     const intent = themed.category === 'cafe' && cafes >= 2 ? DEFAULT_GAP_INTENT : themed;
     const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
-    if (!center) continue;
+    if (!center) { skip('no-center'); continue; }
     const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
       placeIntent: { purpose: language === 'ko' ? intent.ko : intent.en,
         category: intent.category, nearLocation: center.displayName } };
     const candidate = await findRecommendation(provisional, center, excluded, date, budget);
-    const identity = candidate?.placeStatus === 'verified' && place(candidate);
-    if (!identity || excluded.has(identity.placeId)) continue;
+    if (!candidate) { skip('no-candidate'); continue; }
+    const identity = candidate.placeStatus === 'verified' && place(candidate);
+    if (!identity) { skip('unverified'); continue; }
+    if (excluded.has(identity.placeId)) { skip('excluded'); continue; }
     const inbound = await travelMinutes(identities[gap.index], identity, date, time(gap.start));
-    if (!Number.isFinite(inbound) || inbound < 0) continue;
-    const start = nextVisitStart(candidate, date, await getHours(identity.placeId), gap.start + Math.ceil(inbound), 60, gap.end - 30, { requireKnown: true });
-    if (start === null) continue;
+    if (!Number.isFinite(inbound) || inbound < 0) { skip('inbound'); continue; }
+    const hours = await getHours(identity.placeId);
+    const earliest = gap.start + Math.ceil(inbound);
+    const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: true });
+    if (start === null) {
+      // window: inbound travel left no 60-minute slot; hours-missing: lookup failed or deadline ran out;
+      // hours-unknown: no usable hours data; hours: closed or open hours conflict with every slot.
+      skip(earliest + 60 > gap.end - 30 ? 'window' : !hours ? 'hours-missing'
+        : assessVisitHours({ ...candidate, time: time(earliest), endTime: time(earliest + 60) }, date, hours) === 'unknown' ? 'hours-unknown' : 'hours');
+      continue;
+    }
     const end = start + 60;
     const outbound = await travelMinutes(identity, identities[gap.index+1], date, time(end));
-    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) continue;
+    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) { skip('outbound'); continue; }
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
   }
-  if (!additions.length) return unchanged;
+  if (!additions.length) return unchanged();
   const result = items.slice();
   for (const addition of additions.sort((a, b) => b.index - a.index)) result.splice(addition.index + 1, 0, addition.item);
-  return { items: result, changed: true };
+  return { items: result, changed: true, skipped };
 }

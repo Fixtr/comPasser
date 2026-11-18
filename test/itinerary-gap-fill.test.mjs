@@ -31,10 +31,13 @@ test('legacy map identity and delayed live hours prevent Gyeongbokgung from movi
 test('long raw gaps do not qualify without measured 90-minute free time', async()=>{
   const items=[s('hotel','departure','09:00'),s('booking','AnchorSchedule','12:00','13:00'),s('airport','arrival','17:11')];
   let searched=0;
-  for(const routes of [[],[{fromIndex:0,durationMinutes:91}], [{fromIndex:0,durationMinutes:null}], [{fromIndex:0,toIndex:2,durationMinutes:0}]]) {
+  for(const [routes, skipped] of [[[],{}],[[{fromIndex:0,durationMinutes:91}],{short:1}], [[{fromIndex:0,durationMinutes:null}],{leg:1}], [[{fromIndex:0,toIndex:2,durationMinutes:0}],{leg:1}]]) {
     const result=await fillMeasuredGaps(items,routes,options({findRecommendation:async()=>{searched++;return null;}}));
     assert.equal(result.changed,false);
+    assert.deepEqual(result.skipped,skipped);
   }
+  const unknown=[s('hotel','departure','09:00'),{...s('booking','AnchorSchedule','12:00','13:00'),selectedPlace:null}];
+  assert.deepEqual((await fillMeasuredGaps(unknown,[{fromIndex:0,durationMinutes:10}],options())).skipped,{'no-identity':1});
   assert.equal(searched,0);
 });
 
@@ -58,12 +61,27 @@ test('measured gaps get at most two verified visits with hours, travel and 30-mi
 test('no hours, closed venue, duplicate, missing route or insufficient return slack leaves free time intact', async()=>{
   const items=[s('hotel','departure','09:00'),s('booking','AnchorSchedule','11:00','12:00')];
   const routes=[{fromIndex:0,durationMinutes:10}];
-  for (const overrides of [{getHours:async()=>null},{getHours:async()=>hours(12,18)},
-    {getHours:async()=>({utcOffsetMinutes:540,businessStatus:'CLOSED_PERMANENTLY'})},
-    {travelMinutes:async()=>null},{travelMinutes:async()=>20},
-    {findRecommendation:async()=>({...s('booking','attraction','09:00','10:00'),placeStatus:'verified'})}]) {
-    assert.equal((await fillMeasuredGaps(items,routes,options(overrides))).changed,false);
+  for (const [overrides, reason] of [[{getHours:async()=>null},'hours-missing'],[{getHours:async()=>hours(12,18)},'hours'],
+    [{getHours:async()=>({utcOffsetMinutes:540,businessStatus:'CLOSED_PERMANENTLY'})},'hours'],
+    [{travelMinutes:async()=>null},'inbound'],[{travelMinutes:async()=>20},'outbound'],
+    [{findRecommendation:async()=>({...s('booking','attraction','09:00','10:00'),placeStatus:'verified'})},'excluded'],
+    [{findRecommendation:async()=>null},'no-candidate'],
+    [{getHours:async()=>({})},'hours-unknown'],[{travelMinutes:async()=>50},'window'],
+    [{findRecommendation:async item=>({...item,placeStatus:'unresolved'})},'unverified']]) {
+    const result=await fillMeasuredGaps(items,routes,options(overrides));
+    assert.equal(result.changed,false,reason);
+    assert.deepEqual(result.skipped,{[reason]:1},reason);
   }
+});
+
+test('gaps past the four-search cap and after the daily limit are counted, not silently dropped', async()=>{
+  // Seven 2-hour blocks give six measured gaps of 110 free minutes each.
+  const items=[s('hotel','departure','08:00'),...[1,2,3,4,5].map(n=>s(`b${n}`,'AnchorSchedule',`${String(8+2*n).padStart(2,'0')}:00`,`${String(8+2*n).padStart(2,'0')}:00`)),s('end','arrival','20:00')];
+  const routes=items.slice(1).map((_,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes:10}));
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'20:00'}));
+  assert.equal(result.items.filter(i=>i.gapFill).length,2);
+  // The 08:00 gap closes before the 09:00 opening (hours); two fill, the last tried gap is left (not-tried).
+  assert.deepEqual(result.skipped,{cap:2,hours:1,'not-tried':1});
 });
 
 test('automatic required visits choose an earlier-open venue first and remeasure return travel after waiting', async()=>{

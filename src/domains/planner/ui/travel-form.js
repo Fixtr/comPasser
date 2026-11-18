@@ -20,7 +20,7 @@ import { todayString } from '../services/trip-date.mjs';
 import { findIncompleteAnchor, isAnchorBlank, missingAnchorFields } from '../services/anchor-validation.mjs';
 import { findMissingLocation, REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
 import { getLocationName, mergedSameDayVisits, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
-import { airportArrivalTime, tripStartAfterLanding } from '../services/flight-arrival.mjs';
+import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../services/flight-arrival.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
@@ -401,6 +401,7 @@ export default class TravelForm extends HTMLElement {
               </div>
               <gmp-place-autocomplete id="start-location" data-i18n-placeholder="startLocationPlaceholder" placeholder="${t('startLocationPlaceholder')}"></gmp-place-autocomplete>
               <p id="start-location-lock" class="subtitle" data-i18n="flightLocksStart" hidden></p>
+              <p id="airport-start-hint" class="subtitle" data-i18n="airportStartHint" hidden></p>
             </div>
             <div class="form-group">
               <div class="location-heading">
@@ -851,6 +852,7 @@ export default class TravelForm extends HTMLElement {
       this.shadowRoot.querySelector('label[for="start-location"]').dataset.i18n = isMultiDay || this.hasAttribute('handoff-flow') ? 'tripStartLocation' : 'startLocation';
       this.shadowRoot.querySelector('label[for="end-location"]').dataset.i18n = isMultiDay || this.hasAttribute('handoff-flow') ? 'tripEndLocation' : 'endLocation';
       this.renderDailyLocations();
+      this.syncFlights(); // Day 1's override row exists only now; the airport-start hint reads it.
       this.updateOvernightFields();
       this.renderPreferenceBadges();
       this.updateTexts(); // 번역 텍스트 업데이트
@@ -1083,6 +1085,10 @@ export default class TravelForm extends HTMLElement {
       this.setDayTime(day, edge, time);
       note.textContent = t(kind === 'arrival' ? 'flightStartSet' : 'flightArrivalSet').replace('{0}', time);
     }
+    // Without an arrival flight, an airport start time means leaving the airport: say so instead of guessing a buffer.
+    const firstStart = getLocationName(getAutocompleteValue(root.querySelector('.daily-start-location')))
+      || getLocationName(getAutocompleteValue(root.getElementById('start-location')));
+    root.getElementById('airport-start-hint').hidden = !root.getElementById('arrival-flight').hidden || !isAirportName(firstStart);
   }
 
   dayTimeInput(day, edge) {
@@ -1412,6 +1418,7 @@ export default class TravelForm extends HTMLElement {
       if (!event.target.checked) {
         this.shadowRoot.querySelectorAll('.daily-start-location, .daily-end-location')
           .forEach(input => restorePlaceInput(input, ''));
+        this.syncFlights();
       }
       this.saveDraft();
       this.updateTexts();

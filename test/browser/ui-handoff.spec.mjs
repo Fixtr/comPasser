@@ -1399,13 +1399,19 @@ test('saved trip Back leaves without asking', async ({page}) => {
 });
 
 test('flights fill and lock the first departure and last arrival; removing a flight unlocks it',async({page})=>{
- const open=async date=>{await page.goto('/destination');await page.evaluate(async date=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:'Paris Station',startTime:'09:00',endTime:'21:00',anchorSchedules:[]});},date);
+ const open=async(date,extra={})=>{await page.goto('/destination');await page.evaluate(async([date,extra])=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'paris',country:'FRA',name:'Paris, France'},date,startLocation:'Paris Station',endLocation:'Paris Station',startTime:'09:00',endTime:'21:00',anchorSchedules:[],...extra});},[date,extra]);
   await page.goto('/plan');return page.locator('travel-form:visible');};
  const locked=(form,id)=>form.locator(`#${id}`).evaluate(element=>element.closest('.form-group').inert);
  let form=await open(['2030-10-17']);
  await expect(form.locator('#arrival-flight')).toBeHidden();expect(await locked(form,'start-location')).toBe(false);
+ // An airport start without a flight explains what the start time means; a flight or a non-airport start hides it.
+ await expect(form.locator('#airport-start-hint')).toBeHidden();
+ await selectPlace(form.locator('#start-location'),'Paris Airport');await expect(form.locator('#airport-start-hint')).toBeVisible();
+ await selectPlace(form.locator('#start-location'),'Paris Station');await expect(form.locator('#airport-start-hint')).toBeHidden();
+ await selectPlace(form.locator('#start-location'),'Paris Airport');
  await form.locator('#add-arrival-flight').click();await selectPlace(form.locator('#arrival-flight-airport'),'Paris Airport');
  await form.locator('#arrival-flight-time').fill('10:00');await expect(form.locator('#start-time')).toHaveValue('11:00');
+ await expect(form.locator('#airport-start-hint')).toBeHidden();
  await expect(form.locator('#add-arrival-flight')).toBeHidden();
  await expect(form.locator('#arrival-flight .flight-note')).toContainText('11:00');
  expect(await form.locator('#start-location').evaluate(element=>element.selectedPlace?.placeId)).toBe('Paris Airport');
@@ -1426,11 +1432,18 @@ test('flights fill and lock the first departure and last arrival; removing a fli
  await expect(form.locator('#add-arrival-flight')).toBeVisible();
 
  form=await open(['2030-10-17','2030-10-18']);
+ // Day 1's own start decides the hint; restoring the draft and turning per-day places off both resync it.
+ await form.locator('#daily-locations-toggle').check();await selectPlace(form.locator('#daily-start-location-1'),'Paris Airport');
+ await expect(form.locator('#airport-start-hint')).toBeVisible();
+ await form.locator('#daily-locations-toggle').uncheck();await expect(form.locator('#airport-start-hint')).toBeHidden();
  await form.locator('#add-departure-flight').click();await selectPlace(form.locator('#departure-flight-airport'),'Paris Airport');
  await form.locator('#departure-flight-time').fill('21:00');await expect(form.locator('#daily-times-toggle')).toBeChecked();
  await form.locator('#add-arrival-flight').click();await selectPlace(form.locator('#arrival-flight-airport'),'Paris Airport');
  await form.locator('#arrival-flight-time').fill('10:00');
  expect(await form.evaluate(element=>element.getFormData().dailyTimes.map(day=>[day.startTime,day.endTime]))).toEqual([['11:00','21:00'],['09:00','18:00']]);
+
+ form=await open(['2030-10-17','2030-10-18'],{dailyLocations:[{day:1,startLocation:'Paris Airport',endLocation:''},{day:2,startLocation:'',endLocation:''}]});
+ await expect(form.locator('#daily-locations-toggle')).toBeChecked();await expect(form.locator('#airport-start-hint')).toBeVisible();
 
  form=await open(['2030-10-17']);await form.locator('#add-arrival-flight').click();
  await form.locator('button[type=submit].primary-btn').click();await expect(form.locator('#final-generate')).toBeDisabled();
