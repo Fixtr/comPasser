@@ -120,7 +120,8 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
       cursor += travel.get(i) + (items[i-1].gapFill ? 30 : 0);
       if (i === right && i !== items.length - 1) break; // fixed anchor may include waiting
       if(i<right) cursor=visitStart(i, cursor);
-      result[i].time = time(cursor);
+      // The day's arrival stays at the requested end; time saved by compacting shows as free time on the last leg.
+      result[i].time = time(i === items.length - 1 ? Math.max(cursor, deadline) : cursor);
       if (i < right) {
         cursor += stays[i];
         result[i].endTime = time(cursor);
