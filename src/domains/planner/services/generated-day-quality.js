@@ -5,8 +5,6 @@ import { recommendationFields } from '../../map/services/recommendation-place.mj
 import { fitMeasuredSchedule } from '../../itinerary/services/itinerary-end-fit.mjs';
 import { fillMeasuredGaps, gapFillFits } from '../../itinerary/services/itinerary-gap-fill.mjs';
 import { loadScheduleHours } from '../../itinerary/services/itinerary-hours.mjs';
-import { isAirportName } from './flight-arrival.mjs';
-import { getLocationName } from './location-name.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { createFlexibleVisitChecks } from './flexible-visit-checks.js';
 import { getDayConstraints } from '../../itinerary/services/itinerary-view-model.mjs';
@@ -20,6 +18,9 @@ const measureLegs = (checks, date, items) => Promise.all(items.slice(1).map(asyn
   return { fromIndex: index, toIndex: index+1, durationMinutes: from && to
     ? await checks.travelMinutes(from, to, date, items[index].endTime || items[index].time) : null };
 }));
+
+// Gap-fill diagnostics stay in the developer console: day index, fixed reasons and counts only.
+const gapLog = (dayIndex, detail) => console.info('[GapFill]', dayIndex, detail);
 
 // A provider outage must not discard a successfully generated itinerary or claim estimated routes are verified.
 const unavailable = (stage, day, error) => console.warn(`Generated itinerary ${stage} verification unavailable`, day.date, error);
@@ -74,22 +75,26 @@ export async function verifyGeneratedItinerary(plan, {
       return { constraints, routes };
     } catch (error) { unavailable('routes', day, error); return null; }
   }));
-  if (pace === 'relaxed') return result;
+  if (pace === 'relaxed') { gapLog(null, { skippedTrip: 'relaxed' }); return result; }
   // Gap filling adds places and reserves every other day's IDs, so it stays sequential across days.
   for (const [dayIndex, day] of result.days.entries()) {
     const { constraints, routes } = fitted[dayIndex] || {};
-    if (!constraints) continue;
-    // Keep the day-trip extension within the airport and companion constraints.
-    if (result.days.length < 2 && (!packedDayTrip || isAirportName(getLocationName(constraints.endLocation)))) continue;
+    if (!constraints) { gapLog(dayIndex, { skippedDay: 'no-constraints' }); continue; }
+    // Single days keep intentional slack unless packed without kids/parents. An airport end needs no extra rule:
+    // the fill already requires the measured airport leg plus 30 minutes before the end time.
+    if (result.days.length < 2 && !packedDayTrip) { gapLog(dayIndex, { skippedDay: 'single-day' }); continue; }
     try {
       // Fresh checks: the fit's deadline started with every day at once and would expire for later days.
       const checks = createChecks(Math.max(4, day.scheduleItems.length), result.request);
       const filled = await fillMeasuredGaps(day.scheduleItems, routes, { ...checks, date: day.date, theme,
         endTime: constraints.endTime, excludedPlaceIds: excludedIds(), language: getLang(), budget: result.request?.budget, cityId: result.request?.destination?.id });
-      if (!filled.changed) continue;
+      if (!filled.changed) { gapLog(dayIndex, { skipped: filled.skipped, added: 0 }); continue; }
       const confirmed = await measureLegs(checks, day.date, filled.items);
-      if (gapFillFits(filled.items, confirmed, { date: day.date, endTime: constraints.endTime,
-        hoursByIndex: await loadScheduleHours(filled.items) })) day.scheduleItems = filled.items;
+      const fits = gapFillFits(filled.items, confirmed, { date: day.date, endTime: constraints.endTime,
+        hoursByIndex: await loadScheduleHours(filled.items) });
+      const added = filled.items.length - day.scheduleItems.length;
+      if (fits) day.scheduleItems = filled.items;
+      gapLog(dayIndex, { skipped: filled.skipped, added: fits ? added : 0, rolledBack: !fits });
     } catch (error) { unavailable('gap', day, error); }
   }
   return result;
