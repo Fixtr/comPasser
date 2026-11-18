@@ -47,7 +47,10 @@ export function selectRecommendation(places, intent, center, excluded = new Set(
     const snapshot = normalizeSelectedPlace(place);
     if (!snapshot) return reject('identity');
     // ponytail: named airport/restricted interiors are excluded; use provider access metadata when available.
-    if (/(?:면세|보안구역|출국장|duty.?free|airside|departure hall|(?:공항|airport).*?(?:터미널|terminal))/i.test(snapshot.displayName)) return reject('restricted-access');
+    if (/(?:면세|보안구역|출국장|duty.?free|airside|departure hall|(?:공항|airport).*?(?:터미널|terminal))/i.test(snapshot.displayName)
+      // A terminal shop's name rarely says "airport" ("제주국제공항여객청사 4층"); an airport road address alone is fine.
+      // 도심공항터미널 is a downtown building, not an airport.
+      || /(?<!도심)(?:공항|airport)\s*(?:제?\d+)?\s*(?:여객|국내선|국제선)?\s*(?:터미널|청사|terminal)|(?<!도심)공항\s*(?:국내선|국제선|(?:지하\s*)?\d+\s*층)/i.test(snapshot.formattedAddress)) return reject('restricted-access');
     if (excluded.has(snapshot.placeId)) return reject('duplicate');
     if (!place.types?.includes(intent.category)) return reject('type');
     if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(place.businessStatus)) return reject('closed');
