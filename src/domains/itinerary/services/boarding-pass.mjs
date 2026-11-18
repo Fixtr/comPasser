@@ -15,6 +15,7 @@
  */
 
 import { summarizeCosts, formatCostAmount } from './itinerary-cost.mjs';
+import { minutesOf } from './itinerary-schedule-adjust.mjs';
 
 /** 티켓 한 장에 들어가는 최대 줄 수. 넘치면 잘라내되 몇 곳인지 남긴다. */
 export const MAX_ROWS = 8;
@@ -116,7 +117,9 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
   const rows = stops.slice(0, MAX_ROWS).map(item => ({
     time: String(item?.time || '').trim(),
     name: nameOf(item),
-    duration: String(item?.duration || '').trim(),
+    // The model's duration text has no fixed language or format; the visit times do.
+    duration: (minutesOf(item?.time) !== null && formatMinutes(minutesOf(item?.endTime) - minutesOf(item?.time), language))
+      || String(item?.duration || '').trim(),
     anchor: isFixed(item),
   }));
 

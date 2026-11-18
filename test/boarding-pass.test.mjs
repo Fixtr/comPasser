@@ -155,3 +155,13 @@ test('일차는 티켓 언어로 적는다', () => {
   assert.equal(buildBoardingPass({ plan, dayIndex: 0 }).dayLabel, '1일차');
   assert.equal(buildBoardingPass({ plan, dayIndex: 0, language: 'en' }).dayLabel, 'DAY 1');
 });
+
+test('체류 시간은 AI 문구가 아니라 시작·종료 시각으로 화면 언어에 맞춰 적는다', () => {
+  const stops = { days: [{ date: '2026-11-19', scheduleItems: [
+    { type: 'attraction', title: '천제연폭포', time: '10:16', endTime: '12:16', duration: '2 hours' },
+    { type: 'dining', title: '덤장', time: '12:39', endTime: '14:09', duration: '1.5 hours' },
+    { type: 'cafe', title: '시각 없음', time: '15:00', duration: '01:00' },
+  ] }] };
+  assert.deepEqual(buildBoardingPass({ plan: stops }).rows.map(r => r.duration), ['2시간', '1시간 30분', '01:00']);
+  assert.deepEqual(buildBoardingPass({ plan: stops, language: 'en' }).rows.map(r => r.duration), ['2h', '1h 30m', '01:00']);
+});
