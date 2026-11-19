@@ -12,11 +12,14 @@ const place = n => ({placeId:`q${n}`,displayName:`P${n}`,formattedAddress:'ì„œìš
 const stop = (n,type,time,endTime='') => ({title:`P${n}`,type,time,endTime,selectedPlace:place(n)});
 const measured = values => values.map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
 
-test('optional gap search honors pace and companions; packed single days ending at an airport are also checked', async () => {
+test('optional gap search honors pace and companions; non-relaxed single days, airport ends included, are also checked', async () => {
   for (const [pace, dayCount, endLocation, expectedSearches, companion] of [
     ['relaxed', 2, 'Hotel', 0],
     [undefined, 2, 'Hotel', 2],
-    ['balanced', 1, 'Hotel', 0],
+    ['balanced', 1, 'Hotel', 1],
+    [undefined, 1, 'Hotel', 1],
+    ['relaxed', 1, 'Hotel', 0],
+    ['balanced', 1, 'Hotel', 0, 'family_kids'],
     ['packed', 1, 'Hotel', 1],
     ['packed', 1, 'Incheon Airport', 1],
     ['packed', 1, 'Incheon Airport', 0, 'parents'],
