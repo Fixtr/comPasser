@@ -105,6 +105,33 @@ test('a gap visit whose confirming route lookup fails is not kept', async () => 
   assert.deepEqual(result.days.map(day => day.scheduleItems.map(item => item.title)), [['P0', 'P1'], ['P0', 'P1']]);
 });
 
+test('a failing chained gap visit is dropped alone; after a failing first visit the chained visit is re-measured from the earlier stop', async () => {
+  const open = { utcOffsetMinutes: 540, regularOpeningHours: { periods: Array.from({ length: 7 }, (_, day) =>
+    ({ open: { day, hour: 9, minute: 0 }, close: { day, hour: 18, minute: 0 } })) } };
+  for (const [slowFrom, titles, log] of [['q6', ['P0', 'P5', 'P1'], { added: 1, rolledBack: 1 }],
+    ['q0', ['P0', 'P1'], { added: 0, rolledBack: 2 }]]) {
+    const days = twoStopDays(2), logs = [], info = console.info;
+    console.info = (_tag, dayIndex, detail) => { if (dayIndex === 0) logs.push(detail); };
+    let created = 0;
+    const result = await verifyGeneratedItinerary(tripOf(days), {
+      geocoding: { geocodeSchedule: async () => [] },
+      loadHours: async items => items.map(item => ['departure', 'arrival'].includes(item.type) ? null : open),
+      createChecks: () => {
+        const gapDay = ++created === days.length + 1;
+        let searches = 0, calls = 0;
+        return {
+          // The fill measures four legs for its two visits; the confirming re-measure then finds one leg much slower.
+          travelMinutes: async from => ++calls > 4 && gapDay && from.placeId === slowFrom ? 600 : 10,
+          getHours: async () => open,
+          findRecommendation: async () => searches < 2 ? { ...stop(5 + searches++, 'attraction', '09:00', '10:00'), placeStatus: 'verified' } : null,
+        };
+      },
+    }).finally(() => { console.info = info; });
+    assert.deepEqual(result.days[0].scheduleItems.map(item => item.title), titles, slowFrom);
+    assert.deepEqual({ added: logs[0].added, rolledBack: logs[0].rolledBack }, log);
+  }
+});
+
 test('compacting visits keeps the arrival at the requested end time; the leftover shows as free time', () => {
   const visit = (n,time,endTime) => ({...stop(n,'attraction',time,endTime),placeIntent:{purpose:'museum',category:'museum',nearLocation:'P0'},placeStatus:'verified'});
   // Jeju airport day: the AI left padding; measured legs are short.
