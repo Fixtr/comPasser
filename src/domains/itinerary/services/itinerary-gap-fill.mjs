@@ -15,9 +15,10 @@ const DEFAULT_GAP_INTENT = { category: 'tourist_attraction', ko: '관광 명소'
 const place = item => normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.verifiedPlace)
   || normalizeSelectedPlace(item?.resolvedPlace);
 
-export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } = {}) {
-  return items.every((item, index) => {
-    if (!item.gapFill) return true;
+// Indexes of gapFill visits that no longer fit their measured legs, slack and opening hours.
+export function failedGapFills(items, routes, { date, endTime, hoursByIndex = [] } = {}) {
+  return items.flatMap((item, index) => {
+    if (!item.gapFill) return [];
     const inbound = routes.find(r => r.fromIndex === index-1 && (r.toIndex ?? index) === index);
     const outbound = routes.find(r => r.fromIndex === index && (r.toIndex ?? index+1) === index+1);
     const next = items[index+1], previous = items[index-1];
@@ -26,7 +27,7 @@ export function gapFillFits(items, routes, { date, endTime, hoursByIndex = [] } 
     return end !== null && start !== null && until !== null && before !== null &&
       Number.isFinite(inbound?.durationMinutes) && inbound.durationMinutes >= 0 && Number.isFinite(outbound?.durationMinutes) && outbound.durationMinutes >= 0 &&
       before + Math.ceil(inbound.durationMinutes) <= start && until + Math.ceil(outbound.durationMinutes) + 30 <= end &&
-      ['current','regular'].includes(assessVisitHours(item, date, hoursByIndex[index]));
+      ['current','regular'].includes(assessVisitHours(item, date, hoursByIndex[index])) ? [] : [index];
   });
 }
 
@@ -81,7 +82,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     const inbound = await travelMinutes(gap.from || identities[gap.index], identity, date, time(gap.start));
     if (!Number.isFinite(inbound) || inbound < 0) { skip('inbound'); continue; }
     const hours = await getHours(identity.placeId);
-    // After an earlier fill, keep the same 30 minutes gapFillFits requires before the next visit.
+    // After an earlier fill, keep the same 30 minutes failedGapFills requires before the next visit.
     const earliest = gap.start + Math.ceil(inbound) + (gap.from ? 30 : 0);
     const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: true });
     if (start === null) {

@@ -3,7 +3,7 @@ import { GeocodingService } from '../../map/services/geocoding-service.js';
 import { getMapsLoader } from '../../map/services/google-maps-loader.js';
 import { recommendationFields } from '../../map/services/recommendation-place.mjs';
 import { fitMeasuredSchedule } from '../../itinerary/services/itinerary-end-fit.mjs';
-import { fillMeasuredGaps, gapFillFits } from '../../itinerary/services/itinerary-gap-fill.mjs';
+import { fillMeasuredGaps, failedGapFills } from '../../itinerary/services/itinerary-gap-fill.mjs';
 import { loadScheduleHours } from '../../itinerary/services/itinerary-hours.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { createFlexibleVisitChecks } from './flexible-visit-checks.js';
@@ -30,6 +30,7 @@ const unavailable = (stage, day, error) => console.warn(`Generated itinerary ${s
 export async function verifyGeneratedItinerary(plan, {
   geocoding = new GeocodingService(getMapsLoader(), { getLanguage: getLang, countryCode: travelRegion(plan.request).countryCode }),
   createChecks = createFlexibleVisitChecks,
+  loadHours = loadScheduleHours,
   onStage = () => {}
 } = {}) {
   const result = structuredClone(plan);
@@ -65,7 +66,7 @@ export async function verifyGeneratedItinerary(plan, {
       // Reuse the timeline's bounded measured fitter, rather than adding a second scheduling policy.
       for (let pass = 0; pass < 4; pass++) {
         routes = await measureLegs(checks, day.date, day.scheduleItems);
-        const hoursByIndex = await loadScheduleHours(day.scheduleItems);
+        const hoursByIndex = await loadHours(day.scheduleItems);
         const fit = fitMeasuredSchedule(day.scheduleItems, routes, constraints.endTime, constraints.startTime,
           { compact: true, date: day.date, hoursByIndex });
         day.scheduleItems = fit.items;
@@ -90,12 +91,17 @@ export async function verifyGeneratedItinerary(plan, {
       const filled = await fillMeasuredGaps(day.scheduleItems, routes, { ...checks, date: day.date, theme,
         endTime: constraints.endTime, excludedPlaceIds: excludedIds(), language: getLang(), budget: result.request?.budget, cityId: result.request?.destination?.id });
       if (!filled.changed) { gapLog(dayIndex, { skipped: filled.skipped, added: 0 }); continue; }
-      const confirmed = await measureLegs(checks, day.date, filled.items);
-      const fits = gapFillFits(filled.items, confirmed, { date: day.date, endTime: constraints.endTime,
-        hoursByIndex: await loadScheduleHours(filled.items) });
-      const added = filled.items.length - day.scheduleItems.length;
-      if (fits) day.scheduleItems = filled.items;
-      gapLog(dayIndex, { skipped: filled.skipped, added: fits ? added : 0, rolledBack: !fits });
+      let items = filled.items, failed;
+      // Drop only failing additions, then re-measure: removing a visit changes its neighbours' legs.
+      do {
+        const confirmed = await measureLegs(checks, day.date, items);
+        failed = new Set(failedGapFills(items, confirmed, { date: day.date, endTime: constraints.endTime,
+          hoursByIndex: await loadHours(items) }).filter(index => !day.scheduleItems.includes(items[index])));
+        items = items.filter((_, index) => !failed.has(index));
+      } while (failed.size);
+      const added = items.length - day.scheduleItems.length;
+      day.scheduleItems = items;
+      gapLog(dayIndex, { skipped: filled.skipped, added, rolledBack: filled.items.length - items.length });
     } catch (error) { unavailable('gap', day, error); }
   }
   return result;

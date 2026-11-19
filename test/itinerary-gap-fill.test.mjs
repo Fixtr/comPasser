@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fillMeasuredGaps, gapFillFits } from '../src/domains/itinerary/services/itinerary-gap-fill.mjs';
+import { fillMeasuredGaps, failedGapFills } from '../src/domains/itinerary/services/itinerary-gap-fill.mjs';
 import { loadScheduleHours, nextVisitStart } from '../src/domains/itinerary/services/itinerary-hours.mjs';
 import { fitMeasuredSchedule } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { scheduleFlexibleVisits } from '../src/domains/planner/services/schedule-flexible-visits.mjs';
@@ -50,10 +50,10 @@ test('measured gaps get at most two verified visits with hours, travel and 30-mi
   assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.time,i.endTime]),[['09:00','10:00'],['13:10','14:10']]);
   const confirmed = result.items.slice(1).map((_,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes:10}));
   const evidence = {date:'2030-10-09',endTime:'17:11',hoursByIndex:result.items.map(()=>hours())};
-  assert.equal(gapFillFits(result.items,confirmed,evidence),true);
-  assert.equal(gapFillFits(result.items,confirmed.map(r=>({...r,durationMinutes:r.fromIndex===1?91:10})),evidence),false);
-  assert.equal(gapFillFits(result.items,confirmed.slice(1),evidence),false);
-  assert.equal(gapFillFits(result.items,confirmed,{...evidence,hoursByIndex:[]}),false);
+  assert.deepEqual(failedGapFills(result.items,confirmed,evidence),[]);
+  assert.deepEqual(failedGapFills(result.items,confirmed.map(r=>({...r,durationMinutes:r.fromIndex===1?91:10})),evidence),[1]);
+  assert.deepEqual(failedGapFills(result.items,confirmed.slice(1),evidence),[1]);
+  assert.deepEqual(failedGapFills(result.items,confirmed,{...evidence,hoursByIndex:[]}),[1,3]);
   assert.deepEqual(items.map(i=>i.title),['station','booking','hotel']);
   assert.equal((await fillMeasuredGaps(result.items,routes,options())).changed,false);
 });
@@ -104,7 +104,7 @@ test('a long remaining gap after the first fill gets a chained second visit (Seo
   assert.deepEqual(result.skipped,{short:1});
   const confirmed=result.items.slice(1).map((item,fromIndex)=>({fromIndex,toIndex:fromIndex+1,
     durationMinutes:fromIndex===0?130:result.items[fromIndex+1].title==='airport'?123:20}));
-  assert.equal(gapFillFits(result.items,confirmed,{date:'2030-10-09',endTime:'20:00',hoursByIndex:result.items.map(()=>hours())}),true);
+  assert.deepEqual(failedGapFills(result.items,confirmed,{date:'2030-10-09',endTime:'20:00',hoursByIndex:result.items.map(()=>hours())}),[]);
   // Under 120 minutes left after the first visit: no chained search.
   searched.length=0;
   const tight=await fillMeasuredGaps([s('hotel','departure','10:00'),s('tower','AnchorSchedule','12:10','13:40'),s('airport','arrival','18:00')],routes,
