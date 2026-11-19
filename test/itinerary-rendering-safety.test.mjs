@@ -57,7 +57,6 @@ function viewHarness({ user = null } = {}) {
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));
   const view = new View();
-  view.reconcileWithConstraints = plan => plan;
   view.refreshEndTimeWarning = () => {};
   view.refreshTransitNotice = () => {};
   view.refreshCostSummary = () => {};

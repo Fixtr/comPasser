@@ -18,6 +18,8 @@ const trip = {id:'own123',userId:'owner',title:'Paris trip',createdAtMillis:1790
   {type:'attraction',title:`Museum ${day}`,time:'10:00',endTime:'11:00',location:'Paris',selectedPlace:place},
   {type:'arrival',title:'Hotel',time:'18:00',endTime:'18:00',location:'Paris'},
 ]}))}};
+// Real generation enforces planner constraints before its measured fit; the result view does not rerun them.
+const enforceStub = `import {enforcePlannerConstraints,normalizePlannerRequest} from '/src/domains/planner/services/planner-constraints.mjs';const enforced=(plan,request)=>{const normalized=normalizePlannerRequest(request);return {...plan,request,days:enforcePlannerConstraints(plan.days,normalized,'ko')};};`;
 const auth = `export const missingFirebaseConfig=[];export const app=null;
 let user={uid:'owner',email:'owner@example.test',emailVerified:true,displayName:'Traveler',providerData:[]};
 export const getCurrentUser=()=>user;export const subscribeToAuthChanges=callback=>{queueMicrotask(()=>callback(user));return()=>{}};
@@ -38,7 +40,7 @@ test.beforeEach(async ({page,context,baseURL})=>{
  await page.route('**/src/domains/profile/services/account-deletion-api.js',route=>route.fulfill({contentType:'text/javascript',body:`export const accountDeletionClient={status:async()=>({state:'not-found'}),hasReceipt:()=>false};`}));
  await page.route('**/src/domains/map/ui/map-view.js',route=>route.fulfill({contentType:'text/javascript',body:`class MapView extends HTMLElement{connectedCallback(){this.handler=event=>{window.mapDays=(window.mapDays||[]).concat(event.detail.context.dayIndex);const items=event.detail.plan.days[0].scheduleItems;setTimeout(()=>window.dispatchEvent(new CustomEvent('transit-info-ready',{detail:{context:event.detail.context,routes:items.slice(1).map((_,index)=>({fromIndex:index,toIndex:index+1,durationMinutes:10,mode:'WALKING',steps:[]}))}})),0)};window.addEventListener('render-map-route',this.handler)}disconnectedCallback(){window.removeEventListener('render-map-route',this.handler)}}customElements.define('map-view',MapView);`}));
  await page.route('**/src/domains/planner/services/flexible-visit-checks.js',route=>route.fulfill({contentType:'text/javascript',body:`export const createFlexibleVisitChecks=()=>({travelMinutes:async()=>10,hoursStatus:async()=> 'open'});`}));
- await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`export const getGenerationCredits=async()=>3;export async function generateOptimizedItinerary(request){window.generationCalls=(window.generationCalls||0)+1;window.generatedRequest=request;return {...${JSON.stringify(trip.itineraryPlan)},request}}`}));
+ await page.route('**/src/domains/planner/services/gemini-optimizer.js',route=>route.fulfill({contentType:'text/javascript',body:`${enforceStub}export const getGenerationCredits=async()=>3;export async function generateOptimizedItinerary(request){window.generationCalls=(window.generationCalls||0)+1;window.generatedRequest=request;return enforced(${JSON.stringify(trip.itineraryPlan)},request)}`}));
 });
 
 async function selectPlace(control,name){await control.locator('input').fill(name);await control.locator('input').press('Tab');await expect.poll(()=>control.evaluate(element=>element.selectedPlace?.placeId)).toBe(name);}
@@ -1173,7 +1175,7 @@ test('date edit action precedes theme edit and both fit in Korean and English', 
  }
 });
 
-const slowGeneration=`export const getGenerationCredits=async()=>3;export const generateOptimizedItinerary=(request,{onStage}={})=>new Promise(resolve=>{window.generationCalls=(window.generationCalls||0)+1;window.stage=onStage;window.releaseGeneration=()=>resolve({...${JSON.stringify(trip.itineraryPlan)},request})})`;
+const slowGeneration=`${enforceStub}export const getGenerationCredits=async()=>3;export const generateOptimizedItinerary=(request,{onStage}={})=>new Promise(resolve=>{window.generationCalls=(window.generationCalls||0)+1;window.stage=onStage;window.releaseGeneration=()=>resolve(enforced(${JSON.stringify(trip.itineraryPlan)},request))})`;
 async function startGeneration(page,form) {
  await form.evaluate(el=>el.showReview());
  await form.evaluate(el=>el.dispatchEvent(new CustomEvent('generate-itinerary',{detail:el.getFormData(),bubbles:true,composed:true})));

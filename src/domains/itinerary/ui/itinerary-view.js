@@ -38,7 +38,6 @@ import { buildItineraryCalendar } from '../services/itinerary-calendar.mjs';
 import { Capacitor } from '@capacitor/core';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
-  reconcileWithConstraints,
   getEndTimeWarning,
   getDayConstraints,
   getTransitCoverage
@@ -630,14 +629,6 @@ export default class ItineraryView extends HTMLElement {
 
   normalizeData(rawData) {
     return normalizeData(rawData);
-  }
-
-  /**
-   * 저장/공유로 읽어온 일정에도 확정적 가드레일을 다시 적용한다.
-   * 실제 계산은 itinerary-view-model.mjs 가 담당한다(테스트 가능한 순수 모듈).
-   */
-  reconcileWithConstraints(rawData) {
-    return reconcileWithConstraints(rawData, getLang());
   }
 
   async loadItineraryById(id, { sharedOnly = false, userId = getCurrentUser()?.uid } = {}) {
@@ -1642,8 +1633,9 @@ export default class ItineraryView extends HTMLElement {
   showResults(itineraryData, { access = 'private', id = null } = {}) {
     const userId = getCurrentUser()?.uid;
     if (userId) this.setSessionUser(userId);
-    const reconciled = id || access === 'shared' ? itineraryData : this.reconcileWithConstraints(itineraryData);
-    const entry = this.state.open(reconciled, {
+    // A fresh draft already passed enforcePlannerConstraints before its measured fit (gemini-optimizer.js);
+    // rerunning it here would let the pre-measure airport estimate delete visits the measured fit kept.
+    const entry = this.state.open(itineraryData, {
       kind: access === 'shared' ? 'shared' : id ? 'private' : 'draft', id,
     });
     if (!entry) {
