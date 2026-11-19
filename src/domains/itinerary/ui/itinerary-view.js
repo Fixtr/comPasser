@@ -968,7 +968,7 @@ export default class ItineraryView extends HTMLElement {
    * 그대로 남아있어, 저장된 일정을 불러온 경우에도 읽을 수 있다.
    */
   refreshEndTimeWarning() {
-    // currentItinerary 에는 이미 이동시간 보정이 반영돼 있다. reconcileWithConstraints
+    // currentItinerary 에는 이미 이동시간 보정이 반영돼 있다. enforcePlannerConstraints
     // 를 다시 돌리면 초과분이 정규화돼 사라지므로, 현재 상태만
     // 보고 판단하는 getEndTimeWarning 을 쓴다.
     const { overflowMinutes, endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex, this.lastTransitRoutes);

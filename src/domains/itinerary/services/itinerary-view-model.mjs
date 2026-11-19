@@ -3,7 +3,6 @@
  *
  * 왜 분리했나: 이 앱에서 반복해서 새어나간 버그들은 계산 로직 자체가 아니라
  * "그 계산을 어느 경로에서 부르는가"였다.
- *   - 저장/공유 링크로 연 일정에는 가드레일이 아예 적용되지 않았음
  *   - 날짜 탭을 바꿔도 종료 시각 경고가 이전 날짜 것으로 남아 있었음
  * 계산 함수(enforcePlannerConstraints, applyTransitDelays)는 단위 테스트가
  * 지켜주고 있었지만 배선은 아무도 지켜주지 않았다. itinerary-view.js 는
@@ -18,39 +17,7 @@
 
 import { normalizeData } from './itinerary-normalize.mjs';
 import { applyTransitDelays, getEndTimeOverflowMinutes } from './itinerary-schedule-adjust.mjs';
-import {
-  enforcePlannerConstraints,
-  normalizePlannerRequest
-} from '../../planner/services/planner-constraints.mjs';
-
-/**
- * 저장/공유로 읽어온 일정에도 확정적 가드레일을 다시 적용한다.
- *
- * enforcePlannerConstraints 는 원래 생성 시점(gemini-optimizer.js)에만
- * 호출됐다. 그래서 저장된 일정을 열면 저장 당시 상태 그대로 렌더링됐고,
- * 이후 가드레일이 개선돼도 기존 일정에는 전혀 반영되지 않았다.
- *
- * 저장 데이터는 { request, days } 형태로 사용자가 입력했던 제약 조건을
- * 그대로 갖고 있으므로 열 때마다 같은 보정을 재적용할 수 있다. request 가
- * 없는 아주 예전 데이터는 보정 기준이 없으므로 원본을 그대로 둔다.
- *
- * @param {object} rawData Firestore/생성 결과 원본
- * @param {string} language 'ko' | 'en'
- * @returns {object} 보정된 원본과 같은 형태의 객체(입력은 변경하지 않음)
- */
-export function reconcileWithConstraints(rawData, language = 'ko') {
-  const safePlan = normalizeData(rawData);
-  const request = rawData?.request;
-  if (!safePlan || !Array.isArray(safePlan.days) || !request) return rawData;
-
-  const correctedDays = enforcePlannerConstraints(safePlan.days, request, language);
-
-  // 원본이 { itineraryPlan: {...} } 로 감싸진 구버전 형태면 껍데기를 유지한다.
-  if (rawData.itineraryPlan && Array.isArray(rawData.itineraryPlan.days)) {
-    return { ...rawData, itineraryPlan: { ...rawData.itineraryPlan, days: correctedDays } };
-  }
-  return { ...rawData, days: correctedDays };
-}
+import { normalizePlannerRequest } from '../../planner/services/planner-constraints.mjs';
 
 /**
  * 특정 날짜에 대해 사용자가 입력했던 제약 조건(시작/종료 시각 등)을 찾는다.
