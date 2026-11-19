@@ -8,6 +8,7 @@ import { getLang } from '../utils/i18n.js';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { getCurrentUser, missingFirebaseConfig } from '../domains/auth/services/firebase-auth.js';
 import { t } from '../utils/i18n.js';
+import { localizeBoundaryItem } from '../domains/planner/services/planner-constraints.mjs';
 import { showConfirm } from '../utils/confirm-dialog.js';
 import { destinations, destinationById, destinationCountries } from '../domains/planner/services/travel-destinations.mjs';
 import { courseCity, filterCourses } from '../domains/itinerary/services/course-community.mjs';
@@ -471,7 +472,7 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
     const saved=offlineTrips.get(user?.uid,id);
     return <IonPage><IonContent className="ion-padding shell-content"><div className="ionic-page-nav"><button onClick={()=>navigate(window.history.state?.idx > 0 ? -1 : '/profile/trips')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div><section className="flow-page">
       <h1>{saved?.title || t('tabTrips')}</h1><p role="status">{t('offlineNotice')}</p>
-      {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{(!item.stayUnsetLabel && item.resolvedName) || item.title}</h3><p>{item.stayUnsetLabel || item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
+      {saved ? <><p>{t('offlineSavedAt').replace('{0}',new Date(saved.savedAt).toLocaleString(getLang()==='en'?'en-US':'ko-KR'))}</p>{normalizeData(saved.itineraryPlan).days.map(day=><section key={day.day} className="offline-day"><h2>Day {day.day} · {day.date}</h2>{day.scheduleItems.map(item=>localizeBoundaryItem(item,getLang())).map((item,index)=><article key={index}><strong>{item.time} – {item.endTime}</strong><h3>{(!item.stayUnsetLabel && item.resolvedName) || item.title}</h3><p>{item.stayUnsetLabel || item.selectedPlace?.formattedAddress || item.verifiedPlace?.formattedAddress || item.resolvedAddress || item.location}</p></article>)}</section>)}</> : <p>{t('offlineEmpty')}</p>}
     </section></IonContent></IonPage>;
   }
   return <IonPage className="ionic-result-page">

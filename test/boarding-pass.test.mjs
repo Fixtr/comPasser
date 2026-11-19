@@ -193,3 +193,11 @@ test('이동 합계는 지도가 계산한 구간 시간에서 온다 (AI 이동
   // 예전 일정처럼 AI 문구만 있으면 그대로 읽는다.
   assert.equal(buildBoardingPass({ plan: { days: [day] } }).transit, '34분');
 });
+
+test('a ticket drawn in English relabels an unset stay saved in Korean', () => {
+  const unsetPlan = { days: [{ ...day, scheduleItems: [
+    ...day.scheduleItems.filter(item => item.type !== 'arrival'),
+    { type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', location: 'Seoul, South Korea', stayUnsetLabel: '숙소 미정 (서울 중심)', time: '18:00' },
+  ] }] };
+  assert.equal(buildBoardingPass({ plan: unsetPlan, dayIndex: 0, language: 'en' }).to, 'Stay not set (central Seoul)');
+});

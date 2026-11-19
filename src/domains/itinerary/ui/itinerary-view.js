@@ -35,6 +35,7 @@ import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs'
 import { exportItineraryImage } from './itinerary-image-export.js';
 import { measuredTransit } from '../services/boarding-pass.mjs';
 import { buildItineraryCalendar } from '../services/itinerary-calendar.mjs';
+import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
 import { Capacitor } from '@capacitor/core';
 import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
@@ -860,7 +861,7 @@ export default class ItineraryView extends HTMLElement {
     let url;
     try {
       const snapshot = this.state.snapshot();
-      const ics = snapshot && await buildItineraryCalendar(snapshot.plan, this.state.calendarTripKey());
+      const ics = snapshot && await buildItineraryCalendar(snapshot.plan, this.state.calendarTripKey(), new Date(), getLang());
       if (entry !== this.state.current || userId !== (getCurrentUser()?.uid || null)) return;
       if (!ics) { this.showToast(t('nothingToShare'), true); return; }
       url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
@@ -1789,7 +1790,7 @@ export default class ItineraryView extends HTMLElement {
       const item = document.createElement('div');
       item.className = 'timeline-item';
 
-      item.innerHTML = renderScheduleCard(scheduleItem, idx, this.canEdit(), visited?.has(keys[idx]));
+      item.innerHTML = renderScheduleCard(localizeBoundaryItem(scheduleItem, getLang()), idx, this.canEdit(), visited?.has(keys[idx]));
       if (noteKeys[idx]) attachStopNoteControl(this, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
       item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
         // Place lookups and measured times change the day after render without rebuilding the cards.

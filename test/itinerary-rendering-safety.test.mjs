@@ -10,6 +10,7 @@ import { isTransportEstimatedCost } from '../src/domains/itinerary/services/itin
 import { suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
 import { minutesOf } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { buildItineraryCalendar } from '../src/domains/itinerary/services/itinerary-calendar.mjs';
+import { localizeBoundaryItem } from '../src/domains/planner/services/planner-constraints.mjs';
 import { createVisitedStops, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
@@ -50,7 +51,7 @@ function viewHarness({ user = null } = {}) {
     getLang: () => 'ko', t: key => `${key} {0}`,
     icons: new Proxy({}, { get: () => '' }),
     setTimeout: callback => callback(), requestAnimationFrame: callback => callback(), refreshHours() {}, refreshRainBanner() {},
-    Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, refreshReplanButton() {},
+    Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, localizeBoundaryItem, refreshReplanButton() {},
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     stopNoteKeys: () => [], attachStopNoteControl() {},
     console,
