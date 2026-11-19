@@ -67,6 +67,12 @@ test('delete undo and dirty state are scoped to each day and cannot edit a share
   state.editDayItems(1,[],{undo:true});state.undoDeletion(0);assert.equal(state.current.plan.days[0].scheduleItems[0].title,'A');assert.equal(state.current.plan.days[1].scheduleItems.length,0);
   state.markDayRecalculated(0);assert.deepEqual(state.current.dirtyDays,[1]);state.open(plan,{kind:'shared',id:'share'});assert.equal(state.editDayItems(0,[]),false);
 });
+test('an automatic fit that removes a visit keeps an undo snapshot without marking the day dirty',()=> {
+  const state=createItineraryState();state.setUser('owner');state.open(structuredClone(plan));
+  state.replaceDayItems(0,[],{undo:true});assert.deepEqual(state.current.dirtyDays,[]);
+  state.replaceDayItems(0,[]);assert.equal(state.current.undoByDay[0][0].title,'A');
+  state.undoDeletion(0);assert.equal(state.current.plan.days[0].scheduleItems[0].title,'A');
+});
 test('preflight blocks only same-day fixed overlap and measured travel shortage; other days and automatic visits do not overlap',async()=> {
   const request={date:dates,startTime:'09:00',endTime:'18:00',startLocation:'A',endLocation:'B',anchorSchedules:[{day:1,name:'One',time:'10:00',endTime:'11:00',location:'A'},{day:1,name:'Two',time:'10:30',endTime:'12:00',location:'B'}]};
   assert.equal((await findFixedVisitIssue(request)).reason,'overlap');assert.equal(findPlannerRequestIssue(normalizePlannerRequest(request)).reason,'anchor-overlap');

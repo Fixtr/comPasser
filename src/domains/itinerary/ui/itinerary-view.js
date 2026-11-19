@@ -1471,14 +1471,15 @@ export default class ItineraryView extends HTMLElement {
       })
       : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
     const scheduleItems = fit.items;
-    this.state.replaceDayItems(this.activeDayIndex, scheduleItems);
+    const removed = scheduleItems.length < dayData.scheduleItems.length;
+    this.state.replaceDayItems(this.activeDayIndex, scheduleItems, { undo: removed });
     this.refreshAccessControls();
 
     this.updateAnchorWarning(scheduleItems, transitRoutes);
 
     if (fit.adjusted) {
       this._automaticFitCount = (this._automaticFitCount || 0) + 1;
-      showGlobalToast(t('endTimeAutoFit'), { tone: 'info', duration: 5000 });
+      showGlobalToast(t(removed ? 'endTimeVisitRemoved' : 'endTimeAutoFit'), { tone: 'info', duration: 5000 });
       // Earlier departure can change the available bus/train: verify again,
       // with a hard retry bound rather than recursively generating requests.
       this.requestMapRoute({ automaticFit: true });

@@ -154,17 +154,17 @@ test('missing price data remains eligible while known incompatible prices do not
   assert.equal(result.verifiedPlace.placeId,'unknown');
 });
 
-test('a previously verified place is rechecked and replaced when closed on the visit date', async () => {
+test('a previously verified place is kept when the view rechecks it against fitted times', async () => {
+  // Generation already checked this place; a later map pass (opening another day tab) must not swap it silently.
   const saved=selectRecommendation([candidate('closed')],intent,center);
   const item={...recommendation,...recommendationFields(recommendation,saved)};
-  const {geocoder}=service([candidate('closed'),candidate('replacement')], {
-    getHours:async id => ({utcOffsetMinutes:540,regularOpeningHours:{periods:[{
-      open:{day:id === 'replacement' ? 1 : 2,hour:10,minute:0},
-      close:{day:id === 'replacement' ? 1 : 2,hour:18,minute:0}
-    }]}})
+  const {geocoder,requests}=service([candidate('replacement')], {
+    getHours:async () => ({priceLevel:'EXPENSIVE',utcOffsetMinutes:540,regularOpeningHours:{periods:[{
+      open:{day:2,hour:10,minute:0},close:{day:2,hour:18,minute:0}}]}})
   });
-  const [,result]=await geocoder.geocodeSchedule([fixed,item],'2026-09-28');
-  assert.equal(result.verifiedPlace.placeId,'replacement');
+  const [,result]=await geocoder.geocodeSchedule([fixed,item],'2026-09-28',[],'budget');
+  assert.equal(result.verifiedPlace.placeId,'closed');
+  assert.equal(requests.length,0);
 });
 
 test('recommendations exclude place IDs already used on another draft day', async () => {

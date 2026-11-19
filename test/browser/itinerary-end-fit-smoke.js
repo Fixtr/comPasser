@@ -91,8 +91,15 @@ async page => {
     window.dispatchEvent(new CustomEvent('places-resolved',{detail:{context:view._mapRequest,places:[
       {index:1,name:'',address:'',verifiedPlace:null,unresolvedReason:'no-results'}
     ]}}));
-    return {count:view.currentItinerary.days[0].scheduleItems.length,rechecks:window.__fitMapRequests.length-before};
+    const count = view.currentItinerary.days[0].scheduleItems.length;
+    const undo = view.shadowRoot.getElementById('undo-deletion-btn');
+    const undoVisible = !undo.hidden;
+    undo.click();
+    return {count,rechecks:window.__fitMapRequests.length-before-1,undoVisible,
+      toast:document.getElementById('app-toast-container')?.textContent || '',
+      restored:view.currentItinerary.days[0].scheduleItems.length};
   });
   if (noRoutePrune.count !== 2 || noRoutePrune.rechecks !== 1) throw new Error('A missing optional place must be removed and rerouted even with no transit segments');
+  if (!noRoutePrune.undoVisible || noRoutePrune.restored !== 3 || !noRoutePrune.toast.includes('되돌리기')) throw new Error('An automatic removal must be announced and undoable');
   return {results:['PASS automatic fitting, measured recheck, bounded retries, warning and saved duration'],errors:page.smokeErrors};
 }
