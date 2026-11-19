@@ -35,7 +35,8 @@ export async function verifyGeneratedItinerary(plan, {
 } = {}) {
   const result = structuredClone(plan);
   const { pace, companion, theme } = result.request || {};
-  const packedDayTrip = pace === 'packed' && companion !== 'family_kids' && companion !== 'parents';
+  // Relaxed pace returns before gap filling, so a single day is filled unless kids or parents come along.
+  const fillDayTrip = companion !== 'family_kids' && companion !== 'parents';
   const excludedIds = () => result.days.flatMap(day => day.scheduleItems.map(item => identity(item)?.placeId).filter(Boolean));
   // Resolve all day identities in order before filling gaps so later-day visits cannot become an earlier day's extra.
   onStage('places');
@@ -81,9 +82,9 @@ export async function verifyGeneratedItinerary(plan, {
   for (const [dayIndex, day] of result.days.entries()) {
     const { constraints, routes } = fitted[dayIndex] || {};
     if (!constraints) { gapLog(dayIndex, { skippedDay: 'no-constraints' }); continue; }
-    // Single days keep intentional slack unless packed without kids/parents. An airport end needs no extra rule:
+    // Single days with kids/parents keep their slack. An airport end needs no extra rule:
     // the fill already requires the measured airport leg plus 30 minutes before the end time.
-    if (result.days.length < 2 && !packedDayTrip) { gapLog(dayIndex, { skippedDay: 'single-day' }); continue; }
+    if (result.days.length < 2 && !fillDayTrip) { gapLog(dayIndex, { skippedDay: 'single-day' }); continue; }
     try {
       // Fresh checks: the fit's deadline started with every day at once and would expire for later days.
       const checks = createChecks(Math.max(4, day.scheduleItems.length), result.request);
