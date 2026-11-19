@@ -174,10 +174,11 @@ export function createItineraryState({ getStorage = () => null, onStorageError =
       return true;
     },
 
-    replaceDayItems(index, items) {
+    replaceDayItems(index, items, { undo = false } = {}) {
       const entry = current();
       const day = normalizeData(entry?.plan)?.days?.[index];
       if (!day || !Array.isArray(items)) return false;
+      if (undo) (entry.undoByDay ||= {})[index] = structuredClone(day.scheduleItems);
       day.scheduleItems = items;
       assignStopIds(entry.plan);
       // 저장한 일정이 저장본과 달라졌다는 표시. dirtyDays(시간 재계산 필요)와는 별개다.

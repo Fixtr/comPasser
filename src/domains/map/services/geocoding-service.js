@@ -130,17 +130,13 @@ export class GeocodingService {
         try {
             const { place, rejected, count } = await Promise.race([
                 (async () => {
-                    let searchExcluded = excluded;
                     const wantedPrices = ['restaurant', 'cafe'].includes(intent.category)
                         ? BUDGET_PRICE_LEVELS[budget] : null;
                     const priceFits = details => !wantedPrices || !details?.priceLevel || wantedPrices.has(details.priceLevel);
                     const saved = reusableRecommendation(item, center);
-                    if (saved && !searchExcluded.has(saved.placeId)) {
-                        const details = date ? await this.getHours(saved.placeId) : null;
-                        const status = date ? assessVisitHours(item, date, details) : 'unknown';
-                        if (!['closed', 'conflict'].includes(status) && priceFits(details)) return { place: saved, rejected: {}, count: 0 };
-                        searchExcluded = new Set([...searchExcluded, saved.placeId]);
-                    }
+                    // Hours and price were checked when it was chosen; a re-check against later-fitted
+                    // times would swap or drop it unseen. The timeline shows its hours warning instead.
+                    if (saved && !excluded.has(saved.placeId)) return { place: saved, rejected: {}, count: 0 };
                     await this.init();
                     const rejected = {};
                     let unknownPricePlace = null;
@@ -164,7 +160,7 @@ export class GeocodingService {
                         const places = Array.isArray(result.places) ? result.places : [];
                         count += places.length;
                         for (const candidate of places) {
-                            const place = selectRecommendation([candidate], intent, center, searchExcluded, rejected, this.countryCode);
+                            const place = selectRecommendation([candidate], intent, center, excluded, rejected, this.countryCode);
                             if (!place) continue;
                             const details = date ? await this.getHours(place.placeId) : null;
                             const status = date ? assessVisitHours(item, date, details) : 'unknown';
