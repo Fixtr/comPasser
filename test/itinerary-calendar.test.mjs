@@ -92,3 +92,14 @@ test('reordering and rescheduling stops keeps event IDs, including repeated plac
   assert.notEqual(after[2].DTSTART, before[1].DTSTART);
   assert.equal(after[3].UID, before[3].UID);
 });
+
+test('an English export relabels app-made boundary text saved in Korean, keeping the same UIDs', async () => {
+  const plan = { request: seoul.request, days: [{ date: '2026-11-20', scheduleItems: [
+    { time: '20:00', endTime: '20:00', type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', location: 'Seoul, South Korea', stayUnsetLabel: '숙소 미정 (서울 중심)' },
+  ] }] };
+  const now = new Date('2026-11-09T00:00:00Z');
+  const [en] = events(await buildItineraryCalendar(plan, 'private:seoulTrip', now, 'en'));
+  assert.equal(en.SUMMARY, 'Arrive · Stay not set (central Seoul)');
+  assert.equal(en.LOCATION, 'Stay not set (central Seoul)');
+  assert.equal(en.UID, events(await buildItineraryCalendar(plan, 'private:seoulTrip', now, 'ko'))[0].UID);
+});

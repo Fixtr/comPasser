@@ -3,7 +3,7 @@ import { normalizeSelectedPlace } from './selected-place.mjs';
 import { getLocationName } from './location-name.mjs';
 import { minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { airportBufferMinutes } from '../../../../functions/airport-buffer.mjs';
-import { destinationById } from './travel-destinations.mjs';
+import { destinationById, destinations } from './travel-destinations.mjs';
 import { tFor } from '../../../utils/i18n.js';
 
 function selectedFields(location) {
@@ -129,6 +129,35 @@ export function stayUnsetLabel(location, destination, isKo) {
   return tFor('stayUnsetCityCenter', lang).replace('{0}', city ? tFor(city.key, lang) : location);
 }
 
+const BOUNDARY_KEYS = { departure: ['boundaryDepartTitle', 'boundaryDepartDuration'], arrival: ['boundaryArriveTitle', 'boundaryArriveDuration'] };
+const LANGS = ['ko', 'en'];
+
+function relabelStayUnset(label, lang) {
+  for (const from of LANGS) {
+    const [before, after] = tFor('stayUnsetCityCenter', from).split('{0}');
+    if (!label.startsWith(before) || !label.endsWith(after) || label.length < before.length + after.length) continue;
+    const name = label.slice(before.length, label.length - after.length);
+    const city = destinations.find(candidate => tFor(candidate.key, from) === name);
+    return tFor('stayUnsetCityCenter', lang).replace('{0}', city ? tFor(city.key, lang) : name);
+  }
+  return label;
+}
+
+// Saved plans keep app-made boundary labels in the language they were made in; redraw them in `lang` for display only.
+export function localizeBoundaryItem(item, lang) {
+  const keys = BOUNDARY_KEYS[item?.type];
+  if (!keys) return item;
+  const [titleKey, durationKey] = keys;
+  const label = item.stayUnsetLabel ? relabelStayUnset(item.stayUnsetLabel, lang) : '';
+  const out = { ...item, ...(label ? { stayUnsetLabel: label } : {}) };
+  for (const from of LANGS) {
+    const [prefix] = tFor(titleKey, from).split('{0}');
+    if (typeof item.title === 'string' && item.title.startsWith(prefix)) out.title = tFor(titleKey, lang).replace('{0}', label || item.title.slice(prefix.length));
+    if (item.duration === tFor(durationKey, from)) out.duration = tFor(durationKey, lang);
+  }
+  return out;
+}
+
 // Loose text matching against a whole city ("Seoul, South Korea") or a user's own pick would swallow a real visit.
 const mayBecomeBoundary = (item, required) => item.type === required.type || (!item.addedByUser && !required.stayUnsetLabel);
 
@@ -141,15 +170,13 @@ function makeBoundaryItem(kind, source, time, isKo, destination) {
     time,
     endTime: '',
     type: kind,
-    title: isStart
-      ? (isKo ? `출발 · ${shown}` : `Depart · ${shown}`)
-      : (isKo ? `도착 · ${shown}` : `Arrive · ${shown}`),
+    title: tFor(isStart ? 'boundaryDepartTitle' : 'boundaryArriveTitle', isKo ? 'ko' : 'en').replace('{0}', shown),
     description: isStart
       ? (isKo ? '지정한 출발지에서 일정을 시작합니다.' : 'Start the itinerary at the selected departure point.')
       : (isKo ? '지정한 도착지에서 일정을 마칩니다.' : 'Finish the itinerary at the selected destination.'),
     location,
     ...selectedFields(source),
-    duration: isStart ? (isKo ? '출발' : 'Departure') : (isKo ? '도착' : 'Arrival'),
+    duration: tFor(isStart ? 'boundaryDepartDuration' : 'boundaryArriveDuration', isKo ? 'ko' : 'en'),
     officialWebsiteUrl: '',
     googleMapsUrl: label ? '' : mapsSearchUrl(location),
     transitInfo: '',

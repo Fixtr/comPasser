@@ -812,3 +812,15 @@ test('a user-added first visit matching the start point is kept, not promoted in
   assert.deepEqual(day.scheduleItems.map(entry => entry.type), ['departure', 'attraction', 'arrival']);
   assert.equal(day.scheduleItems[1].title, 'My pick');
 });
+
+test('app-made boundary labels follow the screen language, not the language the plan was saved in', async () => {
+  const { localizeBoundaryItem } = await import('../src/domains/planner/services/planner-constraints.mjs');
+  const koEnd = { type: 'arrival', title: '도착 · 숙소 미정 (서울 중심)', duration: '도착', location: 'Seoul, South Korea', stayUnsetLabel: '숙소 미정 (서울 중심)' };
+  assert.deepEqual(localizeBoundaryItem(koEnd, 'en'), { ...koEnd, title: 'Arrive · Stay not set (central Seoul)', duration: 'Arrival', stayUnsetLabel: 'Stay not set (central Seoul)' });
+  const enStart = { type: 'departure', title: 'Depart · Stay not set (central Jeju)', duration: 'Departure', stayUnsetLabel: 'Stay not set (central Jeju)' };
+  assert.deepEqual(localizeBoundaryItem(enStart, 'ko'), { ...enStart, title: '출발 · 숙소 미정 (제주 중심)', duration: '출발', stayUnsetLabel: '숙소 미정 (제주 중심)' });
+  assert.equal(localizeBoundaryItem({ type: 'departure', title: '출발 · 롯데호텔 서울' }, 'en').title, 'Depart · 롯데호텔 서울', 'a place name stays as the provider gave it');
+  assert.equal(localizeBoundaryItem({ type: 'arrival', title: '인천공항 도착' }, 'en').title, '인천공항 도착', 'an AI title is not touched');
+  const stop = { type: 'cafe', title: '출발 · x' };
+  assert.equal(localizeBoundaryItem(stop, 'en'), stop);
+});

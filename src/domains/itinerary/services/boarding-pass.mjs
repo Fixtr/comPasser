@@ -16,6 +16,7 @@
 
 import { summarizeCosts, formatCostAmount } from './itinerary-cost.mjs';
 import { minutesOf } from './itinerary-schedule-adjust.mjs';
+import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
 
 /** 티켓 한 장에 들어가는 최대 줄 수. 넘치면 잘라내되 몇 곳인지 남긴다. */
 export const MAX_ROWS = 8;
@@ -134,8 +135,8 @@ export function buildBoardingPass({ plan, dayIndex = 0, title = '', language = '
   const arrival = [...items].reverse().find(item => item?.type === 'arrival');
 
   // 출발·도착이 없는 일정도 있다. 그때는 첫 곳과 마지막 곳이 구간이 된다.
-  const from = placeOf(departure) || placeOf(stops[0]);
-  const to = placeOf(arrival) || placeOf(stops[stops.length - 1]);
+  const from = placeOf(departure && localizeBoundaryItem(departure, language)) || placeOf(stops[0]);
+  const to = placeOf(arrival && localizeBoundaryItem(arrival, language)) || placeOf(stops[stops.length - 1]);
 
   const rows = stops.slice(0, MAX_ROWS).map(item => ({
     time: String(item?.time || '').trim(),

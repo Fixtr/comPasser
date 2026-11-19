@@ -1,4 +1,5 @@
 import { travelRegion, travelInstant, dateRange } from '../../../../functions/travel-region.mjs';
+import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
 
 const utc = instant => instant.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 const escapeText = value => String(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -20,7 +21,7 @@ function fold(line) {
 }
 
 /** Every timed stop of every day as a UTC event, or null when there is none. Times are read in the destination's time zone. */
-export async function buildItineraryCalendar(plan, tripKey, now = new Date()) {
+export async function buildItineraryCalendar(plan, tripKey, now = new Date(), language = 'ko') {
   if (!tripKey) return null;
   const itinerary = Array.isArray(plan?.itineraryPlan?.days) ? plan.itineraryPlan : plan;
   const { timeZone } = travelRegion(itinerary?.request || itinerary?.metadata?.request || plan?.request || plan?.metadata?.request);
@@ -30,8 +31,10 @@ export async function buildItineraryCalendar(plan, tripKey, now = new Date()) {
   for (const [dayIndex, day] of days.entries()) {
     const items = Array.isArray(day?.scheduleItems) ? day.scheduleItems : [];
     const occurrences = new Map();
-    for (const item of items) {
-      const stopKey = JSON.stringify([item?.type, item?.placeIntent?.purpose || item?.selectedPlace?.placeId || item?.title]);
+    for (const saved of items) {
+      // The UID keys on the saved title so switching language does not duplicate events.
+      const stopKey = JSON.stringify([saved?.type, saved?.placeIntent?.purpose || saved?.selectedPlace?.placeId || saved?.title]);
+      const item = localizeBoundaryItem(saved, language);
       const occurrence = occurrences.get(stopKey) || 0;
       occurrences.set(stopKey, occurrence + 1);
       const start = travelInstant(day.date, item?.time, timeZone);
