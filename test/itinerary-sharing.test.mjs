@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
 import { createItineraryActions } from '../src/domains/itinerary/services/itinerary-actions.mjs';
-import { reconcileWithConstraints, getDayConstraints, getEndTimeWarning } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
+import { getDayConstraints, getEndTimeWarning } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 import { buildItineraryTitle } from '../src/domains/itinerary/services/itinerary-title.mjs';
 import { insertScheduleItem, removeScheduleItem, moveScheduleItem } from '../src/domains/itinerary/services/itinerary-edit.mjs';
 import { trimScheduleToEndTime, applyTransitDelays } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
@@ -84,7 +84,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
     showConfirm: async options => { calls.confirms.push(options); return typeof state.confirm === 'function' ? state.confirm() : state.confirm; },
     t: realTranslations ? t : key => key, getLang: realTranslations ? getLang : () => 'ko', applyTranslations,
     trackEvent() {}, showGlobalToast: message => calls.toasts.push([message]),
-    icons: {}, normalizeData, reconcileWithConstraints, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
+    icons: {}, normalizeData, buildItineraryTitle, escapeHtml, safeHttpUrl, createItineraryState, createItineraryActions,
     insertScheduleItem, removeScheduleItem, moveScheduleItem, trimScheduleToEndTime, getDayConstraints, getEndTimeWarning,
     suggestRouteOrder, improveMeasuredRouteOrder, createFlexibleVisitChecks: () => ({travelMinutes:routeMinutes}),
     hoursPlaceId, lookupPlaceHours, loadScheduleHours, applyTransitDelays, fitMeasuredSchedule, hasFixedArrivalConflict, refreshHours() {}, refreshRainBanner() {},
@@ -158,6 +158,23 @@ test('공유본을 개인 사본으로 저장하면 원본 접근 감시를 중�
   assert.equal(app.view.state.current.source.id,'mycopy123');
 });
 
+test('a fresh draft keeps visits the measured generation fit placed after the airport estimate cutoff', () => {
+  // Generation already enforced constraints before its measured fit; running them again with the
+  // pre-measure Incheon estimate (138 min) would delete this 16:40-17:50 visit before a 20:00 airport end.
+  const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
+  const app = itineraryView({ user: { uid: 'owner' } });
+  const visit = (time, endTime, title) => ({ type: 'attraction', title, location: title, time, endTime,
+    placeIntent: { purpose: title, category: 'tourist_attraction', nearLocation: '' }, placeStatus: 'verified' });
+  const plan = { request: { destination: { id: 'seoul', country: 'KOR', name: 'Seoul' }, date: ['2026-11-21'],
+    startTime: '10:00', endTime: '20:00', startLocation: '서울역', endLocation: icn },
+  days: [{ day: 1, date: '2026-11-21', scheduleItems: [
+    { type: 'departure', title: '서울역', location: '서울역', time: '10:00' },
+    visit('14:31', '16:01', '미술관'), visit('16:40', '17:50', '넷째'),
+    { type: 'arrival', title: '인천국제공항', location: icn, time: '20:00' }] }] };
+  app.view.showResults(plan);
+  assert.deepEqual(app.view.currentItinerary.days[0].scheduleItems.map(item => item.title), ['서울역', '미술관', '넷째', '인천국제공항']);
+});
+
 test('개인/공유 문서를 불러올 때 생성 제약을 재실행하거나 실측 응답으로 저장 시각을 덮지 않는다', () => {
   for (const access of ['private','shared']) {
     const app=itineraryView({user:{uid:'owner'},mapEvents:true});
@@ -165,7 +182,6 @@ test('개인/공유 문서를 불러올 때 생성 제약을 재실행하거나 
     plan.request={date:['2026-09-06'],startTime:'09:00',endTime:'23:51',startLocation:'서울역',endLocation:'서울역'};
     plan.days[0].scheduleItems.at(-1).time='21:52';
     plan.days[0].scheduleItems.at(-1).endTime='00:43';
-    app.view.reconcileWithConstraints=()=>{throw Error('저장 시각 재보정 금지');};
     app.view.showResults(plan,{access,id:'saved'});
     const before=structuredClone(app.view.currentItinerary.days[0].scheduleItems);
     app.emit('transit-info-ready',{context:app.view._mapRequest,routes:[{fromIndex:2,toIndex:3,durationMinutes:999}]});
@@ -482,7 +498,6 @@ test('편집한 개인 일정에 돌아오면 다시 조회하거나 보정하�
   const expected = structuredClone(app.view.currentItinerary);
   app.view.showResults(samplePlan(), { access: 'shared', id: 'public123' });
   app.view.cancelPendingLoad();
-  app.view.reconcileWithConstraints = () => { throw new Error('복원에 보정을 재실행하면 안 됨'); };
   assert.equal(await app.view.loadItineraryById('trip'), true);
   assert.equal(app.calls.loads.length, 1);
   assert.deepEqual(app.view.currentItinerary, expected);
@@ -502,7 +517,6 @@ test('초안 새로고침은 이동시간 보정과 선택 날짜를 그대로 �
   const expected = structuredClone(first.view.currentItinerary);
   const fresh = itineraryView({ user: { uid: 'owner' }, storage });
   fresh.view.setSessionUser('owner');
-  fresh.view.reconcileWithConstraints = () => { throw new Error('복원 보정 금지'); };
   assert.equal(fresh.view.restoreDraft(), true);
   assert.equal(fresh.view.activeDayIndex, 1);
   assert.deepEqual(fresh.view.currentItinerary, expected);
