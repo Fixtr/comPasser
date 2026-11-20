@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { airportBufferMinutes, isAirportName } from '../functions/airport-buffer.mjs';
+import { airportBufferMinutes, farFromCityKm, isAirportName } from '../functions/airport-buffer.mjs';
 import { isAirportName as plannerIsAirportName } from '../src/domains/planner/services/flight-arrival.mjs';
 
 const jeju = { lat: 33.5070772, lng: 126.4934311 };
@@ -39,4 +39,20 @@ test('the planner and the server share one airport-name rule', () => {
   assert.equal(plannerIsAirportName, isAirportName);
   for (const name of ['인천국제공항', 'Haneda Airport', '羽田空港', 'Aéroport de Paris-Charles de Gaulle']) assert.ok(isAirportName(name), name);
   assert.equal(isAirportName('서울역'), false);
+});
+
+test('a place more than 150 km from the trip city is flagged with its rounded distance', () => {
+  const kansai = { lat: 34.4347, lng: 135.244 };
+  const gimhae = { lat: 35.1795, lng: 128.9382 };
+  assert.equal(farFromCityKm(incheon, 'seoul'), null);
+  assert.equal(farFromCityKm({ lat: 35.772, lng: 140.3929 }, 'tokyo'), null);
+  assert.equal(farFromCityKm(kansai, 'kyoto'), null);
+  const jejuFromSeoul = farFromCityKm(jeju, 'seoul');
+  assert.ok(jejuFromSeoul >= 440 && jejuFromSeoul <= 460, String(jejuFromSeoul));
+  assert.ok(farFromCityKm(gimhae, 'seoul') > 150);
+  // Jeju's downtown override keeps its own airport near.
+  assert.equal(farFromCityKm(jeju, 'jeju'), null);
+  assert.equal(farFromCityKm(jeju, 'atlantis'), null);
+  assert.equal(farFromCityKm('제주국제공항', 'seoul'), null);
+  assert.equal(farFromCityKm(null, 'seoul'), null);
 });
