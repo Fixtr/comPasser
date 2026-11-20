@@ -164,7 +164,7 @@ test('지도가 계산한 이동 합계를 티켓에 그대로 넘기고, 추정
   await h.exportImage({ plan: input, dayIndex: 1, language: 'ko', transit: { minutes: 65, estimated: false } });
   await h.exportImage({ plan: input, dayIndex: 1, language: 'en', transit: { minutes: 65, estimated: true } });
   await h.exportImage({ plan: input, dayIndex: 1, language: 'en' });
-  assert.deepEqual(h.calls.render.map(call => call.pass.transit), ['1시간 5분', '~1h 5m', null]);
+  assert.deepEqual(h.calls.render.map(call => call.pass.transit), ['1시간 5분', '~1 hr 5 min', null]);
   h.assertClean();
 });
 
@@ -181,7 +181,7 @@ test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변�
   assert.equal(pass.from, '부산역');
   assert.equal(pass.to, '호텔');
   assert.deepEqual(pass.rows.map(row => row.name), ['둘째 날 방문지']);
-  assert.equal(pass.transit, '1h 10m');
+  assert.equal(pass.transit, '1 hr 10 min');
   for (const [key, value] of Object.entries(labels)) assert.equal(renderedLabels[key], value);
   assert.equal(renderedLabels.moreLabel(3), '+ 3 more');
   assert.deepEqual(input, before);
