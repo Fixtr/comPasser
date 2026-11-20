@@ -42,8 +42,9 @@ export function hasFixedArrivalConflict(items, routes) {
   });
 }
 
-// Fit each fully measured block independently. Recheck routes after removing
-// an optional stop; old route indexes no longer describe the new neighbors.
+// Fit each measured run between fixed anchors and unmeasured legs independently.
+// Recheck routes after removing an optional stop; old route indexes no longer
+// describe the new neighbors.
 export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact = false, date = '', hoursByIndex = [] } = {}) {
   if (Array.isArray(items)) {
     const resolved = items.filter(item => item.type === 'AnchorSchedule' ||
@@ -71,18 +72,31 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
   let adjusted = false;
   const stays = ends.map((end, i) => end - starts[i]);
   const fixed = [0, ...items.flatMap((item, i) => i > 0 && i < items.length - 1 && item.type === 'AnchorSchedule' && item.flexible !== true ? [i] : []), items.length - 1];
+  // An unknown afternoon route must not prevent repairing the measured morning,
+  // so split blocks at unmeasured legs. A missing route is never a zero-minute
+  // journey: the item after one keeps its shown time, the item before it may only
+  // move earlier, and only fully measured blocks may shorten or remove visits.
+  const runs = [];
   for (let block = 1; block < fixed.length; block++) {
-    const left = fixed[block - 1], right = fixed[block];
-    const deadline = right === items.length - 1 ? ceiling : starts[right];
-    // An unknown afternoon route must not prevent repairing the measured
-    // morning block. Never use a missing route as a zero-minute journey.
-    if (deadline === null || ends[left] === null || Array.from({length:right-left}, (_, n) => left+n+1)
-      .some(i => !travel.has(i) || starts[i] === null || ends[i] < starts[i])) continue;
-    const previousEnd = minutes(delayed[right-1].endTime) ?? minutes(delayed[right-1].time);
-    const conflict = right === items.length - 1
+    let left = fixed[block - 1];
+    const right = fixed[block];
+    for (let i = left + 1; i <= right; i++) {
+      if (travel.has(i)) continue;
+      if (i - 1 > left) runs.push([left, i - 1, true, true]);
+      left = i;
+    }
+    if (right > left) runs.push([left, right, false, left !== fixed[block - 1]]);
+  }
+  const shownEnd = i => minutes(delayed[i].endTime) ?? minutes(delayed[i].time);
+  for (const [left, right, soft, partial] of runs) {
+    const last = soft ? right : right - 1; // last movable item
+    const deadline = soft ? shownEnd(right) : right === items.length - 1 ? ceiling : starts[right];
+    if (deadline === null || shownEnd(left) === null || Array.from({length:right-left}, (_, n) => left+n+1)
+      .some(i => starts[i] === null || ends[i] < starts[i])) continue;
+    const conflict = !partial && (right === items.length - 1
       ? getEndTimeOverflowMinutes(delayed, endTime) > 0
-      : previousEnd + travel.get(right) > deadline;
-    if (!conflict && !compact && !items.slice(left + 1, right).some(item => item.flexible === true)) continue;
+      : shownEnd(right-1) + travel.get(right) > deadline);
+    if (!conflict && !compact && !items.slice(left + 1, last + 1).some(item => item.flexible === true)) continue;
     const visitStart = (i, cursor) => {
       // Preserve requested lower bounds and meal windows while removing AI padding.
       const meal = items[i].type === 'dining' && items[i].placeIntent?.category !== 'cafe'
@@ -92,22 +106,22 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
       return nextVisitStart(items[i], date, hoursByIndex[i], cursor, stays[i], Math.max(deadline, cursor + stays[i])) ?? deadline + 1;
     };
     const projectedEnd = () => {
-      let cursor=ends[left];
+      let cursor=shownEnd(left);
       for(let i=left+1;i<=right;i++) {
         cursor+=travel.get(i) + (items[i-1].gapFill ? 30 : 0);
-        if(i<right) cursor=visitStart(i, cursor)+stays[i];
+        if(i<=last) cursor=visitStart(i, cursor)+stays[i];
       }
       return cursor;
     };
     let excess = Math.max(0, projectedEnd() - deadline);
-    for (let i = right - 1; i > left && excess > 0; i--) {
+    for (let i = right - 1; !partial && i > left && excess > 0; i--) {
       if (items[i].type === 'AnchorSchedule' || items[i].addedByUser === true) continue;
       const reduction = Math.min(excess, Math.max(0, stays[i] - minimumStayMinutes(items[i])));
       stays[i] -= reduction;
       excess = Math.max(0, projectedEnd() - deadline);
     }
     if (excess > 0) {
-      const removable = Array.from({ length: right - left - 1 }, (_, n) => right - 1 - n)
+      const removable = partial ? undefined : Array.from({ length: right - left - 1 }, (_, n) => right - 1 - n)
         .find(i => items[i].type !== 'AnchorSchedule' && items[i].placeIntent && items[i].addedByUser !== true);
       if (removable !== undefined) return {
         items: items.filter((_, i) => i !== removable).map((item, i) => i === 0 ? delayed[0] : item),
@@ -115,14 +129,14 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
       };
       continue;
     }
-    let cursor = ends[left];
+    let cursor = shownEnd(left);
     for (let i = left + 1; i <= right; i++) {
       cursor += travel.get(i) + (items[i-1].gapFill ? 30 : 0);
-      if (i === right && i !== items.length - 1) break; // fixed anchor may include waiting
-      if(i<right) cursor=visitStart(i, cursor);
+      if (i > last && i !== items.length - 1) break; // fixed anchor may include waiting
+      if (i <= last) cursor = visitStart(i, cursor);
       // The day's arrival stays at the requested end; time saved by compacting shows as free time on the last leg.
       result[i].time = time(i === items.length - 1 ? Math.max(cursor, deadline) : cursor);
-      if (i < right) {
+      if (i <= last) {
         cursor += stays[i];
         result[i].endTime = time(cursor);
         if (stays[i] !== ends[i] - starts[i]) delete result[i].duration;

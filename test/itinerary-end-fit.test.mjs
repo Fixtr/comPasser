@@ -242,3 +242,18 @@ test('a final two-minute airport overrun is fitted on the next measured pass', (
   assert.ok((Number(fitted.items[4].endTime.slice(0,2))*60+Number(fitted.items[4].endTime.slice(3))) -
     (Number(fitted.items[4].time.slice(0,2))*60+Number(fitted.items[4].time.slice(3))) >= 60);
 });
+
+test('an unmeasured last leg still lets the measured morning compact, leaving that leg and the arrival alone', () => {
+  const plan = [
+    {type:'departure',time:'09:00'},
+    {type:'attraction',time:'10:30',endTime:'12:00',placeIntent:{purpose:'museum'}},
+    {type:'dining',time:'13:30',endTime:'14:30',placeIntent:{category:'restaurant'}},
+    {type:'arrival',time:'21:00',title:'숙소 미정'}
+  ];
+  const measured = [20,20,null].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+  const fitted = fitMeasuredSchedule(plan,measured,'21:00','09:00',{compact:true});
+  assert.equal(fitted.adjusted,true);
+  assert.deepEqual(fitted.items.map(item=>[item.time,item.endTime]),
+    [['09:00',''],['09:20','10:50'],['12:00','13:00'],['21:00','']]);
+  assert.equal(fitMeasuredSchedule(fitted.items,measured,'21:00','09:00',{compact:true}).adjusted,false);
+});

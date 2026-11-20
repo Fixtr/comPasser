@@ -170,7 +170,10 @@ test('reported Day 2: measured gaps compact lunch to noon, preserving openings a
   assert.equal(fitted.items[2].time,'12:00');
   assert.equal(fitted.items[2].endTime,'13:00');
   assert.equal(fitted.items[3].time,'15:00');
-  assert.equal(fitMeasuredSchedule(plan,measured([null,10,20,20]),'17:11','09:00',{compact:true}).adjusted,false);
+  // An unknown first leg keeps the first visit where it is; only the measured run after it compacts.
+  const partial = fitMeasuredSchedule(plan,measured([null,10,20,20]),'17:11','09:00',{compact:true});
+  assert.deepEqual(partial.items[1],plan[1]);
+  assert.equal(partial.items[2].time,'12:00');
 });
 
 const zigzag = () => [stop(0,'departure','09:00'),stop(3,'attraction','09:10','09:40'),
