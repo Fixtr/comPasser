@@ -1512,3 +1512,27 @@ test('the planner counts 4/7 to 7/7 with a matching bar and speaks one term for 
  await expect(review.getByRole('heading',{name:'출발·도착',exact:true})).toBeVisible();
  await expect(review).not.toContainText(/Day \d/);
 });
+
+test('a start or end far from the trip city warns in ko and en and offers the flight form for a far airport',async({page})=>{
+ const jeju={placeId:'jeju-airport',displayName:'제주국제공항',formattedAddress:'제주특별자치도 제주시',lat:33.5071,lng:126.4934};
+ const busan={placeId:'haeundae',displayName:'해운대 해수욕장',formattedAddress:'부산 해운대구',lat:35.1587,lng:129.1604};
+ const incheon={placeId:'icn',displayName:'인천국제공항',formattedAddress:'인천 중구',lat:37.4602,lng:126.4407};
+ await page.goto('/destination');
+ await page.evaluate(async([jeju,busan,incheon])=>{const {plannerDraftStore}=await import('/src/domains/planner/services/planner-draft.mjs');plannerDraftStore.save({destination:{id:'seoul',country:'KOR',name:'Seoul, Korea'},date:['2030-10-17','2030-10-18'],startLocation:jeju,endLocation:incheon,startTime:'09:00',endTime:'21:00',anchorSchedules:[],
+  dailyLocations:[{day:1,startLocation:'',endLocation:busan},{day:2,startLocation:'',endLocation:''}]});},[jeju,busan,incheon]);
+ await page.goto('/plan');const form=page.locator('travel-form:visible');
+ const warning=id=>form.locator(`#${id}`).locator('xpath=ancestor::div[contains(@class,"form-group")][1]').locator('.far-location-warning');
+ // Jeju airport on a Seoul trip is the first start: it names the distance and opens the arrival flight.
+ await expect(warning('start-location')).toContainText('서울에서 약 450km 떨어져 있어요. 비행기로 오신다면 도착편을 추가하세요.');
+ await expect(warning('daily-end-location-1')).toContainText('서울에서 약 330km');
+ await expect(warning('daily-end-location-1').locator('button')).toHaveCount(0);
+ await expect(warning('end-location')).toBeHidden(); // Incheon stays within reach
+ const shot=lang=>form.locator('#start-location').locator('xpath=ancestor::div[contains(@class,"row-2")][1]').screenshot({path:test.info().outputPath(`far-location-${lang}.png`)});
+ await shot('ko');
+ await page.evaluate(async()=>(await import('/src/utils/i18n.js')).setLang('en'));
+ await expect(warning('start-location')).toContainText('About 450 km from Seoul. Flying in? Add an arriving flight.');
+ await shot('en');
+ await warning('start-location').locator('button').click();await expect(form.locator('#arrival-flight')).toBeVisible();
+ await page.evaluate(async()=>(await import('/src/utils/i18n.js')).setLang('ko'));
+ expect(await form.evaluate(element=>element.getFormData().startLocation?.placeId)).toBe('jeju-airport'); // warn, never clear
+});

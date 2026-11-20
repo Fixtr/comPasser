@@ -21,6 +21,8 @@ import { findIncompleteAnchor, isAnchorBlank, missingAnchorFields } from '../ser
 import { findMissingLocation, REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
 import { getLocationName, mergedSameDayVisits, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
 import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../services/flight-arrival.mjs';
+import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
+import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { findPlannerInputIssue, plannerValidationMessage } from '../services/planner-validation.js';
 import { scheduleFlexibleVisits } from '../services/schedule-flexible-visits.mjs';
 import { createFlexibleVisitChecks } from '../services/flexible-visit-checks.js';
@@ -228,6 +230,7 @@ export default class TravelForm extends HTMLElement {
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    this.syncFarLocations();
     if (this.hasAttribute('handoff-flow')) {
       const city = destinationById(this.draft.destination?.id);
       const destination = this.shadowRoot.getElementById('trip-destination');
@@ -1089,6 +1092,41 @@ export default class TravelForm extends HTMLElement {
     const firstStart = getLocationName(getAutocompleteValue(root.querySelector('.daily-start-location')))
       || getLocationName(getAutocompleteValue(root.getElementById('start-location')));
     root.getElementById('airport-start-hint').hidden = !root.getElementById('arrival-flight').hidden || !isAirportName(firstStart);
+    this.syncFarLocations();
+  }
+
+  // Planning only uses transit and walking, so a start or end far from the trip city cannot be reached: warn, never block.
+  syncFarLocations() {
+    const root = this.shadowRoot;
+    const cityId = this.draft.destination?.id;
+    const english = RECOMMENDATION_CITIES[cityId]?.[0]?.replaceAll(' ', '');
+    const city = [`city${english}`, `discover${english}`].map(key => [key, t(key)]).find(([key, text]) => key !== text)?.[1]
+      || RECOMMENDATION_CITIES[cityId]?.[0];
+    const firstStart = root.querySelector('.daily-start-location');
+    const lastEnd = [...root.querySelectorAll('.daily-end-location')].at(-1);
+    for (const input of root.querySelectorAll('#start-location, #end-location, .daily-start-location, .daily-end-location')) {
+      const group = input.closest('.form-group');
+      let warning = group.querySelector('.far-location-warning');
+      if (!warning) {
+        warning = Object.assign(document.createElement('p'), { className: 'subtitle far-location-warning' });
+        warning.setAttribute('role', 'status');
+        group.append(warning);
+      }
+      const place = getAutocompleteValue(input);
+      const km = farFromCityKm(place, cityId);
+      warning.hidden = km === null;
+      if (km === null) { warning.replaceChildren(); continue; }
+      // The trip's first start or last end at a far airport is a flight: point to the flight form instead.
+      const flight = isAirportName(getLocationName(place))
+        ? (input.id === 'start-location' || input === firstStart ? 'arrival' : input.id === 'end-location' || input === lastEnd ? 'departure' : null)
+        : null;
+      const message = t(flight ? `farAirport_${flight}` : 'farLocation').replace('{0}', city).replace('{1}', km);
+      warning.replaceChildren(message);
+      if (!flight || !root.getElementById(`${flight}-flight`).hidden) continue;
+      const button = Object.assign(document.createElement('button'), { type: 'button', className: 'link-btn', textContent: t(flight === 'arrival' ? 'addArrivalFlight' : 'addDepartureFlight') });
+      button.onclick = () => root.getElementById(`add-${flight}-flight`).click();
+      warning.append(' ', button);
+    }
   }
 
   dayTimeInput(day, edge) {
