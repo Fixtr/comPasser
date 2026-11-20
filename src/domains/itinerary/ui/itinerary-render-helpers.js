@@ -1,6 +1,13 @@
-import { t } from '../../../utils/i18n.js';
+import { t, getLang } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { minutesOf as clock, routeDepartureClock } from '../services/itinerary-schedule-adjust.mjs';
+import { formatMinutes } from '../services/boarding-pass.mjs';
+
+// Google's duration text keeps the language the Maps API loaded with; minutes follow the current toggle.
+export function transitDurationText(leg) {
+  if (leg?.estimated && Number.isFinite(leg.durationMinutes)) return t(leg.mode === 'TRANSIT' ? 'estimatedTransitDuration' : 'estimatedWalkDuration').replace('{0}', leg.durationMinutes);
+  return (Number.isFinite(leg?.displayMinutes) && formatMinutes(leg.displayMinutes, getLang())) || leg?.duration || '';
+}
 
 /**
  * itinerary-view.js 의 대중교통/일정 요약 렌더링 로직. nav-popup.js 와 같은
@@ -91,7 +98,7 @@ export function renderTransitStep(step) {
       <div class="transit-step" style="background:${style.bg}; border-color:${style.border};">
         <span class="step-icon">${style.icon}</span>
         <span class="step-main" style="color:${style.color};">${escapeHtml(modeText)}</span>
-        <span class="step-time">${escapeHtml(step.duration)}${escapeHtml(stopsCount)}</span>
+        <span class="step-time">${escapeHtml(transitDurationText(step))}${escapeHtml(stopsCount)}</span>
         ${stopsHtml}
       </div>`;
   }
@@ -101,7 +108,7 @@ export function renderTransitStep(step) {
     <div class="transit-step walk">
       <span class="step-icon">${getTransitStyle('WALKING').icon}</span>
       <span class="step-main">${escapeHtml(t('walkText') || '도보')}</span>
-      <span class="step-time">${escapeHtml(step.duration)}${step.distance ? ` (${escapeHtml(step.distance)})` : ''}</span>
+      <span class="step-time">${escapeHtml(transitDurationText(step))}${step.distance ? ` (${escapeHtml(step.distance)})` : ''}</span>
     </div>`;
 }
 
@@ -158,12 +165,12 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
     if (steps.length > 0) {
       stepsHtml = steps.map(step => renderTransitStep(step)).join('');
     } else if (detail.mode === 'WALKING') {
-      stepsHtml = renderTransitStep({ mode: 'WALKING', duration: detail.duration || '', distance: detail.distance || '' });
+      stepsHtml = renderTransitStep({ mode: 'WALKING', duration: transitDurationText(detail), distance: detail.distance || '' });
     } else {
       // 구버전 데이터 폴백: 단일 요약 스텝
       stepsHtml = renderTransitStep({
         mode: 'TRANSIT',
-        duration: detail.duration || '',
+        duration: transitDurationText(detail),
         distance: detail.distance || '',
         vehicleType: detail.vehicleType,
         lineName: detail.lineName,
@@ -174,8 +181,9 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
     }
 
     const totalFormat = t('transitTotal') || '총 {0}';
-    const totalText = detail.duration
-      ? `${totalFormat.replace('{0}', detail.duration)}${detail.distance ? ` · ${detail.distance}` : ''}`
+    const totalDuration = transitDurationText(detail);
+    const totalText = totalDuration
+      ? `${totalFormat.replace('{0}', totalDuration)}${detail.distance ? ` · ${detail.distance}` : ''}`
       : '';
 
     el.innerHTML = `
@@ -185,7 +193,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
           ${totalText ? `<span class="transit-seg-total">${escapeHtml(totalText)}</span>` : ''}
         </div>
         <div class="transit-steps">${stepsHtml}</div>
-        ${(Array.isArray(detail.warnings) ? detail.warnings : []).map(warning => `<div role="note">${escapeHtml(warning)}</div>`).join('')}
+        ${(detail.estimated ? [t(detail.mode === 'TRANSIT' ? 'estimatedTransitNote' : 'estimatedWalkNote')] : Array.isArray(detail.warnings) ? detail.warnings : []).map(warning => `<div role="note">${escapeHtml(warning)}</div>`).join('')}
         ${freeTime}
         ${detail.directionsUrl ? `<div class="transit-verify">${escapeHtml(t('transitVerify') || '구글 지도에서 경로 확인')}</div>` : ''}
       </div>

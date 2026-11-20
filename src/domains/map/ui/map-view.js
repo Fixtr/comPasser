@@ -562,6 +562,7 @@ export class MapView extends HTMLElement {
               return {
                 mode: 'TRANSIT',
                 duration: s.duration?.text || '',
+                displayMinutes: typeof s.duration?.value === 'number' ? Math.max(1, Math.round(s.duration.value / 60)) : null,
                 distance: s.distance?.text || '',
                 vehicleType: line.vehicle?.type || 'TRANSIT',
                 lineName: line.short_name || line.name || '',
@@ -573,6 +574,7 @@ export class MapView extends HTMLElement {
             return {
               mode: s.travel_mode || 'WALKING',
               duration: s.duration?.text || '',
+              displayMinutes: typeof s.duration?.value === 'number' ? Math.max(1, Math.round(s.duration.value / 60)) : null,
               distance: s.distance?.text || ''
             };
           });
@@ -612,6 +614,8 @@ export class MapView extends HTMLElement {
             durationMinutes: typeof leg.duration.value === 'number'
               ? Math.ceil(leg.duration.value / 60)
               : null,
+            // Google rounds its own text to the nearest minute; the card keeps that, the schedule keeps ceil.
+            displayMinutes: typeof leg.duration.value === 'number' ? Math.max(1, Math.round(leg.duration.value / 60)) : null,
             distance: leg.distance.text,
             mode: hasTransitStep ? 'TRANSIT' : 'WALKING', /* Ubiquitous Language */
             vehicleType: primaryVehicleType,
