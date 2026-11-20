@@ -15,6 +15,11 @@ const DEFAULT_GAP_INTENT = { category: 'tourist_attraction', ko: '관광 명소'
 const place = item => normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.verifiedPlace)
   || normalizeSelectedPlace(item?.resolvedPlace);
 
+// An undefined duration is a leg the checks deadline left unmeasured (the earlier stop of a chained visit whose
+// first visit was rolled back): the fill already passed its own measured legs, so it is no evidence against it.
+const legFits = (route, from, to) => !!route && (route.durationMinutes === undefined ||
+  Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0 && from + Math.ceil(route.durationMinutes) <= to);
+
 // Indexes of gapFill visits that no longer fit their measured legs, slack and opening hours.
 export function failedGapFills(items, routes, { date, endTime, hoursByIndex = [] } = {}) {
   return items.flatMap((item, index) => {
@@ -25,8 +30,7 @@ export function failedGapFills(items, routes, { date, endTime, hoursByIndex = []
     const end = next?.type === 'arrival' ? minutes(endTime) : minutes(next?.time);
     const start = minutes(item.time), until = minutes(item.endTime), before = minutes(previous?.endTime || previous?.time);
     return end !== null && start !== null && until !== null && before !== null &&
-      Number.isFinite(inbound?.durationMinutes) && inbound.durationMinutes >= 0 && Number.isFinite(outbound?.durationMinutes) && outbound.durationMinutes >= 0 &&
-      before + Math.ceil(inbound.durationMinutes) <= start && until + Math.ceil(outbound.durationMinutes) + 30 <= end &&
+      legFits(inbound, before, start) && legFits(outbound, until + 30, end) &&
       ['current','regular'].includes(assessVisitHours(item, date, hoursByIndex[index])) ? [] : [index];
   });
 }
