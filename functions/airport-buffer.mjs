@@ -14,9 +14,9 @@ function kilometres(a, b) {
 }
 
 /**
- * Minutes to keep free before a day that ends at an airport, or null when the end is not an airport.
- * The day's visits sit near downtown or near where the day starts (a Seogwipo hotel on a Jeju trip),
- * so the farther of the two counts.
+ * Minutes to keep free before a day that ends at an airport (or after one that starts there), or null
+ * when the name is not an airport. The day's visits sit near downtown or near the day's other end
+ * (a Seogwipo hotel on a Jeju trip), so the farther of the two counts.
  * shortcut: estimated from straight-line distance before any route is measured; the measured fit then
  * checks the real leg. Upgrade if generation ever measures before planning.
  */

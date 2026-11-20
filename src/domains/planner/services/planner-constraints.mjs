@@ -366,8 +366,13 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     const airportBuffer = airportBufferMinutes(getLocationName(constraints.endLocation), constraints.endLocation,
       normalizedRequest.destination?.id, constraints.startLocation);
     const latestVisitEnd = airportBuffer === null ? Number.MAX_SAFE_INTEGER : endTimeMinutes - airportBuffer;
+    // A day starting at Incheon got an 11:30 lunch after an 11:00 start; the ~88-minute leg pushed the whole day back.
+    // A start time set from an arrival flight is when the traveler leaves the airport, so travel still follows it.
+    const startBuffer = airportBufferMinutes(getLocationName(constraints.startLocation), constraints.startLocation,
+      normalizedRequest.destination?.id, constraints.endLocation);
+    const earliestVisitStart = startBuffer === null || minutesOf(constraints.startTime) === null ? 0 : minutes(constraints.startTime) + startBuffer;
     scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
-      || (minutes(item.endTime) <= latestVisitEnd
+      || (minutes(item.endTime) <= latestVisitEnd && minutes(item.time) >= earliestVisitStart
         && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));
 
     // A model can ignore the prompt and schedule a night-only activity in the
