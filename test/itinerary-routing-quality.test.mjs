@@ -1,9 +1,12 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { RoutingService, routeCache } from '../src/domains/map/services/routing-service.js';
 import { buildTransitDepartureTime } from '../src/domains/map/services/transit-time.mjs';
 import { routeDepartureClock } from '../src/domains/itinerary/services/itinerary-schedule-adjust.mjs';
 import { verifyGeneratedItinerary } from '../src/domains/planner/services/generated-day-quality.js';
+import { readFileSync } from 'node:fs';
+import { travelRegion } from '../functions/travel-region.mjs';
+import { normalizeSelectedPlace } from '../src/domains/planner/services/selected-place.mjs';
 import { selectRecommendation } from '../src/domains/map/services/recommendation-place.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../src/domains/itinerary/services/itinerary-end-fit.mjs';
 import { improveMeasuredRouteOrder, suggestRouteOrder } from '../src/domains/itinerary/services/itinerary-route-order.mjs';
@@ -133,6 +136,54 @@ test('a failing chained gap visit is dropped alone; after a failing first visit 
     assert.deepEqual(result.days[0].scheduleItems.map(item => item.title), titles, slowFrom);
     assert.deepEqual({ added: logs[0].added, rolledBack: logs[0].rolledBack }, log);
   }
+});
+
+test('after the checks deadline, a chained visit whose first visit is rolled back stays unless its new leg actually failed', async () => {
+  const open = { utcOffsetMinutes: 540, regularOpeningHours: { periods: Array.from({ length: 7 }, (_, day) =>
+    ({ open: { day, hour: 9, minute: 0 }, close: { day, hour: 18, minute: 0 } })) } };
+  // undefined: the deadline passed before P0 -> P6 was measured; null: it was measured and has no route.
+  for (const [lateLeg, titles, log] of [[undefined, ['P0', 'P6', 'P1'], { added: 1, rolledBack: 1 }],
+    [null, ['P0', 'P1'], { added: 0, rolledBack: 2 }]]) {
+    const days = twoStopDays(2), logs = [], info = console.info;
+    console.info = (_tag, dayIndex, detail) => { if (dayIndex === 0) logs.push(detail); };
+    let searches = 0;
+    const result = await verifyGeneratedItinerary(tripOf(days), {
+      geocoding: { geocodeSchedule: async () => [] },
+      // The first visit P5 loses its hours on the confirming check, so only it is rolled back.
+      loadHours: async items => items.map(item => ['departure', 'arrival'].includes(item.type) ||
+        item.selectedPlace?.placeId === 'q5' ? null : open),
+      createChecks: () => ({
+        // The fill never measures P0 -> P6; it is first needed after P5 is rolled back.
+        travelMinutes: async (from, to) => from.placeId === 'q0' && to.placeId === 'q6' ? lateLeg : 10,
+        getHours: async () => open,
+        findRecommendation: async () => searches < 2 ? { ...stop(5 + searches++, 'attraction', '09:00', '10:00'), placeStatus: 'verified' } : null,
+      }),
+    }).finally(() => { console.info = info; });
+    assert.deepEqual(result.days[0].scheduleItems.map(item => item.title), titles, String(lateLeg));
+    assert.deepEqual({ added: logs[0].added, rolledBack: logs[0].rolledBack }, log);
+  }
+});
+
+test('route checks return undefined for a leg the deadline cut off and null for a failed one', async () => {
+  // The real checks with the Maps loader stubbed out (import.meta.env is Vite-only).
+  const source = readFileSync(new URL('../src/domains/planner/services/flexible-visit-checks.js', import.meta.url), 'utf8')
+    .replace(/^import[\s\S]*?;\n/gm, '').replace('export function', 'function');
+  const Routing = class { getTransitRoute(_from, to) { return to.lng === 129 ? Promise.reject(new Error('no route')) : new Promise(() => {}); } };
+  const createChecks = new Function('deps', `const { travelRegion, getMapsLoader, RoutingService, GeocodingService, buildTransitDepartureTime,
+    normalizeSelectedPlace, formatLocationForPrompt, getLang } = deps; ${source}; return createFlexibleVisitChecks;`)({ travelRegion,
+    getMapsLoader: () => ({}), RoutingService: Routing, GeocodingService: class {}, buildTransitDepartureTime,
+    normalizeSelectedPlace, formatLocationForPrompt: () => null, getLang: () => "ko" });
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  try {
+    const checks = createChecks(1), leg = lng => checks.travelMinutes({ lat: 37.5, lng: 127 }, { lat: 37.5, lng }, '2026-05-01', '10:00');
+    assert.equal(await leg(129), null);
+    mock.timers.tick(11950);
+    const started = leg(128); // started 50 ms before the 12 s deadline, still pending when it passes
+    mock.timers.tick(50);
+    assert.equal(await started, undefined);
+    assert.equal(await leg(130), undefined); // first requested after the deadline
+    assert.equal(await leg(129), null); // a failure measured before the deadline stays a failure
+  } finally { mock.timers.reset(); }
 });
 
 test('compacting visits keeps the arrival at the requested end time; the leftover shows as free time', () => {

@@ -44,13 +44,15 @@ export function createFlexibleVisitChecks(visitCount = 1, request = {}, { measur
           (typeof origin === 'string' ? origin === destination : origin.lat === destination.lat && origin.lng === destination.lng)) return 0;
       const key = JSON.stringify([origin, destination, date, time]);
       // An already measured leg stays known after the deadline, so a re-check cannot roll back a fill it confirmed.
+      // A leg the deadline cut off (not started, or timed out by it) is undefined (not measured), unlike null
+      // (measured, no usable route); within() settles at the deadline, so a later rejection is that timeout.
       if (!routes.has(key)) {
-        if (!remaining()) return null;
+        if (!remaining()) return undefined;
         routes.set(key, within(routing.getTransitRoute(origin, destination,
           buildTransitDepartureTime(date, time, new Date(), region.timeZone)), remaining()).then(result => {
           const seconds = measuredOnly && result?.estimated ? NaN : result?.routes?.[0]?.legs?.[0]?.duration?.value;
           return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds / 60) : null;
-        }).catch(() => null));
+        }).catch(() => remaining() ? null : undefined));
       }
       return routes.get(key);
     },
