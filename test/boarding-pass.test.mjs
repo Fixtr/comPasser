@@ -42,8 +42,8 @@ test('분을 사람이 읽는 길이로 되돌린다', () => {
   assert.equal(formatMinutes(80), '1시간 20분');
   assert.equal(formatMinutes(120), '2시간');
   assert.equal(formatMinutes(0), null);
-  assert.equal(formatMinutes(52, 'en'), '52m');
-  assert.equal(formatMinutes(80, 'en'), '1h 20m');
+  assert.equal(formatMinutes(52, 'en'), '52 min');
+  assert.equal(formatMinutes(80, 'en'), '1 hr 20 min');
 });
 
 test('출발과 도착은 줄이 아니라 티켓의 구간이 된다', () => {
@@ -164,7 +164,7 @@ test('체류 시간은 AI 문구가 아니라 시작·종료 시각으로 화면
     { type: 'cafe', title: '시각 없음', time: '15:00', duration: '01:00' },
   ] }] };
   assert.deepEqual(buildBoardingPass({ plan: stops }).rows.map(r => r.duration), ['2시간', '1시간 30분', '01:00']);
-  assert.deepEqual(buildBoardingPass({ plan: stops, language: 'en' }).rows.map(r => r.duration), ['2h', '1h 30m', '01:00']);
+  assert.deepEqual(buildBoardingPass({ plan: stops, language: 'en' }).rows.map(r => r.duration), ['2 hr', '1 hr 30 min', '01:00']);
 });
 
 test('이동 합계는 지도가 계산한 구간 시간에서 온다 (AI 이동 문구는 비어 있다)', () => {
@@ -189,7 +189,7 @@ test('이동 합계는 지도가 계산한 구간 시간에서 온다 (AI 이동
   assert.equal(buildBoardingPass({ plan }).transit, null);
   assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: false } }).transit, '1시간 50분');
   assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: true } }).transit, '약 1시간 50분');
-  assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: true }, language: 'en' }).transit, '~1h 50m');
+  assert.equal(buildBoardingPass({ plan, transit: { minutes: 110, estimated: true }, language: 'en' }).transit, '~1 hr 50 min');
   // 예전 일정처럼 AI 문구만 있으면 그대로 읽는다.
   assert.equal(buildBoardingPass({ plan: { days: [day] } }).transit, '34분');
 });

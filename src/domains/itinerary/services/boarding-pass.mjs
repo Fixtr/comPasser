@@ -69,8 +69,9 @@ export function formatMinutes(minutes, language = 'ko') {
   const h = Math.floor(total / 60);
   const m = total % 60;
   if (language === 'en') {
-    if (!h) return `${m}m`;
-    return m ? `${h}h ${m}m` : `${h}h`;
+    // "m" alone reads as metres next to walking distances ("1m (53 m)").
+    if (!h) return `${m} min`;
+    return m ? `${h} hr ${m} min` : `${h} hr`;
   }
   if (!h) return `${m}분`;
   return m ? `${h}시간 ${m}분` : `${h}시간`;
