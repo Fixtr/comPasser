@@ -41,7 +41,8 @@ import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import {
   getEndTimeWarning,
   getDayConstraints,
-  getTransitCoverage
+  getTransitCoverage,
+  getBoundaryRouteWarning
 } from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
@@ -498,6 +499,8 @@ export default class ItineraryView extends HTMLElement {
     this.transitUnavailable = false;
     const anchorWarning = this.shadowRoot.getElementById('anchor-time-warning');
     if (anchorWarning) anchorWarning.hidden = true;
+    const boundaryWarning = this.shadowRoot.getElementById('boundary-route-warning');
+    if (boundaryWarning) boundaryWarning.hidden = true;
     this.renderActiveDay(plan);
     // 편집 중 원본 배열이 바뀌어도 이미 보낸 계산의 입력은 그대로 유지한다.
     window.dispatchEvent(new CustomEvent('render-map-route', {
@@ -974,6 +977,9 @@ export default class ItineraryView extends HTMLElement {
     // 보고 판단하는 getEndTimeWarning 을 쓴다.
     const { overflowMinutes, endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex, this.lastTransitRoutes);
     this.renderEndTimeWarning(overflowMinutes, endTime);
+    const boundary = getBoundaryRouteWarning(this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems, this.lastTransitRoutes);
+    const boundaryWarning = this.shadowRoot.getElementById('boundary-route-warning');
+    if (boundaryWarning) { boundaryWarning.hidden = !boundary; if (boundary) boundaryWarning.textContent = t(boundary === 'start' ? 'boundaryRouteStart' : 'boundaryRouteEnd'); }
     this.updateAnchorWarning(applyTransitDelays(
       this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems,
       this.lastTransitRoutes), this.lastTransitRoutes);
@@ -1518,6 +1524,7 @@ export default class ItineraryView extends HTMLElement {
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>
           <div id="end-time-warning" class="end-time-warning" role="status" aria-live="polite" style="display: none;"></div>
           <p id="anchor-time-warning" class="shared-notice" role="alert" data-i18n="anchorTransitConflict" hidden></p>
+          <p id="boundary-route-warning" class="shared-notice" role="alert" hidden></p>
           <section id="next-stop" class="next-stop" hidden>
             <span id="next-stop-label"></span>
             <strong id="next-stop-title"></strong>

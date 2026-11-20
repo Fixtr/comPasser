@@ -15,7 +15,8 @@ import { enforcePlannerConstraints } from '../src/domains/planner/services/plann
 import {
   getDayConstraints,
   getEndTimeWarning,
-  getTransitCoverage
+  getTransitCoverage,
+  getBoundaryRouteWarning
 } from '../src/domains/itinerary/services/itinerary-view-model.mjs';
 
 /**
@@ -206,4 +207,20 @@ test('a zero-duration same-place segment counts as verified, not as a failure', 
   ];
 
   assert.deepEqual(getTransitCoverage(items, routes), { expected: 3, resolved: 3, status: 'verified' });
+});
+
+test('출발·도착 경계 구간이 경로 없음이거나 4시간을 넘으면 그 날 경고를 고른다', () => {
+  const items = [{ type: 'departure' }, { type: 'Visit' }, { type: 'Visit' }, { type: 'arrival' }];
+  const leg = (fromIndex, durationMinutes, extra = {}) => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes, ...extra });
+
+  // 아직 측정 전(경로 없음)이거나 추정 구간은 실패로 보지 않는다.
+  assert.equal(getBoundaryRouteWarning(items, []), null);
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, null, { estimated: true }), leg(2, 300, { estimated: true })]), null);
+  // 중간 구간 실패는 경계 문제가 아니다.
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, 30), leg(1, null), leg(2, 30)]), null);
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, null), leg(1, 20), leg(2, 30)]), 'start');
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, 30), leg(1, 20), leg(2, 241)]), 'end');
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, 240), leg(2, 30)]), null);
+  // 출발/도착 항목이 없는 날은 첫·마지막 구간이 경계가 아니다.
+  assert.equal(getBoundaryRouteWarning([{ type: 'Visit' }, { type: 'Visit' }], [leg(0, null)]), null);
 });
