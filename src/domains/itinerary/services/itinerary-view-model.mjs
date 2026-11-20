@@ -95,3 +95,19 @@ export function getEndTimeWarning(itinerary, activeDayIndex = 0, transitRoutes =
   const projected = applyTransitDelays(items, transitRoutes);
   return { endTime, overflowMinutes: Math.max(getEndTimeOverflowMinutes(items, endTime), getEndTimeOverflowMinutes(projected, endTime)) };
 }
+
+/**
+ * 출발지→첫 일정, 마지막 일정→도착지 구간이 측정 결과 경로가 없거나 4시간을
+ * 넘으면 출발·도착 장소가 여행 도시와 동떨어졌을 가능성이 크다.
+ * 측정 전(구간 없음)과 추정(estimated) 구간은 실패로 보지 않는다.
+ *
+ * @returns {'start'|'end'|null}
+ */
+export function getBoundaryRouteWarning(scheduleItems, transitRoutes) {
+  const items = Array.isArray(scheduleItems) ? scheduleItems : [];
+  const broken = fromIndex => (Array.isArray(transitRoutes) ? transitRoutes : []).some(route => route?.fromIndex === fromIndex &&
+    !route.estimated && (route.durationMinutes === null || route.durationMinutes > 240));
+  if (items[0]?.type === 'departure' && broken(0)) return 'start';
+  if (items.length > 1 && items.at(-1)?.type === 'arrival' && broken(items.length - 2)) return 'end';
+  return null;
+}
