@@ -114,7 +114,7 @@ test('a nearby airport keeps the afternoon: the buffer follows the airport\'s di
   const visit = (title, time, endTime) => ({ title, type: 'attraction', time, endTime, location: '제주시',
     placeIntent: { purpose: title, category: 'museum', nearLocation: '제주국제공항' } });
   const titles = (endLocation, id) => enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('오전', '10:30', '12:00'),
-    visit('늦은 오후', '16:30', '18:00')] }], { date: ['2026-11-19'], startTime: '10:00', endTime: '19:00',
+    visit('늦은 오후', '16:30', '18:00')] }], { date: ['2026-11-19'], startTime: '08:00', endTime: '19:00',
     destination: { id, country: 'KOR', name: id }, startLocation: endLocation, endLocation, anchorSchedules: [] })[0].scheduleItems.map(item => item.title);
   const cju = { placeId: 'cju', displayName: '제주국제공항', formattedAddress: '제주특별자치도 제주시 공항로 2', lat: 33.5070772, lng: 126.4934311 };
   const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
@@ -128,6 +128,20 @@ test('a nearby airport keeps the afternoon: the buffer follows the airport\'s di
     { date: ['2026-11-19'], startTime: '10:00', endTime: '19:00', destination: { id: 'jeju', country: 'KOR', name: 'jeju' },
       startLocation: hotel, endLocation: cju, anchorSchedules: [] })[0].scheduleItems.map(item => item.title);
   assert.deepEqual(fromHotel, ['출발 · 서귀포 호텔', '오전', '도착 · 제주국제공항']);
+});
+
+test('a day starting at an airport keeps the travel buffer free after its start', () => {
+  const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
+  const hotel = { placeId: 'hotel', displayName: '명동 호텔', formattedAddress: '서울 중구 명동', lat: 37.5636, lng: 126.9827 };
+  const visit = (title, time, endTime) => ({ title, type: 'dining', time, endTime, location: '명동',
+    placeIntent: { purpose: title, category: 'restaurant', nearLocation: '명동 호텔' } });
+  const titles = startLocation => enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('점심', '11:30', '12:30'),
+    visit('늦은 점심', '13:30', '14:30')] }], { date: ['2026-11-19'], startTime: '11:00', endTime: '20:00',
+    destination: { id: 'seoul', country: 'KOR', name: 'seoul' }, startLocation, endLocation: hotel,
+    anchorSchedules: [{ day: 1, name: '공항 라운지', time: '11:00', endTime: '11:20', location: '인천국제공항' }] })[0].scheduleItems.map(item => item.title);
+  // Incheon to Myeongdong needs over two hours: the 11:30 lunch goes, the fixed appointment stays.
+  assert.deepEqual(titles(icn), ['출발 · 인천국제공항', '공항 라운지', '늦은 점심', '도착 · 명동 호텔']);
+  assert.deepEqual(titles('서울역'), ['출발 · 서울역', '공항 라운지', '점심', '늦은 점심', '도착 · 명동 호텔']);
 });
 
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {

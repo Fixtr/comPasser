@@ -15,8 +15,8 @@ test('all budget prompts use transit, omit fixed stops and only require meals wh
     assert.match(prompt, /a day of 3 hours or less usually 1-2\. The gaps above still separate every pair of visits/);
     assert.match(prompt, /move lunch before or after a fixed appointment rather than skip it/);
     // Both models put a 19:00 dinner before a 21:00 Incheon arrival; measured transit was about 130 minutes.
-    assert.match(prompt, /Before an airport end time leave the unallocated minutes listed for that day/);
-    assert.doesNotMatch(prompt, /Airport end:/);
+    assert.match(prompt, /Before an airport end time and after an airport start time leave the unallocated minutes listed for that day/);
+    assert.doesNotMatch(prompt, /Airport (?:start|end):/);
     assert.match(prompt, /A restaurant visit before 11:00 must be an explicit breakfast or brunch/);
     assert.doesNotMatch(prompt, /ALL transportation|occasional taxi|tips in localTip|estimate the real travel time|MUST include ScheduleItems with type/);
   }
@@ -34,7 +34,7 @@ test('pace changes optional visit density without changing the default prompt or
   for (const pace of ['relaxed', 'packed']) {
     assert.doesNotMatch(prompt(pace), /never leave most of a long day empty/);
     assert.match(prompt(pace), /Never overlap a fixed appointment/);
-    assert.match(prompt(pace), /Before an airport end time leave the unallocated minutes listed for that day/);
+    assert.match(prompt(pace), /Before an airport end time and after an airport start time leave the unallocated minutes listed for that day/);
   }
 });
 
@@ -47,6 +47,16 @@ test('an airport end lists its own buffer: short for Jeju, long for Incheon, 150
   assert.match(prompt('인천국제공항', 'seoul'), /Airport end: leave 150 minutes unallocated before 19:00/);
   assert.doesNotMatch(prompt('제주시청', 'jeju'), /Airport end:/);
   assert.doesNotMatch(prompt({ displayName: '제주국제공항', lat: 33.5070772, lng: 126.4934311 }, 'jeju'), /at least 150 minutes/);
+});
+
+test('an airport start lists its own buffer after the start time, counting the distance to the day end', () => {
+  const prompt = (startLocation, endLocation) => buildPrompt(sanitizePlannerRequest({ date: ['2026-11-19'], destination: { id: 'seoul', country: 'KOR', name: 'Seoul' },
+    dailyData: [{ day: 1, date: '2026-11-19', startTime: '11:00', endTime: '20:00', startLocation, endLocation, anchors: [] }] }), 'ko');
+  const icn = { displayName: '인천국제공항', lat: 37.4602, lng: 126.4407 };
+  const hotel = { displayName: '명동 호텔', lat: 37.5636, lng: 126.9827 };
+  assert.match(prompt(icn, hotel), /Airport start: leave 1[34]\d minutes unallocated after 11:00/);
+  assert.doesNotMatch(prompt(icn, hotel), /Airport end:/);
+  assert.doesNotMatch(prompt(hotel, icn), /Airport start:/);
 });
 
 test('place-search examples and budget words follow the request language', () => {

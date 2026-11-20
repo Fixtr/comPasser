@@ -231,6 +231,7 @@ function sanitizePlannerRequest(raw) {
       endLocationText: formatLocationForPrompt(day.endLocation),
       nearLocations: [...new Set([getLocationName(day.startLocation), getLocationName(day.endLocation), ...anchors.map(a => a.locationName), destinationName].filter(Boolean))],
       airportBufferMinutes: airportBufferMinutes(getLocationName(day.endLocation), day.endLocation, cityId, day.startLocation),
+      airportStartBufferMinutes: airportBufferMinutes(getLocationName(day.startLocation), day.startLocation, cityId, day.endLocation),
       anchors
     };
   });
@@ -277,7 +278,8 @@ function buildPrompt(constraints, lang) {
   const daily = dailyData.map(day => `- [Day ${day.day}] Date: ${day.date} | Time: ${day.startTime} to ${day.endTime}
   Start Location: ${JSON.stringify(day.startLocationText)}, End Location: ${JSON.stringify(day.endLocationText)}
   Allowed nearLocation values: ${JSON.stringify(day.nearLocations)}
-  Fixed appointments (blocked time): ${JSON.stringify(day.anchors)}${day.airportBufferMinutes === null ? "" : `
+  Fixed appointments (blocked time): ${JSON.stringify(day.anchors)}${day.airportStartBufferMinutes === null ? "" : `
+  Airport start: leave ${day.airportStartBufferMinutes} minutes unallocated after ${day.startTime}.`}${day.airportBufferMinutes === null ? "" : `
   Airport end: leave ${day.airportBufferMinutes} minutes unallocated before ${day.endTime}.`}`).join("\n");
   const language = lang === "ko" ? "Korean" : "English";
   return `You plan optional visits for a ${dates.length || 1}-day trip.
@@ -303,7 +305,7 @@ TIME AND TRANSPORT:
 - The app supports public transit and walking for every budget. Budget changes food/activity spending preferences only. Do not assume taxis or rental cars.
 - Google route results are the sole source of transport facts. Do not write or estimate transport modes, lines, transfers, fares or journey durations. Keep transitInfo empty.
 - Use chronological same-day HH:mm start/end times inside the requested day. Never overlap a fixed appointment. duration and endTime - time describe ONLY the visit; travel occupies separate unallocated gaps, never an item.
-- Leave conservative gaps before/after visits for later route verification. Before an airport end time leave the unallocated minutes listed for that day (estimated from the airport's distance to the city), 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
+- Leave conservative gaps before/after visits for later route verification. Before an airport end time and after an airport start time leave the unallocated minutes listed for that day (estimated from the airport's distance to the city), 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
 - ${VISIT_DENSITY[constraints.pace] || VISIT_DENSITY.balanced}${constraints.companion && constraints.pace === "packed" ? " Honor the companion’s mobility, rest and safety needs before increasing visit density." : ""}
 - Never create a visit whose only purpose is departure, arrival, transfer, travel preparation or movement inside a venue.
 
