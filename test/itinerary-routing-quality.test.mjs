@@ -318,7 +318,7 @@ test('short legs choose a real walking route when faster; unavailable walking ke
 const directions = (calls, seconds) => ({importLibrary:async()=>({DirectionsService:class {
   async route(request) {
     calls.push(request);const value=seconds(request);
-    if(value===null) throw Error('ZERO_RESULTS');
+    if(value===null) throw Object.assign(Error('ZERO_RESULTS'),{code:'ZERO_RESULTS'});
     return {routes:[{legs:[{duration:{value}}]}]};
   }
 }})});
@@ -392,10 +392,12 @@ test('a longer leg Google cannot route by transit gets a flagged transit estimat
     await routing.getTransitRoute(place(0),place(4),new Date());
     assert.equal(calls.length,4,'estimates are not cached as measured routes');
     // Beyond a 90-minute drive the leg is intercity rail, so no estimate.
+    // That is unmeasured, not Google's ZERO_RESULTS, so it must not read as "no route exists".
     drive=5401;
-    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()));
+    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()),error=>error.code===undefined);
+    // No drive either (e.g. Korea, where Google has no driving): the transit ZERO_RESULTS stands.
     drive=null;
-    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()));
+    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date()),{code:'ZERO_RESULTS'});
     // A short leg keeps the straight-line walking estimate and never asks for driving.
     calls.length=0;
     const walk=await routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.01},new Date());

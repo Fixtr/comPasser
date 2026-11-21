@@ -204,6 +204,11 @@ test('현재 요청의 실패는 숨기지 않고 같은 대상의 실패 안내
   await fallback.map.renderRoute(plan('첫날'), context(0));
   assert.equal(fallback.created.fallbacks.length, 1);
   assert.equal(fallback.events.at(-1).detail.routes[0].durationMinutes, null);
+  // 오류만으로는 경로가 없다고 단정하지 않는다. Google 이 ZERO_RESULTS 로 답한 경우만 표시한다.
+  assert.equal(fallback.events.at(-1).detail.routes[0].noRoute, false);
+  const zero = harness({ route: async () => { throw Object.assign(new Error('DIRECTIONS_ROUTE: ZERO_RESULTS'), { code: 'ZERO_RESULTS' }); } });
+  await zero.map.renderRoute(plan('첫날'), context(0));
+  assert.equal(zero.events.at(-1).detail.routes[0].noRoute, true);
 });
 
 test('전역 취소 이벤트와 컴포넌트 해제도 대기 중인 경로를 무효화한다', async () => {
