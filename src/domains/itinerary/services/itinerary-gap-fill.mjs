@@ -39,7 +39,7 @@ export function failedGapFills(items, routes, { date, endTime, hoursByIndex = []
   });
 }
 
-// ponytail: one candidate per measured gap, plus one chained after it when 120+ minutes remain and the daily
+// ponytail: one candidate per measured gap, plus one chained after it when 90+ minutes remain and the daily
 // limit allows; at most four searches/day; leave unsuitable gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
   findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId, theme } = {}) {
@@ -59,7 +59,9 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     const start = minutes(items[index].endTime || items[index].time);
     const end = minutes(items[next].type === 'arrival' ? endTime : items[next].time);
     if (start === null || end === null) { skip('no-time'); return []; }
-    if (end - start - Math.ceil(route.durationMinutes) < 90) { skip('short'); return []; }
+    // Pre-filter only: inbound, stay, outbound and 30-minute slack are measured per candidate below, so a near place
+    // can fit a gap whose free time over the direct leg is under 90 minutes.
+    if (end - start - Math.ceil(route.durationMinutes) < 60) { skip('short'); return []; }
     if (!identities[index] || !identities[next]) { skip('no-identity'); return []; }
     return [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }];
   }).sort((a, b) => b.free - a.free || a.index - b.index);
@@ -106,9 +108,9 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
-    // The rest needs two 30-minute slacks around a 60-minute visit: 120 minutes, not the 90 of a fresh gap.
+    // Pre-filter only, like a fresh gap: the chained visit still needs 30-minute slacks around 60 minutes, measured.
     const rest = gap.end - end - Math.ceil(outbound);
-    if (rest >= 120 && gaps.length < 4 && additions.length < limit) gaps.push({ index: gap.index, from: identity, start: end, end: gap.end });
+    if (rest >= 90 && gaps.length < 4 && additions.length < limit) gaps.push({ index: gap.index, from: identity, start: end, end: gap.end });
   }
   if (!additions.length) return unchanged();
   const result = items.slice();
