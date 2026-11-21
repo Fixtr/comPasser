@@ -11,6 +11,10 @@ const GAP_INTENTS = {
   healing: { category: 'park', ko: '조용한 공원', en: 'quiet park' },
   photo: { category: 'tourist_attraction', ko: '전망 좋은 명소', en: 'scenic viewpoint' }
 };
+// Google often lists no hours for landmarks and parks, and most are open all day: a looked-up place of these
+// types without hours is accepted. A failed lookup (null) is still rejected; cafes and the rest need real hours.
+const OPEN_AIR = new Set(['park', 'tourist_attraction']);
+const hoursOk = (item, data, status) => ['current','regular'].includes(status) || (!!data && status === 'unknown' && OPEN_AIR.has(item.placeIntent?.category));
 const DEFAULT_GAP_INTENT = { category: 'tourist_attraction', ko: '관광 명소', en: 'tourist attraction' };
 const place = item => normalizeSelectedPlace(item?.selectedPlace) || normalizeSelectedPlace(item?.verifiedPlace)
   || normalizeSelectedPlace(item?.resolvedPlace);
@@ -31,7 +35,7 @@ export function failedGapFills(items, routes, { date, endTime, hoursByIndex = []
     const start = minutes(item.time), until = minutes(item.endTime), before = minutes(previous?.endTime || previous?.time);
     return end !== null && start !== null && until !== null && before !== null &&
       legFits(inbound, before, start) && legFits(outbound, until + 30, end) &&
-      ['current','regular'].includes(assessVisitHours(item, date, hoursByIndex[index])) ? [] : [index];
+      hoursOk(item, hoursByIndex[index], assessVisitHours(item, date, hoursByIndex[index])) ? [] : [index];
   });
 }
 
@@ -88,7 +92,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     const hours = await getHours(identity.placeId);
     // After an earlier fill, keep the same 30 minutes failedGapFills requires before the next visit.
     const earliest = gap.start + Math.ceil(inbound) + (gap.from ? 30 : 0);
-    const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: true });
+    const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: !(hours && OPEN_AIR.has(intent.category)) });
     if (start === null) {
       // window: inbound travel left no 60-minute slot; hours-missing: lookup failed or deadline ran out;
       // hours-unknown: no usable hours data; hours: closed or open hours conflict with every slot.

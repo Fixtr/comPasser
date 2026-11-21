@@ -13,7 +13,7 @@ const options = overrides => ({date:'2030-10-09',endTime:'17:11',travelMinutes:a
   findRecommendation:async(item, center, excluded)=>{
     const id = ['extra-a','extra-b'].find(id=>!excluded.has(id));
     if (!id) return null;
-    const candidate = {...p(id),id,location:{lat:37.5,lng:127},types:['tourist_attraction'],
+    const candidate = {...p(id),id,location:{lat:37.5,lng:127},types:[item.placeIntent.category],
       addressComponents:[{types:['country'],shortText:'KR'}]};
     return {...item,...recommendationFields(item,selectRecommendation([candidate],item.placeIntent,center,excluded))};
   },...overrides});
@@ -66,7 +66,7 @@ test('no hours, closed venue, duplicate, missing route or insufficient return sl
     [{travelMinutes:async()=>null},'inbound'],[{travelMinutes:async()=>20},'outbound'],
     [{findRecommendation:async()=>({...s('booking','attraction','09:00','10:00'),placeStatus:'verified'})},'excluded'],
     [{findRecommendation:async()=>null},'no-candidate'],
-    [{getHours:async()=>({})},'hours-unknown'],[{travelMinutes:async()=>50},'window'],
+    [{theme:'food',getHours:async()=>({utcOffsetMinutes:540})},'hours-unknown'],[{travelMinutes:async()=>50},'window'],
     [{findRecommendation:async item=>({...item,placeStatus:'unresolved'})},'unverified']]) {
     const result=await fillMeasuredGaps(items,routes,options(overrides));
     assert.equal(result.changed,false,reason);
@@ -156,4 +156,20 @@ test('food-theme gap fill keeps the day at two cafe stops', async()=>{
   await fillMeasuredGaps([items[0],cafe,{...cafe,time:'12:00',endTime:'13:00'},items[2]],
     [...routes,{fromIndex:2,durationMinutes:10}],options({theme:'food',findRecommendation:searchAs(two)}));
   assert.ok(two.length&&two.every(category=>category==='tourist_attraction'),two.join());
+});
+
+test('open-air gap visits accept a looked-up place without listed hours; cafes still need hours', async()=>{
+  const items=[s('hotel','departure','09:00'),s('booking','AnchorSchedule','11:00','12:00')];
+  const noHours=async()=>({utcOffsetMinutes:540,businessStatus:'OPERATIONAL'});
+  for (const theme of [undefined,'healing']) {
+    const result=await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({theme,getHours:noHours}));
+    assert.equal(result.items.filter(i=>i.gapFill).length,1,String(theme));
+    const confirmed=result.items.slice(1).map((_,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes:10}));
+    const evidence={date:'2030-10-09',endTime:'17:11'};
+    assert.deepEqual(failedGapFills(result.items,confirmed,{...evidence,hoursByIndex:result.items.map(()=>({utcOffsetMinutes:540}))}),[],String(theme));
+    assert.deepEqual(failedGapFills(result.items,confirmed,{...evidence,hoursByIndex:[]}),[1],String(theme));
+  }
+  // A failed lookup is still no evidence the place is open.
+  assert.deepEqual((await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({getHours:async()=>null}))).skipped,{'hours-missing':1});
+  assert.deepEqual((await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({theme:'food',getHours:noHours}))).skipped,{'hours-unknown':1});
 });
