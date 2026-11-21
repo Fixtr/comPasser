@@ -1102,8 +1102,6 @@ export default class TravelForm extends HTMLElement {
     const english = RECOMMENDATION_CITIES[cityId]?.[0]?.replaceAll(' ', '');
     const city = [`city${english}`, `discover${english}`].map(key => [key, t(key)]).find(([key, text]) => key !== text)?.[1]
       || RECOMMENDATION_CITIES[cityId]?.[0];
-    const firstStart = root.querySelector('.daily-start-location');
-    const lastEnd = [...root.querySelectorAll('.daily-end-location')].at(-1);
     for (const input of root.querySelectorAll('#start-location, #end-location, .daily-start-location, .daily-end-location')) {
       const group = input.closest('.form-group');
       let warning = group.querySelector('.far-location-warning');
@@ -1116,9 +1114,10 @@ export default class TravelForm extends HTMLElement {
       const km = farFromCityKm(place, cityId);
       warning.hidden = km === null;
       if (km === null) { warning.replaceChildren(); continue; }
-      // The trip's first start or last end at a far airport is a flight: point to the flight form instead.
+      // A far trip start or end airport is a flight: point to the flight form. A flight only fills these trip-wide fields,
+      // and a per-day override wins over them, so a per-day airport gets the plain warning.
       const flight = isAirportName(getLocationName(place))
-        ? (input.id === 'start-location' || input === firstStart ? 'arrival' : input.id === 'end-location' || input === lastEnd ? 'departure' : null)
+        ? (input.id === 'start-location' ? 'arrival' : input.id === 'end-location' ? 'departure' : null)
         : null;
       const message = t(flight ? `farAirport_${flight}` : 'farLocation').replace('{0}', city).replace('{1}', km);
       warning.replaceChildren(message);
