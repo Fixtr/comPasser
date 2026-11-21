@@ -28,10 +28,10 @@ test('legacy map identity and delayed live hours prevent Gyeongbokgung from movi
   assert.equal(nextVisitStart(items[1],'2030-10-09',hours(9,10),9*60+1,60,17*60),null);
 });
 
-test('long raw gaps do not qualify without measured 90-minute free time', async()=>{
+test('long raw gaps do not qualify without measured 60-minute free time', async()=>{
   const items=[s('hotel','departure','09:00'),s('booking','AnchorSchedule','12:00','13:00'),s('airport','arrival','17:11')];
   let searched=0;
-  for(const [routes, skipped] of [[[],{}],[[{fromIndex:0,durationMinutes:91}],{short:1}], [[{fromIndex:0,durationMinutes:null}],{leg:1}], [[{fromIndex:0,toIndex:2,durationMinutes:0}],{leg:1}]]) {
+  for(const [routes, skipped] of [[[],{}],[[{fromIndex:0,durationMinutes:121}],{short:1}], [[{fromIndex:0,durationMinutes:null}],{leg:1}], [[{fromIndex:0,toIndex:2,durationMinutes:0}],{leg:1}]]) {
     const result=await fillMeasuredGaps(items,routes,options({findRecommendation:async()=>{searched++;return null;}}));
     assert.equal(result.changed,false);
     assert.deepEqual(result.skipped,skipped);
@@ -172,4 +172,23 @@ test('open-air gap visits accept a looked-up place without listed hours; cafes s
   // A failed lookup is still no evidence the place is open.
   assert.deepEqual((await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({getHours:async()=>null}))).skipped,{'hours-missing':1});
   assert.deepEqual((await fillMeasuredGaps(items,[{fromIndex:0,durationMinutes:10}],options({theme:'food',getHours:noHours}))).skipped,{'hours-unknown':1});
+});
+
+test('a 60-89 minute gap is tried and fills when the candidate is near (Tokyo 10:00-12:00 shape)', async()=>{
+  // 120 raw minutes with a 31-minute direct leg leaves 89 free; a place 10 minutes away still fits 10+60+10+30.
+  const items=[s('station','departure','10:00'),s('lunch','AnchorSchedule','12:00','13:30'),s('station-end','arrival','13:40')];
+  const routes=[{fromIndex:0,durationMinutes:31},{fromIndex:1,durationMinutes:5}];
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'13:40'}));
+  assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.time,i.endTime]),[['10:10','11:10']]);
+  // A far candidate is measured and rejected, never squeezed in.
+  assert.deepEqual((await fillMeasuredGaps(items,routes,options({endTime:'13:40',travelMinutes:async()=>31}))).skipped,{short:1,window:1});
+});
+
+test('a 90-119 minute remainder after a fill gets a chained search', async()=>{
+  const items=[s('hotel','departure','09:00'),s('end','arrival','12:30')];
+  const searched=[];
+  const findRecommendation=async(...args)=>{searched.push(args[0].placeIntent.category);return options().findRecommendation(...args);};
+  // First visit 09:10-10:10 leaves 12:00-10:10-10 = 100 minutes: enough to try a chained visit.
+  await fillMeasuredGaps([items[0],{...items[1],time:'12:00'}],[{fromIndex:0,durationMinutes:10}],options({endTime:'12:00',findRecommendation}));
+  assert.equal(searched.length,2);
 });
