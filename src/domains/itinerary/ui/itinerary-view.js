@@ -1635,6 +1635,8 @@ export default class ItineraryView extends HTMLElement {
     this.transitUnavailable = false;
     const notice = this.shadowRoot.getElementById('transit-notice');
     if (notice) notice.style.display = 'none';
+    const boundaryWarning = this.shadowRoot.getElementById('boundary-route-warning');
+    if (boundaryWarning) boundaryWarning.hidden = true;
     const cost = this.shadowRoot.getElementById('cost-summary');
     if (cost) cost.style.display = 'none';
   }

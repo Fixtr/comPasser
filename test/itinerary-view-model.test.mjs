@@ -217,10 +217,12 @@ test('출발·도착 경계 구간이 경로 없음이거나 4시간을 넘으�
   assert.equal(getBoundaryRouteWarning(items, []), null);
   assert.equal(getBoundaryRouteWarning(items, [leg(0, null, { estimated: true }), leg(2, 300, { estimated: true })]), null);
   // 중간 구간 실패는 경계 문제가 아니다.
-  assert.equal(getBoundaryRouteWarning(items, [leg(0, 30), leg(1, null), leg(2, 30)]), null);
-  assert.equal(getBoundaryRouteWarning(items, [leg(0, null), leg(1, 20), leg(2, 30)]), 'start');
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, 30), leg(1, null, { noRoute: true }), leg(2, 30)]), null);
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, null, { noRoute: true }), leg(1, 20), leg(2, 30)]), 'start');
+  // 할당량·네트워크 오류, 일본 장거리 철도처럼 측정만 못 한 구간은 장소 탓이 아니다.
+  assert.equal(getBoundaryRouteWarning(items, [leg(0, null, { noRoute: false }), leg(2, null)]), null);
   assert.equal(getBoundaryRouteWarning(items, [leg(0, 30), leg(1, 20), leg(2, 241)]), 'end');
   assert.equal(getBoundaryRouteWarning(items, [leg(0, 240), leg(2, 30)]), null);
   // 출발/도착 항목이 없는 날은 첫·마지막 구간이 경계가 아니다.
-  assert.equal(getBoundaryRouteWarning([{ type: 'Visit' }, { type: 'Visit' }], [leg(0, null)]), null);
+  assert.equal(getBoundaryRouteWarning([{ type: 'Visit' }, { type: 'Visit' }], [leg(0, null, { noRoute: true })]), null);
 });

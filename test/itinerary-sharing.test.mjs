@@ -35,7 +35,7 @@ function itineraryView({ user = null, load = async () => null, confirm = true, p
   const controls = new Map([
     'save-itinerary-btn', 'shared-notice', 'results', 'timeline-container',
     'actions-primary', 'share-itinerary-btn', 'download-image-btn', 'kakao-share-btn',
-    'end-time-warning', 'transit-notice', 'cost-summary',
+    'end-time-warning', 'transit-notice', 'cost-summary', 'boundary-route-warning',
     'day-tabs-container', 'day-title-header',
   ].map(id => [id, fakeElement()]));
   const editButton = fakeElement();
@@ -476,8 +476,10 @@ test('공유본을 읽는 중 화면을 비우면 늦게 도착한 결과를 다
   const app = itineraryView({ load: () => new Promise(resolve => { resolveLoad = resolve; }) });
   const pending = app.view.loadItineraryById('public123', { sharedOnly: true });
 
+  app.control('boundary-route-warning').hidden = false;
   app.view.clear();
   resolveLoad({ itineraryPlan: samplePlan(), access: 'shared' });
+  assert.equal(app.control('boundary-route-warning').hidden, true);
 
   assert.equal(await pending, false);
   assert.equal(app.view.currentItinerary, null);

@@ -98,7 +98,9 @@ export class RoutingService {
             // can fail for a short hop too; without this the leg stays unknown and blocks schedule fitting.
             if (meters > ESTIMATE_MAX_METERS) {
                 const driveSeconds = seconds(await this.directionsService.route({ origin, destination, travelMode: 'DRIVING' }).catch(() => null));
-                if (!Number.isFinite(driveSeconds) || driveSeconds < 0 || driveSeconds > DRIVE_ESTIMATE_MAX_SECONDS) throw bus.reason;
+                if (!Number.isFinite(driveSeconds) || driveSeconds < 0) throw bus.reason;
+                // Not the provider's ZERO_RESULTS: a road route exists, only the rail time is unknown.
+                if (driveSeconds > DRIVE_ESTIMATE_MAX_SECONDS) throw new Error('Leg past the driving estimate cap');
                 return { estimated: true, mode: 'TRANSIT', routes: [{ legs: [{
                     duration: { value: Math.ceil(driveSeconds * DRIVE_TO_TRANSIT) + TRANSIT_OVERHEAD_SECONDS }
                 }] }] };

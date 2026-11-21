@@ -638,6 +638,8 @@ export class MapView extends HTMLElement {
           toIndex,
           duration: '',
           durationMinutes: null, // 실패한 구간은 실제 소요시간을 모르므로 시간 보정에서 제외됨
+          // Google 이 경로가 없다고 답한 경우만. 할당량·네트워크 오류나 일본 장거리 철도 구간은 측정 실패일 뿐이다.
+          noRoute: ['ZERO_RESULTS', 'NOT_FOUND'].includes(err?.code),
           distance: '',
           mode: 'WALKING',
           steps: [],
