@@ -60,8 +60,8 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     const end = minutes(items[next].type === 'arrival' ? endTime : items[next].time);
     if (start === null || end === null) { skip('no-time'); return []; }
     // Pre-filter only: inbound, stay, outbound and 30-minute slack are measured per candidate below, so a near place
-    // can fit a gap whose free time over the direct leg is under 90 minutes.
-    if (end - start - Math.ceil(route.durationMinutes) < 60) { skip('short'); return []; }
+    // can fit a gap whose free time over the direct leg is under 90 minutes. No visit fits under 60 + 30 raw minutes.
+    if (end - start < 90 || end - start - Math.ceil(route.durationMinutes) < 60) { skip('short'); return []; }
     if (!identities[index] || !identities[next]) { skip('no-identity'); return []; }
     return [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }];
   }).sort((a, b) => b.free - a.free || a.index - b.index);
@@ -74,7 +74,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   // The meal rules allow at most two cafe/snack stops per day.
   let cafes = items.filter(item => item.placeIntent?.category === 'cafe').length;
   const additions = [];
-  // gaps.entries() rereads the length, so a chained remainder pushed below is visited after the original gaps.
+  // gaps.entries() rereads the length, so a chained remainder spliced in below is visited in its free-time order.
   for (const [tried, gap] of gaps.entries()) {
     if (additions.length >= limit) { for (let i = tried; i < gaps.length; i++) skip('not-tried'); break; }
     // A chained visit is a general attraction, so a gap never gets two cafes or two parks in a row.
@@ -108,9 +108,17 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
-    // Pre-filter only, like a fresh gap: the chained visit still needs 30-minute slacks around 60 minutes, measured.
+    // Pre-filter only, like a fresh gap: the chained visit needs 30 + 60 + 30 raw minutes before travel, measured.
     const rest = gap.end - end - Math.ceil(outbound);
-    if (rest >= 90 && gaps.length < 4 && additions.length < limit) gaps.push({ index: gap.index, from: identity, start: end, end: gap.end });
+    if (gap.end - end >= 120 && rest >= 90 && additions.length < limit) {
+      // Re-rank the untried gaps with the remainder so short gaps cannot take the four-search cap from it.
+      // Minus the 30-minute slack after the first visit, so rest compares with a fresh gap's free time.
+      const untried = [...gaps.splice(tried + 1), { index: gap.index, from: identity, start: end, end: gap.end, free: rest - 30 }]
+        .sort((a, b) => b.free - a.free || a.index - b.index);
+      const room = Math.max(0, 4 - gaps.length);
+      gaps.push(...untried.slice(0, room));
+      for (let i = room; i < untried.length; i++) skip('cap');
+    }
   }
   if (!additions.length) return unchanged();
   const result = items.slice();
