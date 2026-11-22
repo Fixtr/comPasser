@@ -257,3 +257,31 @@ test('an unmeasured last leg still lets the measured morning compact, leaving th
     [['09:00',''],['09:20','10:50'],['12:00','13:00'],['21:00','']]);
   assert.equal(fitMeasuredSchedule(fitted.items,measured,'21:00','09:00',{compact:true}).adjusted,false);
 });
+
+// Live Jeju day trip (food theme, airport 10:00-19:00): compaction pulled a 10:45 lunch to 10:16 and a 17:15 dinner to 16:52.
+const mealDay = (lunch, dinner) => {
+  const meal = category => ({ placeIntent: { purpose: 'x', category }, placeStatus: 'verified' });
+  let plan = [
+    { type: 'departure', time: '10:00' },
+    { type: 'dining', time: lunch[0], endTime: lunch[1], ...meal('restaurant') },
+    { type: 'attraction', time: '13:00', endTime: '14:30', ...meal('tourist_attraction') },
+    { type: 'dining', time: '15:15', endTime: '16:45', ...meal('cafe') },
+    { type: 'dining', time: dinner[0], endTime: dinner[1], ...meal('restaurant') },
+    { type: 'arrival', time: '19:00' }];
+  const measured = [16,45,47,34,40].map((durationMinutes, fromIndex) => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes }));
+  for (let pass = 0; pass < 4; pass++) {
+    const fit = fitMeasuredSchedule(plan, measured, '19:00', '10:00', { compact: true });
+    plan = fit.items;
+    if (!fit.adjusted) break;
+  }
+  return plan.map(item => [item.time, item.endTime || '']);
+};
+
+test('compaction never pulls a meal earlier than the model planned it before 11:00, nor a dinner below 17:00', () => {
+  assert.deepEqual(mealDay(['10:45','12:15'], ['17:15','18:15']),
+    [['10:00',''],['10:45','12:15'],['13:00','14:30'],['15:17','16:46'],['17:20','18:20'],['19:00','']]);
+  // A 17:59 dinner keeps a 17:00 floor; travel still decides how close it gets.
+  const late = mealDay(['12:00','13:30'], ['17:59','18:59']);
+  assert.ok(late[4][0] >= '17:00', late[4][0]);
+  assert.equal(late.at(-1)[0], '19:00');
+});
