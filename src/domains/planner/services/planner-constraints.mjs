@@ -1,7 +1,7 @@
 import { travelRegion } from '../../../../functions/travel-region.mjs';
 import { normalizeSelectedPlace } from './selected-place.mjs';
 import { getLocationName } from './location-name.mjs';
-import { minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
+import { formatMinutes, minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { airportBufferMinutes } from '../../../../functions/airport-buffer.mjs';
 import { destinationById, destinations } from './travel-destinations.mjs';
 import { tFor } from '../../../utils/i18n.js';
@@ -371,6 +371,21 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     const startBuffer = airportBufferMinutes(getLocationName(constraints.startLocation), constraints.startLocation,
       normalizedRequest.destination?.id, constraints.endLocation);
     const earliestVisitStart = startBuffer === null || minutesOf(constraints.startTime) === null ? 0 : minutes(constraints.startTime) + startBuffer;
+    // The prompt also prefers an 18:00 dinner, which an airport end buffer can rule out: one restaurant meal up to an
+    // hour past the limit moves earlier to end at it (not before 17:00, the measured-fit dinner floor) unless the day
+    // already has a 15:00+ restaurant meal or fixed appointment inside the limit (an earlier dinner, possibly the
+    // user's); otherwise it is dropped below like any other late visit. Overlap with ordinary visits is left to the
+    // measured fit, which lays the day out in order and removes the AI padding.
+    const meal = item => item.type === 'dining' && item.placeIntent?.category === 'restaurant' && timed(item);
+    let movedMeal = false;
+    scheduleItems = scheduleItems.map(item => {
+      const shift = minutes(item.endTime) - latestVisitEnd, moved = minutes(item.time) - shift;
+      if (movedMeal || !meal(item) || shift <= 0 || shift > 60 || moved < Math.max(17 * 60, earliestVisitStart)
+        || scheduleItems.some(other => (meal(other) || other.type === 'AnchorSchedule')
+          && minutes(other.time) >= 15 * 60 && minutes(other.endTime) <= latestVisitEnd)) return item;
+      movedMeal = true;
+      return { ...item, time: formatMinutes(moved), endTime: formatMinutes(latestVisitEnd) };
+    }).sort((a, b) => minutes(a.time) - minutes(b.time));
     scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
       || (minutes(item.endTime) <= latestVisitEnd && minutes(item.time) >= earliestVisitStart
         && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));

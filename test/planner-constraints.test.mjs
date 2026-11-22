@@ -130,6 +130,33 @@ test('a nearby airport keeps the afternoon: the buffer follows the airport\'s di
   assert.deepEqual(fromHotel, ['출발 · 서귀포 호텔', '오전', '도착 · 제주국제공항']);
 });
 
+test('a dinner slightly past the airport end buffer moves earlier instead of being dropped (Jeju live run)', () => {
+  const cju = { placeId: 'cju', displayName: '제주국제공항', formattedAddress: '제주특별자치도 제주시 공항로 2', lat: 33.5070772, lng: 126.4934311 };
+  const visit = (title, category, time, endTime) => ({ title, type: category === 'tourist_attraction' ? 'attraction' : 'dining', time, endTime,
+    location: '제주시', placeIntent: { purpose: title, category, nearLocation: '제주시' } });
+  // Jeju keeps 45 minutes before a 19:00 airport arrival, so visits must end by 18:15.
+  const plan = (...items) => planWith([], ...items);
+  const planWith = (anchorSchedules, ...items) => enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('점심', 'restaurant', '12:00', '13:30'), ...items] }],
+    { date: ['2026-11-23'], startTime: '10:00', endTime: '19:00', destination: { id: 'jeju', country: 'KOR', name: 'jeju' },
+      startLocation: cju, endLocation: cju, anchorSchedules })[0].scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+  const market = visit('시장', 'tourist_attraction', '14:45', '16:45');
+  for (const dinner of [['17:30', '18:30'], ['18:00', '19:00']])
+    assert.deepEqual(plan(market, visit('저녁', 'restaurant', ...dinner)), [['점심', '12:00', '13:30'], ['시장', '14:45', '16:45'], ['저녁', '17:15', '18:15']]);
+  // A visit running into the moved slot keeps both: the measured fit lays them out in order without the AI padding.
+  assert.deepEqual(plan(visit('시장', 'tourist_attraction', '15:30', '17:30'), visit('저녁', 'restaurant', '18:00', '19:00')),
+    [['점심', '12:00', '13:30'], ['시장', '15:30', '17:30'], ['저녁', '17:15', '18:15']]);
+  // More than an hour past the limit, a cafe, a slot another dinner already holds, or a second late dinner: still dropped.
+  assert.deepEqual(plan(market, visit('저녁', 'restaurant', '19:30', '20:30')).map(([title]) => title), ['점심', '시장']);
+  assert.deepEqual(plan(market, visit('카페', 'cafe', '17:30', '18:30')).map(([title]) => title), ['점심', '시장']);
+  for (const early of [['16:30', '17:30'], ['16:00', '17:00'], ['15:30', '16:45']])
+    assert.deepEqual(plan(visit('이른 저녁', 'restaurant', ...early), visit('저녁', 'restaurant', '18:00', '19:00')).map(([title]) => title), ['점심', '이른 저녁']);
+  // The user's own fixed dinner also holds the evening.
+  assert.deepEqual(planWith([{ day: 1, name: '흑돼지 예약', time: '16:15', endTime: '17:15', location: '제주시' }],
+    visit('저녁', 'restaurant', '18:00', '19:00')).map(([title]) => title), ['점심', '흑돼지 예약']);
+  assert.deepEqual(plan(market, visit('흑돼지', 'restaurant', '18:15', '19:15'), visit('해물탕', 'restaurant', '18:15', '19:15')),
+    [['점심', '12:00', '13:30'], ['시장', '14:45', '16:45'], ['흑돼지', '17:15', '18:15']]);
+});
+
 test('a day starting at an airport keeps the travel buffer free after its start', () => {
   const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
   const hotel = { placeId: 'hotel', displayName: '명동 호텔', formattedAddress: '서울 중구 명동', lat: 37.5636, lng: 126.9827 };
