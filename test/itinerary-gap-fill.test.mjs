@@ -150,8 +150,8 @@ test('food-theme gap fill keeps the day at two cafe stops', async()=>{
   };
   const one=[];
   assert.equal((await fillMeasuredGaps(items,routes,options({theme:'food',findRecommendation:searchAs(one)}))).changed,true);
-  // The big afternoon gap gets the cafe; the closed early gap and the chained remainder search attractions.
-  assert.deepEqual(one,['cafe','tourist_attraction','tourist_attraction']);
+  // The big afternoon gap gets the cafe; its chained remainder (larger than the early gap) searches an attraction.
+  assert.deepEqual(one,['cafe','tourist_attraction']);
   const two=[];
   await fillMeasuredGaps([items[0],cafe,{...cafe,time:'12:00',endTime:'13:00'},items[2]],
     [...routes,{fromIndex:2,durationMinutes:10}],options({theme:'food',findRecommendation:searchAs(two)}));
@@ -184,11 +184,41 @@ test('a 60-89 minute gap is tried and fills when the candidate is near (Tokyo 10
   assert.deepEqual((await fillMeasuredGaps(items,routes,options({endTime:'13:40',travelMinutes:async()=>31}))).skipped,{short:1,window:1});
 });
 
-test('a 90-119 minute remainder after a fill gets a chained search', async()=>{
-  const items=[s('hotel','departure','09:00'),s('end','arrival','12:30')];
+test('a chained search needs 120 raw minutes after the first visit and 90 after its return leg', async()=>{
   const searched=[];
   const findRecommendation=async(...args)=>{searched.push(args[0].placeIntent.category);return options().findRecommendation(...args);};
-  // First visit 09:10-10:10 leaves 12:00-10:10-10 = 100 minutes: enough to try a chained visit.
-  await fillMeasuredGaps([items[0],{...items[1],time:'12:00'}],[{fromIndex:0,durationMinutes:10}],options({endTime:'12:00',findRecommendation}));
+  const run=endTime=>fillMeasuredGaps([s('hotel','departure','09:00'),s('end','arrival',endTime)],[{fromIndex:0,durationMinutes:20}],
+    options({endTime,findRecommendation,travelMinutes:async()=>20}));
+  // First visit 09:20-10:20; 12:30 leaves 130 raw and 110 after the 20-minute return: tried (and measured too short).
+  assert.deepEqual((await run('12:30')).skipped,{window:1});
   assert.equal(searched.length,2);
+  // 12:15 leaves 115 raw minutes: 30 + 60 + 30 can never fit, so no paid search.
+  searched.length=0;
+  assert.deepEqual((await run('12:15')).skipped,{});
+  assert.equal(searched.length,1);
+});
+
+test('a gap under 90 raw minutes is skipped even when its direct leg is short', async()=>{
+  // 80 raw minutes with a 10-minute leg is 70 free, but 60 + 30 slack cannot fit: no search is spent.
+  const result=await fillMeasuredGaps([s('hotel','departure','09:00'),s('end','arrival','10:20')],[{fromIndex:0,durationMinutes:10}],
+    options({endTime:'10:20',findRecommendation:async()=>assert.fail('searched')}));
+  assert.deepEqual(result.skipped,{short:1});
+});
+
+test('a larger untried gap gets the second visit before a chained remainder of the first gap', async()=>{
+  // Morning 09:00-11:40 (150 free) beats the afternoon remainder after 14:10-15:10 (170 - 30 slack = 140).
+  const items=[s('hotel','departure','09:00'),s('a','AnchorSchedule','11:40','14:00'),s('end','arrival','18:00')];
+  const routes=[{fromIndex:0,durationMinutes:10},{fromIndex:1,durationMinutes:10}];
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'18:00',getHours:async()=>hours(6,23)}));
+  assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.time,i.endTime]),[['09:10','10:10'],['14:10','15:10']]);
+});
+
+test('short gaps do not take the four-search cap from a chained visit in a long gap', async()=>{
+  // Three 95-minute gaps with 30-minute legs (65 free) sort after the 14:00-18:00 gap and fill the cap of four.
+  const items=[s('hotel','departure','08:00'),s('a','AnchorSchedule','09:35','10:00'),s('b','AnchorSchedule','11:35','12:00'),
+    s('c','AnchorSchedule','13:35','14:00'),s('end','arrival','18:00')];
+  const routes=[30,30,30,10].map((durationMinutes,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes}));
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'18:00',getHours:async()=>hours(6,23)}));
+  assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.time,i.endTime]),[['14:10','15:10'],['15:50','16:50']]);
+  assert.deepEqual(result.skipped,{cap:1,'not-tried':2});
 });
