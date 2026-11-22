@@ -21,7 +21,7 @@ export function minutesOf(time) {
 export const routeDepartureClock = item => minutesOf(item?.actualDepartureTime) !== null
   ? item.actualDepartureTime : item?.endTime || item?.time;
 
-function formatMinutes(totalMinutes) {
+export function formatMinutes(totalMinutes) {
   const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
   const hours = Math.floor(wrapped / 60);
   const mins = wrapped % 60;
