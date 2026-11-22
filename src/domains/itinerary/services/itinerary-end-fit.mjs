@@ -98,9 +98,10 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
       : shownEnd(right-1) + travel.get(right) > deadline);
     if (!conflict && !compact && !items.slice(left + 1, last + 1).some(item => item.flexible === true)) continue;
     const visitStart = (i, cursor) => {
-      // Preserve requested lower bounds and meal windows while removing AI padding.
+      // Preserve requested lower bounds and meal windows while removing AI padding. Compaction never moves a meal
+      // below 11:00 (or below its own earlier brunch time), a late lunch below 12:00, or a 15:00+ dinner below 17:00.
       const meal = items[i].type === 'dining' && items[i].placeIntent?.category !== 'cafe'
-        ? (starts[i] >= 1080 ? 1080 : compact && starts[i] >= 660 ? 720 : cursor) : cursor;
+        ? (starts[i] >= 1080 ? 1080 : !compact ? cursor : starts[i] >= 900 ? 1020 : starts[i] >= 720 ? 720 : 660) : cursor;
       cursor = Math.max(cursor, minutes(items[i].visitNotBefore) ?? cursor, Math.min(starts[i], meal),
         items[i].addedByUser === true ? starts[i] : cursor);
       return nextVisitStart(items[i], date, hoursByIndex[i], cursor, stays[i], Math.max(deadline, cursor + stays[i])) ?? deadline + 1;
