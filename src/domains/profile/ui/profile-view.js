@@ -1,13 +1,11 @@
 import { unblockAllAuthors } from '../../itinerary/services/blocked-authors.mjs';
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
-import { saveItinerary } from '../../itinerary/services/firestore-service.js';
-import { shiftItineraryDates, itineraryStartDate, copyTitle } from '../../itinerary/services/itinerary-duplicate.mjs';
-import { todayString } from '../../planner/services/trip-date.mjs';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
 import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
 import { profileMarkup } from './profile-template.js';
 import { fetchItineraries, renderItineraries, startRename, viewTrip, handleDeleteItinerary } from './profile-trips.js';
+import { openDuplicate, closeDuplicate, confirmDuplicate, setupDuplicateListeners } from './profile-trip-duplicate.js';
 import { editPublicCourse } from './profile-public-course.js';
 import { showToast, showErrorToast } from '../../../utils/toast.js';
 import { t, getLang, setLang, applyTranslations } from '../../../utils/i18n.js';
@@ -271,62 +269,11 @@ class ProfileView extends HTMLElement {
     startRename(item, card, currentTitle) { return startRename(this, item, card, currentTitle); }
 
     /** Opens the new-start-date dialog; confirm saves a shifted copy and never writes the original. */
-    openDuplicate(item, trigger) {
-        const input = this.shadowRoot.getElementById('duplicate-date');
-        this._duplicate = { item, trigger, uid: getCurrentUser()?.uid };
-        input.value = itineraryStartDate(item.itineraryPlan);
-        input.min = todayString();
-        input.setCustomValidity('');
-        this.shadowRoot.getElementById('duplicate-modal').classList.add('show');
-        input.focus();
-    }
+    openDuplicate(item, trigger) { return openDuplicate(this, item, trigger); }
 
-    closeDuplicate() {
-        if (this.shadowRoot.getElementById('btn-duplicate-confirm').disabled) return; // saving
-        this.shadowRoot.getElementById('duplicate-modal').classList.remove('show');
-        this._duplicate?.trigger?.focus?.();
-        this._duplicate = null;
-    }
+    closeDuplicate() { return closeDuplicate(this); }
 
-    async confirmDuplicate() {
-        const input = this.shadowRoot.getElementById('duplicate-date');
-        const confirm = this.shadowRoot.getElementById('btn-duplicate-confirm');
-        const user = getCurrentUser();
-        const { item, trigger, uid } = this._duplicate || {};
-        if (!item || confirm.disabled) return;
-        // The account changed while the dialog was open: never save one account's trip into another.
-        if (!user || user.uid !== uid || user.uid !== item.userId) { this.closeDuplicate(); return; }
-        if (navigator.onLine === false) { showErrorToast(t('duplicateFailed')); return; }
-        let plan;
-        try { plan = shiftItineraryDates(item.itineraryPlan, input.value, todayString()); } catch {
-            input.setCustomValidity(t('duplicateDateInvalid'));
-            input.reportValidity();
-            return;
-        }
-        confirm.disabled = true;
-        if (trigger) trigger.disabled = true;
-        try {
-            // An untitled trip shows a title built from its dates, so the copy saves none and gets one from its new dates.
-            const id = await saveItinerary(user.uid, plan, copyTitle(item.title, item.itineraryPlan, plan, t('duplicateSuffix')));
-            confirm.disabled = false;
-            this.closeDuplicate();
-            showToast(t('duplicateDone'));
-            if (getCurrentUser()?.uid !== user.uid) return;
-            await this.fetchItineraries();
-            // The refresh replaced every card, so focus the copy, else the original's duplicate button, else the list.
-            const list = this.shadowRoot.getElementById('itineraries-list');
-            const target = list?.querySelector(`.btn-view[data-id="${id}"]`)
-                || list?.querySelector(`.btn-view[data-id="${item.id}"]`)?.closest('.trip-card')?.querySelector('.btn-duplicate');
-            if (target) target.focus();
-            else if (list) { list.tabIndex = -1; list.focus(); }
-        } catch (error) {
-            console.error('Duplicate failed:', error);
-            showErrorToast(t('duplicateFailed'));
-        } finally {
-            confirm.disabled = false;
-            if (trigger) trigger.disabled = false;
-        }
-    }
+    confirmDuplicate() { return confirmDuplicate(this); }
 
     viewTrip(item) { return viewTrip(this, item); }
 
@@ -364,24 +311,7 @@ class ProfileView extends HTMLElement {
             }
         });
 
-        const duplicateModal = this.shadowRoot.getElementById('duplicate-modal');
-        const duplicateInput = this.shadowRoot.getElementById('duplicate-date');
-        const duplicateCancel = this.shadowRoot.getElementById('btn-duplicate-cancel');
-        const duplicateConfirm = this.shadowRoot.getElementById('btn-duplicate-confirm');
-        duplicateCancel?.addEventListener('click', () => this.closeDuplicate());
-        duplicateConfirm?.addEventListener('click', () => this.confirmDuplicate());
-        duplicateInput?.addEventListener('input', () => duplicateInput.setCustomValidity(''));
-        duplicateModal?.addEventListener('click', e => { if (e.target === duplicateModal) this.closeDuplicate(); });
-        // Escape closes and Tab stays inside the dialog, like the shared confirm dialog.
-        duplicateModal?.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { e.preventDefault(); this.closeDuplicate(); return; }
-            if (e.key === 'Enter' && e.target === duplicateInput) { e.preventDefault(); this.confirmDuplicate(); return; }
-            if (e.key !== 'Tab') return;
-            const focusables = [duplicateInput, duplicateCancel, duplicateConfirm].filter(control => !control.disabled);
-            const index = focusables.indexOf(this.shadowRoot.activeElement);
-            e.preventDefault();
-            focusables[(index + (e.shiftKey ? -1 : 1) + focusables.length) % focusables.length].focus();
-        });
+        setupDuplicateListeners(this);
 
         const deleteBtn = this.shadowRoot.getElementById('btn-delete-account-trigger');
         const modal = this.shadowRoot.getElementById('delete-modal');
