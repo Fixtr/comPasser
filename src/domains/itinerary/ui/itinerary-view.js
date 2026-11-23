@@ -80,11 +80,20 @@ export default class ItineraryView extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    
+
     this.setupSaveListener();
     this.setupShareListener();
     this.setupKakaoShareListener();
     this.setupDownloadListener();
+    this.setupDayControls();
+    this.updateTexts();
+
+    this.listenForLanguageChange();
+    this.listenForMapResults();
+    this.listenForTripChanges();
+  }
+
+  setupDayControls() {
     const replanButton = this.shadowRoot.getElementById('replan-trip-btn');
     replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
@@ -94,8 +103,9 @@ export default class ItineraryView extends HTMLElement {
     this.shadowRoot.getElementById('undo-deletion-btn')?.addEventListener('click', () => {
       if (this.canEdit() && this.state.undoDeletion(this.activeDayIndex)) { this.requestMapRoute(); this.refreshAccessControls(); }
     });
-    this.updateTexts();
+  }
 
+  listenForLanguageChange() {
     this._languageHandler = () => {
       this.updateTexts();
       // Day tabs and cards are built from translated strings; rebuild them without a new map request.
@@ -103,7 +113,9 @@ export default class ItineraryView extends HTMLElement {
       if (plan?.days?.length) { this.renderDayTabs(plan); this.renderActiveDay(plan); }
     };
     window.addEventListener('i18n-changed', this._languageHandler);
+  }
 
+  listenForMapResults() {
     // 지도(map-view)가 계산한 실제 대중교통 경로를 타임라인에 반영
     this._transitInfoHandler = async (e) => {
       if (!this.isCurrentMapResult(e.detail)) return;
@@ -158,6 +170,9 @@ export default class ItineraryView extends HTMLElement {
       }
     };
     window.addEventListener('places-resolved', this._placesResolvedHandler);
+  }
+
+  listenForTripChanges() {
     this._deletedHandler = ({ detail }) => {
       if (!detail || detail.userId !== this.state.userId) return;
       this.state.forgetDocument(detail.id);
@@ -358,7 +373,6 @@ export default class ItineraryView extends HTMLElement {
 
   loadItineraryById(id, options) { return loadItineraryById(this, id, options); }
 
-
   retryFailedLoad() { return retryFailedLoad(this); }
 
   getShareUrl() { return getShareUrl(this); }
@@ -491,7 +505,6 @@ export default class ItineraryView extends HTMLElement {
   renderEndTimeWarning(overflowMinutes, dayEndTime) { return renderEndTimeWarning(this, overflowMinutes, dayEndTime); }
 
   verifyRouteImprovement(routes) { return verifyRouteImprovement(this, routes); }
-
 
   startRouteImprovement(routes) { return startRouteImprovement(this, routes); }
 
