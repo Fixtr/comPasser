@@ -157,6 +157,41 @@ test('a dinner slightly past the airport end buffer moves earlier instead of bei
     [['점심', '12:00', '13:30'], ['시장', '14:45', '16:45'], ['흑돼지', '17:15', '18:15']]);
 });
 
+test('an Incheon end moves a 17:00-18:00 dinner to 16:41 instead of dropping it (Seoul day 2 live run)', () => {
+  const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
+  const hotel = { placeId: 'hotel', displayName: '명동 호텔', formattedAddress: '서울 중구 명동', lat: 37.5636, lng: 126.9827 };
+  const visit = (title, category, time, endTime) => ({ title, type: 'dining', time, endTime, location: '명동',
+    placeIntent: { purpose: title, category, nearLocation: '명동' } });
+  // From a Myeongdong start, Incheon keeps 139 minutes before a 20:00 arrival, so visits end by 17:41.
+  const plan = dinner => enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('점심', 'restaurant', '11:30', '13:00'),
+    visit('카페', 'cafe', '14:00', '15:00'), ...(dinner ? [visit('저녁', 'restaurant', ...dinner)] : [])] }],
+  { date: ['2026-11-25'], startTime: '10:00', endTime: '20:00', destination: { id: 'seoul', country: 'KOR', name: 'seoul' },
+    startLocation: hotel, endLocation: icn, anchorSchedules: [] })[0].scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+  const before = [['점심', '11:30', '13:00'], ['카페', '14:00', '15:00']];
+  for (const dinner of [['17:00', '18:00'], ['17:30', '18:30'], ['18:00', '19:00']])
+    assert.deepEqual(plan(dinner), [...before, ['저녁', '16:41', '17:41']], dinner.join('-'));
+  // A 90-minute food-theme dinner that cannot keep its length after 16:30 is shortened, never under an hour.
+  for (const dinner of [['17:00', '18:30'], ['18:00', '19:30']])
+    assert.deepEqual(plan(dinner), [...before, ['저녁', '16:30', '17:41']], dinner.join('-'));
+  // An earlier start is kept and only the end comes in; a start more than 90 minutes later is still dropped.
+  assert.deepEqual(plan(['16:00', '18:00']), [...before, ['저녁', '16:00', '17:41']]);
+  assert.deepEqual(plan(['18:30', '19:30']), before);
+  // A visit already inside the limit after the new start keeps its slot: the dinner does not jump ahead of it.
+  const withExhibit = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('점심', 'restaurant', '11:30', '13:00'),
+    { ...visit('전시', 'tourist_attraction', '16:45', '17:40'), type: 'attraction' }, visit('저녁', 'restaurant', '17:40', '18:40')] }],
+  { date: ['2026-11-25'], startTime: '10:00', endTime: '20:00', destination: { id: 'seoul', country: 'KOR', name: 'seoul' },
+    startLocation: hotel, endLocation: icn, anchorSchedules: [] })[0].scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+  assert.deepEqual(withExhibit, [['점심', '11:30', '13:00'], ['전시', '16:45', '17:40']]);
+  // A transit narration or an afternoon night-view item is removed anyway, so it does not block the move.
+  for (const blocker of [visit('인천공항으로 이동', 'tourist_attraction', '17:00', '17:40'), visit('야경 명소', 'tourist_attraction', '16:50', '17:40')]) {
+    const day = enforcePlannerConstraints([{ day: 1, scheduleItems: [visit('점심', 'restaurant', '11:30', '13:00'),
+      { ...blocker, type: 'attraction' }, visit('저녁', 'restaurant', '17:40', '18:40')] }],
+    { date: ['2026-11-25'], startTime: '10:00', endTime: '20:00', destination: { id: 'seoul', country: 'KOR', name: 'seoul' },
+      startLocation: hotel, endLocation: icn, anchorSchedules: [] })[0].scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+    assert.deepEqual(day, [['점심', '11:30', '13:00'], ['저녁', '16:41', '17:41']], blocker.title);
+  }
+});
+
 test('a day starting at an airport keeps the travel buffer free after its start', () => {
   const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
   const hotel = { placeId: 'hotel', displayName: '명동 호텔', formattedAddress: '서울 중구 명동', lat: 37.5636, lng: 126.9827 };

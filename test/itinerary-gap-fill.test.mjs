@@ -11,7 +11,7 @@ const s = (id, type, time, endTime = '') => ({title:id,type,time,endTime,locatio
 const hours = (open = 9, close = 18) => ({utcOffsetMinutes:540,regularOpeningHours:{periods:Array.from({length:7},(_,day)=>({open:{day,hour:open,minute:0},close:{day,hour:close,minute:0}}))}});
 const options = overrides => ({date:'2030-10-09',endTime:'17:11',travelMinutes:async()=>10,getHours:async()=>hours(),
   findRecommendation:async(item, center, excluded)=>{
-    const id = ['extra-a','extra-b'].find(id=>!excluded.has(id));
+    const id = ['extra-a','extra-b','extra-c'].find(id=>!excluded.has(id));
     if (!id) return null;
     const candidate = {...p(id),id,location:{lat:37.5,lng:127},types:[item.placeIntent.category],
       addressComponents:[{types:['country'],shortText:'KR'}]};
@@ -221,4 +221,53 @@ test('short gaps do not take the four-search cap from a chained visit in a long 
   const result=await fillMeasuredGaps(items,routes,options({endTime:'18:00',getHours:async()=>hours(6,23)}));
   assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.time,i.endTime]),[['14:10','15:10'],['15:50','16:50']]);
   assert.deepEqual(result.skipped,{cap:1,'not-tried':2});
+});
+
+test('a themed gap visit that misses its hours is retried once as an attraction (Seoul day 2 shape)', async()=>{
+  // Live run: cafe 12:46-13:46 -> Incheon 20:00, and the only cafe candidate was closed all afternoon.
+  const items=[s('hotel','departure','10:00'),{...s('lunch','dining','11:00','12:30'),placeIntent:{category:'restaurant'}},
+    {...s('cafe-0','dining','12:46','13:46'),placeIntent:{category:'cafe'}},s('icn','arrival','20:00')];
+  const routes=[30,16,75].map((durationMinutes,fromIndex)=>({fromIndex,durationMinutes}));
+  const searched=[];
+  const base=options({endTime:'20:00',theme:'food',travelMinutes:async(_from,to)=>to.placeId==='icn'?75:20,
+    getHours:async id=>id==='extra-a'?hours(9,12):hours(),
+    findRecommendation:async(...args)=>{searched.push(args[0].placeIntent.category);return options().findRecommendation(...args);}});
+  const result=await fillMeasuredGaps(items,routes,base);
+  // The closed cafe stays out of the retry; the remainder still gets its chained visit (3 of 4 searches).
+  assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.title,i.time,i.endTime]),[['extra-b','14:06','15:06'],['extra-c','15:56','16:56']]);
+  assert.deepEqual(searched,['cafe','tourist_attraction','tourist_attraction']);
+  assert.deepEqual(result.skipped,{short:2,hours:1});
+  const confirmed=result.items.slice(1).map((item,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes:result.items[fromIndex+1].title==='icn'?75:20}));
+  assert.deepEqual(failedGapFills(result.items,confirmed,{date:'2030-10-09',endTime:'20:00',hoursByIndex:result.items.map(()=>hours())}),[]);
+  // The general attraction search is never retried.
+  searched.length=0;
+  assert.deepEqual((await fillMeasuredGaps(items,routes,{...base,theme:undefined,getHours:async()=>hours(9,12)})).skipped,{short:2,hours:1});
+  assert.deepEqual(searched,['tourist_attraction']);
+});
+
+test('gap retries stay inside the four-search cap', async()=>{
+  // Five 110-minute gaps on a food day where every venue is closed: four searches, no fifth for a retry.
+  const items=[s('hotel','departure','08:00'),...[1,2,3,4,5].map(n=>s(`b${n}`,'AnchorSchedule',`${String(8+2*n).padStart(2,'0')}:00`,`${String(8+2*n).padStart(2,'0')}:00`)),s('end','arrival','20:00')];
+  const routes=items.slice(1).map((_,fromIndex)=>({fromIndex,toIndex:fromIndex+1,durationMinutes:10}));
+  const searched=[];
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'20:00',theme:'food',getHours:async()=>hours(6,7),
+    findRecommendation:async(...args)=>{searched.push(args[0].placeIntent.category);return options().findRecommendation(...args);}}));
+  assert.equal(result.changed,false);
+  assert.equal(searched.length,4);
+  assert.deepEqual(searched,['cafe','cafe','cafe','cafe']);
+});
+
+test('a themed venue rejected in one gap can still fill another gap', async()=>{
+  // The 13:00-16:00 gap is tried first; cafeX opens 09-11 only, so it misses there but fits the morning gap.
+  const items=[s('hotel','departure','09:00'),s('booking','AnchorSchedule','11:50','13:00'),s('end','arrival','16:00')];
+  const routes=[{fromIndex:0,durationMinutes:10},{fromIndex:1,durationMinutes:10}];
+  const pools={cafe:['cafeX','cafeY'],tourist_attraction:['attr1','attr2']};
+  const result=await fillMeasuredGaps(items,routes,options({endTime:'16:00',theme:'food',
+    getHours:async id=>id==='cafeX'?hours(9,11):id==='cafeY'?hours(6,7):hours(),
+    findRecommendation:async(item,center,excluded)=>{
+      const id=pools[item.placeIntent.category].find(id=>!excluded.has(id));if(!id)return null;
+      const candidate={...p(id),id,location:{lat:37.5,lng:127},types:[item.placeIntent.category],addressComponents:[{types:['country'],shortText:'KR'}]};
+      return {...item,...recommendationFields(item,selectRecommendation([candidate],item.placeIntent,center,excluded))};
+    }}));
+  assert.deepEqual(result.items.filter(i=>i.gapFill).map(i=>[i.title,i.time]),[['cafeX','09:10'],['attr1','13:10']]);
 });

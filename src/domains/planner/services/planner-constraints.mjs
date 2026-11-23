@@ -357,39 +357,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
         || end - start >= minimumStayMinutes(item);
     });
 
-    // A visit cannot share time with the user's fixed appointment. Flexible
-    // required visits only have provisional times and are placed later.
-    const timed = item => minutes(item.time) < minutes(item.endTime) && minutes(item.endTime) !== Number.MAX_SAFE_INTEGER;
-    const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
-    // gemini-2.5-flash-lite ignored the prompt's airport gap and ended dinner 30 minutes before a 21:00
-    // Incheon arrival; measured transit was about 130 minutes. Same buffer as the prompt, scaled by distance.
-    const airportBuffer = airportBufferMinutes(getLocationName(constraints.endLocation), constraints.endLocation,
-      normalizedRequest.destination?.id, constraints.startLocation);
-    const latestVisitEnd = airportBuffer === null ? Number.MAX_SAFE_INTEGER : endTimeMinutes - airportBuffer;
-    // A day starting at Incheon got an 11:30 lunch after an 11:00 start; the ~88-minute leg pushed the whole day back.
-    // A start time set from an arrival flight is when the traveler leaves the airport, so travel still follows it.
-    const startBuffer = airportBufferMinutes(getLocationName(constraints.startLocation), constraints.startLocation,
-      normalizedRequest.destination?.id, constraints.endLocation);
-    const earliestVisitStart = startBuffer === null || minutesOf(constraints.startTime) === null ? 0 : minutes(constraints.startTime) + startBuffer;
-    // The prompt also prefers an 18:00 dinner, which an airport end buffer can rule out: one restaurant meal up to an
-    // hour past the limit moves earlier to end at it (not before 17:00, the measured-fit dinner floor) unless the day
-    // already has a 15:00+ restaurant meal or fixed appointment inside the limit (an earlier dinner, possibly the
-    // user's); otherwise it is dropped below like any other late visit. Overlap with ordinary visits is left to the
-    // measured fit, which lays the day out in order and removes the AI padding.
-    const meal = item => item.type === 'dining' && item.placeIntent?.category === 'restaurant' && timed(item);
-    let movedMeal = false;
-    scheduleItems = scheduleItems.map(item => {
-      const shift = minutes(item.endTime) - latestVisitEnd, moved = minutes(item.time) - shift;
-      if (movedMeal || !meal(item) || shift <= 0 || shift > 60 || moved < Math.max(17 * 60, earliestVisitStart)
-        || scheduleItems.some(other => (meal(other) || other.type === 'AnchorSchedule')
-          && minutes(other.time) >= 15 * 60 && minutes(other.endTime) <= latestVisitEnd)) return item;
-      movedMeal = true;
-      return { ...item, time: formatMinutes(moved), endTime: formatMinutes(latestVisitEnd) };
-    }).sort((a, b) => minutes(a.time) - minutes(b.time));
-    scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
-      || (minutes(item.endTime) <= latestVisitEnd && minutes(item.time) >= earliestVisitStart
-        && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));
-
+    // These two run before the airport dinner move, so an item they remove cannot hold the dinner's slot.
     // A model can ignore the prompt and schedule a night-only activity in the
     // afternoon. Without a user-fixed appointment or event availability data,
     // that is not a visit we can honestly present as possible.
@@ -420,6 +388,48 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       );
       scheduleItems = scheduleItems.filter(item => !looksLikeTransitNarration(item));
     }
+
+    // A visit cannot share time with the user's fixed appointment. Flexible
+    // required visits only have provisional times and are placed later.
+    const timed = item => minutes(item.time) < minutes(item.endTime) && minutes(item.endTime) !== Number.MAX_SAFE_INTEGER;
+    const fixedSlots = scheduleItems.filter(item => item.type === 'AnchorSchedule' && !item.flexible && timed(item));
+    // gemini-2.5-flash-lite ignored the prompt's airport gap and ended dinner 30 minutes before a 21:00
+    // Incheon arrival; measured transit was about 130 minutes. Same buffer as the prompt, scaled by distance.
+    const airportBuffer = airportBufferMinutes(getLocationName(constraints.endLocation), constraints.endLocation,
+      normalizedRequest.destination?.id, constraints.startLocation);
+    const latestVisitEnd = airportBuffer === null ? Number.MAX_SAFE_INTEGER : endTimeMinutes - airportBuffer;
+    // A day starting at Incheon got an 11:30 lunch after an 11:00 start; the ~88-minute leg pushed the whole day back.
+    // A start time set from an arrival flight is when the traveler leaves the airport, so travel still follows it.
+    const startBuffer = airportBufferMinutes(getLocationName(constraints.startLocation), constraints.startLocation,
+      normalizedRequest.destination?.id, constraints.endLocation);
+    const earliestVisitStart = startBuffer === null || minutesOf(constraints.startTime) === null ? 0 : minutes(constraints.startTime) + startBuffer;
+    // The prompt also prefers an 18:00 dinner, which an airport end buffer can rule out: one restaurant meal past the
+    // limit moves earlier to end at it, starting no earlier than 16:30 (and the start buffer), shortened to no less
+    // than its minimum stay if needed, and moving its start at most 90 minutes. It stays put unless the day already has
+    // a 15:00+ restaurant meal or fixed appointment inside the limit (an earlier dinner, possibly the user's) or another
+    // visit inside the limit starting at or after the new start; otherwise
+    // it is dropped below like any other late visit. Seoul day 2 lost a 17:00-18:00 dinner to a 17:42 Incheon limit
+    // under the old 17:00 floor; the measured fit keeps a dinner at min(its own start, 17:00), so 16:42 stays.
+    // Overlap with ordinary visits is left to the measured fit, which lays the day out in order without the AI padding.
+    const meal = item => item.type === 'dining' && item.placeIntent?.category === 'restaurant' && timed(item);
+    const dinnerFloor = Math.max(16 * 60 + 30, earliestVisitStart);
+    let movedMeal = false;
+    scheduleItems = scheduleItems.map(item => {
+      const start = minutes(item.time);
+      const moved = Math.min(start, Math.max(dinnerFloor, latestVisitEnd - (minutes(item.endTime) - start)));
+      if (movedMeal || !meal(item) || minutes(item.endTime) <= latestVisitEnd || start - moved > 90
+        || latestVisitEnd - moved < minimumStayMinutes(item)
+        // Moving ahead of a visit that already fits would push that visit past the limit or overlap it.
+        || scheduleItems.some(other => other !== item && other.placeIntent?.purpose && timed(other)
+          && minutes(other.time) >= moved && minutes(other.endTime) <= latestVisitEnd)
+        || scheduleItems.some(other => (meal(other) || other.type === 'AnchorSchedule')
+          && minutes(other.time) >= 15 * 60 && minutes(other.endTime) <= latestVisitEnd)) return item;
+      movedMeal = true;
+      return { ...item, time: formatMinutes(moved), endTime: formatMinutes(latestVisitEnd) };
+    }).sort((a, b) => minutes(a.time) - minutes(b.time));
+    scheduleItems = scheduleItems.filter(item => item.type === 'AnchorSchedule' || !item.placeIntent?.purpose || !timed(item)
+      || (minutes(item.endTime) <= latestVisitEnd && minutes(item.time) >= earliestVisitStart
+        && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time))));
 
     const startLocation = getLocationName(constraints.startLocation);
     if (startLocation) {

@@ -39,8 +39,9 @@ export function failedGapFills(items, routes, { date, endTime, hoursByIndex = []
   });
 }
 
-// ponytail: one candidate per measured gap, plus one chained after it when 90+ minutes remain and the daily
-// limit allows; at most four searches/day; leave unsuitable gaps as free time.
+// ponytail: one candidate per measured gap (a themed one that misses its window retries once as an attraction), plus
+// one chained after it when 90+ minutes remain and the daily limit allows; at most four searches/day; leave unsuitable
+// gaps as free time.
 export async function fillMeasuredGaps(items, routes, { date, endTime, excludedPlaceIds = [], resolvedPlaces = [],
   findRecommendation, travelMinutes, getHours, language = 'ko', budget, cityId, theme } = {}) {
   // Why gaps or candidates were dropped: fixed reason strings and counts only, for debugging.
@@ -78,17 +79,25 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   for (const [tried, gap] of gaps.entries()) {
     if (additions.length >= limit) { for (let i = tried; i < gaps.length; i++) skip('not-tried'); break; }
     // A chained visit is a general attraction, so a gap never gets two cafes or two parks in a row.
-    const intent = gap.from || (themed.category === 'cafe' && cafes >= 2) ? DEFAULT_GAP_INTENT : themed;
+    const intent = gap.from || gap.retry || (themed.category === 'cafe' && cafes >= 2) ? DEFAULT_GAP_INTENT : themed;
     const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
     if (!center) { skip('no-center'); continue; }
+    // A themed venue that misses the measured window is retried once as a general attraction, within the four-search
+    // cap (Seoul day 2: one closed cafe left 13:46-20:00 empty with three searches unused). The rejected ID stays out of
+    // this gap (the retry and its chained visit) but may still fit another gap.
+    const miss = (reason, id) => {
+      skip(reason);
+      if (intent !== DEFAULT_GAP_INTENT && gaps.length < 4) gaps.splice(tried + 1, 0, { ...gap, retry: true, rejected: [id] });
+    };
+    const avoid = gap.rejected ? new Set([...excluded, ...gap.rejected]) : excluded;
     const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
       placeIntent: { purpose: language === 'ko' ? intent.ko : intent.en,
         category: intent.category, nearLocation: center.displayName } };
-    const candidate = await findRecommendation(provisional, center, excluded, date, budget);
+    const candidate = await findRecommendation(provisional, center, avoid, date, budget);
     if (!candidate) { skip('no-candidate'); continue; }
     const identity = candidate.placeStatus === 'verified' && place(candidate);
     if (!identity) { skip('unverified'); continue; }
-    if (excluded.has(identity.placeId)) { skip('excluded'); continue; }
+    if (avoid.has(identity.placeId)) { skip('excluded'); continue; }
     const inbound = await travelMinutes(gap.from || identities[gap.index], identity, date, time(gap.start));
     if (!Number.isFinite(inbound) || inbound < 0) { skip('inbound'); continue; }
     const hours = await getHours(identity.placeId);
@@ -98,13 +107,14 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     if (start === null) {
       // window: inbound travel left no 60-minute slot; hours-missing: lookup failed or deadline ran out;
       // hours-unknown: no usable hours data; hours: closed or open hours conflict with every slot.
-      skip(earliest + 60 > gap.end - 30 ? 'window' : !hours ? 'hours-missing'
-        : assessVisitHours({ ...candidate, time: time(earliest), endTime: time(earliest + 60) }, date, hours) === 'unknown' ? 'hours-unknown' : 'hours');
+      const reason = earliest + 60 > gap.end - 30 ? 'window' : !hours ? 'hours-missing'
+        : assessVisitHours({ ...candidate, time: time(earliest), endTime: time(earliest + 60) }, date, hours) === 'unknown' ? 'hours-unknown' : 'hours';
+      if (reason === 'window' || reason === 'hours') miss(reason, identity.placeId); else skip(reason);
       continue;
     }
     const end = start + 60;
     const outbound = await travelMinutes(identity, identities[gap.index+1], date, time(end));
-    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) { skip('outbound'); continue; }
+    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) { miss('outbound', identity.placeId); continue; }
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
@@ -113,7 +123,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     if (gap.end - end >= 120 && rest >= 90 && additions.length < limit) {
       // Re-rank the untried gaps with the remainder so short gaps cannot take the four-search cap from it.
       // Minus the 30-minute slack after the first visit, so rest compares with a fresh gap's free time.
-      const untried = [...gaps.splice(tried + 1), { index: gap.index, from: identity, start: end, end: gap.end, free: rest - 30 }]
+      const untried = [...gaps.splice(tried + 1), { index: gap.index, from: identity, start: end, end: gap.end, free: rest - 30, rejected: gap.rejected }]
         .sort((a, b) => b.free - a.free || a.index - b.index);
       const room = Math.max(0, 4 - gaps.length);
       gaps.push(...untried.slice(0, room));
