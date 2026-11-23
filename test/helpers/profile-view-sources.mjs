@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 export const PROFILE_VIEW_FILES = [
   'src/domains/profile/ui/profile-public-course.js',
   'src/domains/profile/ui/profile-template.js',
+  'src/domains/profile/ui/profile-trips.js',
   'src/domains/profile/ui/profile-view.js',
 ];
 
