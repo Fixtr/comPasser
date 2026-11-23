@@ -11,6 +11,8 @@
  * 않는다(당겨오지 않고, 필요한 만큼만 미룬다).
  */
 
+import { MIN_STAY } from '../../../../functions/route-rules/absolute.mjs';
+
 // The one "HH:mm" parser: "24:00" or "25:70" is not a clock time, so it is null like any other bad value.
 export function minutesOf(time) {
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time || '')) return null;
@@ -167,7 +169,7 @@ export function getEndTimeOverflowMinutes(scheduleItems, dayEndTime) {
  * @returns {{items: Array, removedTitles: string[], shortenedCount: number, resolved: boolean}}
  */
 export const minimumStayMinutes = item => item?.placeIntent?.category === 'restaurant' ||
-  (item?.type === 'dining' && item?.placeIntent?.category !== 'cafe') ? 60 : 20;
+  (item?.type === 'dining' && item?.placeIntent?.category !== 'cafe') ? MIN_STAY.meal : MIN_STAY.visit;
 
 export function trimScheduleToEndTime(scheduleItems, dayEndTime) {
   const unchanged = { items: scheduleItems, removedTitles: [], shortenedCount: 0, resolved: true };

@@ -2,6 +2,7 @@ import { normalizeSelectedPlace } from '../../planner/services/selected-place.mj
 import { assessVisitHours, nextVisitStart } from './itinerary-hours.mjs';
 import { minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
 import { isFixedPlace, recommendationCenters } from '../../map/services/recommendation-place.mjs';
+import { GAP_FILL, MAX_CAFES_PER_DAY } from '../../../../functions/route-rules/absolute.mjs';
 
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 // A 60-minute filler is never a full meal: the generator owns meal windows, so the food theme gets a cafe.
@@ -34,7 +35,7 @@ export function failedGapFills(items, routes, { date, endTime, hoursByIndex = []
     const end = next?.type === 'arrival' ? minutes(endTime) : minutes(next?.time);
     const start = minutes(item.time), until = minutes(item.endTime), before = minutes(previous?.endTime || previous?.time);
     return end !== null && start !== null && until !== null && before !== null &&
-      legFits(inbound, before, start) && legFits(outbound, until + 30, end) &&
+      legFits(inbound, before, start) && legFits(outbound, until + GAP_FILL.slack, end) &&
       hoursOk(item, hoursByIndex[index], assessVisitHours(item, date, hoursByIndex[index])) ? [] : [index];
   });
 }
@@ -48,7 +49,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   const skipped = {};
   const skip = reason => { skipped[reason] = (skipped[reason] || 0) + 1; };
   const unchanged = () => ({ items, changed: false, skipped });
-  const limit = 2 - items.filter(item => item.gapFill === true).length;
+  const limit = GAP_FILL.maxVisitsPerDay - items.filter(item => item.gapFill === true).length;
   if (limit <= 0) { skip('limit'); return unchanged(); }
   if (!findRecommendation || !travelMinutes || !getHours) { skip('no-checks'); return unchanged(); }
   const identities = items.map((item, index) => place(item) || normalizeSelectedPlace(resolvedPlaces.find(p => p.index === index)?.resolvedPlace));
@@ -62,12 +63,12 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     if (start === null || end === null) { skip('no-time'); return []; }
     // Pre-filter only: inbound, stay, outbound and 30-minute slack are measured per candidate below, so a near place
     // can fit a gap whose free time over the direct leg is under 90 minutes. No visit fits under 60 + 30 raw minutes.
-    if (end - start < 90 || end - start - Math.ceil(route.durationMinutes) < 60) { skip('short'); return []; }
+    if (end - start < GAP_FILL.visit + GAP_FILL.slack || end - start - Math.ceil(route.durationMinutes) < GAP_FILL.visit) { skip('short'); return []; }
     if (!identities[index] || !identities[next]) { skip('no-identity'); return []; }
     return [{ index, start, end, free: end - start - Math.ceil(route.durationMinutes) }];
   }).sort((a, b) => b.free - a.free || a.index - b.index);
-  for (let i = 4; i < gaps.length; i++) skip('cap');
-  gaps.length = Math.min(gaps.length, 4);
+  for (let i = GAP_FILL.maxSearchesPerDay; i < gaps.length; i++) skip('cap');
+  gaps.length = Math.min(gaps.length, GAP_FILL.maxSearchesPerDay);
   // Same center rule as geocodeSchedule (airports skipped), so the verified ID is reused there.
   const centers = recommendationCenters(identities.flatMap((place, index) =>
     place && isFixedPlace(items[index]) ? [{ index, place }] : []), cityId);
@@ -79,7 +80,7 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
   for (const [tried, gap] of gaps.entries()) {
     if (additions.length >= limit) { for (let i = tried; i < gaps.length; i++) skip('not-tried'); break; }
     // A chained visit is a general attraction, so a gap never gets two cafes or two parks in a row.
-    const intent = gap.from || gap.retry || (themed.category === 'cafe' && cafes >= 2) ? DEFAULT_GAP_INTENT : themed;
+    const intent = gap.from || gap.retry || (themed.category === 'cafe' && cafes >= MAX_CAFES_PER_DAY) ? DEFAULT_GAP_INTENT : themed;
     const center = [...centers].sort((a, b) => Math.abs(a.index - gap.index - 0.5) - Math.abs(b.index - gap.index - 0.5))[0]?.place;
     if (!center) { skip('no-center'); continue; }
     // A themed venue that misses the measured window is retried once as a general attraction, within the four-search
@@ -87,10 +88,10 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     // this gap (the retry and its chained visit) but may still fit another gap.
     const miss = (reason, id) => {
       skip(reason);
-      if (intent !== DEFAULT_GAP_INTENT && gaps.length < 4) gaps.splice(tried + 1, 0, { ...gap, retry: true, rejected: [id] });
+      if (intent !== DEFAULT_GAP_INTENT && gaps.length < GAP_FILL.maxSearchesPerDay) gaps.splice(tried + 1, 0, { ...gap, retry: true, rejected: [id] });
     };
     const avoid = gap.rejected ? new Set([...excluded, ...gap.rejected]) : excluded;
-    const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + 60),
+    const provisional = { type: 'attraction', time: time(gap.start), endTime: time(gap.start + GAP_FILL.visit),
       placeIntent: { purpose: language === 'ko' ? intent.ko : intent.en,
         category: intent.category, nearLocation: center.displayName } };
     const candidate = await findRecommendation(provisional, center, avoid, date, budget);
@@ -102,30 +103,30 @@ export async function fillMeasuredGaps(items, routes, { date, endTime, excludedP
     if (!Number.isFinite(inbound) || inbound < 0) { skip('inbound'); continue; }
     const hours = await getHours(identity.placeId);
     // After an earlier fill, keep the same 30 minutes failedGapFills requires before the next visit.
-    const earliest = gap.start + Math.ceil(inbound) + (gap.from ? 30 : 0);
-    const start = nextVisitStart(candidate, date, hours, earliest, 60, gap.end - 30, { requireKnown: !(hours && OPEN_AIR.has(intent.category)) });
+    const earliest = gap.start + Math.ceil(inbound) + (gap.from ? GAP_FILL.slack : 0);
+    const start = nextVisitStart(candidate, date, hours, earliest, GAP_FILL.visit, gap.end - GAP_FILL.slack, { requireKnown: !(hours && OPEN_AIR.has(intent.category)) });
     if (start === null) {
       // window: inbound travel left no 60-minute slot; hours-missing: lookup failed or deadline ran out;
       // hours-unknown: no usable hours data; hours: closed or open hours conflict with every slot.
-      const reason = earliest + 60 > gap.end - 30 ? 'window' : !hours ? 'hours-missing'
-        : assessVisitHours({ ...candidate, time: time(earliest), endTime: time(earliest + 60) }, date, hours) === 'unknown' ? 'hours-unknown' : 'hours';
+      const reason = earliest + GAP_FILL.visit > gap.end - GAP_FILL.slack ? 'window' : !hours ? 'hours-missing'
+        : assessVisitHours({ ...candidate, time: time(earliest), endTime: time(earliest + GAP_FILL.visit) }, date, hours) === 'unknown' ? 'hours-unknown' : 'hours';
       if (reason === 'window' || reason === 'hours') miss(reason, identity.placeId); else skip(reason);
       continue;
     }
-    const end = start + 60;
+    const end = start + GAP_FILL.visit;
     const outbound = await travelMinutes(identity, identities[gap.index+1], date, time(end));
-    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + 30 > gap.end) { miss('outbound', identity.placeId); continue; }
+    if (!Number.isFinite(outbound) || outbound < 0 || end + Math.ceil(outbound) + GAP_FILL.slack > gap.end) { miss('outbound', identity.placeId); continue; }
     additions.push({ index: gap.index, item: { ...candidate, time: time(start), endTime: time(end), visitNotBefore: time(start), gapFill: true } });
     excluded.add(identity.placeId);
     if (intent.category === 'cafe') cafes++;
     // Pre-filter only, like a fresh gap: the chained visit needs 30 + 60 + 30 raw minutes before travel, measured.
     const rest = gap.end - end - Math.ceil(outbound);
-    if (gap.end - end >= 120 && rest >= 90 && additions.length < limit) {
+    if (gap.end - end >= GAP_FILL.slack + GAP_FILL.visit + GAP_FILL.slack && rest >= GAP_FILL.visit + GAP_FILL.slack && additions.length < limit) {
       // Re-rank the untried gaps with the remainder so short gaps cannot take the four-search cap from it.
       // Minus the 30-minute slack after the first visit, so rest compares with a fresh gap's free time.
-      const untried = [...gaps.splice(tried + 1), { index: gap.index, from: identity, start: end, end: gap.end, free: rest - 30, rejected: gap.rejected }]
+      const untried = [...gaps.splice(tried + 1), { index: gap.index, from: identity, start: end, end: gap.end, free: rest - GAP_FILL.slack, rejected: gap.rejected }]
         .sort((a, b) => b.free - a.free || a.index - b.index);
-      const room = Math.max(0, 4 - gaps.length);
+      const room = Math.max(0, GAP_FILL.maxSearchesPerDay - gaps.length);
       gaps.push(...untried.slice(0, room));
       for (let i = room; i < untried.length; i++) skip('cap');
     }
