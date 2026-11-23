@@ -97,6 +97,81 @@ export function renderDayTabs(view, safePlan) {
   view.renderPageHeading(safePlan.days);
 }
 
+// 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
+function emptyDayItem() {
+  const fallbackItem = document.createElement('div');
+  fallbackItem.className = 'timeline-item';
+  fallbackItem.innerHTML = `
+    <div class="time-badge">--:--</div>
+    <div class="schedule-card" style="border-color: var(--cp-danger); border-left-color: var(--cp-danger); background: var(--cp-danger-bg);">
+      <div class="schedule-title" style="color: var(--cp-danger);" data-i18n="viewNoItemsTitle">${t('viewNoItemsTitle')}</div>
+      <div class="schedule-desc" style="color: var(--cp-danger);" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</div>
+    </div>
+  `;
+  return fallbackItem;
+}
+
+/** 카드 하나를 만들고 그 안의 버튼을 연결한다. */
+function buildTimelineItem(view, ctx, scheduleItem, idx) {
+  const { dayData, tripId, userId, visited, keys, noteKeys } = ctx;
+  const item = document.createElement('div');
+  item.className = 'timeline-item';
+
+  item.innerHTML = renderScheduleCard(localizeBoundaryItem(scheduleItem, getLang()), idx, view.canEdit(), visited?.has(keys[idx]));
+  if (noteKeys[idx]) attachStopNoteControl(view, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
+  item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
+    // Place lookups and measured times change the day after render without rebuilding the cards.
+    const day = view.normalizeData(view.currentItinerary)?.days?.[view.activeDayIndex] || dayData;
+    const on = visitedStops.toggle(tripId, stopKeys(day)[idx], userId);
+    e.currentTarget.setAttribute('aria-pressed', String(on));
+    e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
+    view.updateNextStop(day);
+    refreshReplanButton(view);
+    refreshRainBanner(view);
+  });
+
+  // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
+  item.querySelectorAll('.item-edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      view.handleItemEdit(btn.dataset.edit, Number(btn.dataset.idx));
+    });
+  });
+
+  const navBtn = item.querySelector('.nav-btn');
+  item.querySelector('.visit-time-btn')?.addEventListener('click',()=>openVisitTimeEditor(view,item.querySelector('.schedule-card'),idx));
+  item.querySelector('.replace-place-btn')?.addEventListener('click', () =>
+    view.openReplacement(item.querySelector('.schedule-card'), idx));
+  item.querySelector('.indoor-alternatives-btn')?.addEventListener('click', () =>
+    view.openReplacement(item.querySelector('.schedule-card'), idx, true));
+  if (navBtn) {
+    navBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const loc = navBtn.getAttribute('data-location');
+      const gmaps = navBtn.getAttribute('data-gmaps');
+      openNavPopup(loc, gmaps, navBtn, view.shadowRoot);
+    });
+  }
+  return item;
+}
+
+// 카드 사이 이동 정보 슬롯: 지도(map-view)가 계산한 실제 경로가 채워진다
+function appendGapSlots(view, container, items, idx) {
+  const transitSlot = document.createElement('div');
+  transitSlot.className = 'transit-info hidden';
+  transitSlot.id = `transit-info-${idx}`;
+  container.appendChild(transitSlot);
+
+  // 여기에 장소를 끼워 넣을 수 있다는 걸 자리로 보여준다. 도착 뒤에는
+  // 넣을 수 없으므로 마지막 카드 다음에는 만들지 않는다.
+  const nextItem = items[idx + 1];
+  if (view.canEdit() && (isEditableItem(items[idx]) || isEditableItem(nextItem))) {
+    container.appendChild(view.buildInsertSlot(idx + 1));
+  }
+}
+
 export function renderActiveDay(view, safePlan) {
   const source = view.currentItinerary;
   const dayIndex = view.activeDayIndex;
@@ -136,7 +211,6 @@ export function renderActiveDay(view, safePlan) {
       return;
     }
 
-    let globalIdx = 0;
     const items = dayData.scheduleItems || [];
     const tripId = view.visitTripId;
     const userId = view.state.userId;
@@ -145,82 +219,17 @@ export function renderActiveDay(view, safePlan) {
     const noteKeys = view.state.current?.source.kind === 'private' && view.canEdit() ? stopNoteKeys(dayData) : [];
     view.updateNextStop(dayData);
     
-    // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
     if (items.length === 0) {
-      const fallbackItem = document.createElement('div');
-      fallbackItem.className = 'timeline-item';
-      fallbackItem.innerHTML = `
-        <div class="time-badge">--:--</div>
-        <div class="schedule-card" style="border-color: var(--cp-danger); border-left-color: var(--cp-danger); background: var(--cp-danger-bg);">
-          <div class="schedule-title" style="color: var(--cp-danger);" data-i18n="viewNoItemsTitle">${t('viewNoItemsTitle')}</div>
-          <div class="schedule-desc" style="color: var(--cp-danger);" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</div>
-        </div>
-      `;
-      container.appendChild(fallbackItem);
+      container.appendChild(emptyDayItem());
       container.style.opacity = '1';
       return;
     }
 
-    items.forEach((scheduleItem) => {
-      const idx = globalIdx++;
-    const item = document.createElement('div');
-    item.className = 'timeline-item';
-
-    item.innerHTML = renderScheduleCard(localizeBoundaryItem(scheduleItem, getLang()), idx, view.canEdit(), visited?.has(keys[idx]));
-    if (noteKeys[idx]) attachStopNoteControl(view, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
-    item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
-      // Place lookups and measured times change the day after render without rebuilding the cards.
-      const day = view.normalizeData(view.currentItinerary)?.days?.[view.activeDayIndex] || dayData;
-      const on = visitedStops.toggle(tripId, stopKeys(day)[idx], userId);
-      e.currentTarget.setAttribute('aria-pressed', String(on));
-      e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
-      view.updateNextStop(day);
-      refreshReplanButton(view);
-      refreshRainBanner(view);
+    const ctx = { dayData, tripId, userId, visited, keys, noteKeys };
+    items.forEach((scheduleItem, idx) => {
+      container.appendChild(buildTimelineItem(view, ctx, scheduleItem, idx));
+      if (idx < items.length - 1) appendGapSlots(view, container, items, idx);
     });
-
-    // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
-    item.querySelectorAll('.item-edit-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        view.handleItemEdit(btn.dataset.edit, Number(btn.dataset.idx));
-      });
-    });
-
-    const navBtn = item.querySelector('.nav-btn');
-    item.querySelector('.visit-time-btn')?.addEventListener('click',()=>openVisitTimeEditor(view,item.querySelector('.schedule-card'),idx));
-    item.querySelector('.replace-place-btn')?.addEventListener('click', () =>
-      view.openReplacement(item.querySelector('.schedule-card'), idx));
-    item.querySelector('.indoor-alternatives-btn')?.addEventListener('click', () =>
-      view.openReplacement(item.querySelector('.schedule-card'), idx, true));
-    if (navBtn) {
-      navBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const loc = navBtn.getAttribute('data-location');
-        const gmaps = navBtn.getAttribute('data-gmaps');
-        openNavPopup(loc, gmaps, navBtn, view.shadowRoot);
-      });
-    }
-
-    container.appendChild(item);
-
-    // 카드 사이 이동 정보 슬롯: 지도(map-view)가 계산한 실제 경로가 채워진다
-    if (idx < items.length - 1) {
-      const transitSlot = document.createElement('div');
-      transitSlot.className = 'transit-info hidden';
-      transitSlot.id = `transit-info-${idx}`;
-      container.appendChild(transitSlot);
-
-      // 여기에 장소를 끼워 넣을 수 있다는 걸 자리로 보여준다. 도착 뒤에는
-      // 넣을 수 없으므로 마지막 카드 다음에는 만들지 않는다.
-      const nextItem = items[idx + 1];
-      if (view.canEdit() && (isEditableItem(scheduleItem) || isEditableItem(nextItem))) {
-        container.appendChild(view.buildInsertSlot(idx + 1));
-      }
-    }
-  });
 
     // 지도 응답이 카드의 전환 애니메이션보다 빨랐어도 새 카드에 표시한다.
     view.applyResolvedPlaces(view.lastResolvedPlaces);
