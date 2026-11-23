@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runnableItineraryViewSource } from './helpers/itinerary-view-sources.mjs';
 import { escapeHtml, safeHttpUrl } from '../src/utils/html-safety.mjs';
 import { normalizeData } from '../src/domains/itinerary/services/itinerary-normalize.mjs';
 import { createItineraryState } from '../src/domains/itinerary/services/itinerary-state.mjs';
@@ -34,10 +35,7 @@ function viewHarness({ user = null } = {}) {
     if (!controls.has(id)) controls.set(id, element());
     return controls.get(id);
   };
-  const source = ['../src/domains/itinerary/ui/itinerary-schedule-card.js', '../src/domains/itinerary/ui/itinerary-view.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n')
-    .replace(/^import[\s\S]*?;\n/gm, '')
-    .replace('export function renderScheduleCard', 'function renderScheduleCard')
-    .replace('export default class', 'class');
+  const source = runnableItineraryViewSource();
   const dependencies = {
     HTMLElement: class {
       attachShadow() { this.shadowRoot = { getElementById: control }; }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { stripComments } from './helpers/style-contract.mjs';
+import { ITINERARY_VIEW_FILES } from './helpers/itinerary-view-sources.mjs';
 
 /**
  * 외부 SDK 를 언제 불러오는가.
@@ -47,8 +48,7 @@ test('카카오 앱 키가 한 곳에서만 나온다', () => {
   // 있었다. 먼저 실행되는 쪽이 이겨서, 공유와 로그인이 다른 앱으로 붙을 수
   // 있었다. 지금 앱 층은 Ionic 셸이다.
   for (const f of ['../src/prototype/ionic-shell.jsx', '../src/prototype/ionic-screens.jsx', '../src/domains/auth/ui/login-view.js',
-                   '../src/domains/itinerary/ui/itinerary-view.js',
-                   '../src/domains/itinerary/ui/itinerary-schedule-card.js',
+                   ...ITINERARY_VIEW_FILES.map(file => `../${file}`),
                    '../src/domains/itinerary/ui/itinerary-share-delivery.js']) {
     assert.doesNotMatch(src(f), /Kakao\.init\(/, `${f} 이 직접 init 한다`);
     assert.doesNotMatch(src(f), /[0-9a-f]{32}/, `${f} 에 키처럼 보이는 값이 박혀 있다`);

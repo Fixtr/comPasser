@@ -16,6 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { ITINERARY_VIEW_FILES } from './helpers/itinerary-view-sources.mjs';
 
 const read = (rel) => readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8');
 
@@ -26,8 +27,7 @@ const MARKUP_FILES = [
   'src/domains/auth/ui/join-view.js',
   'src/domains/planner/ui/preference-view.js',
   'src/domains/planner/ui/travel-form.js',
-  'src/domains/itinerary/ui/itinerary-view.js',
-  'src/domains/itinerary/ui/itinerary-schedule-card.js',
+  ...ITINERARY_VIEW_FILES,
   'src/domains/auth/ui/verify-view.js',
   'src/domains/profile/ui/profile-view.js',
 ];
@@ -46,8 +46,7 @@ const SCRIPTED_FILES = [
   'src/domains/auth/ui/verify-view.js',
   'src/domains/planner/ui/preference-view.js',
   'src/domains/planner/ui/travel-form.js',
-  'src/domains/itinerary/ui/itinerary-view.js',
-  'src/domains/itinerary/ui/itinerary-schedule-card.js',
+  ...ITINERARY_VIEW_FILES,
   'src/domains/profile/ui/profile-view.js',
 ];
 

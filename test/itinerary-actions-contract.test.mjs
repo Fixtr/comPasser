@@ -16,12 +16,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { itineraryStyles } from '../src/domains/itinerary/ui/itinerary-style.js';
-import { readFileSync } from 'node:fs';
+import { readItineraryViewSource } from './helpers/itinerary-view-sources.mjs';
 import { stripComments, stripSourceComments, assertTouchTargets } from './helpers/style-contract.mjs';
 
 const css = stripComments(itineraryStyles);
 const view = stripSourceComments(
-  ['../src/domains/itinerary/ui/itinerary-view.js', '../src/domains/itinerary/ui/itinerary-schedule-card.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n'));
+  readItineraryViewSource());
 
 /** 한 셀렉터의 선언 블록을 떼어 온다. */
 function block(selector) {

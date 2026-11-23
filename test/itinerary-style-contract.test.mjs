@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readItineraryViewSource } from './helpers/itinerary-view-sources.mjs';
 
 import { itineraryStyles } from '../src/domains/itinerary/ui/itinerary-style.js';
 import { getTransitStyle } from '../src/domains/itinerary/ui/itinerary-render-helpers.js';
@@ -99,7 +100,7 @@ test('이동 수단 아이콘은 이모지가 아니라 인라인 SVG 다', () =
  * 그대로 남아 있었다. 화면에서 가장 눈에 띄는 자리인데 테스트는 통과했다.
  */
 const view = stripSourceComments(
-  ['../src/domains/itinerary/ui/itinerary-view.js', '../src/domains/itinerary/ui/itinerary-schedule-card.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n')
+  readItineraryViewSource()
 );
 const inlineStyles = extractInlineStyles(view);
 
