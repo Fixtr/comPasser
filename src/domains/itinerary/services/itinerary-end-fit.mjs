@@ -1,5 +1,13 @@
 import { nextVisitStart } from './itinerary-hours.mjs';
 import { applyTransitDelays, getEndTimeOverflowMinutes, minimumStayMinutes, routeDepartureClock, minutesOf as minutes } from './itinerary-schedule-adjust.mjs';
+import { GAP_FILL } from '../../../../functions/route-rules/absolute.mjs';
+import { MEAL_TIMES } from '../../../../functions/route-rules/regions/default.mjs';
+
+const EARLIEST_LUNCH = minutes(MEAL_TIMES.earliestLunch);
+const LUNCH = minutes(MEAL_TIMES.lunch.from);
+const DINNER_FROM = minutes(MEAL_TIMES.dinnerFrom);
+const DINNER_FLOOR = minutes(MEAL_TIMES.dinnerFloor);
+const DINNER = minutes(MEAL_TIMES.dinner.from);
 
 const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 
@@ -101,7 +109,7 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
       // Preserve requested lower bounds and meal windows while removing AI padding. Compaction never moves a meal
       // below 11:00 (or below its own earlier brunch time), a late lunch below 12:00, or a 15:00+ dinner below 17:00.
       const meal = items[i].type === 'dining' && items[i].placeIntent?.category !== 'cafe'
-        ? (starts[i] >= 1080 ? 1080 : !compact ? cursor : starts[i] >= 900 ? 1020 : starts[i] >= 720 ? 720 : 660) : cursor;
+        ? (starts[i] >= DINNER ? DINNER : !compact ? cursor : starts[i] >= DINNER_FROM ? DINNER_FLOOR : starts[i] >= LUNCH ? LUNCH : EARLIEST_LUNCH) : cursor;
       cursor = Math.max(cursor, minutes(items[i].visitNotBefore) ?? cursor, Math.min(starts[i], meal),
         items[i].addedByUser === true ? starts[i] : cursor);
       return nextVisitStart(items[i], date, hoursByIndex[i], cursor, stays[i], Math.max(deadline, cursor + stays[i])) ?? deadline + 1;
@@ -109,7 +117,7 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
     const projectedEnd = () => {
       let cursor=shownEnd(left);
       for(let i=left+1;i<=right;i++) {
-        cursor+=travel.get(i) + (items[i-1].gapFill ? 30 : 0);
+        cursor+=travel.get(i) + (items[i-1].gapFill ? GAP_FILL.slack : 0);
         if(i<=last) cursor=visitStart(i, cursor)+stays[i];
       }
       return cursor;
@@ -132,7 +140,7 @@ export function fitMeasuredSchedule(items, routes, endTime, startTime, { compact
     }
     let cursor = shownEnd(left);
     for (let i = left + 1; i <= right; i++) {
-      cursor += travel.get(i) + (items[i-1].gapFill ? 30 : 0);
+      cursor += travel.get(i) + (items[i-1].gapFill ? GAP_FILL.slack : 0);
       if (i > last && i !== items.length - 1) break; // fixed anchor may include waiting
       if (i <= last) cursor = visitStart(i, cursor);
       // The day's arrival stays at the requested end; time saved by compacting shows as free time on the last leg.

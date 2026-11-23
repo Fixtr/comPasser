@@ -10,6 +10,8 @@ const { travelRegion } = require('./travel-region.mjs');
 
 const { MAX_DAYS, MAX_ANCHORS_PER_DAY, TRIP_PACES } = require('./planner-request-validation.mjs');
 const { airportBufferMinutes } = require('./airport-buffer.mjs');
+const { MIN_STAY, TRAVEL_GAP, MAX_CAFES_PER_DAY } = require('./route-rules/absolute.mjs');
+const { MEAL_TIMES, ACTIVITY_TIMES } = require('./route-rules/regions/default.mjs');
 const MAX_TEXT = 200;
 const MAX_SHORT = 40;
 
@@ -84,7 +86,7 @@ const COMPANION_INSTRUCTIONS = {
   family_kids: `The travellers include young children. You MUST:
   - Keep each visit short (about 60-90 minutes) and include at least one indoor or rest option per day.
   - Choose kid-friendly meals at regular meal times.
-  - Avoid late-night visits after 20:00, bars, pubs and nightlife venues.`,
+  - Avoid late-night visits after ${ACTIVITY_TIMES.lateNight}, bars, pubs and nightlife venues.`,
   parents: `The travellers include older parents. You MUST:
   - Keep a gentle pace with fewer visits, fewer transfers and less walking between stops.
   - Prefer places with seating and include a rest break (for example a cafe) between longer visits.
@@ -305,17 +307,17 @@ TIME AND TRANSPORT:
 - The app supports public transit and walking for every budget. Budget changes food/activity spending preferences only. Do not assume taxis or rental cars.
 - Google route results are the sole source of transport facts. Do not write or estimate transport modes, lines, transfers, fares or journey durations. Keep transitInfo empty.
 - Use chronological same-day HH:mm start/end times inside the requested day. Never overlap a fixed appointment. duration and endTime - time describe ONLY the visit; travel occupies separate unallocated gaps, never an item.
-- Leave conservative gaps before/after visits for later route verification. Before an airport end time and after an airport start time leave the unallocated minutes listed for that day (estimated from the airport's distance to the city), 30 before a rail/bus terminal, and 15 otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
+- Leave conservative gaps before/after visits for later route verification. Before an airport end time and after an airport start time leave the unallocated minutes listed for that day (estimated from the airport's distance to the city), ${TRAVEL_GAP.terminal} before a rail/bus terminal, and ${TRAVEL_GAP.other} otherwise. These are provisional safety gaps, not measured travel times; actual travel may require more. Prefer fewer visits when time is tight.
 - ${VISIT_DENSITY[constraints.pace] || VISIT_DENSITY.balanced}${constraints.companion && constraints.pace === "packed" ? " Honor the companion’s mobility, rest and safety needs before increasing visit density." : ""}
 - Never create a visit whose only purpose is departure, arrival, transfer, travel preparation or movement inside a venue.
 
 MEALS AND ACTIVITIES:
-- Prefer lunch at 12:00-12:30 and dinner at 18:00-18:30 when those windows fit the day and fixed appointments. Only include a meal if its full 60-minute stay fits alongside travel gaps. If it cannot fit, omit it rather than shorten it or extend the day. A day ending at 18:00 must not contain dinner starting at 18:00.
-- When the day covers 11:30-14:00 and a 60-minute lunch still fits around fixed appointments and gaps, include it: move lunch before or after a fixed appointment rather than skip it. Never start lunch before 11:00.
-- A restaurant visit before 11:00 must be an explicit breakfast or brunch purpose; otherwise use a cafe or non-food visit in the morning.
-- Restaurant meals need at least 60 minutes (food theme preferably 60-90). Cafes and other optional visits need at least 20 minutes. Fixed user appointments are not changed by these minimums.
-- At most one breakfast/brunch/lunch and one dinner per day, plus at most two cafe/snack stops. Food theme may have up to four full meals, at least three hours apart, only when the time allows. Short days need not meet theme stop-count preferences.
-- Night-exclusive activities start at 18:00 or later. Do not recommend ticketed special events or limited-date programs unless supplied as a fixed appointment; the app already inserts those appointments.
+- Prefer lunch at ${MEAL_TIMES.lunch.from}-${MEAL_TIMES.lunch.to} and dinner at ${MEAL_TIMES.dinner.from}-${MEAL_TIMES.dinner.to} when those windows fit the day and fixed appointments. Only include a meal if its full ${MIN_STAY.meal}-minute stay fits alongside travel gaps. If it cannot fit, omit it rather than shorten it or extend the day. A day ending at ${MEAL_TIMES.dinner.from} must not contain dinner starting at ${MEAL_TIMES.dinner.from}.
+- When the day covers ${MEAL_TIMES.lunchWindow.from}-${MEAL_TIMES.lunchWindow.to} and a ${MIN_STAY.meal}-minute lunch still fits around fixed appointments and gaps, include it: move lunch before or after a fixed appointment rather than skip it. Never start lunch before ${MEAL_TIMES.earliestLunch}.
+- A restaurant visit before ${MEAL_TIMES.earliestLunch} must be an explicit breakfast or brunch purpose; otherwise use a cafe or non-food visit in the morning.
+- Restaurant meals need at least ${MIN_STAY.meal} minutes (food theme preferably 60-90). Cafes and other optional visits need at least ${MIN_STAY.visit} minutes. Fixed user appointments are not changed by these minimums.
+- At most one breakfast/brunch/lunch and one dinner per day, plus at most ${MAX_CAFES_PER_DAY} cafe/snack stops. Food theme may have up to four full meals, at least three hours apart, only when the time allows. Short days need not meet theme stop-count preferences.
+- Night-exclusive activities start at ${ACTIVITY_TIMES.nightFrom} or later. Do not recommend ticketed special events or limited-date programs unless supplied as a fixed appointment; the app already inserts those appointments.
 
 OUTPUT:
 - Return ONLY schema-valid JSON, no markdown. Use ${language} for generated titles, descriptions, purposes and themes; copy allowed location strings unchanged. Descriptions are at most 1-2 sentences.

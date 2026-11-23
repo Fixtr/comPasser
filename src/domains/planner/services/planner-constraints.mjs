@@ -3,8 +3,15 @@ import { normalizeSelectedPlace } from './selected-place.mjs';
 import { getLocationName } from './location-name.mjs';
 import { formatMinutes, minimumStayMinutes, minutesOf } from '../../itinerary/services/itinerary-schedule-adjust.mjs';
 import { airportBufferMinutes } from '../../../../functions/airport-buffer.mjs';
+import { AIRPORT_MEAL_MAX_SHIFT } from '../../../../functions/route-rules/absolute.mjs';
+import { ACTIVITY_TIMES, MEAL_TIMES } from '../../../../functions/route-rules/regions/default.mjs';
 import { destinationById, destinations } from './travel-destinations.mjs';
 import { tFor } from '../../../utils/i18n.js';
+
+const NIGHT_FROM = minutesOf(ACTIVITY_TIMES.nightFrom);
+const LUNCH_LATEST = minutesOf(MEAL_TIMES.lunchWindow.to);
+const DINNER_FROM = minutesOf(MEAL_TIMES.dinnerFrom);
+const AIRPORT_DINNER_FLOOR = minutesOf(MEAL_TIMES.airportDinnerFloor);
 
 function selectedFields(location) {
   const selectedPlace = normalizeSelectedPlace(location);
@@ -365,7 +372,7 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       if (item.type === 'AnchorSchedule') return true;
       const name = `${item.title || ''} ${item.placeIntent?.purpose || ''}`;
       return !/(?:특별\s*(?:관람|개방|행사)|special\s*(?:event|opening|tour|viewing))/i.test(name)
-        && !(/야간|야경|밤\s*(?:관람|투어)|night|illumination/i.test(name) && minutes(item.time) < 18 * 60);
+        && !(/야간|야경|밤\s*(?:관람|투어)|night|illumination/i.test(name) && minutes(item.time) < NIGHT_FROM);
     });
 
     // Gemini 는 종종 이동 자체를 하나의 일정처럼 만들어낸다("서울역으로 이동",
@@ -420,23 +427,23 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
       && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time));
     const lunch = scheduleItems.filter(item => meal(item) && minutes(item.time) < earliestVisitStart).at(-1);
     const lunchEnd = lunch && Math.max(minutes(lunch.endTime), earliestVisitStart + minimumStayMinutes(lunch));
-    if (lunch && earliestVisitStart <= 14 * 60 && lunchEnd <= latestVisitEnd && !scheduleItems.some(other => meal(other)
-      && minutes(other.time) >= earliestVisitStart && minutes(other.time) < 15 * 60 && keptBelow(other))) {
+    if (lunch && earliestVisitStart <= LUNCH_LATEST && lunchEnd <= latestVisitEnd && !scheduleItems.some(other => meal(other)
+      && minutes(other.time) >= earliestVisitStart && minutes(other.time) < DINNER_FROM && keptBelow(other))) {
       scheduleItems = scheduleItems.map(item => item === lunch
         ? { ...item, time: formatMinutes(earliestVisitStart), endTime: formatMinutes(lunchEnd) } : item);
     }
-    const dinnerFloor = Math.max(16 * 60 + 30, earliestVisitStart);
+    const dinnerFloor = Math.max(AIRPORT_DINNER_FLOOR, earliestVisitStart);
     let movedMeal = false;
     scheduleItems = scheduleItems.map(item => {
       const start = minutes(item.time);
       const moved = Math.min(start, Math.max(dinnerFloor, latestVisitEnd - (minutes(item.endTime) - start)));
-      if (movedMeal || !meal(item) || minutes(item.endTime) <= latestVisitEnd || start - moved > 90
+      if (movedMeal || !meal(item) || minutes(item.endTime) <= latestVisitEnd || start - moved > AIRPORT_MEAL_MAX_SHIFT
         || latestVisitEnd - moved < minimumStayMinutes(item)
         // Moving ahead of a visit that already fits would push that visit past the limit or overlap it.
         || scheduleItems.some(other => other !== item && other.placeIntent?.purpose && timed(other)
           && minutes(other.time) >= moved && minutes(other.endTime) <= latestVisitEnd)
         || scheduleItems.some(other => (meal(other) || other.type === 'AnchorSchedule')
-          && minutes(other.time) >= 15 * 60 && minutes(other.endTime) <= latestVisitEnd)) return item;
+          && minutes(other.time) >= DINNER_FROM && minutes(other.endTime) <= latestVisitEnd)) return item;
       movedMeal = true;
       return { ...item, time: formatMinutes(moved), endTime: formatMinutes(latestVisitEnd) };
     }).sort((a, b) => minutes(a.time) - minutes(b.time));
