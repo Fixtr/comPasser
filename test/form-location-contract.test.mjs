@@ -12,7 +12,9 @@ import { readFileSync } from 'node:fs';
 import { stripSourceComments } from './helpers/style-contract.mjs';
 
 const form = stripSourceComments(
-  readFileSync(new URL('../src/domains/planner/ui/travel-form.js', import.meta.url), 'utf8')
+  // The form is split across sibling files; the contract covers all of them.
+  ['travel-form.js', 'travel-form-template.js']
+    .map(name => readFileSync(new URL(`../src/domains/planner/ui/${name}`, import.meta.url), 'utf8')).join('\n')
 );
 const style = readFileSync(new URL('../src/domains/planner/ui/travel-form-style.js', import.meta.url), 'utf8');
 const i18n = readFileSync(new URL('../src/utils/i18n.js', import.meta.url), 'utf8');

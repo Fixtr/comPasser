@@ -49,7 +49,9 @@ test('고정 일정 입력은 결과 화면과 같은 색 어휘를 쓴다', () 
  * 실제로 이 파일에는 oklch 테두리, 하드코딩 hex, 그라디언트 배지가 있었다.
  */
 const logic = stripSourceComments(
-  readFileSync(new URL('../src/domains/planner/ui/travel-form.js', import.meta.url), 'utf8')
+  // The form is split across sibling files; the contract covers all of them.
+  ['travel-form.js', 'travel-form-template.js']
+    .map(name => readFileSync(new URL(`../src/domains/planner/ui/${name}`, import.meta.url), 'utf8')).join('\n')
 );
 const inlineStyles = extractInlineStyles(logic);
 
