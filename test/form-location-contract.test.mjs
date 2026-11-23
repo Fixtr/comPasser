@@ -52,6 +52,18 @@ test('빈 장소는 계획 요청을 내보내기 전에 막는다', () => {
     check < dispatch,
     '검사가 요청을 내보낸 뒤에 있다 — 막는 시늉만 하고 이미 나간 뒤다'
   );
+
+  // 검사와 내보내기가 함수로 나뉘어 있어 글자 순서만으로는 실행 순서를 못 지킨다.
+  // 제출 핸들러가 실제로 부르는 순서와, 각 함수가 맡은 일을 함께 본다.
+  const handler = submit.slice(0, submit.indexOf('function startSubmit'));
+  const checkCall = handler.indexOf('if (!locationsOk(');
+  const dispatchCall = handler.indexOf('dispatchGeneration(');
+  assert.ok(checkCall !== -1, '제출 핸들러가 장소 검사를 부르지 않거나 결과를 보지 않는다');
+  assert.ok(dispatchCall !== -1, '제출 핸들러가 요청을 내보내지 않는다');
+  assert.ok(checkCall < dispatchCall, '핸들러가 장소 검사보다 먼저 요청을 내보낸다');
+  const body = (name) => submit.slice(submit.indexOf(`function ${name}(`)).split(/\n}\n/)[0];
+  assert.match(body('locationsOk'), /findMissingLocation\s*\(/, 'locationsOk 가 장소를 검사하지 않는다');
+  assert.match(body('dispatchGeneration'), /new CustomEvent\('generate-itinerary'/, 'dispatchGeneration 이 요청을 내보내지 않는다');
 });
 
 test('막았으면 말로 알리고 그 칸까지 데려간다', () => {
