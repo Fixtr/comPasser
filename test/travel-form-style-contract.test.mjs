@@ -50,7 +50,7 @@ test('고정 일정 입력은 결과 화면과 같은 색 어휘를 쓴다', () 
  */
 const logic = stripSourceComments(
   // The form is split across sibling files; the contract covers all of them.
-  ['travel-form.js', 'travel-form-template.js']
+  ['travel-form.js', 'travel-form-template.js', 'travel-form-populate.js']
     .map(name => readFileSync(new URL(`../src/domains/planner/ui/${name}`, import.meta.url), 'utf8')).join('\n')
 );
 const inlineStyles = extractInlineStyles(logic);

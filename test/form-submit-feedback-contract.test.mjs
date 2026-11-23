@@ -23,7 +23,7 @@ import { stripSourceComments, extractInlineStyles, assertNoHardcodedColors } fro
 
 const form = stripSourceComments(
   // The form is split across sibling files; the contract covers all of them.
-  ['travel-form.js', 'travel-form-template.js']
+  ['travel-form.js', 'travel-form-template.js', 'travel-form-populate.js']
     .map(name => readFileSync(new URL(`../src/domains/planner/ui/${name}`, import.meta.url), 'utf8')).join('\n')
 );
 const style = readFileSync(new URL('../src/domains/planner/ui/travel-form-style.js', import.meta.url), 'utf8');
