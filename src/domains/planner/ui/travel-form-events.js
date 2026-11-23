@@ -7,6 +7,7 @@ import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { todayString } from '../services/trip-date.mjs';
 import { getLocationName } from '../services/planner-constraints.mjs';
+import { invalidFieldMessage } from './travel-form-submit.js';
 
 export function bindStaySearch(view) {
   const stayDialog = view.shadowRoot.getElementById('stay-dialog');
@@ -267,4 +268,33 @@ export function bindFlights(view) {
       view.saveDraft();
     };
   }
+}
+
+export function bindValidation(view) {
+  const form = view.shadowRoot.getElementById('travel-form');
+  if (view.hasAttribute('handoff-flow')) form.noValidate = true;
+  // 브라우저 기본 검사는 Shadow DOM 안에서 사실상 보이지 않는다.
+  // `invalid` 는 거품처럼 위로 오르지 않으므로 폼에서 받으려면 캡처 단계여야 한다.
+  // 무엇보다 걸린 칸이 접힌 아래에 있으면(실측: top 887 / 화면 높이 932)
+  // 사용자 눈에는 버튼이 죽은 것으로 보인다. 그래서 우리가 그 칸까지 데려간다.
+  let revealedThisRound = false;
+  form.addEventListener('invalid', (e) => {
+    e.preventDefault(); // 믿을 수 없는 기본 말풍선 대신 우리 안내를 쓴다
+    // 한 번 누르면 걸린 칸마다 하나씩 쏜다 — 첫 칸만 데려가고 나머지는 흘린다.
+    // (그 무더기는 한 작업 안에서 연달아 오므로 마이크로태스크면 충분히 뒤다)
+    if (revealedThisRound) return;
+    revealedThisRound = true;
+    queueMicrotask(() => { revealedThisRound = false; });
+
+    const control = e.target;
+    view._revealInvalidField(control, invalidFieldMessage(control));
+  }, true);
+
+  // Auto-save form data on any input
+  form.addEventListener('input', (e) => {
+    // 고치기 시작했으면 걸렸던 표시는 즉시 거둔다.
+    if (e.target?.hasAttribute?.('aria-invalid')) e.target.removeAttribute('aria-invalid');
+    view.syncFlights(e.target);
+    if (e.target.id !== 'same-overnight-toggle') view.saveDraft();
+  });
 }
