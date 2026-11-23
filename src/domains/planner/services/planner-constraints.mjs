@@ -412,6 +412,19 @@ export function enforcePlannerConstraints(days, plannerRequest, language = 'ko')
     // under the old 17:00 floor; the measured fit keeps a dinner at min(its own start, 17:00), so 16:42 stays.
     // Overlap with ordinary visits is left to the measured fit, which lays the day out in order without the AI padding.
     const meal = item => item.type === 'dining' && item.placeIntent?.category === 'restaurant' && timed(item);
+    // Mirror at an airport start: Seoul day 1 lost its 10:00-13:00 lunch to the 12:19 Incheon start buffer. The latest
+    // restaurant meal starting inside the buffer (the lunch, not a breakfast before it) moves later to start at its end,
+    // keeping its original end or its minimum stay, when the buffer ends by 14:00 and no other restaurant meal that the
+    // filter below keeps starts between it and 15:00 (the day already has lunch).
+    const keptBelow = item => minutes(item.endTime) <= latestVisitEnd
+      && !fixedSlots.some(slot => minutes(item.time) < minutes(slot.endTime) && minutes(item.endTime) > minutes(slot.time));
+    const lunch = scheduleItems.filter(item => meal(item) && minutes(item.time) < earliestVisitStart).at(-1);
+    const lunchEnd = lunch && Math.max(minutes(lunch.endTime), earliestVisitStart + minimumStayMinutes(lunch));
+    if (lunch && earliestVisitStart <= 14 * 60 && lunchEnd <= latestVisitEnd && !scheduleItems.some(other => meal(other)
+      && minutes(other.time) >= earliestVisitStart && minutes(other.time) < 15 * 60 && keptBelow(other))) {
+      scheduleItems = scheduleItems.map(item => item === lunch
+        ? { ...item, time: formatMinutes(earliestVisitStart), endTime: formatMinutes(lunchEnd) } : item);
+    }
     const dinnerFloor = Math.max(16 * 60 + 30, earliestVisitStart);
     let movedMeal = false;
     scheduleItems = scheduleItems.map(item => {

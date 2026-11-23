@@ -206,6 +206,38 @@ test('a day starting at an airport keeps the travel buffer free after its start'
   assert.deepEqual(titles('서울역'), ['출발 · 서울역', '공항 라운지', '점심', '늦은 점심', '도착 · 명동 호텔']);
 });
 
+test('an Incheon start moves a lunch inside the start buffer to its end instead of dropping it (Seoul day 1 live run)', () => {
+  const icn = { placeId: 'icn', displayName: '인천국제공항', formattedAddress: '인천광역시 중구 공항로 272', lat: 37.4602, lng: 126.4407 };
+  const visit = (title, category, time, endTime) => ({ title, type: 'dining', time, endTime, location: '명동',
+    placeIntent: { purpose: title, category, nearLocation: '명동' } });
+  // From Incheon at 10:00, visits start from 12:18 (138 minutes).
+  const plan = (startTime, ...items) => enforcePlannerConstraints([{ day: 1, scheduleItems: items }],
+    { date: ['2026-11-24'], startTime, endTime: '20:00', destination: { id: 'seoul', country: 'KOR', name: 'seoul' },
+      startLocation: icn, endLocation: '서울역', anchorSchedules: [] })[0].scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+  const cafe = visit('카페', 'cafe', '13:30', '15:30');
+  // The live 10:00-13:00 lunch keeps its 13:00 end, extended to the one-hour minimum.
+  assert.deepEqual(plan('10:00', visit('점심', 'restaurant', '10:00', '13:00'), cafe), [['점심', '12:18', '13:18'], ['카페', '13:30', '15:30']]);
+  assert.deepEqual(plan('10:00', visit('점심', 'restaurant', '11:30', '13:30'), cafe), [['점심', '12:18', '13:30'], ['카페', '13:30', '15:30']]);
+  // Only the latest meal in the buffer moves (the lunch, not a breakfast), and not when the day already has a lunch after it.
+  assert.deepEqual(plan('10:00', visit('아침', 'restaurant', '10:00', '11:00'), visit('점심', 'restaurant', '11:00', '12:00')),
+    [['점심', '12:18', '13:18']]);
+  assert.deepEqual(plan('10:00', visit('점심', 'restaurant', '11:00', '12:00'), visit('늦은 점심', 'restaurant', '12:30', '13:30')),
+    [['늦은 점심', '12:30', '13:30']]);
+  // A later lunch that is removed anyway (past a Gimpo end buffer, or over the user's fixed slot) does not count.
+  const icnTo = (endLocation, anchorSchedules, ...items) => enforcePlannerConstraints([{ day: 1, scheduleItems: items }],
+    { date: ['2026-11-24'], startTime: '10:00', endTime: endLocation === '서울역' ? '20:00' : '15:30',
+      destination: { id: 'seoul', country: 'KOR', name: 'seoul' }, startLocation: icn, endLocation, anchorSchedules })[0]
+    .scheduleItems.slice(1, -1).map(item => [item.title, item.time, item.endTime]);
+  const late = visit('늦은 점심', 'restaurant', '13:00', '14:00');
+  assert.deepEqual(icnTo('서울역', [{ day: 1, name: '공연', time: '13:30', endTime: '15:00', location: '명동' }], visit('점심', 'restaurant', '11:00', '12:00'), late),
+    [['점심', '12:18', '13:18'], ['공연', '13:30', '15:00']]);
+  const gimpo = { placeId: 'gmp', displayName: '김포국제공항', formattedAddress: '서울 강서구 하늘길 112', lat: 37.5587, lng: 126.7945 };
+  assert.deepEqual(icnTo(gimpo, [], visit('점심', 'restaurant', '10:30', '11:30'), late).map(([title]) => title), ['점심']);
+  // A cafe is not moved, and a buffer ending after 14:00 is too late for lunch.
+  assert.deepEqual(plan('10:00', visit('카페', 'cafe', '10:30', '11:30')), []);
+  assert.deepEqual(plan('13:00', visit('점심', 'restaurant', '13:30', '14:30')), []);
+});
+
 test('untimed required visits get valid slots while reservation times remain fixed', async () => {
   const request = { ...flatRequest, date: ['2030-10-01'], startTime: '09:00', endTime: '18:00',
     anchorSchedules: [
