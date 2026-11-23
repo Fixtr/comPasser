@@ -21,7 +21,7 @@ import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../ser
 import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
-import { bindStaySearch, bindDiscovery } from './travel-form-events.js';
+import { bindStaySearch, bindDiscovery, bindVisitButtons } from './travel-form-events.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -593,32 +593,9 @@ export default class TravelForm extends HTMLElement {
   setupEventListeners() {
     bindStaySearch(this);
     bindDiscovery(this);
-    this.shadowRoot.getElementById('remove-waypoint').addEventListener('click', () => {
-      this.draft.selectedWaypoints = [];
-      this.shadowRoot.getElementById('selected-waypoint').hidden = true;
-      this.saveDraft();
-    });
-    this.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
-      this.addAnchor();
-      this.saveDraft();
-    });
-
-    const preferenceBtn = this.shadowRoot.getElementById('reselect-preference-btn');
-    this.shadowRoot.getElementById('reselect-date-btn').onclick = () => {
-      this.saveDraft();
-      window.navigate('/preference/1', { state: { returnTo: '/plan' } });
-    };
-    if (preferenceBtn) {
-      preferenceBtn.addEventListener('click', () => {
-        this.saveDraft();
-        window.navigate('/preference/2', { state: { returnTo: '/plan' } });
-      });
-    }
-
+    bindVisitButtons(this);
     const form = this.shadowRoot.getElementById('travel-form');
     if (this.hasAttribute('handoff-flow')) form.noValidate = true;
-    this.shadowRoot.getElementById('change-trip-destination').onclick = () => { this.saveDraft(); window.navigate('/destination', { state: { returnTo: '/plan' } }); };
-    this.shadowRoot.getElementById('add-trip-stay').onclick = () => this.addTripStay();
     for (const kind of ['arrival', 'departure']) {
       const entry = this.shadowRoot.getElementById(`${kind}-flight`);
       this.shadowRoot.getElementById(`add-${kind}-flight`).onclick = () => {

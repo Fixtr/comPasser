@@ -221,3 +221,30 @@ export function bindDiscovery(view) {
     });
   });
 }
+
+export function bindVisitButtons(view) {
+  view.shadowRoot.getElementById('remove-waypoint').addEventListener('click', () => {
+    view.draft.selectedWaypoints = [];
+    view.shadowRoot.getElementById('selected-waypoint').hidden = true;
+    view.saveDraft();
+  });
+  view.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
+    view.addAnchor();
+    view.saveDraft();
+  });
+
+  const preferenceBtn = view.shadowRoot.getElementById('reselect-preference-btn');
+  view.shadowRoot.getElementById('reselect-date-btn').onclick = () => {
+    view.saveDraft();
+    window.navigate('/preference/1', { state: { returnTo: '/plan' } });
+  };
+  if (preferenceBtn) {
+    preferenceBtn.addEventListener('click', () => {
+      view.saveDraft();
+      window.navigate('/preference/2', { state: { returnTo: '/plan' } });
+    });
+  }
+
+  view.shadowRoot.getElementById('change-trip-destination').onclick = () => { view.saveDraft(); window.navigate('/destination', { state: { returnTo: '/plan' } }); };
+  view.shadowRoot.getElementById('add-trip-stay').onclick = () => view.addTripStay();
+}
