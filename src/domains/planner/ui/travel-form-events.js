@@ -363,3 +363,31 @@ export function bindDayToggles(view) {
     });
   }
 }
+
+export function bindReset(view) {
+  const form = view.shadowRoot.getElementById('travel-form');
+  // Reset Form Event
+  view.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
+    // 1. Reset standard inputs and clear native validation states
+    form.reset();
+
+    // 2. Clear Google Autocomplete values
+    const autocompletes = view.shadowRoot.querySelectorAll('gmp-place-autocomplete');
+    autocompletes.forEach(ac => ac.value = '');
+
+    // 3. Clear dynamic anchors entirely (Opt-in)
+    const container = view.shadowRoot.getElementById('anchors-container');
+    container.innerHTML = '';
+    view.anchorCount = 0;
+
+    // 4. Clear specific error classes or inline borders just in case
+    const allInputs = view.shadowRoot.querySelectorAll('input');
+    allInputs.forEach(input => {
+      input.removeAttribute('aria-invalid');
+      input.style.borderColor = '';
+    });
+
+    // 날짜·선호는 유지하고 상세 입력만 비운다. 복원도 같은 빈 초안을 쓴다.
+    view.populateForm(plannerDraftStore.resetDetails(), { persist: false });
+  });
+}

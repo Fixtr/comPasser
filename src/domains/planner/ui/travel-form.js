@@ -21,7 +21,7 @@ import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../ser
 import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
-import { bindStaySearch, bindDiscovery, bindVisitButtons, bindFlights, bindValidation, bindDayToggles } from './travel-form-events.js';
+import { bindStaySearch, bindDiscovery, bindVisitButtons, bindFlights, bindValidation, bindDayToggles, bindReset } from './travel-form-events.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -594,35 +594,10 @@ export default class TravelForm extends HTMLElement {
     bindStaySearch(this);
     bindDiscovery(this);
     bindVisitButtons(this);
-    const form = this.shadowRoot.getElementById('travel-form');
     bindFlights(this);
     bindValidation(this);
     bindDayToggles(this);
-    // Reset Form Event
-    this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
-      // 1. Reset standard inputs and clear native validation states
-      form.reset();
-
-      // 2. Clear Google Autocomplete values
-      const autocompletes = this.shadowRoot.querySelectorAll('gmp-place-autocomplete');
-      autocompletes.forEach(ac => ac.value = '');
-
-      // 3. Clear dynamic anchors entirely (Opt-in)
-      const container = this.shadowRoot.getElementById('anchors-container');
-      container.innerHTML = '';
-      this.anchorCount = 0;
-
-      // 4. Clear specific error classes or inline borders just in case
-      const allInputs = this.shadowRoot.querySelectorAll('input');
-      allInputs.forEach(input => {
-        input.removeAttribute('aria-invalid');
-        input.style.borderColor = '';
-      });
-
-      // 날짜·선호는 유지하고 상세 입력만 비운다. 복원도 같은 빈 초안을 쓴다.
-      this.populateForm(plannerDraftStore.resetDetails(), { persist: false });
-    });
-
+    bindReset(this);
     bindSubmit(this);
   }
 
