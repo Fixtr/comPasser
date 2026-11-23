@@ -9,6 +9,8 @@ const WALK_METERS_PER_SECOND = 4000 / 3600, WALK_DETOUR = 1.3, ESTIMATE_MAX_METE
 // Transit time ~ drive x 1.3 plus 10 min of station walks and waits, so it errs long; past a
 // 90-minute drive the leg is intercity rail (shinkansen), which driving cannot approximate.
 const DRIVE_TO_TRANSIT = 1.3, TRANSIT_OVERHEAD_SECONDS = 600, DRIVE_ESTIMATE_MAX_SECONDS = 5400;
+// Google serves no walking or driving directions in Korea (map data export rules); asking only spends the daily quota.
+const TRANSIT_ONLY_COUNTRIES = new Set(['KR']);
 
 const coordinate = value => {
     const lat = typeof value?.lat === 'function' ? value.lat() : value?.lat;
@@ -54,13 +56,14 @@ export class RoutingService {
      *   with a straight-line walking duration; for a longer leg it cannot route
      *   by transit, `{ estimated: true, mode: 'TRANSIT', routes }` from the
      *   driving time. Neither estimate may be shown as a route.
+     * @param {{countryCode?: string}} [options] Trip country; Korea asks transit only.
      */
-    getTransitRoute(origin, destination, departureTime = null) {
+    getTransitRoute(origin, destination, departureTime = null, { countryCode = '' } = {}) {
         const now = Date.now();
         for (const [key, entry] of routeCache) if (now - entry.at >= ROUTE_TTL_MS) routeCache.delete(key);
         const key = routeKey(origin, destination, departureTime);
         if (routeCache.has(key)) return routeCache.get(key).promise;
-        const promise = this.requestRoute(origin, destination, departureTime);
+        const promise = this.requestRoute(origin, destination, departureTime, TRANSIT_ONLY_COUNTRIES.has(countryCode));
         routeCache.set(key, { at: now, promise });
         // A failure may be transient (quota, network), so the next caller asks again.
         const drop = () => { if (routeCache.get(key)?.promise === promise) routeCache.delete(key); };
@@ -68,7 +71,7 @@ export class RoutingService {
         return promise;
     }
 
-    async requestRoute(origin, destination, departureTime) {
+    async requestRoute(origin, destination, departureTime, transitOnly = false) {
         await this.init();
 
         const request = {
@@ -85,7 +88,7 @@ export class RoutingService {
         const from = coordinate(origin), to = coordinate(destination);
         const meters = from && to ? distanceMeters(from, to) : Infinity;
         // Ask for walking on every leg that could get an estimate, so an estimate only replaces a failed walk.
-        const walking = meters <= ESTIMATE_MAX_METERS ? this.directionsService.route({ origin, destination, travelMode: 'WALKING' }).catch(() => null) : Promise.resolve(null);
+        const walking = !transitOnly && meters <= ESTIMATE_MAX_METERS ? this.directionsService.route({ origin, destination, travelMode: 'WALKING' }).catch(() => null) : Promise.resolve(null);
         const [bus, walk] = await Promise.allSettled([transit, walking]);
         const seconds = result => result?.routes?.[0]?.legs?.[0]?.duration?.value;
         const walkSeconds = seconds(walk.value), busSeconds = seconds(bus.value);
@@ -97,6 +100,7 @@ export class RoutingService {
             // Google Maps Platform coverage lists no walking directions for KR (ZERO_RESULTS), and transit
             // can fail for a short hop too; without this the leg stays unknown and blocks schedule fitting.
             if (meters > ESTIMATE_MAX_METERS) {
+                if (transitOnly) throw bus.reason;
                 const driveSeconds = seconds(await this.directionsService.route({ origin, destination, travelMode: 'DRIVING' }).catch(() => null));
                 if (!Number.isFinite(driveSeconds) || driveSeconds < 0) throw bus.reason;
                 // Not the provider's ZERO_RESULTS: a road route exists, only the rail time is unknown.

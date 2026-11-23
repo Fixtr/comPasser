@@ -422,3 +422,21 @@ test('a measured walk beats the estimate at any duration when transit fails, up 
     assert.equal(calls.filter(request=>request.travelMode==='WALKING').length,2);
   } finally {globalThis.google=prior;routeCache.clear();}
 });
+
+test('in Korea only transit is asked: walking and driving never answer there and would spend the daily quota', async () => {
+  const prior=globalThis.google;
+  globalThis.google={maps:{TravelMode:{TRANSIT:'TRANSIT'}}};
+  routeCache.clear();
+  try {
+    const calls=[];
+    const routing=new RoutingService(directions(calls,request=>request.travelMode==='TRANSIT'?null:600));
+    const short=await routing.getTransitRoute({lat:37.5,lng:127},{lat:37.5,lng:127.01},new Date(),{countryCode:'KR'});
+    assert.equal(short.estimated,true); // straight-line walk, no WALKING request
+    await assert.rejects(routing.getTransitRoute(place(0),place(4),new Date(),{countryCode:'KR'}),{code:'ZERO_RESULTS'});
+    assert.deepEqual(calls.map(request=>request.travelMode),['TRANSIT','TRANSIT']);
+    // Elsewhere (e.g. Japan) walking and the driving estimate are still asked.
+    calls.length=0;
+    await routing.getTransitRoute(place(0),place(4),new Date(),{countryCode:'JP'});
+    assert.deepEqual(calls.map(request=>request.travelMode),['TRANSIT','DRIVING']);
+  } finally {globalThis.google=prior;routeCache.clear();}
+});

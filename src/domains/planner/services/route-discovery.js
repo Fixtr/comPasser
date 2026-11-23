@@ -38,7 +38,7 @@ async function mapServices(request) {
       return normalizeSelectedPlace(value) || (await geocoding.resolvePlace(getLocationName(value)))?.resolvedPlace;
     },
     getRoute: (from, to, date, time) => from.placeId === to.placeId
-      ? Promise.resolve({routes:[{legs:[{duration:{value:0}}]}]}) : routing.getTransitRoute(coordinate(from), coordinate(to), buildTransitDepartureTime(date, time, new Date(), travelRegion(request).timeZone)),
+      ? Promise.resolve({routes:[{legs:[{duration:{value:0}}]}]}) : routing.getTransitRoute(coordinate(from), coordinate(to), buildTransitDepartureTime(date, time, new Date(), travelRegion(request).timeZone), { countryCode: travelRegion(request).countryCode }),
     async findPlace(center, excluded, date, time) {
       const item = {time, endTime:clock(minutes(time) + 60), placeIntent:{purpose:'관광 명소',
         category:'tourist_attraction', nearLocation:''}};

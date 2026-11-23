@@ -49,7 +49,7 @@ export function createFlexibleVisitChecks(visitCount = 1, request = {}, { measur
       if (!routes.has(key)) {
         if (!remaining()) return undefined;
         routes.set(key, within(routing.getTransitRoute(origin, destination,
-          buildTransitDepartureTime(date, time, new Date(), region.timeZone)), remaining()).then(result => {
+          buildTransitDepartureTime(date, time, new Date(), region.timeZone), { countryCode: region.countryCode }), remaining()).then(result => {
           const seconds = measuredOnly && result?.estimated ? NaN : result?.routes?.[0]?.legs?.[0]?.duration?.value;
           return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds / 60) : null;
         }).catch(() => remaining() ? null : undefined));
