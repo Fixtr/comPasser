@@ -17,8 +17,9 @@ import { t, getLang, setLang, applyTranslations } from '../src/utils/i18n.js';
 
 // Firebase 초기화와 브라우저 렌더링만 대체하고, 실제 화면 클래스의
 // 불러오기·권한·공유·저장·편집 핸들러를 실행한다. 문자열 모양 검사가 아니다.
-const source = readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8')
+const source = ['../src/domains/itinerary/ui/itinerary-schedule-card.js', '../src/domains/itinerary/ui/itinerary-view.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n')
   .replace(/^import[\s\S]*?;\n/gm, '')
+  .replace('export function renderScheduleCard', 'function renderScheduleCard')
   .replace('export default class', 'class');
 
 function fakeElement() {

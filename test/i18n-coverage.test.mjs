@@ -27,6 +27,7 @@ const MARKUP_FILES = [
   'src/domains/planner/ui/preference-view.js',
   'src/domains/planner/ui/travel-form.js',
   'src/domains/itinerary/ui/itinerary-view.js',
+  'src/domains/itinerary/ui/itinerary-schedule-card.js',
   'src/domains/auth/ui/verify-view.js',
   'src/domains/profile/ui/profile-view.js',
 ];
@@ -46,6 +47,7 @@ const SCRIPTED_FILES = [
   'src/domains/planner/ui/preference-view.js',
   'src/domains/planner/ui/travel-form.js',
   'src/domains/itinerary/ui/itinerary-view.js',
+  'src/domains/itinerary/ui/itinerary-schedule-card.js',
   'src/domains/profile/ui/profile-view.js',
 ];
 

@@ -21,7 +21,7 @@ import { stripComments, stripSourceComments, assertTouchTargets } from './helper
 
 const css = stripComments(itineraryStyles);
 const view = stripSourceComments(
-  readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8'));
+  ['../src/domains/itinerary/ui/itinerary-view.js', '../src/domains/itinerary/ui/itinerary-schedule-card.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n'));
 
 /** 한 셀렉터의 선언 블록을 떼어 온다. */
 function block(selector) {

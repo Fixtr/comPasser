@@ -48,6 +48,7 @@ test('카카오 앱 키가 한 곳에서만 나온다', () => {
   // 있었다. 지금 앱 층은 Ionic 셸이다.
   for (const f of ['../src/prototype/ionic-shell.jsx', '../src/prototype/ionic-screens.jsx', '../src/domains/auth/ui/login-view.js',
                    '../src/domains/itinerary/ui/itinerary-view.js',
+                   '../src/domains/itinerary/ui/itinerary-schedule-card.js',
                    '../src/domains/itinerary/ui/itinerary-share-delivery.js']) {
     assert.doesNotMatch(src(f), /Kakao\.init\(/, `${f} 이 직접 init 한다`);
     assert.doesNotMatch(src(f), /[0-9a-f]{32}/, `${f} 에 키처럼 보이는 값이 박혀 있다`);

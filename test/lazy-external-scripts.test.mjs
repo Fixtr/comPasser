@@ -27,7 +27,7 @@ const read = p => readFileSync(`${ROOT}${p}`, 'utf8');
 const html = read('ionic-shell.html');
 const mapView = stripSourceComments(read('src/domains/map/ui/map-view.js'));
 const travelForm = stripSourceComments(read('src/domains/planner/ui/travel-form.js'));
-const itinerary = stripSourceComments(read('src/domains/itinerary/ui/itinerary-view.js'));
+const itinerary = stripSourceComments(read('src/domains/itinerary/ui/itinerary-view.js') + '\n' + read('src/domains/itinerary/ui/itinerary-schedule-card.js'));
 const externals = read('src/utils/external-scripts.js');
 
 /** 메서드 하나의 본문을 중괄호를 세면서 떼어 온다. */

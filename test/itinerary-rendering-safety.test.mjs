@@ -34,8 +34,9 @@ function viewHarness({ user = null } = {}) {
     if (!controls.has(id)) controls.set(id, element());
     return controls.get(id);
   };
-  const source = readFileSync(new URL('../src/domains/itinerary/ui/itinerary-view.js', import.meta.url), 'utf8')
+  const source = ['../src/domains/itinerary/ui/itinerary-schedule-card.js', '../src/domains/itinerary/ui/itinerary-view.js'].map(file => readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n')
     .replace(/^import[\s\S]*?;\n/gm, '')
+    .replace('export function renderScheduleCard', 'function renderScheduleCard')
     .replace('export default class', 'class');
   const dependencies = {
     HTMLElement: class {
