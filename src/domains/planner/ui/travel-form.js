@@ -15,7 +15,6 @@ import { bindPlaceSelection, restorePlaceInput } from '../services/selected-plac
 import { plannerDraftStore } from '../services/planner-draft.mjs';
 import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
-import { todayString } from '../services/trip-date.mjs';
 import { isAnchorBlank, missingAnchorFields } from '../services/anchor-validation.mjs';
 import { REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
 import { getLocationName, mergedSameDayVisits, normalizePlannerRequest, stayUnsetLabel } from '../services/planner-constraints.mjs';
@@ -23,6 +22,7 @@ import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../ser
 import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
+import { bindStaySearch } from './travel-form-events.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -592,67 +592,7 @@ export default class TravelForm extends HTMLElement {
   }
 
   setupEventListeners() {
-    const stayDialog = this.shadowRoot.getElementById('stay-dialog');
-    const stayRegion = this.shadowRoot.getElementById('stay-region');
-    const stayChosen = this.shadowRoot.getElementById('stay-chosen');
-    const bookingLink = this.shadowRoot.getElementById('stay-booking-link');
-    let stayIndex = 0;
-    let checkin = '';
-    let checkout = '';
-    bindPlaceSelection(stayChosen, () => {});
-    this.shadowRoot.getElementById('close-stay').addEventListener('click', () => stayDialog.close());
-    this.shadowRoot.getElementById('overnight-locations').addEventListener('click', event => {
-      const button = event.target.closest('[data-find-stay]');
-      if (!button) return;
-      this.saveDraft();
-      stayIndex = Number(button.dataset.findStay);
-      checkin = this.draft.date[stayIndex];
-      checkout = this.draft.date[this.draft.sameOvernightLocation ? this.draft.date.length - 1 : stayIndex + 1];
-      const selected = this.draft.overnightLocations[stayIndex];
-      stayRegion.value = selected?.formattedAddress || getLocationName(selected);
-      restorePlaceInput(stayChosen, selected);
-      bookingLink.hidden = true;
-      bookingLink.removeAttribute('href');
-      this.shadowRoot.getElementById('stay-dates').textContent = `${t('stayDates')} · ${checkin} → ${checkout}`;
-      this.shadowRoot.getElementById('stay-tonight').hidden = checkin !== todayString();
-      stayDialog.showModal();
-      animateScreen(stayDialog, true);
-    });
-    this.shadowRoot.getElementById('stay-search-form').addEventListener('submit', event => {
-      event.preventDefault();
-      const region = stayRegion.value.trim();
-      if (!region) { stayRegion.focus(); return; }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(checkin) || !/^\d{4}-\d{2}-\d{2}$/.test(checkout) || checkout <= checkin || checkin < todayString()) {
-        showErrorToast(t('stayInvalidDates'));
-        return;
-      }
-      const url = new URL('https://www.booking.com/searchresults.html');
-      url.search = new URLSearchParams({ ss: region, checkin, checkout,
-        group_adults: this.shadowRoot.getElementById('stay-guests').value, no_rooms: '1', group_children: '0' });
-      bookingLink.href = url.href;
-      bookingLink.hidden = false;
-    });
-    this.shadowRoot.getElementById('stay-search-form').addEventListener('input', () => {
-      bookingLink.hidden = true;
-      bookingLink.removeAttribute('href');
-    });
-    this.shadowRoot.getElementById('apply-stay').addEventListener('click', async () => {
-      const version = stayChosen.placeSelectionVersion;
-      const night = stayIndex;
-      await stayChosen.placeSelectionPending;
-      if (!stayDialog.open || !this.isConnected || version !== stayChosen.placeSelectionVersion || night !== stayIndex) return;
-      const location = getAutocompleteValue(stayChosen);
-      if (!getLocationName(location) || stayChosen.placeSelectionError) {
-        showErrorToast(t('stayInputRequired'));
-        stayChosen.focus();
-        return;
-      }
-      const stays = Array.from(this.shadowRoot.querySelectorAll('.overnight-location'));
-      const targets = this.draft.sameOvernightLocation ? stays : [stays[stayIndex]];
-      targets.forEach(input => restorePlaceInput(input, location));
-      this.saveDraft();
-      stayDialog.close();
-    });
+    bindStaySearch(this);
     const discoveryDialog = this.shadowRoot.getElementById('discovery-dialog');
     const citySelect = this.shadowRoot.getElementById('discovery-city');
     const suggestions = this.shadowRoot.getElementById('destination-suggestions');
