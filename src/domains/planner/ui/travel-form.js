@@ -21,7 +21,7 @@ import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../ser
 import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
-import { bindStaySearch, bindDiscovery, bindVisitButtons } from './travel-form-events.js';
+import { bindStaySearch, bindDiscovery, bindVisitButtons, bindFlights } from './travel-form-events.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -596,24 +596,7 @@ export default class TravelForm extends HTMLElement {
     bindVisitButtons(this);
     const form = this.shadowRoot.getElementById('travel-form');
     if (this.hasAttribute('handoff-flow')) form.noValidate = true;
-    for (const kind of ['arrival', 'departure']) {
-      const entry = this.shadowRoot.getElementById(`${kind}-flight`);
-      this.shadowRoot.getElementById(`add-${kind}-flight`).onclick = () => {
-        entry.hidden = false;
-        this.syncFlights();
-        this.saveDraft();
-        entry.querySelector('.flight-airport input')?.focus();
-      };
-      entry.querySelector('.flight-remove').onclick = () => {
-        entry.hidden = true;
-        restorePlaceInput(entry.querySelector('.flight-airport'), '');
-        entry.querySelector('.flight-time').value = '';
-        entry.querySelector('.flight-note').textContent = '';
-        this.syncFlights();
-        this.saveDraft();
-      };
-    }
-
+    bindFlights(this);
     // 브라우저 기본 검사는 Shadow DOM 안에서 사실상 보이지 않는다.
     // `invalid` 는 거품처럼 위로 오르지 않으므로 폼에서 받으려면 캡처 단계여야 한다.
     // 무엇보다 걸린 칸이 접힌 아래에 있으면(실측: top 887 / 화면 높이 932)

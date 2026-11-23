@@ -248,3 +248,23 @@ export function bindVisitButtons(view) {
   view.shadowRoot.getElementById('change-trip-destination').onclick = () => { view.saveDraft(); window.navigate('/destination', { state: { returnTo: '/plan' } }); };
   view.shadowRoot.getElementById('add-trip-stay').onclick = () => view.addTripStay();
 }
+
+export function bindFlights(view) {
+  for (const kind of ['arrival', 'departure']) {
+    const entry = view.shadowRoot.getElementById(`${kind}-flight`);
+    view.shadowRoot.getElementById(`add-${kind}-flight`).onclick = () => {
+      entry.hidden = false;
+      view.syncFlights();
+      view.saveDraft();
+      entry.querySelector('.flight-airport input')?.focus();
+    };
+    entry.querySelector('.flight-remove').onclick = () => {
+      entry.hidden = true;
+      restorePlaceInput(entry.querySelector('.flight-airport'), '');
+      entry.querySelector('.flight-time').value = '';
+      entry.querySelector('.flight-note').textContent = '';
+      view.syncFlights();
+      view.saveDraft();
+    };
+  }
+}
