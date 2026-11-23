@@ -1,12 +1,10 @@
 import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument } from '../services/firestore-service.js';
-import { offlineTrips } from '../services/offline-trips.mjs';
 import { visitedStops, stopKeys, pickNextStop } from '../services/visited-stops.mjs';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
-import { trackEvent } from '../../../utils/analytics.js';
 import { escapeHtml, safeHttpUrl } from '../../../utils/html-safety.mjs';
 
 import { itineraryStyles } from './itinerary-style.js';
@@ -25,16 +23,11 @@ import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/i
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
 import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
-import { showConfirm } from '../../../utils/confirm-dialog.js';
 import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
-import { exportItineraryImage } from './itinerary-image-export.js';
-import { measuredTransit } from '../services/boarding-pass.mjs';
-import { buildItineraryCalendar } from '../services/itinerary-calendar.mjs';
 import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
 import { Capacitor } from '@capacitor/core';
-import { itineraryShareDelivery } from './itinerary-share-delivery.js';
 import { getEndTimeWarning, getDayConstraints } from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
@@ -43,6 +36,7 @@ import {
   renderTransitInfo
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
+import { setupSaveListener, getShareUrl, setupShareListener, setupKakaoShareListener, setupDownloadListener, downloadCalendar, downloadAsImage } from './itinerary-share-save.js';
 import { loadItineraryById, retryFailedLoad } from './itinerary-loading.js';
 import { buildInsertSlot, openReplacement, openInsertForm, insertPlaceAt, improveRouteOrder, handleItemEdit, trimActiveDayToEndTime } from './itinerary-editing.js';
 import { refreshEndTimeWarning, updateAnchorWarning, refreshCostSummary, refreshTransitNotice, renderEndTimeWarning } from './itinerary-notices.js';
@@ -366,66 +360,10 @@ export default class ItineraryView extends HTMLElement {
     }
   }
 
-  setupSaveListener() {
-    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        trackEvent('save_itinerary_click');
-        const path = window.location.pathname;
-        return this.saveCurrent({ onSavedId: id => this.openSavedTrip(id, path) });
-      });
-    }
-  }
+  setupSaveListener() { return setupSaveListener(this); }
 
-  // Replace the pre-save /view or /share entry so Back can't reopen a copy that offers Save again.
-  // A user who already left keeps the page they went to.
-  openSavedTrip(id, path) {
-    if (window.navigate && window.location.pathname === path) window.navigate('/view/' + id, { replace: true });
-  }
 
-  async saveCurrent({ onSavedId }) {
-    const saveBtn = this.shadowRoot.getElementById('save-itinerary-btn');
-    try {
-      this._saving = true;
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.textContent = t('savingStateBtn') || '저장 중...';
-      }
-      const result = await this.actions.save({
-        language: getLang(),
-        onSaved: id => {
-          // Toast first: an offline-copy warning from refreshOfflineCopy then replaces it instead of being hidden.
-          this.showToast(t('itinerarySaveToast') || '일정이 성공적으로 저장되었습니다.');
-          this.refreshOfflineCopy(id);
-          this.renderCurrentState();
-          onSavedId(id);
-        },
-      });
-      if (result.status === 'login-required') {
-        this.loginToSave();
-      } else if (result.status === 'saved-earlier-version') {
-        this.showToast(t('itinerarySavedEarlierVersion'));
-      }
-      return result;
-    } catch (error) {
-      console.error("Save error:", error);
-      this.showToast(t('saveFailToast') || "저장에 실패했습니다.", true);
-      return { status: 'failed' };
-    } finally {
-      this._saving = false;
-      this.refreshAccessControls();
-    }
-  }
 
-  // A trip kept for offline reading must show the saved changes at the trip site.
-  refreshOfflineCopy(id) {
-    try {
-      const offline = offlineTrips.get(this.state.userId, id);
-      if (offline) offlineTrips.save(offline.userId, { ...offline, itineraryPlan: this.currentItinerary });
-    } catch {
-      showGlobalToast(t('offlineFailed'), { tone: 'warning' });
-    }
-  }
 
   async checkUrlForId() {
     const path = window.location.pathname;
@@ -444,192 +382,17 @@ export default class ItineraryView extends HTMLElement {
 
   retryFailedLoad() { return retryFailedLoad(this); }
 
-  async getShareUrl() {
-    // A running save or share would otherwise write a second trip or public document.
-    if (this._saving || this._sharing) {
-      showGlobalToast(t('creatingLink'), { tone: 'warning' });
-      return null;
-    }
-    // Firestore writes wait forever without a connection, which would leave the button stuck.
-    if (navigator.onLine === false) {
-      this.showToast(t('shareLinkFailed'), true);
-      return null;
-    }
-    const path = window.location.pathname;
-    const leaving = new AbortController();
-    const onLeave = () => leaving.abort();
-    window.addEventListener('popstate', onLeave);
-    let savedId = null;
-    this._sharing = true;
-    try {
-      const result = await this.actions.getShareLink({
-        confirmPublicShare: () => showConfirm({
-          title: t('sharePublicTitle'),
-          message: t('sharePublicNotice'),
-          confirmText: t('sharePublicConfirm'),
-          cancelText: t('cancelBtn'),
-          destructive: false,
-          signal: leaving.signal,
-        }),
-        confirmSaveAndShare: () => showConfirm({
-          title: t('shareSaveAndPublicTitle'),
-          message: `${t('shareSaveAndPublicIntro')} ${t('sharePublicNotice')}`,
-          confirmText: t('shareSaveAndPublicConfirm'),
-          cancelText: t('cancelBtn'),
-          destructive: false,
-          signal: leaving.signal,
-        }),
-        saveBeforeShare: async () => {
-          // The address moves only after the link exists: a route change remounts this view and its busy buttons.
-          const saved = await this.saveCurrent({ onSavedId: id => { savedId = id; } });
-          return window.location.pathname === path ? saved : { status: 'left' };
-        },
-      });
-      if (result.status === 'login-required') this.loginToSave();
-      if (result.status === 'not-shared') showGlobalToast(t('shareNotCreatedAfterSave'), { tone: 'warning' });
-      return result.status === 'ready' ? result.url : null;
-    } finally {
-      this._sharing = false;
-      window.removeEventListener('popstate', onLeave);
-      if (savedId) this.openSavedTrip(savedId, path);
-    }
-  }
+  getShareUrl() { return getShareUrl(this); }
 
-  setupShareListener() {
-    const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
-    if (shareBtn) {
-      shareBtn.addEventListener('click', async () => {
-        if (!this.currentItinerary) return;
+  setupShareListener() { return setupShareListener(this); }
 
-        const originalText = shareBtn.textContent;
-        try {
-          shareBtn.textContent = t('creatingLink');
-          shareBtn.disabled = true;
+  setupKakaoShareListener() { return setupKakaoShareListener(this); }
 
-          const shareUrl = await this.getShareUrl();
-          if (!shareUrl) return;
+  setupDownloadListener() { return setupDownloadListener(this); }
 
-          await itineraryShareDelivery.copyLink(shareUrl);
-          if (!await this.actions.linkDelivered(shareUrl)) throw new Error('The shared trip no longer opens');
-          showGlobalToast(t('shareSuccessAlert') || "공유 링크가 클립보드에 복사되었습니다!", { tone: 'success' });
-        } catch (error) {
-          console.error("Share error:", error);
-          this.showToast(t('shareLinkFailed'), true);
-        } finally {
-          shareBtn.textContent = originalText;
-          shareBtn.disabled = false;
-        }
-      });
-    }
-  }
+  downloadCalendar() { return downloadCalendar(this); }
 
-  setupKakaoShareListener() {
-    const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
-    if (kakaoBtn) {
-      kakaoBtn.addEventListener('click', async () => {
-        trackEvent('share_kakao_click');
-        if (!this.currentItinerary) return;
-
-        const originalText = kakaoBtn.textContent;
-        try {
-          kakaoBtn.textContent = t('creatingLink');
-          kakaoBtn.disabled = true;
-
-          const shareUrl = await this.getShareUrl();
-          if (!shareUrl) return;
-
-          await itineraryShareDelivery.shareToKakao(shareUrl);
-          if (!await this.actions.linkDelivered(shareUrl)) throw new Error('The shared trip no longer opens');
-        } catch (error) {
-          console.error("Kakao Share error:", error);
-          this.showToast(t('kakaoShareFailed'), true);
-        } finally {
-          kakaoBtn.textContent = originalText;
-          kakaoBtn.disabled = false;
-        }
-      });
-    }
-  }
-
-  setupDownloadListener() {
-    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
-    if (downloadBtn) {
-      downloadBtn.addEventListener('click', () => this.downloadAsImage());
-    }
-    this.shadowRoot.getElementById('calendar-export-btn')?.addEventListener('click', () => this.downloadCalendar());
-  }
-
-  /** The whole trip as an .ics file; calendars import it from the download. */
-  async downloadCalendar() {
-    const entry = this.state.current;
-    const userId = getCurrentUser()?.uid || null;
-    if (entry && entry.source.kind !== 'shared' && entry.source.ownerId !== userId) return;
-    let url;
-    try {
-      const snapshot = this.state.snapshot();
-      const ics = snapshot && await buildItineraryCalendar(snapshot.plan, this.state.calendarTripKey(), new Date(), getLang());
-      if (entry !== this.state.current || userId !== (getCurrentUser()?.uid || null)) return;
-      if (!ics) { this.showToast(t('nothingToShare'), true); return; }
-      url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'compasser-trip.ics';
-      link.click();
-      this.showToast(t('calendarExportDone'));
-    } catch (error) {
-      console.error('Calendar export failed:', error);
-      this.showToast(t('calendarExportFailed'), true);
-    } finally {
-      if (url) URL.revokeObjectURL(url);
-    }
-  }
-
-  /** 내보낼 사본과 번역을 전달하고, 화면의 버튼·결과 알림만 관리한다. */
-  async downloadAsImage() {
-    if (!this.currentItinerary) return;
-
-    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
-
-    try {
-      if (downloadBtn) {
-        downloadBtn.disabled = true;
-        // 언어 전환 시에도 진행 상태를 번역하고, 완료 후에는 현재 언어를 사용한다.
-        downloadBtn.dataset.i18n = 'generatingImage';
-        downloadBtn.textContent = t('generatingImage');
-      }
-      const snapshot = this.state.snapshot();
-      const result = await exportItineraryImage({
-        plan: snapshot.plan,
-        dayIndex: snapshot.dayIndex,
-        language: getLang(),
-        // lastTransitRoutes always belongs to the active day, which is the day being exported.
-        transit: measuredTransit(this.normalizeData(snapshot.plan)?.days?.[snapshot.dayIndex]?.scheduleItems, this.lastTransitRoutes),
-        labels: {
-          fixedLabel: t('anchorBadge'),
-          fromLabel: t('ticketFromLabel'),
-          toLabel: t('ticketToLabel'),
-          transitLabel: t('transitTotalLabel'),
-          costLabel: t('costLabel'),
-        },
-      });
-      if (result === 'empty') {
-        this.showToast(t('nothingToShare'), true);
-      } else if (result === 'shared') {
-        this.showToast(t('shareImageDone'));
-      } else if (result === 'downloaded') {
-        this.showToast(t('saveImageDone'));
-      }
-    } catch (error) {
-      console.error('[boarding-pass] 이미지 생성 실패:', error);
-      this.showToast(t('captureUnsupported'), true);
-    } finally {
-      if (downloadBtn) {
-        downloadBtn.disabled = false;
-        downloadBtn.dataset.i18n = 'downloadTicketBtn';
-        downloadBtn.textContent = t('downloadTicketBtn');
-      }
-    }
-  }
+  downloadAsImage() { return downloadAsImage(this); }
 
   /**
    * 컴포넌트 안에 따로 두던 토스트를 앱 공용 토스트로 위임한다.

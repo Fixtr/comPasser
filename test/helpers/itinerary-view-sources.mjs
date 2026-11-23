@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 export const ITINERARY_VIEW_FILES = [
   'src/domains/itinerary/ui/itinerary-view.js',
   'src/domains/itinerary/ui/itinerary-schedule-card.js',
+  'src/domains/itinerary/ui/itinerary-share-save.js',
   'src/domains/itinerary/ui/itinerary-loading.js',
   'src/domains/itinerary/ui/itinerary-editing.js',
   'src/domains/itinerary/ui/itinerary-notices.js',
