@@ -1,33 +1,23 @@
 import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument } from '../services/firestore-service.js';
-import { visitedStops, stopKeys, pickNextStop } from '../services/visited-stops.mjs';
 import { getSharedItineraryUrl } from '../services/share-links.js';
 import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
+import { t, applyTranslations } from '../../../utils/i18n.js';
 import { escapeHtml, safeHttpUrl } from '../../../utils/html-safety.mjs';
 
 import { itineraryStyles } from './itinerary-style.js';
-import { renderScheduleCard } from './itinerary-schedule-card.js';
-import { openNavPopup } from './nav-popup.js';
 import { icons, iconRow } from '../../../ui/icons.js';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
-import { isEditableItem } from '../services/itinerary-edit.mjs';
 import { refreshHours } from './itinerary-hours.js';
 import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
-import { openVisitTimeEditor } from './visit-time-editor.js';
-import { attachStopNoteControl } from './stop-note-editor.js';
-import { stopNoteKeys } from '../services/stop-notes.mjs';
 import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/itinerary-hours.mjs';
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
-import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
 import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
 import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
 import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
-import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
-import { Capacitor } from '@capacitor/core';
 import { getEndTimeWarning, getDayConstraints } from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
@@ -36,6 +26,7 @@ import {
   renderTransitInfo
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
+import { renderPageHeading, renderCurrentState, renderDayTabs, renderActiveDay, updateNextStop } from './itinerary-day-render.js';
 import { setupSaveListener, getShareUrl, setupShareListener, setupKakaoShareListener, setupDownloadListener, downloadCalendar, downloadAsImage } from './itinerary-share-save.js';
 import { loadItineraryById, retryFailedLoad } from './itinerary-loading.js';
 import { buildInsertSlot, openReplacement, openInsertForm, insertPlaceAt, improveRouteOrder, handleItemEdit, trimActiveDayToEndTime } from './itinerary-editing.js';
@@ -215,16 +206,7 @@ export default class ItineraryView extends HTMLElement {
     if (this.currentItinerary?.days?.length > 0) this.renderPageHeading(this.currentItinerary.days);
   }
 
-  // The page's h1. A single day shows it; several days keep it for screen readers only, above their day tabs.
-  renderPageHeading(days) {
-    const headerEl = this.shadowRoot.getElementById('day-title-header');
-    if (!headerEl) return;
-    const several = days.length > 1;
-    const dates = several ? `${days[0]?.date || ''} – ${days.at(-1)?.date || ''}` : days[0]?.date || '';
-    headerEl.textContent = (t('itineraryHeader') || '{0}').replace('{0}', dates);
-    headerEl.classList.toggle('visually-hidden', several);
-    headerEl.style.display = 'block';
-  }
+  renderPageHeading(days) { return renderPageHeading(this, days); }
 
   canEdit() {
     return Boolean(getCurrentUser()) && !this.isReadOnly;
@@ -784,238 +766,13 @@ export default class ItineraryView extends HTMLElement {
     return true;
   }
 
-  renderCurrentState() {
-    try {
-      this.invalidateMapRequest();
-      this._itineraryVersion += 1;
-      this.refreshAccessControls();
-      this.setLoading(false);
+  renderCurrentState() { return renderCurrentState(this); }
 
-      // 복원할 때 제약 조건 보정을 다시 적용하면 사용자의 편집·실제 이동시간이
-      // 되돌아간다. 상태 모듈이 가진 최신 데이터와 선택 날짜를 그대로 표시한다.
-      const safePlan = this.normalizeData(this.currentItinerary);
+  renderDayTabs(safePlan) { return renderDayTabs(this, safePlan); }
 
-      if (!safePlan || !Array.isArray(safePlan.days) || safePlan.days.length === 0) {
-        this.setError(`<div class="state-block"><p class="state-desc" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</p></div>`);
-        return;
-      }
+  renderActiveDay(safePlan) { return renderActiveDay(this, safePlan); }
 
-    const primaryBar = this.shadowRoot.getElementById('actions-primary');
-    if (primaryBar) primaryBar.hidden = false;
-
-    const shareBtn = this.shadowRoot.getElementById('share-itinerary-btn');
-    if (shareBtn) shareBtn.style.display = 'block';
-
-    const kakaoBtn = this.shadowRoot.getElementById('kakao-share-btn');
-    if (kakaoBtn) kakaoBtn.style.display = 'block';
-
-    const downloadBtn = this.shadowRoot.getElementById('download-image-btn');
-    if (downloadBtn) downloadBtn.style.display = 'block';
-
-    // shortcut: native web views do not download blob links, so the apps hide this; add a share plugin to offer it there.
-    const calendarBtn = this.shadowRoot.getElementById('calendar-export-btn');
-    if (calendarBtn) calendarBtn.style.display = Capacitor.isNativePlatform() ? 'none' : 'block';
-
-    this.renderDayTabs(safePlan);
-
-    // Render initial
-    this.requestMapRoute();
-    } catch (error) {
-      console.error('renderCurrentState error:', error);
-    }
-  }
-
-  renderDayTabs(safePlan) {
-    const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
-    tabsContainer.innerHTML = '';
-    
-    if (safePlan.days.length > 1) {
-      tabsContainer.style.display = 'flex';
-      safePlan.days.forEach((dayData, idx) => {
-        const tabBtn = document.createElement('button');
-        tabBtn.className = `day-tab-btn ${idx === this.activeDayIndex ? 'active' : ''}`;
-        
-        // Use i18n formatter
-        const dayLabelTemplate = t('day_n') || '{0}일차';
-        const dayNum = dayData.day || idx + 1;
-        const dayLabel = dayLabelTemplate.replace('{0}', dayNum);
-        
-        // 모양은 전부 itinerary-style.js 의 .day-tab-btn 이 맡는다.
-        // 여기서 인라인으로 칠하던 보라 배경이 계약 밖에 있어 오래 남아 있었다.
-        tabBtn.innerHTML = `<strong>${escapeHtml(dayLabel)}</strong><span class="tab-date">${escapeHtml(dayData.date)}</span>`;
-        
-        tabBtn.addEventListener('click', () => {
-          this.selectDay(idx);
-        });
-        
-        tabsContainer.appendChild(tabBtn);
-      });
-    } else {
-      tabsContainer.style.display = 'none';
-    }
-    this.renderPageHeading(safePlan.days);
-  }
-
-  renderActiveDay(safePlan) {
-    const source = this.currentItinerary;
-    const dayIndex = this.activeDayIndex;
-    const request = this._mapRequest;
-    const container = this.shadowRoot.getElementById('timeline-container');
-    if (!container) return;
-
-    // 날짜를 바꾸면 경고/안내/비용도 그 날짜 기준으로 다시 계산해야 한다.
-    this.refreshEndTimeWarning();
-    this.refreshTransitNotice();
-    this.refreshCostSummary();
-    refreshRainBanner(this);
-    
-    // Update Tabs UI
-    const tabsContainer = this.shadowRoot.getElementById('day-tabs-container');
-    const tabs = tabsContainer.querySelectorAll('.day-tab-btn');
-    // 모양은 .day-tab-btn / .active 가 맡는다. 여기서 인라인으로 다시
-    // 칠하던 코드가 있었는데, 최초 렌더만 고쳐 놓고 "탭 색을 고쳤다"고
-    // 믿게 만들었다. 클릭하면 곧바로 보라로 돌아왔다.
-    tabs.forEach((tab, idx) => {
-      tab.classList.toggle('active', idx === this.activeDayIndex);
-    });
-
-    // Fade Out
-    container.style.opacity = '0';
-    // 계산이 빠르게 끝나도 이전 날짜의 카드에 결과를 붙이지 않는다.
-    container.innerHTML = '';
-    
-    setTimeout(() => {
-      if (source !== this.currentItinerary || dayIndex !== this.activeDayIndex
-        || request !== this._mapRequest) return;
-      container.innerHTML = ''; // Clear old
-      
-      const dayData = safePlan.days[this.activeDayIndex];
-      if (!dayData) {
-        container.style.opacity = '1';
-        return;
-      }
-
-      let globalIdx = 0;
-      const items = dayData.scheduleItems || [];
-      const tripId = this.visitTripId;
-      const userId = this.state.userId;
-      const visited = tripId ? visitedStops.visited(tripId, userId) : null;
-      const keys = stopKeys(dayData);
-      const noteKeys = this.state.current?.source.kind === 'private' && this.canEdit() ? stopNoteKeys(dayData) : [];
-      this.updateNextStop(dayData);
-      
-      // 최후의 방어벽: 구버전 데이터 파손으로 인해 scheduleItems가 없을 때
-      if (items.length === 0) {
-        const fallbackItem = document.createElement('div');
-        fallbackItem.className = 'timeline-item';
-        fallbackItem.innerHTML = `
-          <div class="time-badge">--:--</div>
-          <div class="schedule-card" style="border-color: var(--cp-danger); border-left-color: var(--cp-danger); background: var(--cp-danger-bg);">
-            <div class="schedule-title" style="color: var(--cp-danger);" data-i18n="viewNoItemsTitle">${t('viewNoItemsTitle')}</div>
-            <div class="schedule-desc" style="color: var(--cp-danger);" data-i18n="viewNoItemsDesc">${t('viewNoItemsDesc')}</div>
-          </div>
-        `;
-        container.appendChild(fallbackItem);
-        container.style.opacity = '1';
-        return;
-      }
-
-      items.forEach((scheduleItem) => {
-        const idx = globalIdx++;
-      const item = document.createElement('div');
-      item.className = 'timeline-item';
-
-      item.innerHTML = renderScheduleCard(localizeBoundaryItem(scheduleItem, getLang()), idx, this.canEdit(), visited?.has(keys[idx]));
-      if (noteKeys[idx]) attachStopNoteControl(this, item.querySelector('.schedule-card'), idx, noteKeys[idx]);
-      item.querySelector('.visited-btn')?.addEventListener('click', (e) => {
-        // Place lookups and measured times change the day after render without rebuilding the cards.
-        const day = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex] || dayData;
-        const on = visitedStops.toggle(tripId, stopKeys(day)[idx], userId);
-        e.currentTarget.setAttribute('aria-pressed', String(on));
-        e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
-        this.updateNextStop(day);
-        refreshReplanButton(this);
-        refreshRainBanner(this);
-      });
-
-      // 길찾기 버튼 이벤트 바인딩 — anchorEl(버튼 자체)을 넘겨 뷰포트 좌표 계산
-      item.querySelectorAll('.item-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.handleItemEdit(btn.dataset.edit, Number(btn.dataset.idx));
-        });
-      });
-
-      const navBtn = item.querySelector('.nav-btn');
-      item.querySelector('.visit-time-btn')?.addEventListener('click',()=>openVisitTimeEditor(this,item.querySelector('.schedule-card'),idx));
-      item.querySelector('.replace-place-btn')?.addEventListener('click', () =>
-        this.openReplacement(item.querySelector('.schedule-card'), idx));
-      item.querySelector('.indoor-alternatives-btn')?.addEventListener('click', () =>
-        this.openReplacement(item.querySelector('.schedule-card'), idx, true));
-      if (navBtn) {
-        navBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const loc = navBtn.getAttribute('data-location');
-          const gmaps = navBtn.getAttribute('data-gmaps');
-          openNavPopup(loc, gmaps, navBtn, this.shadowRoot);
-        });
-      }
-
-      container.appendChild(item);
-
-      // 카드 사이 이동 정보 슬롯: 지도(map-view)가 계산한 실제 경로가 채워진다
-      if (idx < items.length - 1) {
-        const transitSlot = document.createElement('div');
-        transitSlot.className = 'transit-info hidden';
-        transitSlot.id = `transit-info-${idx}`;
-        container.appendChild(transitSlot);
-
-        // 여기에 장소를 끼워 넣을 수 있다는 걸 자리로 보여준다. 도착 뒤에는
-        // 넣을 수 없으므로 마지막 카드 다음에는 만들지 않는다.
-        const nextItem = items[idx + 1];
-        if (this.canEdit() && (isEditableItem(scheduleItem) || isEditableItem(nextItem))) {
-          container.appendChild(this.buildInsertSlot(idx + 1));
-        }
-      }
-    });
-
-      // 지도 응답이 카드의 전환 애니메이션보다 빨랐어도 새 카드에 표시한다.
-      this.applyResolvedPlaces(this.lastResolvedPlaces);
-      this.renderTransitInfo(this.lastTransitRoutes);
-      refreshHours(this);
-
-      // Fade In
-      requestAnimationFrame(() => {
-        if (source === this.currentItinerary && request === this._mapRequest) container.style.opacity = '1';
-      });
-      
-    }, 150); // wait for fade out
-  }
-
-  updateNextStop(dayData) {
-    const panel = this.shadowRoot.getElementById('next-stop');
-    if (!panel || !this.hasAttribute?.('mobile-summary')) return;
-    const now = new Date();
-    const timeZone = travelRegion(this.currentItinerary?.request || this.currentItinerary?.metadata?.request).timeZone;
-    const today = localTravelDate(now, timeZone);
-    const isToday = String(dayData.date).slice(0, 10) === today;
-    const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(now);
-    const tripId = this.visitTripId;
-    const stop = pickNextStop(dayData, { visited: tripId ? visitedStops.visited(tripId, this.state.userId) : null, currentTime: isToday ? currentTime : undefined });
-    panel.hidden = !stop;
-    if (!stop) return;
-    this.shadowRoot.getElementById('next-stop-label').textContent = t(isToday ? 'nextStopToday' : 'firstStop');
-    this.shadowRoot.getElementById('next-stop-title').textContent = stop.title;
-    this.shadowRoot.getElementById('next-stop-time').textContent = stop.time || '';
-    const directions = this.shadowRoot.getElementById('next-stop-directions');
-    directions.textContent = t('directionsBtn');
-    directions.onclick = () => openNavPopup(
-      typeof stop.location === 'string' && stop.location ? stop.location : stop.title,
-      safeHttpUrl(stop.googleMapsUrl), directions, this.shadowRoot,
-    );
-  }
+  updateNextStop(dayData) { return updateNextStop(this, dayData); }
 }
 
 customElements.define('itinerary-view', ItineraryView);

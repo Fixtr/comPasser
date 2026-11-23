@@ -8,6 +8,7 @@ export const ITINERARY_VIEW_FILES = [
   'src/domains/itinerary/ui/itinerary-loading.js',
   'src/domains/itinerary/ui/itinerary-editing.js',
   'src/domains/itinerary/ui/itinerary-notices.js',
+  'src/domains/itinerary/ui/itinerary-day-render.js',
 ];
 
 export const readItineraryViewSource = () => ITINERARY_VIEW_FILES
