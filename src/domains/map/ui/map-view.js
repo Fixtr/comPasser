@@ -345,7 +345,7 @@ export class MapView extends HTMLElement {
       // 4. Delegate Routing to RoutingService and Render Lines
       if (geocodedItems.length > 1) {
         this.setLoading(true, t('mapRouting'));
-        await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent, day.timeZone || travelRegion(itineraryPlan.request).timeZone);
+        await this.renderTransitSegments(geocodedItems, day.date, context, isCurrent, day.timeZone || travelRegion(itineraryPlan.request).timeZone, travelRegion(itineraryPlan.request).countryCode);
       } else {
         this.notifyTransitUnavailable('좌표를 구한 장소가 하나뿐이라 경로를 계산할 수 없습니다.', context);
       }
@@ -454,7 +454,7 @@ export class MapView extends HTMLElement {
     });
   }
 
-  async renderTransitSegments(geocodedItems, dayDate, context, isCurrent = () => true, timeZone = 'Asia/Seoul') {
+  async renderTransitSegments(geocodedItems, dayDate, context, isCurrent = () => true, timeZone = 'Asia/Seoul', countryCode = '') {
     const { DirectionsRenderer } = await this.loader.importLibrary("routes");
     if (!isCurrent()) return;
     const { Polyline } = await this.loader.importLibrary("maps");
@@ -521,7 +521,7 @@ export class MapView extends HTMLElement {
         strokeWeight: 2,
         map: this.map
       }));
-      return this.routingService.getTransitRoute(origin, destination, departureTime).then(response => {
+      return this.routingService.getTransitRoute(origin, destination, departureTime, { countryCode }).then(response => {
         if (!isCurrent()) return null;
         if (response.estimated) {
           // A guess (straight-line walk, or transit from driving time), not a route: no DirectionsRenderer path, and the card says so.
