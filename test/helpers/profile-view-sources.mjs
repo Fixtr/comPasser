@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 /** 프로필 화면을 이루는 소스 파일. 화면 클래스가 마지막에 와야 이어 붙여 실행할 수 있다. */
 export const PROFILE_VIEW_FILES = [
+  'src/domains/profile/ui/profile-public-course.js',
   'src/domains/profile/ui/profile-view.js',
 ];
 
