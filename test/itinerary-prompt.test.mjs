@@ -118,3 +118,15 @@ test('companion is whitelisted and adds its instruction block only when set', ()
   assert.match(buildPrompt(build('parents'), 'en'), /less walking/);
   assert.match(kids, /PRIORITY: fixed appointments and day bounds > .* > theme, budget and companion\./);
 });
+
+test('an airport end that rules out the usual dinner window asks for an earlier dinner ending by the limit', () => {
+  const icn = { displayName: '인천국제공항', lat: 37.4602, lng: 126.4407 };
+  const prompt = (endTime, endLocation = icn) => buildPrompt(sanitizePlannerRequest({ date: ['2026-11-25'], destination: { id: 'seoul', country: 'KOR', name: 'Seoul' },
+    dailyData: [{ day: 1, date: '2026-11-25', startTime: '10:00', endTime, startLocation: '서울', endLocation, anchors: [] }] }), 'ko');
+  // Seoul center to Incheon keeps 138 minutes, so a 20:00 end leaves visits until 17:42.
+  assert.match(prompt('20:00'), /Dinner on this day: start it between 16:30 and 16:42 so it ends by 17:42/);
+  // The usual 18:00 dinner still fits before the limit, or no 60-minute dinner fits after 16:30: no hint.
+  assert.doesNotMatch(prompt('21:30'), /Dinner on this day/);
+  assert.doesNotMatch(prompt('19:00'), /Dinner on this day/);
+  assert.doesNotMatch(prompt('20:00', '명동'), /Dinner on this day/);
+});
