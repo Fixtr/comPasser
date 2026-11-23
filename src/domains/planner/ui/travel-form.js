@@ -13,7 +13,6 @@ import { animateScreen } from '../../../ui/screen-motion.js';
 import { getFormData, getAutocompleteValue } from './travel-form-data.js';
 import { bindPlaceSelection, restorePlaceInput } from '../services/selected-place.mjs';
 import { plannerDraftStore } from '../services/planner-draft.mjs';
-import { cities } from '../services/discovery-catalogue.mjs';
 import { showErrorToast } from '../../../utils/toast.js';
 import { isAnchorBlank, missingAnchorFields } from '../services/anchor-validation.mjs';
 import { REQUIRED_LOCATIONS } from '../services/location-validation.mjs';
@@ -22,7 +21,7 @@ import { airportArrivalTime, isAirportName, tripStartAfterLanding } from '../ser
 import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
-import { bindStaySearch } from './travel-form-events.js';
+import { bindStaySearch, bindDiscovery } from './travel-form-events.js';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -593,153 +592,7 @@ export default class TravelForm extends HTMLElement {
 
   setupEventListeners() {
     bindStaySearch(this);
-    const discoveryDialog = this.shadowRoot.getElementById('discovery-dialog');
-    const citySelect = this.shadowRoot.getElementById('discovery-city');
-    const suggestions = this.shadowRoot.getElementById('destination-suggestions');
-    const placeContainer = this.shadowRoot.getElementById('discovery-places');
-    const routeControls = this.shadowRoot.getElementById('route-discovery-controls');
-    const routeStatus = this.shadowRoot.getElementById('route-discovery-status');
-    const routeButton = this.shadowRoot.getElementById('find-route-stops');
-    const cityGroup = this.shadowRoot.getElementById('discovery-city-group');
-    let routeVersion = 0;
-    let routeSuggestions = [];
-    const clearRouteResults = () => {
-      routeVersion++;
-      routeSuggestions = [];
-      routeStatus.textContent = '';
-      routeButton.disabled = false;
-      placeContainer.replaceChildren();
-    };
-    discoveryDialog.addEventListener('close', clearRouteResults);
-    this.shadowRoot.getElementById('discovery-day').addEventListener('change', () => {
-      if (!routeControls.hidden) clearRouteResults();
-    });
-    routeButton.addEventListener('click', async () => {
-      clearRouteResults();
-      const version = routeVersion;
-      const request = this.getFormData();
-      const signature = JSON.stringify(request);
-      const day = Number(this.shadowRoot.getElementById('discovery-day').value);
-      routeButton.disabled = true;
-      routeStatus.textContent = t('routeDiscoveryLoading');
-      try {
-        const {findRouteStops} = await import('../services/route-discovery.js');
-        const result = await findRouteStops(request, day);
-        if (!discoveryDialog.open || !this.isConnected || version !== routeVersion) return;
-        if (signature !== JSON.stringify(this.getFormData())) {
-          clearRouteResults();
-          routeStatus.textContent = t('routeDiscoveryChanged');
-          return;
-        }
-        routeStatus.textContent = t({ready:'routeDiscoveryReady', empty:'routeDiscoveryEmpty',
-          'missing-input':'routeDiscoveryMissing', unavailable:'routeDiscoveryUnavailable'}[result.status]);
-        routeSuggestions = result.suggestions;
-        routeSuggestions.forEach((suggestion, index) => {
-          const article = document.createElement('article');
-          article.className = 'form-group';
-          const title = document.createElement('h3');
-          title.textContent = suggestion.visit.name;
-          const details = document.createElement('p');
-          details.textContent = `${suggestion.from} → ${suggestion.to} · ${t('routeDiscoveryDetour').replace('{0}', suggestion.detourMinutes)} · ${suggestion.time}–${suggestion.endTime}`;
-          const address = document.createElement('p');
-          address.textContent = suggestion.visit.location.formattedAddress;
-          const hours = document.createElement('p');
-          hours.textContent = t(suggestion.hours === 'unknown' ? 'routeDiscoveryHoursUnknown' : 'routeDiscoveryHours');
-          const link = document.createElement('a');
-          const url = new URL('https://www.google.com/maps/search/');
-          url.search = new URLSearchParams({api:'1', query:suggestion.visit.name, query_place_id:suggestion.visit.location.placeId});
-          link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-          link.textContent = t('routeDiscoveryPlaceDetails');
-          const button = document.createElement('button');
-          button.type = 'button'; button.className = 'secondary-btn';
-          button.dataset.routePick = index; button.textContent = t('routeDiscoveryAdd');
-          button.addEventListener('click', () => {
-            if (version !== routeVersion || signature !== JSON.stringify(this.getFormData())) {
-              clearRouteResults(); routeStatus.textContent = t('routeDiscoveryChanged'); return;
-            }
-            const visit = routeSuggestions[index].visit;
-            const anchors = [...request.anchorSchedules];
-            if (!anchors.some(anchor => anchor.location?.placeId === visit.location.placeId)) anchors.push(visit);
-            this.populateForm({...request, anchorSchedules:anchors});
-            discoveryDialog.close();
-          });
-          article.append(title, details, address, hours, link, button);
-          placeContainer.append(article);
-        });
-      } catch {
-        if (version === routeVersion && discoveryDialog.open) routeStatus.textContent = t('routeDiscoveryUnavailable');
-      } finally { if (version === routeVersion) routeButton.disabled = false; }
-    });
-    this.shadowRoot.getElementById('close-discovery').addEventListener('click', () => discoveryDialog.close());
-    this.shadowRoot.getElementById('where-to-go').addEventListener('click', async () => {
-      this.saveDraft();
-      const button = this.shadowRoot.getElementById('where-to-go');
-      button.disabled = true;
-      try {
-        await import('./home-recommendations.js');
-        citySelect.replaceChildren(new Option(t('chooseCity'), ''), ...cities.map(city => new Option(t(city.key), city.id)));
-        const days = this.shadowRoot.getElementById('discovery-day');
-        days.replaceChildren(...this.draft.date.map((date, index) => new Option(`${t('day_n').replace('{0}', index + 1)} · ${date}`, String(index + 1))));
-        clearRouteResults();
-        routeControls.hidden = true;
-        cityGroup.hidden = false;
-        suggestions.replaceChildren();
-        this.shadowRoot.getElementById('discovery-options').hidden = true;
-        discoveryDialog.querySelectorAll('[data-discovery-mode]').forEach(button => button.setAttribute('aria-pressed', 'false'));
-        if (this.isConnected) { discoveryDialog.showModal(); animateScreen(discoveryDialog, true); }
-      } catch {
-        showErrorToast(t('discoveryLoadError'));
-      } finally { button.disabled = false; }
-    });
-    discoveryDialog.addEventListener('click', event => {
-      const mode = event.target.closest('[data-discovery-mode]');
-      const cityButton = event.target.closest('[data-destination-city]');
-      if (cityButton) {
-        citySelect.value = cityButton.dataset.destinationCity;
-        citySelect.dispatchEvent(new Event('change'));
-      }
-      if (!mode) return;
-      clearRouteResults();
-      routeControls.hidden = mode.dataset.discoveryMode !== 'stops';
-      cityGroup.hidden = mode.dataset.discoveryMode === 'stops';
-      discoveryDialog.querySelectorAll('[data-discovery-mode]').forEach(button => button.setAttribute('aria-pressed', String(button === mode)));
-      this.shadowRoot.getElementById('discovery-options').hidden = false;
-      placeContainer.replaceChildren();
-      suggestions.replaceChildren();
-      citySelect.value = '';
-      if (mode.dataset.discoveryMode === 'destination') {
-        cities.forEach(city => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'secondary-btn';
-          button.dataset.destinationCity = city.id;
-          button.textContent = `${t(city.key)} · ${t(city.pairReason)}`;
-          suggestions.append(button);
-        });
-      }
-    });
-    citySelect.addEventListener('change', () => {
-      const index = cities.findIndex(city => city.id === citySelect.value);
-      placeContainer.replaceChildren();
-      if (index < 0) return;
-      const recommendations = document.createElement('home-recommendations');
-      recommendations.setAttribute('planner-pick', '');
-      placeContainer.append(recommendations);
-      recommendations.showCity(index);
-      // Keep the destination selector authoritative within the planner dialog.
-      recommendations.shadowRoot.querySelector('.cities').style.display = 'none';
-      suggestions.replaceChildren();
-      recommendations.addEventListener('places-picked', event => {
-        const day = Number(this.shadowRoot.getElementById('discovery-day').value);
-        const draft = plannerDraftStore.read();
-        const anchors = [...draft.anchorSchedules];
-        event.detail.forEach(visit => {
-          if (!anchors.some(anchor => anchor.name === visit.name && getLocationName(anchor.location) === visit.location)) anchors.push({ ...visit, day });
-        });
-        this.populateForm({ ...draft, anchorSchedules: anchors });
-        discoveryDialog.close();
-      });
-    });
+    bindDiscovery(this);
     this.shadowRoot.getElementById('remove-waypoint').addEventListener('click', () => {
       this.draft.selectedWaypoints = [];
       this.shadowRoot.getElementById('selected-waypoint').hidden = true;
