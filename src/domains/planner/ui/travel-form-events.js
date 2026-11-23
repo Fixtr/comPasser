@@ -298,3 +298,68 @@ export function bindValidation(view) {
     if (e.target.id !== 'same-overnight-toggle') view.saveDraft();
   });
 }
+
+export function bindDayToggles(view) {
+  const form = view.shadowRoot.getElementById('travel-form');
+  view.shadowRoot.getElementById('daily-locations-toggle').addEventListener('change', event => {
+    view.shadowRoot.getElementById('daily-locations-panel').hidden = !event.target.checked;
+    if (!event.target.checked) {
+      view.shadowRoot.querySelectorAll('.daily-start-location, .daily-end-location')
+        .forEach(input => restorePlaceInput(input, ''));
+      view.syncFlights();
+    }
+    view.saveDraft();
+    view.updateTexts();
+  });
+
+  view.shadowRoot.getElementById('same-overnight-toggle').addEventListener('change', () => {
+    const stays = Array.from(view.shadowRoot.querySelectorAll('.overnight-location'));
+    const location = getAutocompleteValue(stays[0]);
+    stays.slice(1).forEach(element => restorePlaceInput(element, location));
+    view.saveDraft();
+    view.updateOvernightFields();
+    view.updateTexts();
+  });
+
+  const dailyToggle = view.shadowRoot.getElementById('daily-times-toggle');
+  const dailyAccordion = view.shadowRoot.getElementById('daily-times-accordion');
+  const globalInputs = view.shadowRoot.querySelectorAll('.global-time-input');
+
+  if (dailyToggle) {
+    dailyToggle.addEventListener('change', (e) => {
+      const timeSettings = dailyToggle.closest('.time-settings');
+      timeSettings.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
+      if (e.target.checked) {
+        dailyAccordion.style.display = 'block';
+
+        const dailyInputs = dailyAccordion.querySelectorAll('input');
+        dailyInputs.forEach(input => input.required = true);
+
+        globalInputs.forEach(el => {
+          el.style.display = 'none';
+          const input = el.querySelector('input');
+          if (input) input.required = false;
+        });
+      } else {
+        dailyAccordion.style.display = 'none';
+
+        const dailyInputs = dailyAccordion.querySelectorAll('input');
+        dailyInputs.forEach(input => input.required = false);
+
+        globalInputs.forEach(el => {
+          el.style.display = 'block';
+          const input = el.querySelector('input');
+          if (input) input.required = true;
+        });
+      }
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const visibleTimes = e.target.checked ? [dailyAccordion] : Array.from(globalInputs);
+        visibleTimes.forEach(element => element.animate([
+          { opacity: 0, transform: 'translateY(-8px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ], { duration: 240, easing: 'ease-out' }));
+      }
+      form.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+}
