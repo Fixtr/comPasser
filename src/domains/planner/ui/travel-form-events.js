@@ -74,14 +74,44 @@ export function bindStaySearch(view) {
 }
 
 export function bindDiscovery(view) {
+  const clearRouteResults = bindRouteStops(view);
+  bindDiscoveryOpen(view, clearRouteResults);
+  bindDiscoveryModes(view, clearRouteResults);
+  bindCityPlaces(view);
+}
+
+/** 경로 위 추천 장소 하나의 카드. */
+function routeSuggestionCard(suggestion, index, onPick) {
+  const article = document.createElement('article');
+  article.className = 'form-group';
+  const title = document.createElement('h3');
+  title.textContent = suggestion.visit.name;
+  const details = document.createElement('p');
+  details.textContent = `${suggestion.from} → ${suggestion.to} · ${t('routeDiscoveryDetour').replace('{0}', suggestion.detourMinutes)} · ${suggestion.time}–${suggestion.endTime}`;
+  const address = document.createElement('p');
+  address.textContent = suggestion.visit.location.formattedAddress;
+  const hours = document.createElement('p');
+  hours.textContent = t(suggestion.hours === 'unknown' ? 'routeDiscoveryHoursUnknown' : 'routeDiscoveryHours');
+  const link = document.createElement('a');
+  const url = new URL('https://www.google.com/maps/search/');
+  url.search = new URLSearchParams({api:'1', query:suggestion.visit.name, query_place_id:suggestion.visit.location.placeId});
+  link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+  link.textContent = t('routeDiscoveryPlaceDetails');
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = 'secondary-btn';
+  button.dataset.routePick = index; button.textContent = t('routeDiscoveryAdd');
+  button.addEventListener('click', onPick);
+  article.append(title, details, address, hours, link, button);
+  return article;
+}
+
+/** "가는 길에 들를 곳" 찾기를 연결하고, 결과를 지우는 함수를 돌려준다. */
+function bindRouteStops(view) {
   const discoveryDialog = view.shadowRoot.getElementById('discovery-dialog');
-  const citySelect = view.shadowRoot.getElementById('discovery-city');
-  const suggestions = view.shadowRoot.getElementById('destination-suggestions');
   const placeContainer = view.shadowRoot.getElementById('discovery-places');
   const routeControls = view.shadowRoot.getElementById('route-discovery-controls');
   const routeStatus = view.shadowRoot.getElementById('route-discovery-status');
   const routeButton = view.shadowRoot.getElementById('find-route-stops');
-  const cityGroup = view.shadowRoot.getElementById('discovery-city-group');
   let routeVersion = 0;
   let routeSuggestions = [];
   const clearRouteResults = () => {
@@ -116,25 +146,7 @@ export function bindDiscovery(view) {
         'missing-input':'routeDiscoveryMissing', unavailable:'routeDiscoveryUnavailable'}[result.status]);
       routeSuggestions = result.suggestions;
       routeSuggestions.forEach((suggestion, index) => {
-        const article = document.createElement('article');
-        article.className = 'form-group';
-        const title = document.createElement('h3');
-        title.textContent = suggestion.visit.name;
-        const details = document.createElement('p');
-        details.textContent = `${suggestion.from} → ${suggestion.to} · ${t('routeDiscoveryDetour').replace('{0}', suggestion.detourMinutes)} · ${suggestion.time}–${suggestion.endTime}`;
-        const address = document.createElement('p');
-        address.textContent = suggestion.visit.location.formattedAddress;
-        const hours = document.createElement('p');
-        hours.textContent = t(suggestion.hours === 'unknown' ? 'routeDiscoveryHoursUnknown' : 'routeDiscoveryHours');
-        const link = document.createElement('a');
-        const url = new URL('https://www.google.com/maps/search/');
-        url.search = new URLSearchParams({api:'1', query:suggestion.visit.name, query_place_id:suggestion.visit.location.placeId});
-        link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-        link.textContent = t('routeDiscoveryPlaceDetails');
-        const button = document.createElement('button');
-        button.type = 'button'; button.className = 'secondary-btn';
-        button.dataset.routePick = index; button.textContent = t('routeDiscoveryAdd');
-        button.addEventListener('click', () => {
+        placeContainer.append(routeSuggestionCard(suggestion, index, () => {
           if (version !== routeVersion || signature !== JSON.stringify(view.getFormData())) {
             clearRouteResults(); routeStatus.textContent = t('routeDiscoveryChanged'); return;
           }
@@ -143,14 +155,22 @@ export function bindDiscovery(view) {
           if (!anchors.some(anchor => anchor.location?.placeId === visit.location.placeId)) anchors.push(visit);
           view.populateForm({...request, anchorSchedules:anchors});
           discoveryDialog.close();
-        });
-        article.append(title, details, address, hours, link, button);
-        placeContainer.append(article);
+        }));
       });
     } catch {
       if (version === routeVersion && discoveryDialog.open) routeStatus.textContent = t('routeDiscoveryUnavailable');
     } finally { if (version === routeVersion) routeButton.disabled = false; }
   });
+  return clearRouteResults;
+}
+
+/** 장소 찾기 창을 열 때마다 처음 상태로 되돌린다. */
+function bindDiscoveryOpen(view, clearRouteResults) {
+  const discoveryDialog = view.shadowRoot.getElementById('discovery-dialog');
+  const citySelect = view.shadowRoot.getElementById('discovery-city');
+  const suggestions = view.shadowRoot.getElementById('destination-suggestions');
+  const routeControls = view.shadowRoot.getElementById('route-discovery-controls');
+  const cityGroup = view.shadowRoot.getElementById('discovery-city-group');
   view.shadowRoot.getElementById('close-discovery').addEventListener('click', () => discoveryDialog.close());
   view.shadowRoot.getElementById('where-to-go').addEventListener('click', async () => {
     view.saveDraft();
@@ -172,6 +192,16 @@ export function bindDiscovery(view) {
       showErrorToast(t('discoveryLoadError'));
     } finally { button.disabled = false; }
   });
+}
+
+/** 찾는 방식(도시·들를 곳·여행지)을 고르면 그에 맞는 칸만 보여준다. */
+function bindDiscoveryModes(view, clearRouteResults) {
+  const discoveryDialog = view.shadowRoot.getElementById('discovery-dialog');
+  const citySelect = view.shadowRoot.getElementById('discovery-city');
+  const suggestions = view.shadowRoot.getElementById('destination-suggestions');
+  const placeContainer = view.shadowRoot.getElementById('discovery-places');
+  const routeControls = view.shadowRoot.getElementById('route-discovery-controls');
+  const cityGroup = view.shadowRoot.getElementById('discovery-city-group');
   discoveryDialog.addEventListener('click', event => {
     const mode = event.target.closest('[data-discovery-mode]');
     const cityButton = event.target.closest('[data-destination-city]');
@@ -199,6 +229,14 @@ export function bindDiscovery(view) {
       });
     }
   });
+}
+
+/** 도시를 고르면 추천 장소를 보여주고, 고른 장소를 일정에 더한다. */
+function bindCityPlaces(view) {
+  const discoveryDialog = view.shadowRoot.getElementById('discovery-dialog');
+  const citySelect = view.shadowRoot.getElementById('discovery-city');
+  const suggestions = view.shadowRoot.getElementById('destination-suggestions');
+  const placeContainer = view.shadowRoot.getElementById('discovery-places');
   citySelect.addEventListener('change', () => {
     const index = cities.findIndex(city => city.id === citySelect.value);
     placeContainer.replaceChildren();
