@@ -34,6 +34,11 @@ const MARKUP_FILES = [
   ...ITINERARY_VIEW_FILES,
   'src/domains/auth/ui/verify-view.js',
   'src/domains/profile/ui/profile-view.js',
+  'src/domains/profile/ui/profile-security.js',
+  'src/domains/profile/ui/profile-trip-duplicate.js',
+  'src/domains/profile/ui/profile-trips.js',
+  'src/domains/profile/ui/profile-template.js',
+  'src/domains/profile/ui/profile-public-course.js',
 ];
 
 /** 마크업이 아니라 **코드가 직접 써 넣는** 글자가 있는 파일들. */
@@ -56,6 +61,11 @@ const SCRIPTED_FILES = [
   'src/domains/planner/ui/travel-form-events.js',
   ...ITINERARY_VIEW_FILES,
   'src/domains/profile/ui/profile-view.js',
+  'src/domains/profile/ui/profile-security.js',
+  'src/domains/profile/ui/profile-trip-duplicate.js',
+  'src/domains/profile/ui/profile-trips.js',
+  'src/domains/profile/ui/profile-template.js',
+  'src/domains/profile/ui/profile-public-course.js',
 ];
 
 /**

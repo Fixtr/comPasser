@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readProfileViewSource } from './helpers/profile-view-sources.mjs';
 import { createEmptyProfile, createProfileService } from '../src/domains/profile/services/profile-service.mjs';
 import { shiftItineraryDates, itineraryStartDate, copyTitle } from '../src/domains/itinerary/services/itinerary-duplicate.mjs';
 
 // 실제 화면 핸들러와 서비스를 함께 실행한다. DOM 표시와 외부 SDK만 대체한다.
-const source = readFileSync(new URL('../src/domains/profile/ui/profile-view.js', import.meta.url), 'utf8')
-  .replace(/^import[\s\S]*?;\n/gm, '');
+// 파일끼리 주고받는 import 와 export 는 한 함수 안에 이어 붙이면 필요 없다.
+const source = readProfileViewSource()
+  .replace(/^import[\s\S]*?;\n/gm, '')
+  .replace(/^export /gm, '');
 
 function deferred() {
   let resolve;
@@ -403,7 +405,7 @@ test('직접 지은 제목이 없는 일정의 복제본은 옛 날짜가 든 �
 });
 
 test('프로필 화면의 문구는 코드에 한국어로 박혀 있지 않고 사전을 거친다', () => {
-  const code = readFileSync(new URL('../src/domains/profile/ui/profile-view.js', import.meta.url), 'utf8')
+  const code = readProfileViewSource()
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(code, /[가-힣]/);
 });

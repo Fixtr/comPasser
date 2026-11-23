@@ -10,6 +10,7 @@ import {
   assertTouchTargets,
   extractInlineStyles,
 } from './helpers/style-contract.mjs';
+import { readProfileViewSource } from './helpers/profile-view-sources.mjs';
 
 /**
  * 프로필은 마지막으로 남은 화면이다. 여기까지 옮겨야 style.css 의 옛 변수
@@ -17,9 +18,7 @@ import {
  */
 const css = stripComments(profileStyles);
 const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
-const view = stripSourceComments(
-  readFileSync(new URL('../src/domains/profile/ui/profile-view.js', import.meta.url), 'utf8')
-);
+const view = stripSourceComments(readProfileViewSource());
 const LABEL = 'profile-style';
 
 test('그림자를 쓰지 않는다', () => assertNoShadows(css, LABEL));
