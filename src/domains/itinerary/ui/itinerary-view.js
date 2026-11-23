@@ -1,4 +1,4 @@
-import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument, watchSharedItinerary } from '../services/firestore-service.js';
+import { saveItinerary, updateItinerary, createSharedItinerary, loadItineraryDocument } from '../services/firestore-service.js';
 import { offlineTrips } from '../services/offline-trips.mjs';
 import { visitedStops, stopKeys, pickNextStop } from '../services/visited-stops.mjs';
 import { getSharedItineraryUrl } from '../services/share-links.js';
@@ -43,6 +43,7 @@ import {
   renderTransitInfo
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
+import { loadItineraryById, retryFailedLoad } from './itinerary-loading.js';
 import { buildInsertSlot, openReplacement, openInsertForm, insertPlaceAt, improveRouteOrder, handleItemEdit, trimActiveDayToEndTime } from './itinerary-editing.js';
 import { refreshEndTimeWarning, updateAnchorWarning, refreshCostSummary, refreshTransitNotice, renderEndTimeWarning } from './itinerary-notices.js';
 
@@ -438,111 +439,10 @@ export default class ItineraryView extends HTMLElement {
     return normalizeData(rawData);
   }
 
-  async loadItineraryById(id, { sharedOnly = false, userId = getCurrentUser()?.uid } = {}) {
-    if (userId) this.setSessionUser(userId);
-    const key = `${sharedOnly ? 'shared' : userId || 'guest'}:${id}`;
-    if (this._pendingDocument?.key === key) return this._pendingDocument.promise;
-    const previous = this.state.current;
-    const cached = !sharedOnly && this.state.activateDocument(id, { sharedOnly, userId });
-    if (cached && cached.source.kind !== 'shared') {
-      if (cached !== previous) {
-        this.cancelPendingLoad();
-        this.renderCurrentState();
-      } else {
-        this.resumeMapRoute();
-        this.refreshAccessControls();
-      }
-      return true;
-    }
-    const pending = { key, promise: this.fetchItineraryById(id, { sharedOnly, userId }) };
-    this._pendingDocument = pending;
-    try {
-      return await pending.promise;
-    } finally {
-      if (this._pendingDocument === pending) this._pendingDocument = null;
-    }
-  }
+  loadItineraryById(id, options) { return loadItineraryById(this, id, options); }
 
-  async fetchItineraryById(id, { sharedOnly, userId }) {
-    this.clear();
-    const version = this._loadVersion;
-    try {
-      this.setLoading(true);
 
-      const document = await loadItineraryDocument(id, { sharedOnly, userId });
-      if (version !== this._loadVersion) return false;
-
-      if (document?.deleted) {
-        this.showMissing(`<div class="state-block" role="alert"><h1 class="state-title" data-i18n="sharedDeleted">${t('sharedDeleted')}</h1></div>`);
-        return false;
-      }
-
-      if (!document) {
-        // 예전 /view 링크는 개인·공유가 섞여 있다. 게스트는 공유본만 조회한
-        // 뒤, 개인 일정일 수 있는 경우 로그인하고 같은 주소로 돌아온다.
-        if (!sharedOnly && !userId) {
-          window.navigate('/login?next=' + encodeURIComponent('/view/' + id));
-          return false;
-        }
-        this.showMissing(`
-          <div class="state-block" role="alert">
-             <div class="state-icon">${icons.search}</div>
-             <h1 class="state-title" data-i18n="viewNotFoundTitle">${t('viewNotFoundTitle')}</h1>
-             <p class="state-desc"><span data-i18n="viewNotFoundDesc1">${t('viewNotFoundDesc1')}</span><br><span data-i18n="viewNotFoundDesc2">${t('viewNotFoundDesc2')}</span></p>
-             <button class="state-action" onclick="window.navigate('/recommend')" data-i18n="viewNewPlanBtn">${t('viewNewPlanBtn')}</button>
-          </div>
-        `);
-        return false;
-      }
-
-      if (!this.showResults(document.itineraryPlan, { access: document.access, id })) return false;
-      if (document.access === 'shared') {
-        const stop = await watchSharedItinerary(id, () => {
-          if (version === this._loadVersion && this.sharedId === id) {
-            // Drop cached content before the authoritative deletion/error check.
-            this.fetchItineraryById(id, { sharedOnly: true, userId: getCurrentUser()?.uid });
-          }
-        });
-        if (version === this._loadVersion && this.sharedId === id) this._stopSharedWatch = stop;
-        else stop();
-      }
-
-      return true;
-    } catch (error) {
-      if (version !== this._loadVersion) return false;
-      this.clear();
-      console.error('🔥 렌더링 치명적 오류:', error);
-      this.showMissing(`
-        <div class="state-block danger" role="alert">
-           <div class="state-icon">${icons.warn}</div>
-           <h1 class="state-title" data-i18n="viewLoadErrorTitle">${t('viewLoadErrorTitle')}</h1>
-           <p class="state-desc" data-i18n="sharedLoadRetry">${t('sharedLoadRetry')}</p>
-           <button type="button" class="state-action" id="retry-load-btn" data-i18n="shellRetry">${t('shellRetry')}</button>
-        </div>
-      `);
-      this._failedLoad = { id, sharedOnly, path: window.location.pathname };
-      const retry = this.shadowRoot.getElementById('retry-load-btn');
-      retry.addEventListener('click', () => { retry.focus(); this.retryFailedLoad(); });
-      return false;
-    } finally {
-      if (version === this._loadVersion) this.setLoading(false);
-    }
-  }
-
-  /** Ionic keeps left pages mounted, so a hidden view must not reload (it could redirect) when the connection returns. */
-  async retryFailedLoad() {
-    const failed = this._failedLoad;
-    if (!failed || failed.path !== window.location.pathname) return;
-    // The retry replaces the card, so keyboard focus on its button must move with it.
-    const hadFocus = this.shadowRoot.activeElement?.id === 'retry-load-btn';
-    const loaded = await this.loadItineraryById(failed.id, { sharedOnly: failed.sharedOnly });
-    if (loaded) this.dispatchEvent(new CustomEvent('itinerary-recovered'));
-    // A control the user moved to while it loaded keeps focus.
-    if (!hadFocus || (document.activeElement && document.activeElement !== document.body)) return;
-    const timeline = this.shadowRoot.getElementById('timeline-container');
-    timeline.tabIndex = -1;
-    (this.shadowRoot.getElementById('retry-load-btn') || timeline).focus();
-  }
+  retryFailedLoad() { return retryFailedLoad(this); }
 
   async getShareUrl() {
     // A running save or share would otherwise write a second trip or public document.
