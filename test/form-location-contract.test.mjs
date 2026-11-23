@@ -12,7 +12,9 @@ import { readFileSync } from 'node:fs';
 import { stripSourceComments } from './helpers/style-contract.mjs';
 
 const form = stripSourceComments(
-  readFileSync(new URL('../src/domains/planner/ui/travel-form.js', import.meta.url), 'utf8')
+  // The form is split across sibling files; the contract covers all of them.
+  ['travel-form.js', 'travel-form-template.js', 'travel-form-populate.js', 'travel-form-submit.js', 'travel-form-events.js']
+    .map(name => readFileSync(new URL(`../src/domains/planner/ui/${name}`, import.meta.url), 'utf8')).join('\n')
 );
 const style = readFileSync(new URL('../src/domains/planner/ui/travel-form-style.js', import.meta.url), 'utf8');
 const i18n = readFileSync(new URL('../src/utils/i18n.js', import.meta.url), 'utf8');
@@ -64,7 +66,7 @@ test('막은 뒤 버튼은 다시 눌리는 상태로 돌아온다', () => {
   const submit = form.slice(form.indexOf("form.addEventListener('submit'"));
   const block = submit.slice(submit.indexOf('findMissingLocation'), submit.indexOf('findMissingLocation') + 600);
   assert.match(block, /_resetSubmitButton\(btn\)/, '버튼이 "Planning... ⏳" 로 굳는다');
-  assert.match(block, /this\.isSubmitting\s*=\s*false/, '다음 제출이 통째로 막힌다');
+  assert.match(block, /view\.isSubmitting\s*=\s*false/, '다음 제출이 통째로 막힌다');
 });
 
 test('걸린 장소 칸도 눈에 보이게 표시된다', () => {
