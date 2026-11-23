@@ -4,7 +4,7 @@ import { createItineraryState } from '../services/itinerary-state.mjs';
 import { createItineraryActions } from '../services/itinerary-actions.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t, applyTranslations } from '../../../utils/i18n.js';
-import { escapeHtml, safeHttpUrl } from '../../../utils/html-safety.mjs';
+import { safeHttpUrl } from '../../../utils/html-safety.mjs';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { icons, iconRow } from '../../../ui/icons.js';
@@ -12,13 +12,9 @@ import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { refreshHours } from './itinerary-hours.js';
 import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
-import { hoursPlaceId, lookupPlaceHours, loadScheduleHours } from '../services/itinerary-hours.mjs';
-import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
-import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
-import { applyTransitDelays } from '../services/itinerary-schedule-adjust.mjs';
-import { fitMeasuredSchedule, hasFixedArrivalConflict } from '../services/itinerary-end-fit.mjs';
+import { loadScheduleHours } from '../services/itinerary-hours.mjs';
+import { suggestRouteOrder } from '../services/itinerary-route-order.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
-import { getEndTimeWarning, getDayConstraints } from '../services/itinerary-view-model.mjs';
 import {
   getTransitStyle,
   getTransitModeText,
@@ -26,6 +22,7 @@ import {
   renderTransitInfo
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
+import { verifyRouteImprovement, startRouteImprovement, applyTransitDelaysToActiveDay } from './itinerary-transit-adjust.js';
 import { renderPageHeading, renderCurrentState, renderDayTabs, renderActiveDay, updateNextStop } from './itinerary-day-render.js';
 import { setupSaveListener, getShareUrl, setupShareListener, setupKakaoShareListener, setupDownloadListener, downloadCalendar, downloadAsImage } from './itinerary-share-save.js';
 import { loadItineraryById, retryFailedLoad } from './itinerary-loading.js';
@@ -493,128 +490,12 @@ export default class ItineraryView extends HTMLElement {
 
   renderEndTimeWarning(overflowMinutes, dayEndTime) { return renderEndTimeWarning(this, overflowMinutes, dayEndTime); }
 
-  verifyRouteImprovement(routes) {
-    const original = this._routeOrderOriginal;
-    if (!original) return false;
-    this._routeOrderOriginal = null;
-    const known = routes.filter(route => Number.isInteger(route.fromIndex) && route.fromIndex >= 0 &&
-      route.fromIndex < original.items.length - 1 && (route.toIndex ?? route.fromIndex + 1) === route.fromIndex + 1 &&
-      Number.isFinite(route.durationMinutes) && route.durationMinutes >= 0);
-    const items = this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems;
-    if (known.length === original.items.length - 1 &&
-        new Set(known.map(route => route.fromIndex)).size === original.items.length - 1 &&
-        !hasFixedArrivalConflict(items, known) &&
-        getEndTimeWarning(this.currentItinerary, this.activeDayIndex, known).overflowMinutes === 0 &&
-        original.beforeMinutes - known.reduce((sum, route) => sum + route.durationMinutes, 0) >= 2) return false;
-    // Changed departure times can change timetables. Roll back an unconfirmed saving once.
-    this.state.replaceDayItems(this.activeDayIndex, original.items);
-    this.requestMapRoute({automaticFit:true});
-    return true;
-  }
+  verifyRouteImprovement(routes) { return verifyRouteImprovement(this, routes); }
 
-  activeScheduleHours(items) {
-    if (this._measuredHours?.context === this._mapRequest) return this._measuredHours.hours;
-    return items.map((item, index) => lookupPlaceHours.cached(hoursPlaceId({ ...item,
-      resolvedPlace: this.lastResolvedPlaces.find(place => place.index === index)?.resolvedPlace || item.resolvedPlace })));
-  }
 
-  startRouteImprovement(routes) {
-    if (this._routeOrderChecked || this.state.current?.source.kind !== 'draft' || !this._allowTimeAdjustment) return false;
-    this._routeOrderChecked = true;
-    const source = this.currentItinerary, dayIndex = this.activeDayIndex, context = this._mapRequest;
-    const day = this.normalizeData(source)?.days?.[dayIndex];
-    const items = day?.scheduleItems;
-    if (!items?.some(item => (item.placeIntent && item.addedByUser !== true) ||
-        (item.type === 'AnchorSchedule' && item.flexible === true)) ||
-        !suggestRouteOrder(items, this.lastResolvedPlaces, { automatic:true }).changed) return false;
-    const constraints = getDayConstraints(source, dayIndex);
-    const checks = createFlexibleVisitChecks(items.length - 1, this.currentItinerary?.request);
-    improveMeasuredRouteOrder(items, this.lastResolvedPlaces, routes, {
-      ...constraints, date:day.date, travelMinutes:checks.travelMinutes,
-      hoursByIndex:this.activeScheduleHours(items)
-    }).then(result => {
-      if (!this.isCurrentMapResult({context}) || source !== this.currentItinerary ||
-          items !== this.normalizeData(this.currentItinerary)?.days?.[dayIndex]?.scheduleItems) return;
-      if (result.changed) {
-        this._routeOrderOriginal = { items, beforeMinutes: result.beforeMinutes };
-        this.state.replaceDayItems(dayIndex, result.items);
-        this.requestMapRoute({automaticFit:true});
-      } else {
-        if (this.applyTransitDelaysToActiveDay(routes)) return;
-        this.renderTransitInfo(routes);
-      }
-    }).catch(() => {
-      if (this.isCurrentMapResult({context}) && source === this.currentItinerary) {
-        if (this.applyTransitDelaysToActiveDay(routes)) return;
-        this.renderTransitInfo(routes);
-      }
-    });
-    return true;
-  }
+  startRouteImprovement(routes) { return startRouteImprovement(this, routes); }
 
-  /**
-   * 실제 이동시간(transitRoutes)을 반영해 현재 보고 있는 날짜의
-   * scheduleItems 시각을 보정하고, 이미 그려진 타임라인의 시간 배지만
-   * 갱신한다(전체 재렌더 대신 — renderActiveDay는 페이드 애니메이션 때문에
-   * DOM 반영이 150ms 지연되어 뒤이은 renderTransitInfo와 타이밍이 꼬인다).
-   * currentItinerary 자체를 갱신하므로, 이후 "저장하기"를 눌러도 보정된
-   * 시각이 저장된다.
-   */
-  applyTransitDelaysToActiveDay(transitRoutes) {
-    if (!this.currentItinerary) return;
-
-    const plan = this.normalizeData(this.currentItinerary);
-    const dayData = plan?.days?.[this.activeDayIndex];
-    if (!dayData?.scheduleItems?.length) return;
-    const { endTime } = getEndTimeWarning(this.currentItinerary, this.activeDayIndex);
-    // Saved/shared documents are snapshots. Reading them may refresh route
-    // evidence and warnings, but cannot silently reschedule their contents.
-    if (!this.canEdit() || !this._allowTimeAdjustment) {
-      this.refreshEndTimeWarning();
-      this.refreshTransitNotice();
-      this.refreshCostSummary();
-      return false;
-    }
-    // Apply only the requested departure time, not full planner reconciliation.
-    const startTime = getDayConstraints(this.currentItinerary, this.activeDayIndex)?.startTime;
-    // ponytail: four rechecks cap Maps cost; raise only if measured plans still need more removals.
-    const fit = this.canEdit() && (this._automaticFitCount || 0) < 4
-      ? fitMeasuredSchedule(dayData.scheduleItems, transitRoutes, endTime, startTime, {
-        compact: dayData.scheduleItems.some(item => item.placeIntent && item.addedByUser !== true),
-        date: dayData.date,
-        hoursByIndex: this.activeScheduleHours(dayData.scheduleItems)
-      })
-      : { items: applyTransitDelays(dayData.scheduleItems, transitRoutes, startTime), adjusted: false };
-    const scheduleItems = fit.items;
-    const removed = scheduleItems.length < dayData.scheduleItems.length;
-    this.state.replaceDayItems(this.activeDayIndex, scheduleItems, { undo: removed });
-    this.refreshAccessControls();
-
-    this.updateAnchorWarning(scheduleItems, transitRoutes);
-
-    if (fit.adjusted) {
-      this._automaticFitCount = (this._automaticFitCount || 0) + 1;
-      showGlobalToast(t(removed ? 'endTimeVisitRemoved' : 'endTimeAutoFit'), { tone: 'info', duration: 5000 });
-      // Earlier departure can change the available bus/train: verify again,
-      // with a hard retry bound rather than recursively generating requests.
-      this.requestMapRoute({ automaticFit: true });
-      return true;
-    }
-
-    this.refreshEndTimeWarning();
-    this.refreshTransitNotice();
-    this.refreshCostSummary();
-
-    const badges = this.shadowRoot.querySelectorAll('#timeline-container .time-badge');
-    scheduleItems.forEach((item, idx) => {
-      const badge = badges[idx];
-      if (!badge) return;
-      badge.innerHTML = item.endTime ? `${escapeHtml(item.time)} -<br>${escapeHtml(item.endTime)}` : escapeHtml(item.time);
-    });
-    this.updateNextStop({ ...dayData, scheduleItems });
-    refreshHours(this);
-    refreshRainBanner(this);
-  }
+  applyTransitDelaysToActiveDay(transitRoutes) { return applyTransitDelaysToActiveDay(this, transitRoutes); }
 
   render() {
     this.shadowRoot.innerHTML = `
