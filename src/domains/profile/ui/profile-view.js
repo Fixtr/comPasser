@@ -1,4 +1,3 @@
-import { unblockAllAuthors } from '../../itinerary/services/blocked-authors.mjs';
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
@@ -6,10 +5,10 @@ import { createEmptyProfile, createProfileService } from '../services/profile-se
 import { profileMarkup } from './profile-template.js';
 import { fetchItineraries, renderItineraries, startRename, viewTrip, handleDeleteItinerary } from './profile-trips.js';
 import { openDuplicate, closeDuplicate, confirmDuplicate, setupDuplicateListeners } from './profile-trip-duplicate.js';
+import { setupSecurityListeners, setupAccountDeletionListeners } from './profile-security.js';
 import { editPublicCourse } from './profile-public-course.js';
-import { showToast, showErrorToast } from '../../../utils/toast.js';
-import { t, getLang, setLang, applyTranslations } from '../../../utils/i18n.js';
-import { showConfirm } from '../../../utils/confirm-dialog.js';
+import { showErrorToast } from '../../../utils/toast.js';
+import { t, getLang, applyTranslations } from '../../../utils/i18n.js';
 
 class ProfileView extends HTMLElement {
     constructor() {
@@ -280,8 +279,6 @@ class ProfileView extends HTMLElement {
     handleDeleteItinerary(id, cardEl) { return handleDeleteItinerary(this, id, cardEl); }
 
     setupEventListeners() {
-        const language=this.shadowRoot.getElementById('profile-language');
-        language.value=getLang(); language.onchange=()=>setLang(language.value);
         const tabs = this.shadowRoot.querySelectorAll('.nav-item');
         const sections = this.shadowRoot.querySelectorAll('.content-section');
 
@@ -296,108 +293,14 @@ class ProfileView extends HTMLElement {
             });
         });
 
-        // The Ionic shell dropped the old header, so this is the only sign-out control.
-        this.shadowRoot.getElementById('btn-unblock-all')?.addEventListener('click', async () => {
-            if (!(await showConfirm({ title: t('unblockAllBtn'), message: t('unblockAllNotice'), confirmText: t('unblockAllConfirm'), cancelText: t('cancelBtn') }))) return;
-            showToast(unblockAllAuthors() ? t('unblockAllDone') : t('unblockAllNone'));
-        });
-        this.shadowRoot.getElementById('btn-logout')?.addEventListener('click', async () => {
-            try {
-                await logout();
-                if (window.navigate) window.navigate('/home');
-            } catch (error) {
-                console.error('Logout failed:', error);
-                showErrorToast(t('logoutFailed'));
-            }
-        });
-
+        setupSecurityListeners(this);
         setupDuplicateListeners(this);
-
-        const deleteBtn = this.shadowRoot.getElementById('btn-delete-account-trigger');
-        const modal = this.shadowRoot.getElementById('delete-modal');
-        const cancelBtn = this.shadowRoot.getElementById('btn-modal-cancel');
-        const confirmBtn = this.shadowRoot.getElementById('btn-modal-confirm');
-        const closeX = this.shadowRoot.getElementById('modal-close-x');
-
-        let deletionCancelled = false;
-        let deletionStarted = false;
-        const openModal = () => {
-            if (confirmBtn?.disabled || deleteBtn?.disabled) return;
-            deletionCancelled = false;
-            modal.classList.add('show');
-        };
-        const closeModal = () => {
-            if (deletionStarted) return;
-            deletionCancelled = true;
-            modal.classList.remove('show');
-        };
-
-        if (deleteBtn) deleteBtn.addEventListener('click', openModal);
-        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-        if (closeX) closeX.addEventListener('click', closeModal);
+        setupAccountDeletionListeners(this);
 
         const homeBtn = this.shadowRoot.getElementById('btn-back-home');
         if (homeBtn) {
             homeBtn.addEventListener('click', () => {
                 if (window.navigate) window.navigate('/home');
-            });
-        }
-
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', async () => {
-                const user = getCurrentUser();
-                if (!user || confirmBtn.disabled) return;
-
-                confirmBtn.disabled = true;
-                confirmBtn.textContent = t('checkingAccountDeletionBtn');
-
-                try {
-                    const result = await this.profileService.deleteAccount({
-                        isCancelled: () => deletionCancelled,
-                        onDeletionStarted: () => {
-                            deletionStarted = true;
-                            if (cancelBtn) cancelBtn.disabled = true;
-                            confirmBtn.textContent = t('deletingDataBtn');
-                        },
-                    });
-                    if (result && getCurrentUser()?.uid === result.userId) {
-                        await this.applyDeletionStatus(result, result.userId, result.identityCreatedAt);
-                        if (result.state === 'pending') this.watchDeletion(user, { restart: true });
-                    }
-                } catch (err) {
-                    console.error("Account deletion failed:", err);
-                    if (deletionCancelled) return;
-                    if (getCurrentUser()?.uid !== user.uid || getCurrentUser()?.metadata?.creationTime !== user.metadata?.creationTime) return;
-                    if (err.code === 'auth/requires-recent-login') {
-                        showErrorToast(t('accountDeletionSignInRequired'), { duration: 5000 });
-                        try {
-                            await logout();
-                            // 인증 구독이 먼저 /login으로 보내도 next를 붙여 계정 관리로 복귀한다.
-                            // 다른 계정으로 바뀌었으면 새 세션의 화면을 건드리지 않는다.
-                            if (!getCurrentUser()) {
-                                const path = '/login?next=%2Fprofile%2Fsecurity';
-                                if (window.navigate) window.navigate(path);
-                                else window.location.href = path;
-                            }
-                        } catch (logoutError) {
-                            console.error('Re-login preparation failed:', logoutError);
-                            // 토스트는 한 번에 하나라, 앞의 재로그인 안내를 함께 담는다.
-                            if (getCurrentUser()?.uid === user.uid) showErrorToast(`${t('accountDeletionSignInRequired')} ${t('accountDeletionSignOutFailed')}`, { duration: 8000 });
-                        }
-                    } else {
-                        showErrorToast(t(err.deletionStatusUnknown ? 'accountDeletionUnknown' : 'accountDeletionCheckFailed'));
-                        if (err.deletionStatusUnknown) {
-                            this.deletionState = 'unknown';
-                            this.watchDeletion(user, { restart: true });
-                        }
-                    }
-                } finally {
-                    deletionStarted = false;
-                    if (cancelBtn) cancelBtn.disabled = false;
-                    confirmBtn.disabled = false;
-                    confirmBtn.textContent = t('confirmDeleteAccountBtn');
-                    closeModal();
-                }
             });
         }
     }
