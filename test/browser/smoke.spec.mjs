@@ -80,4 +80,5 @@ for (const [title, file] of [
   ['visited marks are device-local and skip the next stop', 'visited-stops-smoke.js'],
   ['trip-day rain banner opens indoor alternatives for the affected outdoor stop', 'rain-banner-smoke.js'],
   ['directions open Google Maps outside Korea and the Naver/Kakao popup in Korea', 'intl-directions-smoke.js'],
+  ['analytics loads on the web only and sends masked page views', 'analytics-smoke.js'],
 ]) test(title, async ({ page }, testInfo) => { await scenario(file, page, testInfo); });

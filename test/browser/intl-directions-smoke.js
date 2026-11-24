@@ -37,8 +37,10 @@ async page => {
   await navButton('Tokyo Tower').click();
   const fallback = (await opened())[0]?.[0];
   if (fallback !== 'https://www.google.com/maps/dir/?api=1&destination=Tokyo%20Tower') throw Error('Tokyo stop without a usable location or address: ' + fallback);
-  const events = await page.evaluate(() => window.__events.filter(args => args[1] === 'navigate_map_click').map(args => args[2].map_service));
-  if (JSON.stringify(events) !== JSON.stringify(['google', 'google', 'google', 'google'])) throw Error('Google directions were not tracked: ' + JSON.stringify(events));
+  // 스펙 9: the event names the map service and nothing else (no place name).
+  const tracked = () => page.evaluate(() => JSON.stringify(window.__events.filter(args => args[1] === 'navigate_map_click').map(args => args[2])));
+  const google = { map_service: 'google' };
+  if (await tracked() !== JSON.stringify([google, google, google, google])) throw Error('Google directions were not tracked without the place: ' + await tracked());
   if (await popup.count()) throw Error('Tokyo trip opened the Naver/Kakao popup');
 
   // Shared and saved plans keep the request under metadata.
@@ -63,6 +65,15 @@ async page => {
     await popup.locator('.popup-close').click();
     await popup.waitFor({ state: 'detached' });
   };
+  await navButton('Gyeongbokgung').click();
+  await popup.waitFor({ state: 'visible' });
+  // Pressed without leaving the page: Naver and Kakao are tracked by service only.
+  await popup.locator('a.pop-opt').evaluateAll(links => links.forEach(link => {
+    link.addEventListener('click', event => event.preventDefault());
+    link.click();
+  }));
+  if (await tracked() !== JSON.stringify([{ map_service: 'naver' }, { map_service: 'kakao' }])) throw Error('Naver/Kakao were not tracked without the place: ' + await tracked());
+  await popup.waitFor({ state: 'detached' });
   await navButton('Gyeongbokgung').click();
   await checkPopup('card');
   await clickNextStop();

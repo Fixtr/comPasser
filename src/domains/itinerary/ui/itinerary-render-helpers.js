@@ -1,5 +1,6 @@
 import { t, getLang } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
+import { trackEvent } from '../../../utils/analytics.js';
 import { minutesOf as clock, routeDepartureClock } from '../services/itinerary-schedule-adjust.mjs';
 import { formatMinutes } from '../services/boarding-pass.mjs';
 
@@ -10,7 +11,11 @@ export function transitDurationText(leg) {
 }
 
 // 지도는 이 이벤트를 듣고 이미 그린 구간을 연다(지도 모듈을 직접 부르지 않는다).
-export const showMapLeg = fromIndex => window.dispatchEvent(new CustomEvent('show-map-leg', { detail: { fromIndex } }));
+// `openedFrom` names the button for analytics: 'timeline' or 'departure_card'.
+export const showMapLeg = (fromIndex, openedFrom) => {
+  trackEvent('leg_focus_open', { opened_from: openedFrom });
+  window.dispatchEvent(new CustomEvent('show-map-leg', { detail: { fromIndex } }));
+};
 
 /**
  * itinerary-view.js 의 대중교통/일정 요약 렌더링 로직. nav-popup.js 와 같은
@@ -205,7 +210,7 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
     // 카드 전체가 구글 지도 링크라서, 이 버튼의 클릭은 카드까지 올라가지 않게 한다.
     el.querySelector?.('.transit-map-btn')?.addEventListener('click', event => {
       event.stopPropagation();
-      showMapLeg(detail.fromIndex);
+      showMapLeg(detail.fromIndex, 'timeline');
     });
 
     // 카드 클릭 → 구글 지도 대중교통 길찾기로 해당 구간 검증

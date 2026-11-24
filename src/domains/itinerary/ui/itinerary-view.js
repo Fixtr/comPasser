@@ -5,6 +5,7 @@ import { createItineraryActions } from '../services/itinerary-actions.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
 import { t, applyTranslations } from '../../../utils/i18n.js';
 import { safeHttpUrl } from '../../../utils/html-safety.mjs';
+import { trackEvent } from '../../../utils/analytics.js';
 
 import { itineraryStyles } from './itinerary-style.js';
 import { icons, iconRow } from '../../../ui/icons.js';
@@ -104,12 +105,13 @@ export default class ItineraryView extends HTMLElement {
     replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
     for (const id of ['departure-leg-btn', 'next-stop-leg-btn']) {
-      this.shadowRoot.getElementById(id)?.addEventListener('click', () => showMapLeg(this._departureLeg));
+      this.shadowRoot.getElementById(id)?.addEventListener('click', () => showMapLeg(this._departureLeg, 'departure_card'));
     }
     // 읽기 모드가 기본이다. 편집 버튼은 그대로 그려 두고 호스트 속성으로 CSS 가 숨긴다.
     this.shadowRoot.getElementById('edit-mode-btn')?.addEventListener('click', () => {
       // 모듈 값이 아니라 이 화면의 상태를 뒤집는다. 뒤에 쌓여 있던 화면에서도 한 번에 바뀐다.
       editModeOn = !this.hasAttribute('edit-mode');
+      if (editModeOn) trackEvent('edit_mode_toggle');
       editModeTrip = { plan: this.currentItinerary };
       this.refreshAccessControls();
     });

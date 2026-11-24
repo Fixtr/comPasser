@@ -10,10 +10,12 @@ import { Link, matchPath, Navigate, Route, useLocation, useNavigate, useParams }
 import { homeOutline, listOutline, personOutline } from 'ionicons/icons';
 import { decideRoute, getSafeReturnPath, isHomePath } from '../app/route-decision.mjs';
 import { activeTabId, shouldShowTabBar, TABS } from '../app/tab-bar.mjs';
+import { analyticsPagePath } from '../app/analytics-path.mjs';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { visitedStops } from '../domains/itinerary/services/visited-stops.mjs';
 import { showErrorToast } from '../utils/toast.js';
+import { trackPageView } from '../utils/analytics.js';
 import { applyRouteTheme, isDarkRoute, releaseRouteTheme, ROUTE_THEME_ATTR } from '../utils/route-theme.js';
 import { installPageTransitions } from './screen-transition.js';
 import { usePlanExitGuard } from './plan-exit-guard.js';
@@ -146,6 +148,8 @@ function ShellRoutes({ user, authSettled, theme, routeThemeReleased, lang, onThe
     }).catch(() => { /* The title just stays without the city. */ });
     return () => { stale = true; };
   }, [location.pathname, location.search, lang]);
+  // After the title effect, so the page_view carries the new screen's title. Only the route shape is sent (스펙 9).
+  useEffect(() => { trackPageView(analyticsPagePath(location.pathname, pages.map(([path]) => path))); }, [location.pathname]);
   useEffect(() => {
     const previous = window.navigate;
     window.navigate = (path, options) => {

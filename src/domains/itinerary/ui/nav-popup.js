@@ -12,7 +12,7 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot, 
 
     const googleUrl = googleDirectionsUrl(request, locationName, googleMapsUrl);
     if (googleUrl) {
-      trackEvent('navigate_map_click', { map_service: 'google', location: locationName });
+      trackEvent('navigate_map_click', { map_service: 'google' });
       // Same call the transit cards use; the Capacitor web view hands a _blank window to the system browser or Maps app.
       window.open(googleUrl, '_blank', 'noopener,noreferrer');
       return;
@@ -298,7 +298,7 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot, 
     // 링크 클릭 후 팝업 닫기 + 분석
     popup.querySelectorAll('.pop-opt').forEach(opt => {
       opt.addEventListener('click', () => {
-        trackEvent('navigate_map_click', { map_service: opt.dataset.svc || 'unknown', location: locationName });
+        trackEvent('navigate_map_click', { map_service: opt.dataset.svc || 'unknown' });
         setTimeout(closePopup, 300);
       });
     });

@@ -1,4 +1,5 @@
 import { t, getLang } from '../../../utils/i18n.js';
+import { trackEvent } from '../../../utils/analytics.js';
 import { localTravelDate, travelRegion } from '../../../../functions/travel-region.mjs';
 import { localizeBoundaryItem } from '../../planner/services/planner-constraints.mjs';
 import { departureAdvice } from '../services/departure-advice.mjs';
@@ -49,6 +50,10 @@ export function refreshDepartureCard(view) {
     next: () => [t('departNextVisit'), named(advice.stop), ''],
   }[advice.state]();
   card.dataset.state = advice.state;
+  // Once per state of a day's card, not on each minute's refresh; the key stays here and only the state is sent.
+  const shown = [view.visitTripId, view.activeDayIndex, advice.state].join();
+  if (view._departureShown !== shown) trackEvent('departure_card_shown', { state: advice.state });
+  view._departureShown = shown;
   // 휴대폰 요약의 '다음 목적지'가 같은 예약이면 출발 안내를 그 안에 넣고 카드는 CSS로 숨긴다.
   const next = view.shadowRoot.getElementById('next-stop');
   const merged = Boolean(reservation && nextLine && next && !next.hidden

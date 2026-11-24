@@ -43,6 +43,7 @@ async page => {
   await page.evaluate(() => {
     window.__legEvents = [];
     window.__opened = [];
+    window.__events = []; window.gtag = (...args) => { window.__events.push(args); };
     window.addEventListener('show-map-leg', event => window.__legEvents.push(event.detail.fromIndex));
     window.open = url => { window.__opened.push(url); };
   });
@@ -69,6 +70,10 @@ async page => {
   await cardButton.focus();
   await page.keyboard.press('Enter');
   await expectEvents('1', 'Departure card by keyboard');
+  // 스펙 9: each opening says where it came from and nothing about the leg.
+  const opened = () => page.evaluate(() => JSON.stringify(window.__events.splice(0).filter(args => args[1] === 'leg_focus_open').map(args => args[2])));
+  const from = (...names) => JSON.stringify(names.map(opened_from => ({ opened_from })));
+  if (await opened() !== from('timeline', 'timeline', 'departure_card', 'departure_card')) throw Error('leg_focus_open tracking wrong');
 
   // No line into the reservation: the card stays read-only.
   await legs(1);
@@ -132,6 +137,7 @@ async page => {
   };
   await page.goto(page.smokeOrigin + '/view/legmap');
   await inMap('leg-stepper').waitFor();
+  await page.evaluate(() => { window.__events = []; window.gtag = (...args) => { window.__events.push(args); }; });
   await expectText('leg-label', '전체 경로');
   if (await inMap('leg-prev').isVisible() || await inMap('leg-overview').isVisible()) throw Error('The whole-route view offers Previous or Whole day');
   const asked = await page.evaluate(() => window.__mapCalls.directions);
@@ -155,6 +161,9 @@ async page => {
   await mapButton(3).click();
   await expectText('leg-label', '4 → 5');
   if (await inMap('leg-next').isVisible()) throw Error('The last leg has nothing after it');
+  // The stepper counts once, when it leaves the whole-day view; stepping on to the next leg does not.
+  const fromMap = await opened();
+  if (fromMap !== from('map_stepper', 'timeline')) throw Error('leg_focus_open from the map wrong: ' + fromMap);
 
   // A language switch re-renders the schedule without a new map request; the stepper follows on its own.
   const setLang = lang => page.evaluate(async lang => (await import('/src/utils/i18n.js')).setLang(lang), lang);

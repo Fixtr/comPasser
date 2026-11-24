@@ -54,7 +54,8 @@ class PublicCourses extends HTMLElement {
       // Traveler courses store no city; the city this list shows is theirs.
       const city = destinations.find(item => item.id === (this.getAttribute('city') || this.filters.city));
       plannerDraftStore.save(addCourseToDraft(plannerDraftStore.read(), city ? { ...course, destination: cityDestination(city) } : course));
-      trackEvent('public_course_copy', { courseId: course.id });
+      // No id: a public course's id is its owner's itinerary id (스펙 9).
+      trackEvent('public_course_copy');
       window.navigate('/login?next=%2Fpreference%2F1');
     });
     if (this.openReviewId) void this.load();
