@@ -222,6 +222,7 @@ export function renderActiveDay(view, safePlan) {
     const keys = stopKeys(dayData);
     const noteKeys = view.state.current?.source.kind === 'private' && view.canEdit() ? stopNoteKeys(dayData) : [];
     view.updateNextStop(dayData);
+    refreshDepartureCard(view);
     
     if (items.length === 0) {
       container.appendChild(emptyDayItem());

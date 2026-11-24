@@ -19,6 +19,8 @@ export function refreshDepartureCard(view) {
   const card = view.shadowRoot.getElementById('departure-card');
   if (!card) return;
   card.hidden = true;
+  const nextLine = view.shadowRoot.getElementById('next-stop-departure');
+  if (nextLine) nextLine.textContent = '';
   clearTimeout(view._departureTimer);
   const plan = view.currentItinerary;
   const day = view.canEdit() && view.normalizeData(plan)?.days?.[view.activeDayIndex];
@@ -45,6 +47,13 @@ export function refreshDepartureCard(view) {
     next: () => [t('departNextVisit'), named(advice.stop), ''],
   }[advice.state]();
   card.dataset.state = advice.state;
+  // 휴대폰 요약의 '다음 목적지'가 같은 예약이면 출발 안내를 그 안에 넣고 카드는 CSS로 숨긴다.
+  const next = view.shadowRoot.getElementById('next-stop');
+  const merged = Boolean(reservation && nextLine && next && !next.hidden
+    && view.shadowRoot.getElementById('next-stop-title').textContent === reservation.title
+    && view.shadowRoot.getElementById('next-stop-time').textContent === (reservation.time || ''));
+  if (merged) nextLine.textContent = [main, detail].filter(Boolean).join(' · ');
+  card.toggleAttribute('data-merged', merged);
   [label, main, detail].forEach((text, index) => { card.children[index].textContent = text; });
   card.hidden = false;
   view._departureTimer = setTimeout(() => tickDepartureCard(view), 60000);

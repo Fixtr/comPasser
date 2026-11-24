@@ -79,8 +79,23 @@ async page => {
   await stops.filter({ hasText: '해변열차 탑승' }).locator('.visited-btn').click();
   await stops.filter({ hasText: '해변열차 탑승' }).locator('.visited-btn').click();
   if ((await shown()).join() !== 'false,true') throw Error(`Next visit shown twice or not at all: ${await shown()}`);
+  // The phone's next-stop panel already names the reservation, so the advice moves into it: one box, not two.
   await stops.filter({ hasText: '해변열차 탑승' }).locator('.visited-btn').click();
-  if ((await shown()).join() !== 'true,true') throw Error(`Reservation card hidden on the phone layout: ${await shown()}`);
+  await legs(18);
+  const nextStop = page.locator('itinerary-view #next-stop');
+  await nextStop.filter({ hasText: '13:32 출발' }).waitFor({ timeout: 5000 });
+  const merged = (await nextStop.innerText()).replace(/\s+/g, ' ');
+  for (const part of ['해변열차 탑승', '14:00', '<b>해변</b>에서 이동 18분', '10분 전 도착']) if (!merged.includes(part)) throw Error(`Merged panel misses ${part}: ${merged}`);
+  if ((await shown()).join() !== 'false,true') throw Error(`Reservation shown twice on the phone layout: ${await shown()}`);
+  // A different next stop keeps the two apart: the panel names the visit, the card the reservation.
+  await page.clock.setFixedTime(new Date('2026-09-13T00:30:00.000Z'));
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => { const view = document.querySelector('itinerary-view'); view.renderCurrentState(); });
+  await stops.filter({ hasText: '카페' }).waitFor();
+  await legs(18);
+  await card.filter({ hasText: '13:32 출발' }).waitFor({ timeout: 5000 });
+  if ((await shown()).join() !== 'true,true' || (await nextStop.innerText()).includes('13:32')) throw Error('The card must stay when the next stop is not the reservation');
+  await page.clock.setFixedTime(new Date('2026-09-13T03:00:00.000Z'));
   await page.setViewportSize({ width: 1280, height: 720 });
 
   // Another day's trip shows no card.
