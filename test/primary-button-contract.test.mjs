@@ -30,7 +30,7 @@ test('상세 폼의 생성 복구 버튼은 테두리다(주 버튼은 폼의 �
 
 test('일정 화면: 저장할 것이 있으면 다음 목적지의 길찾기는 테두리로 내려간다', () => {
   assert.match(rule(css, '.next-stop button'), /background:\s*var\(--cp-ink\)/);
-  const outlined = rule(css, '#results:has(.save-btn:not(:disabled)) .next-stop button');
+  const outlined = rule(css, '#results:has(.save-btn:not(:disabled)) .next-stop button:not(.departure-leg-btn)');
   assert.match(outlined, /background:\s*var\(--cp-surface\)/);
   assert.match(outlined, /color:\s*var\(--cp-ink\)/);
 });
