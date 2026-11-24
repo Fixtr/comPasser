@@ -51,6 +51,7 @@ async page => {
   for (const [route, wording] of [
     [{ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }, '<b>해변</b>에서 142번 버스 18분 · 10분 전 도착'],
     [{ mode: 'TRANSIT', vehicleType: 'SUBWAY', lineName: '2호선' }, '<b>해변</b>에서 2호선 18분 · 10분 전 도착'],
+    [{ mode: 'TRANSIT', vehicleType: 'BUS' }, '<b>해변</b>에서 버스 18분 · 10분 전 도착'],
     [{ mode: 'TRANSIT' }, '<b>해변</b>에서 대중교통 18분 · 10분 전 도착'],
     [{ mode: 'WALKING', estimated: true }, '<b>해변</b>에서 도보 약 18분 (직선거리 추정) · 10분 전 도착'],
     [{}, '<b>해변</b>에서 이동 18분 · 10분 전 도착'],

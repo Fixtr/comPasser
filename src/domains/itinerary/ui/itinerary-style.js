@@ -13,6 +13,8 @@ export const itineraryStyles = `
         .stop-note-link { display: inline-flex; align-items: center; min-height: 44px; margin: 0 4px; color: var(--cp-ink); }
         .stop-note-label[hidden], .stop-note-text[hidden], .stop-note-link[hidden] { display: none; }
         /* 편집 창이 열린 카드는 같은 메모를 두 번 보여 주지 않는다. 창이 어떻게 닫히든 다시 보인다. */
+        .schedule-card[data-note-open] :is(.stop-note-label, .stop-note-text, .stop-note-link) { display: none; }
+        /* 아래 두 :has() 규칙은 겹치는 안전망이다. :has()가 없는 기기(iOS 15.0~15.3, 오래된 WebView)는 위 표시와 화면 코드가 맡는다. */
         .schedule-card:has(.stop-note-editor) :is(.stop-note-label, .stop-note-text, .stop-note-link) { display: none; }
         /* 메모를 못 읽었다는 안내. 메모 버튼이 있는 일정표(내 일정) 위에서만 보여 공유·초안·오류 화면에는 남지 않는다. */
         .stop-notes-status:not(:has(~ #timeline-container .stop-note-btn)) { display: none; }
@@ -976,8 +978,13 @@ export const itineraryStyles = `
           :host([mobile-summary]) #edit-mode-btn { min-height: 0; position: relative; }
           /* inset 은 테두리 안쪽 기준이다. 1px 테두리를 넘어 위아래 8px 씩 나가야 30px 줄에서 44px 가 된다. */
           :host([mobile-summary]) #edit-mode-btn::after { content: ''; position: absolute; inset: -9px 0; }
-          :host([mobile-summary]) .cost-summary { padding: 0.5rem 1rem; margin-bottom: 0.5rem; }
+          :host([mobile-summary]) .cost-summary { padding: 0.3rem 1rem; margin-bottom: 0.5rem; }
           :host([mobile-summary]) .day-tabs-container { margin-bottom: 0.5rem; }
+          /* 이동 시간을 재지 못했다는 안내가 뜨거나 상자에 출발 안내 두 줄이 더해져도 첫 방문지가 보여야 한다.
+             내용은 그대로 두고 자리만 줄인다: 안내는 글자·여백을 작게, 날짜 탭은 한 줄(높이는 44px 그대로)로 둔다. */
+          :host([mobile-summary]) .transit-notice { padding: 0.4rem 0.75rem; margin-bottom: 0.5rem; font-size: 0.8rem; line-height: 1.4; }
+          /* flex 라서 날짜는 블록 그대로다: 화면 낭독기가 '1일차 2026-09-27'로 띄어 읽는다. */
+          :host([mobile-summary]) .day-tab-btn { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding-block: 0; }
           .next-stop button {
             grid-column: 2;
             grid-row: 1 / span 4;
@@ -1142,6 +1149,8 @@ export const itineraryStyles = `
             flex-direction: column;
             gap: 1.5rem;
           }
+          /* 휴대폰 요약: 시각은 바로 아래 자기 카드에 붙인다(카드 사이 간격은 그대로). */
+          :host([mobile-summary]) .timeline-item { gap: 0.5rem; }
           .time-badge {
             text-align: left;
             width: auto;

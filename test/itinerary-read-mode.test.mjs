@@ -38,6 +38,14 @@ test('자동으로 방문을 뺀 안내가 되돌리기를 가리키는 동안�
   assert.match(source, /getElementById\('edit-mode-btn'\)\?\.addEventListener\('click', \(\) => \{[\s\S]{0,400}?delete this\.shadowRoot\.getElementById\('undo-deletion-btn'\)\?\.dataset\.pointed;/);
 });
 
+test('읽기 모드에서 누른 남은 일정 맞추기·줄여서 맞추기가 방문을 빼면 되돌리기가 보인다', () => {
+  // 방문이 줄었을 때만, 되돌릴 것을 남긴 바로 그 날짜를 가리킨다.
+  const replan = readFileSync(new URL('../src/domains/itinerary/ui/itinerary-replan.js', import.meta.url), 'utf8');
+  assert.match(replan, /view\.state\.editDayItems\(dayIndex, result\.items, \{ undo: true \}\);\n\s*\/\/[^\n]*\n\s*const undo = result\.items\.length < items\.length && view\.shadowRoot\.getElementById\('undo-deletion-btn'\);\s*if \(undo\) undo\.dataset\.pointed = dayIndex;/);
+  // 줄여서 맞추기는 방문을 뺄 때 되돌릴 것을 남기고, 체류 시간만 줄일 때는 예전처럼 남기지 않는다.
+  assert.match(source, /view\.state\.editDayItems\(view\.activeDayIndex, items, \{ undo: removedTitles\.length > 0 \}\);\s*const undo = removedTitles\.length > 0 && view\.shadowRoot\.getElementById\('undo-deletion-btn'\);\s*if \(undo\) undo\.dataset\.pointed = view\.activeDayIndex;/);
+});
+
 test('저장된 메모 글은 버튼과 따로 카드에 보여서 읽기 모드에서도 읽힌다', () => {
   const editor = readFileSync(new URL('../src/domains/itinerary/ui/stop-note-editor.js', import.meta.url), 'utf8');
   assert.match(editor, /saved\.className = 'stop-note-text';/);
@@ -64,6 +72,27 @@ test('예약 링크는 44px 이상으로 눌린다', () => {
 
 test('메모 편집 창이 열린 카드는 저장된 메모를 한 번만 보여 준다', () => {
   assert.match(itineraryStyles, /\.schedule-card:has\(\.stop-note-editor\) :is\(\.stop-note-label, \.stop-note-text, \.stop-note-link\) \{ display: none; \}/);
+});
+
+test(':has()가 없는 기기에서도 편집 중인 카드는 메모를 한 번만 보여 준다', () => {
+  const editor = readFileSync(new URL('../src/domains/itinerary/ui/stop-note-editor.js', import.meta.url), 'utf8');
+  // 따로 선 규칙이라 :has()를 모르는 브라우저가 :has() 규칙을 버려도 남는다.
+  assert.match(itineraryStyles, /^\s*\.schedule-card\[data-note-open\] :is\(\.stop-note-label, \.stop-note-text, \.stop-note-link\) \{ display: none; \}$/m);
+  assert.match(editor, /card\.append\(form\);\n\s*\/\/[^\n]*\n\s*card\.toggleAttribute\('data-note-open', true\);/);
+  // 취소·저장·Escape·낡은 창은 모두 close()로 닫히고, 화면이 직접 지울 때도 표시를 함께 지운다.
+  // 다시 연 편집 창이 있으면 늦게 닫히는 낡은 창이 표시를 지우지 않는다.
+  assert.match(editor, /const close = \(\) => \{\s*form\.remove\(\);\n\s*\/\/[^\n]*\n\s*if \(!card\.querySelector\('\.stop-note-editor'\)\) card\.removeAttribute\('data-note-open'\);/);
+  assert.equal(editor.match(/removeAttribute\('data-note-open'\)/g).length, 1);
+  assert.equal(editor.match(/form\.remove\(\)/g).length, 1, '편집 창은 close()로만 지운다');
+  assert.match(source, /querySelectorAll\?\.\('\.stop-note-editor'\)\.forEach\(form => \{ form\.parentElement\?\.removeAttribute\('data-note-open'\); form\.remove\(\); \}\);/);
+  assert.equal(source.match(/\.stop-note-editor/g).length, 1, '화면이 편집 창을 지우는 곳은 한 곳이다');
+});
+
+test(':has()가 없는 기기에서도 메모 안내는 내 일정이 아닌 화면에 남지 않는다', () => {
+  // 오류 화면, 비운 화면, 메모 버튼이 없는 일정표(공유·초안)를 그릴 때 안내를 지운다.
+  assert.match(source, /setError\(msg\) \{[\s\S]{0,500}?container\.innerHTML = msg;\s*this\.shadowRoot\.querySelector\?\.\('\.stop-notes-status'\)\?\.remove\(\);/);
+  assert.match(source, /clear\(\) \{[\s\S]{0,500}?if \(container\) container\.innerHTML = '';\s*this\.shadowRoot\.querySelector\?\.\('\.stop-notes-status'\)\?\.remove\(\);/);
+  assert.match(source, /const noteKeys = [^\n]*\n\s*if \(!noteKeys\.some\(Boolean\)\) view\.shadowRoot\.querySelector\?\.\('\.stop-notes-status'\)\?\.remove\(\);/);
 });
 
 test('메모를 못 읽으면 화면에 한 번만 알리고 다시 읽는 버튼을 둔다', () => {
@@ -109,6 +138,7 @@ function notesHarness() {
   const reads = [];
   let status = null;
   let created = 0;
+  let noteButton = {};
   const element = () => ({
     dataset: {}, textContent: '', children: [], setAttribute() {}, addEventListener(type, fn) { this[type] = fn; },
     append(...nodes) { this.children.push(...nodes); }, get firstChild() { return this.children[0]; },
@@ -121,7 +151,7 @@ function notesHarness() {
       activeElement: null,
       querySelector: () => status,
       querySelectorAll: () => [],
-      getElementById: () => ({ before(node) { status = node; created += 1; }, focus() {} }),
+      getElementById: () => ({ querySelector: () => noteButton, before(node) { status = node; created += 1; }, focus() {} }),
     },
   };
   const deps = {
@@ -134,7 +164,7 @@ function notesHarness() {
   const savedNotes = new Function(...Object.keys(deps), `${source}\nreturn savedNotes;`)(...Object.values(deps));
   const settle = () => new Promise(resolve => setImmediate(resolve));
   const fail = async () => { savedNotes(view, 'trip', 'me').catch(() => {}); reads.at(-1).reject(new Error('offline')); await settle(); };
-  return { view, reads, settle, fail, savedNotes, status: () => status, created: () => created };
+  return { view, reads, settle, fail, savedNotes, status: () => status, created: () => created, noButtons() { noteButton = null; } };
 }
 
 test('다시 시도 중에 메모를 저장해도 안내가 불러오는 중에 멈추지 않는다', async () => {
@@ -149,6 +179,14 @@ test('다시 시도 중에 메모를 저장해도 안내가 불러오는 중에 
     if (outcome === 'resolve') assert.equal(h.status(), null, '읽기가 성공하면 안내가 사라진다');
     else assert.equal(h.status().firstChild.textContent, 'stopNotesLoadFailed');
   }
+});
+
+test('메모 버튼이 없는 날로 바뀐 뒤 늦게 실패한 읽기는 안내를 붙이지 않는다', async () => {
+  const h = notesHarness();
+  h.noButtons();
+  await h.fail();
+  assert.equal(h.status(), null);
+  assert.equal(h.created(), 0);
 });
 
 test('읽기가 계속 실패해도 안내는 한 번만 만들어지고 글자도 다시 쓰지 않는다', async () => {

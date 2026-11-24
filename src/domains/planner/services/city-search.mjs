@@ -11,16 +11,21 @@ const keys = word => [...word].map(letter => {
 const words = text => String(text ?? '').normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean).map(keys);
 
 /**
- * Cities whose name (from `nameOf(city)`) starts with `query` at the beginning of any word, ignoring case,
- * spaces and punctuation. Names that match from their first word come first; otherwise the list order is kept.
+ * Cities with a name that starts with `query` at the beginning of any word, ignoring case, spaces and punctuation.
+ * Each `namesOf` function gives one name of a city and is one tier: cities matched by an earlier function come
+ * first (the screen-language city name, then its other-language name, then the country). Inside a tier, names that
+ * match from their first word come first; otherwise the list order is kept.
  */
-export function searchCities(query, cities, nameOf) {
+export function searchCities(query, cities, ...namesOf) {
   const typed = words(query).join('');
   if (!typed) return [];
   const rank = city => {
-    const name = words(nameOf(city));
-    const at = name.findIndex((_, index) => name.slice(index).join('').startsWith(typed));
-    return at < 0 ? 2 : Math.min(at, 1);
+    for (const [tier, nameOf] of namesOf.entries()) {
+      const name = words(nameOf(city));
+      const at = name.findIndex((_, index) => name.slice(index).join('').startsWith(typed));
+      if (at >= 0) return tier * 2 + Math.min(at, 1);
+    }
+    return Infinity;
   };
-  return cities.map(city => [rank(city), city]).filter(([order]) => order < 2).sort((a, b) => a[0] - b[0]).map(([, city]) => city);
+  return cities.map(city => [rank(city), city]).filter(([order]) => order < Infinity).sort((a, b) => a[0] - b[0]).map(([, city]) => city);
 }

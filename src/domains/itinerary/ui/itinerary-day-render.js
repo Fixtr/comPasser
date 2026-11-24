@@ -222,6 +222,7 @@ export function renderActiveDay(view, safePlan) {
     const visited = tripId ? visitedStops.visited(tripId, userId) : null;
     const keys = stopKeys(dayData);
     const noteKeys = view.state.current?.source.kind === 'private' && view.canEdit() ? stopNoteKeys(dayData) : [];
+    if (!noteKeys.some(Boolean)) view.shadowRoot.querySelector?.('.stop-notes-status')?.remove();
     view.updateNextStop(dayData);
     refreshDepartureCard(view);
     

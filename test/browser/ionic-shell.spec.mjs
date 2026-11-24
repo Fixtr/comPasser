@@ -1466,6 +1466,87 @@ test('여러 날짜에 비용 요약이 있는 일정도 휴대폰 기본 시트
   expect(tap.above && tap.below, JSON.stringify(tap)).toBe(true);
 });
 
+// 375x812 휴대폰에서 이틀짜리·비용 요약 있는 일정을 기본 시트 높이로 연다. 첫 날의 일정 항목은 호출부가 준다.
+async function openPhoneSummaryTrip(page, firstDayItems) {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({
+    contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true }"),
+  }));
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
+    contentType: 'text/javascript', body: `
+      export async function getGenerationCredits() { return 1; }
+      export async function generateOptimizedItinerary() {
+        const items = ${JSON.stringify(firstDayItems)};
+        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: items }, { day: 2, date: '2026-09-28', scheduleItems: items }] };
+      }
+    `,
+  }));
+  await page.goto('/plan');
+  await page.locator('travel-form:visible').first().evaluate(element => {
+    element.dispatchEvent(new CustomEvent('generate-itinerary', { detail: {}, bubbles: true, composed: true }));
+  });
+  await expect(page).toHaveURL(/\/view$/);
+  await expect(page.locator('ion-modal.ionic-result-sheet')).toBeVisible();
+  const view = page.locator('itinerary-view');
+  await expect(view.locator('#next-stop')).toBeVisible();
+  await expect(view.locator('#cost-summary')).toBeVisible();
+  await expect(view.locator('.day-tab-btn')).toHaveCount(2);
+  await expect(view.locator('#edit-mode-btn')).toBeVisible();
+  return view;
+}
+const expectFirstStopAboveSaveBar = async view => {
+  const firstStop = await view.locator('#timeline-container .schedule-card').first().boundingBox();
+  const saveBar = await view.locator('#actions-primary').boundingBox();
+  expect(firstStop.y + 40, `first stop at ${firstStop.y}, save bar at ${saveBar.y}`).toBeLessThanOrEqual(saveBar.y);
+};
+const measuredWalks = (view, legs) => view.evaluate((element, legs) => window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context: element._mapRequest,
+  routes: Array.from({ length: legs }, (_, fromIndex) => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes: 10, displayMinutes: 10, mode: 'WALKING', steps: [] })) } })), legs);
+
+test('지도가 이동 시간을 재지 못했다는 안내가 떠 있어도 휴대폰 기본 시트에서 첫 방문지가 보인다', async ({ page }) => {
+  const view = await openPhoneSummaryTrip(page, [
+    { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+    { type: 'attraction', title: '경복궁', time: '10:00', endTime: '11:00', location: '경복궁', practicalInfo: { estimatedCost: '3,000원' } },
+    { type: 'arrival', title: '서울역', time: '18:00', location: '서울역' },
+  ]);
+  await view.evaluate(element => window.dispatchEvent(new CustomEvent('transit-unavailable', { detail: { context: element._mapRequest } })));
+  // 안내는 줄이지 않고 그대로 읽힌다.
+  await expect(view.locator('#transit-notice')).toBeVisible();
+  await expect(view.locator('#transit-notice')).toHaveText('실제 대중교통 소요시간을 확인하지 못했습니다. 아래 시각은 AI 추정치이며 실제와 다를 수 있습니다.');
+  expect(await view.locator('#transit-notice').evaluate(box => box.scrollHeight <= box.clientHeight + 1 && box.scrollWidth <= box.clientWidth + 1)).toBe(true);
+  await expect(view.locator('#cost-summary')).toBeVisible();
+  // 날짜 탭은 한 줄이 됐을 뿐 날짜는 그대로 있고, 누르는 높이도 44px 이다.
+  const tab = await view.locator('.day-tab-btn').first().evaluate(button => {
+    const day = button.querySelector('strong').getBoundingClientRect();
+    const date = button.querySelector('.tab-date').getBoundingClientRect();
+    return { height: button.getBoundingClientRect().height, sameLine: date.top < day.bottom && date.left >= day.right, date: button.querySelector('.tab-date').textContent };
+  });
+  expect(tab).toEqual({ height: 44, sameLine: true, date: '2026-09-27' });
+  await expectFirstStopAboveSaveBar(view);
+});
+
+test('여행 당일 다음 목적지 상자에 출발 안내가 합쳐져도 휴대폰 기본 시트에서 첫 방문지가 보인다', async ({ page }) => {
+  // 2026-09-27 12:00 (서울). 다음 목적지는 14:00 예약이고 그 앞 구간은 지도가 쟀다.
+  await page.clock.setFixedTime(new Date('2026-09-27T03:00:00.000Z'));
+  const view = await openPhoneSummaryTrip(page, [
+    { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+    { type: 'attraction', title: '경복궁', time: '10:00', endTime: '11:00', location: '경복궁', practicalInfo: { estimatedCost: '3,000원' } },
+    { type: 'AnchorSchedule', title: '공연', time: '14:00', endTime: '15:00', location: '세종문화회관' },
+    { type: 'arrival', title: '서울역', time: '18:00', location: '서울역' },
+  ]);
+  await measuredWalks(view, 3);
+  await expect(view.locator('#transit-notice')).toBeHidden();
+  await expect(view.locator('#timeline-container .transit-seg-card').first()).toBeVisible();
+  // 출발 안내 두 줄이 상자 안에 그대로 있다.
+  await expect(view.locator('#next-stop-title')).toHaveText('공연');
+  await expect(view.locator('#next-stop-departure')).toHaveText('13:40 출발');
+  await expect(view.locator('#next-stop-departure-detail')).toHaveText('경복궁에서 도보 10분 · 10분 전 도착');
+  for (const id of ['next-stop-label', 'next-stop-title', 'next-stop-time', 'next-stop-departure', 'next-stop-departure-detail', 'next-stop-directions']) {
+    await expect(view.locator(`#${id}`)).toBeVisible();
+  }
+  await expect(view.locator('#cost-summary')).toBeVisible();
+  await expectFirstStopAboveSaveBar(view);
+});
+
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({

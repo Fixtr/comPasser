@@ -77,6 +77,9 @@ export async function showItineraryReplan(view, button) {
       return;
     }
     view.state.editDayItems(dayIndex, result.items, { undo: true });
+    // Read mode hides undo; a replan that dropped a visit keeps it on screen for this day, as the automatic removal does.
+    const undo = result.items.length < items.length && view.shadowRoot.getElementById('undo-deletion-btn');
+    if (undo) undo.dataset.pointed = dayIndex;
     view.state.markDayRecalculated(dayIndex);
     view.requestMapRoute();
     view.refreshAccessControls();

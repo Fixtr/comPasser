@@ -646,11 +646,12 @@ export default class ItineraryView extends HTMLElement {
     if (departureCard) departureCard.hidden = true;
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = msg;
+    this.shadowRoot.querySelector?.('.stop-notes-status')?.remove();
   }
 
   cancelPendingLoad() {
     this._failedLoad = null;
-    this.shadowRoot.querySelectorAll?.('.stop-note-editor').forEach(form => form.remove());
+    this.shadowRoot.querySelectorAll?.('.stop-note-editor').forEach(form => { form.parentElement?.removeAttribute('data-note-open'); form.remove(); });
     this._stopSharedWatch?.();
     this._stopSharedWatch = null;
     this._loadVersion += 1;
@@ -666,6 +667,7 @@ export default class ItineraryView extends HTMLElement {
     if (nextStop) nextStop.hidden = true;
     const container = this.shadowRoot.getElementById('timeline-container');
     if (container) container.innerHTML = '';
+    this.shadowRoot.querySelector?.('.stop-notes-status')?.remove();
     const dayTitle = this.shadowRoot.getElementById('day-title-header');
     if (dayTitle) { dayTitle.textContent = ''; dayTitle.style.display = 'none'; }
     const dayTabs = this.shadowRoot.getElementById('day-tabs-container');

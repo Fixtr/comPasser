@@ -103,7 +103,15 @@ test('the departure text names the mode the map measured, worded as the transit 
     assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), '142번 버스');
     assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), getTransitModeText('BUS', '142'));
     assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'SUBWAY', lineName: '2호선' }), '2호선');
-    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: null }), '대중교통', 'no line name: never "번 버스"');
+    // No line name: the vehicle word alone (never "번 버스"); a vehicle the map does not name keeps '대중교통'.
+    const vehicles = { BUS: ['버스', 'Bus'], INTERCITY_BUS: ['버스', 'Bus'], TROLLEYBUS: ['버스', 'Bus'],
+      SUBWAY: ['지하철', 'Subway'], METRO_RAIL: ['지하철', 'Subway'], HEAVY_RAIL: ['지하철', 'Subway'], COMMUTER_TRAIN: ['지하철', 'Subway'],
+      TRAIN: ['기차', 'Train'], RAIL: ['기차', 'Train'], HIGH_SPEED_TRAIN: ['기차', 'Train'], LONG_DISTANCE_TRAIN: ['기차', 'Train'],
+      TRAM: ['트램', 'Tram'], MONORAIL: ['모노레일', 'Monorail'], FERRY: ['페리', 'Ferry'],
+      CABLE_CAR: ['케이블카', 'Cable car'], GONDOLA_LIFT: ['케이블카', 'Cable car'], FUNICULAR: ['케이블카', 'Cable car'] };
+    for (const [vehicleType, [ko]] of Object.entries(vehicles)) assert.equal(legModeText({ mode: 'TRANSIT', vehicleType, lineName: null }), ko, vehicleType);
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'bus', lineName: '' }), '버스');
+    for (const vehicleType of ['TRANSIT', 'OTHER', 'SHARE_TAXI', '', null, undefined]) assert.equal(legModeText({ mode: 'TRANSIT', vehicleType }), '대중교통', String(vehicleType));
     assert.equal(legModeText({ mode: 'TRANSIT', estimated: true, steps: [] }), '대중교통');
     for (const unknown of [undefined, null, {}, { durationMinutes: 18 }, { mode: 'SAME_PLACE' }, { mode: 'DRIVING' }]) {
       assert.equal(legModeText(unknown), '', 'an unknown mode names nothing');
@@ -111,6 +119,8 @@ test('the departure text names the mode the map measured, worded as the transit 
     setLang('en');
     assert.equal(legModeText({ mode: 'WALKING' }), 'Walk');
     assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), 'Bus 142');
+    for (const [vehicleType, [, en]] of Object.entries(vehicles)) assert.equal(legModeText({ mode: 'TRANSIT', vehicleType }), en, vehicleType);
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'OTHER' }), 'Transit');
   } finally {
     setLang('ko');
   }

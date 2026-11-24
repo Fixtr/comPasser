@@ -133,6 +133,8 @@
 
 - Home offers two equal-width entries in one row, right under the intro and above the globe so they stay above the tab bar on short phones: 일정 만들기 / Plan a trip (`/recommend`, the planning flow) and 코스 둘러보기 / Browse routes (`/courses`, whose country step uses `courseCountryTitle`; `/recommend` and `/destination` keep `flowCountry`). Do not add a third standalone new-trip button or the draft-step resume shortcut to preferences/plan. Destination, preference and generation screens remain available through discovery flows. The globe city-selection action opens `/destination` for the selected country, never a saved preference step.
 
+- The home city search (`searchCities`, `services/city-search.mjs`) reads only the bundled catalogue, with no network call. It takes one name function per tier and lists earlier tiers first: the city's screen-language name, its name in the other language ('busan' on the Korean screen), then its country in the screen language and in the other one (a country query lists that country's cities). Inside a tier, names matching from their first word come first, then catalogue order; half-typed Hangul matches in every tier. Results always display in the screen language.
+
 ## Trip weather callable (`getTripWeather`)
 
 - `functions/trip-weather.js` reuses the recommendation weather boundary (Google Weather API with `GOOGLE_MAPS_SERVER_KEY` from Secret Manager, server-owned city table and `travelRegion`) but reads `forecast/hours:lookup` for hourly rain on one trip day.

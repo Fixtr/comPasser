@@ -42,7 +42,7 @@ const say = (element, key) => {
 function showNotesFailed(view, id, ownerId) {
   const source = view.state.current?.source;
   const timeline = view.shadowRoot.getElementById('timeline-container');
-  if (!timeline || source?.kind !== 'private' || source.id !== id || source.ownerId !== ownerId || getCurrentUser()?.uid !== ownerId) return;
+  if (!timeline?.querySelector('.stop-note-btn') || source?.kind !== 'private' || source.id !== id || source.ownerId !== ownerId || getCurrentUser()?.uid !== ownerId) return;
   let status = view.shadowRoot.querySelector('.stop-notes-status');
   if (!status) {
     status = document.createElement('p');
@@ -135,6 +135,8 @@ export function attachStopNoteControl(view, card, index, key) {
     const cancel = form.querySelector('[type="button"]');
     const close = () => {
       form.remove();
+      // A stale editor closing late (its read ended after a reopen) must not unmark the card under the new editor.
+      if (!card.querySelector('.stop-note-editor')) card.removeAttribute('data-note-open');
       button.setAttribute('aria-expanded', 'false');
       if (isCurrent()) button.focus();
     };
@@ -149,6 +151,8 @@ export function attachStopNoteControl(view, card, index, key) {
       if (event.key === 'Escape') { event.stopPropagation(); close(); }
     });
     card.append(form);
+    // The card hides its saved note while marked; a mark (not :has()) so iOS 15.0-15.3 and old WebViews hide it too.
+    card.toggleAttribute('data-note-open', true);
     button.setAttribute('aria-expanded', 'true');
     cancel.focus();
     try {

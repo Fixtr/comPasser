@@ -31,6 +31,16 @@ async (page) => {
   // Half-typed syllables on the way to 부산 keep it listed.
   for (const typed of ['ㅂ', '붓', '부사']) { await search.fill(typed); await busan.waitFor(); }
   results.push('PASS a Korean prefix, including half-composed syllables, lists the city with its country');
+  // The other language's city name and the country name find cities too; results stay in the screen language.
+  await search.fill('busan');
+  await busan.waitFor();
+  check(await box.getByRole('button').count() === 1, "'busan' must offer Busan only");
+  for (const typed of ['일본', 'japan']) {
+    await search.fill(typed);
+    await box.getByRole('button', { name: '도쿄 · 일본', exact: true }).waitFor();
+    check((await box.getByRole('button').allTextContents()).every(name => name.endsWith(' · 일본')), `'${typed}' must list Japan's cities only`);
+  }
+  results.push('PASS the English city name and the country name in either language find cities');
 
   // Enter that only ends a Korean composition must not choose.
   await search.fill('부');

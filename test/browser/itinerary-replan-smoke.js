@@ -36,8 +36,8 @@ async page => {
   await dialog.locator('.confirm-ok').click();
   await cafe.waitFor({ state: 'hidden' });
   if (await museum.locator('.visited-btn').getAttribute('aria-pressed') !== 'true') throw Error('Visited mark changed');
-  // Read mode hides undo; the 편집 toggle shows it.
-  await page.locator('itinerary-view #edit-mode-btn').click();
+  // The replan dropped a visit, so read mode keeps undo on screen (no 편집 toggle needed).
+  if (await page.locator('itinerary-view').getAttribute('edit-mode') !== null) throw Error('The trip must still be in read mode');
   await page.locator('itinerary-view #undo-deletion-btn').click();
   await cafe.waitFor({ state: 'visible' });
   return { errors: page.smokeErrors };

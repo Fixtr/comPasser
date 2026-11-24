@@ -224,7 +224,10 @@ export function trimActiveDayToEndTime(view) {
     return;
   }
 
-  view.state.editDayItems(view.activeDayIndex, items);
+  // A removed visit can be brought back: the day keeps its undo, and read mode keeps the button on screen for it.
+  view.state.editDayItems(view.activeDayIndex, items, { undo: removedTitles.length > 0 });
+  const undo = removedTitles.length > 0 && view.shadowRoot.getElementById('undo-deletion-btn');
+  if (undo) undo.dataset.pointed = view.activeDayIndex;
   view.requestMapRoute();
   view.refreshAccessControls();
 

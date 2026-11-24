@@ -90,11 +90,20 @@ export function getTransitModeText(vehicleType, lineName) {
   return name || t('transitText') || '대중교통';
 }
 
-// The mode the map measured for a whole leg, in the transit rows' words ('도보', '142번 버스'); '' when unknown.
+// Google's transit vehicle types by the word a leg without a line name shows; any other type stays '대중교통'.
+const VEHICLE_WORDS = {
+  BUS: 'vehicleBus', INTERCITY_BUS: 'vehicleBus', TROLLEYBUS: 'vehicleBus',
+  SUBWAY: 'vehicleSubway', METRO_RAIL: 'vehicleSubway', HEAVY_RAIL: 'vehicleSubway', COMMUTER_TRAIN: 'vehicleSubway',
+  TRAIN: 'vehicleTrain', RAIL: 'vehicleTrain', HIGH_SPEED_TRAIN: 'vehicleTrain', LONG_DISTANCE_TRAIN: 'vehicleTrain',
+  TRAM: 'vehicleTram', MONORAIL: 'vehicleMonorail', FERRY: 'vehicleFerry',
+  CABLE_CAR: 'vehicleCableCar', GONDOLA_LIFT: 'vehicleCableCar', FUNICULAR: 'vehicleCableCar',
+};
+
+// The mode the map measured for a whole leg, in the transit rows' words ('도보', '142번 버스', '버스' without a line name); '' when unknown.
 export function legModeText(leg) {
   if (leg?.mode === 'WALKING') return t('walkText');
   if (leg?.mode !== 'TRANSIT') return '';
-  return leg.lineName ? getTransitModeText(leg.vehicleType, leg.lineName) : t('transitText');
+  return leg.lineName ? getTransitModeText(leg.vehicleType, leg.lineName) : t(VEHICLE_WORDS[String(leg.vehicleType || '').toUpperCase()] || 'transitText');
 }
 
 export function renderTransitStep(step) {

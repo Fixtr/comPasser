@@ -165,5 +165,60 @@ async page => {
   await editor.waitFor({ state: 'detached' });
   const recNotes = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
   if (JSON.stringify(recNotes) !== JSON.stringify({ rec1: { text: '추천 새 메모', url: '' } })) throw Error('Re-resolved stop note write: ' + JSON.stringify(recNotes));
+  // Without :has() the card is marked while its editor is open, and unmarked however the editor goes away.
+  const marked = () => page.locator('itinerary-view .schedule-card[data-note-open]').count();
+  const noteShown = () => page.locator('itinerary-view .stop-note-text').filter({ visible: true }).count();
+  const open = async () => {
+    await notes.first().click();
+    await editor.locator('textarea:not([disabled])').waitFor();
+    if (await marked() !== 1 || await noteShown()) throw Error('An open editor must mark its card and hide the saved note');
+  };
+  const closed = async how => {
+    await editor.waitFor({ state: 'detached' });
+    await page.locator('itinerary-view .stop-note-text').filter({ visible: true }).waitFor();
+    if (await marked() || await noteShown() !== 1) throw Error(`The card stayed marked after ${how}`);
+  };
+  await open();
+  await editor.getByRole('button', { name: '취소', exact: true }).click();
+  await closed('cancel');
+  await open();
+  await editor.locator('textarea').press('Escape');
+  await closed('Escape');
+  await open();
+  await editor.getByRole('button', { name: '저장', exact: true }).click();
+  await closed('save');
+  await open();
+  await page.evaluate(() => document.querySelector('itinerary-view').cancelPendingLoad());
+  await closed('the view removing its editors');
+  // That call also retires the cards' buttons; a render brings live ones back.
+  await page.evaluate(() => document.querySelector('itinerary-view').renderCurrentState());
+  await open();
+  await page.evaluate(() => document.querySelector('itinerary-view').renderCurrentState());
+  await closed('a re-render');
+  // Open, cancel and reopen before the first read ends: the first editor's late close must not unmark the reopened card.
+  await page.evaluate(() => {
+    const root = document.querySelector('itinerary-view').shadowRoot;
+    const button = [...root.querySelectorAll('.stop-note-btn')].find(item => item.offsetParent);
+    button.click();
+    root.querySelector('.stop-note-editor [type="button"]').click();
+    button.click();
+  });
+  await editor.locator('textarea:not([disabled])').waitFor();
+  if (await editor.count() !== 1 || await marked() !== 1 || await noteShown()) throw Error('A stale editor close unmarked the reopened card');
+  await editor.getByRole('button', { name: '취소', exact: true }).click();
+  await closed('cancel after a reopen');
+  // The failed-read status is removed, not only hidden, when the view stops showing an editable private trip.
+  await page.evaluate(() => {
+    window.__smoke.dbError = 'read';
+    const view = document.querySelector('itinerary-view');
+    view._stopNotes = null;
+    view.renderCurrentState();
+  });
+  await failed.getByRole('button', { name: '다시 시도', exact: true }).waitFor();
+  await page.evaluate(() => {
+    window.__smoke.dbError = undefined;
+    document.querySelector('itinerary-view').setError('<div class="state-block"></div>');
+  });
+  if (await failed.count()) throw Error('The notes status stayed on an error screen');
   return { errors: page.smokeErrors };
 }

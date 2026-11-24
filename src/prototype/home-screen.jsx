@@ -3,7 +3,7 @@ import { IonContent, IonPage } from '@ionic/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
 import { searchCities } from '../domains/planner/services/city-search.mjs';
-import { t } from '../utils/i18n.js';
+import { t, tFor, getLang } from '../utils/i18n.js';
 
 // The world map data and d3 are about 50 KB gzip; home paints its text first and the globe follows.
 const TravelGlobe = lazy(() => import('./travel-globe.jsx').then(module => ({ default: module.TravelGlobe })));
@@ -24,7 +24,10 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const searchInput = useRef(null);
   const switchDialog = useRef(null);
   const tripOwner = authSettled && user?.uid;
-  const matches = catalogue ? searchCities(query, catalogue.destinations, city => t(city.key)) : [];
+  // Found by the city's name on screen, then its name in the other language, then its country in either language.
+  const otherLang = getLang() === 'ko' ? 'en' : 'ko';
+  const matches = catalogue ? searchCities(query, catalogue.destinations, city => t(city.key), city => tFor(city.key, otherLang),
+    city => t(`country${city.country}`), city => tFor(`country${city.country}`, otherLang)) : [];
   const noMatch = Boolean(catalogue && query.trim() && !matches.length);
 
   // The city catalogue stays out of the first load; it arrives when the search is first used.
