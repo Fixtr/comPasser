@@ -1,11 +1,22 @@
 import { trackEvent } from '../../../utils/analytics.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
+import { t } from '../../../utils/i18n.js';
+import { googleDirectionsUrl } from '../services/directions-target.mjs';
 
-export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) {
+// `request` is the plan's request: outside Korea the button opens Google Maps instead of this popup.
+export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot, request) {
 
     // 기존 팝업 제거 (Shadow DOM 안 + body 안 둘 다)
     shadowRoot.getElementById('nav-popup-overlay')?.remove();
     document.getElementById('nav-popup-global')?.remove();
+
+    const googleUrl = googleDirectionsUrl(request, locationName, googleMapsUrl);
+    if (googleUrl) {
+      trackEvent('navigate_map_click', { map_service: 'google', location: locationName });
+      // Same call the transit cards use; the Capacitor web view hands a _blank window to the system browser or Maps app.
+      window.open(googleUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
 
     const encoded = encodeURIComponent(locationName);
     const POPUP_WIDTH = 320;
@@ -21,7 +32,7 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     // 모달 성격의 팝업이라 스크린리더가 이름과 역할을 읽을 수 있어야 한다.
     popup.setAttribute('role', 'dialog');
     popup.setAttribute('aria-modal', 'true');
-    popup.setAttribute('aria-label', `${locationName} 길찾기`);
+    popup.setAttribute('aria-label', t('navPopupAria').replace('{0}', () => locationName));
 
     // JS 는 위치만 정한다. 모양은 아래 스타일 블록이 맡는다 — 예전에는
     // 여기서 흰 배경·그림자·둥근 모서리를 통째로 칠했고, body 에 직접
@@ -69,6 +80,9 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
     const arrowLeft = rect
       ? Math.min(Math.max(rect.left + rect.width / 2 - left, 20), POPUP_WIDTH - 20)
       : POPUP_WIDTH / 2;
+
+    // 한국어 화면에서만 로마자 이름을 덧붙인다. 영어 화면에서는 같은 말이 두 번 나온다.
+    const mapName = (key, latin) => `<div><div class="pop-name">${escapeHtml(t(key))}</div>${t(key) === latin ? '' : `<div class="pop-desc">${latin}</div>`}</div>`;
 
     // ── 4. 팝업 HTML ─────────────────────────────────────
     popup.innerHTML = `
@@ -208,18 +222,18 @@ export function openNavPopup(locationName, googleMapsUrl, anchorEl, shadowRoot) 
       </style>
       <div class="nav-inner ${arrowClass}">
         <div class="popup-header">
-          <span class="popup-title">길찾기</span>
-          <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="길찾기 창 닫기">&times;</button>
+          <span class="popup-title">${escapeHtml(t('directionsBtn'))}</span>
+          <button class="popup-close" id="nav-popup-close-btn" type="button" aria-label="${escapeHtml(t('navPopupClose'))}">&times;</button>
         </div>
         <p class="popup-location" title="${escapeHtml(locationName)}">${escapeHtml(locationName)}</p>
         <div class="popup-options">
           <a href="https://map.naver.com/v5/search/${encoded}" target="_blank" rel="noopener noreferrer" class="pop-opt naver" data-svc="naver">
             <span class="pop-swatch" aria-hidden="true"></span>
-            <div><div class="pop-name">네이버 지도</div><div class="pop-desc">Naver Map</div></div>
+            ${mapName('navMapNaver', 'Naver Map')}
           </a>
           <a href="https://map.kakao.com/?q=${encoded}" target="_blank" rel="noopener noreferrer" class="pop-opt kakao" data-svc="kakao">
             <span class="pop-swatch" aria-hidden="true"></span>
-            <div><div class="pop-name">카카오맵</div><div class="pop-desc">Kakao Map</div></div>
+            ${mapName('navMapKakao', 'Kakao Map')}
           </a>
 
         </div>
