@@ -301,7 +301,7 @@ export function PlanScreen({ user, settings }) {
 
   return <IonPage><IonContent className="ion-padding shell-content">
     <div className="ionic-page-nav"><button onClick={() => navigate('/preference/2')}><span aria-hidden="true">←</span> {t('shellBack')}</button>{settings}</div>
-    {phase === 'form' && canRecover && <IonButton onClick={() => retry.current?.()}>{t('shellRecoverGeneration')}</IonButton>}
+    {phase === 'form' && canRecover && <IonButton fill="outline" onClick={() => retry.current?.()}>{t('shellRecoverGeneration')}</IonButton>}
     <div ref={phase === 'form' ? phaseRef : null} className={phase === 'form' ? '' : 'ionic-form-hidden'}><travel-form ref={form} handoff-flow="" /></div>
     {phase !== 'form' && <div ref={phaseRef} className="ionic-generation" role="status" aria-live="polite">
       {phase === 'loading' ? <><h2>{t('shellGenerating')}</h2>

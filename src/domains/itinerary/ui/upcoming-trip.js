@@ -55,7 +55,7 @@ class UpcomingTrip extends HTMLElement {
       p { margin:0; font-size:13px; color:var(--cp-ink-2); }
       .status { font-weight:700; color:var(--cp-ink); }
       h2 { margin:4px 0; font-size:15px; overflow-wrap:anywhere; word-break:keep-all; }
-      button { flex-shrink:0; min-width:44px; min-height:44px; padding:8px 14px; border:1px solid var(--cp-ink); border-radius:var(--cp-radius); background:var(--cp-ink); color:var(--cp-paper); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+      button { flex-shrink:0; min-width:44px; min-height:44px; padding:8px 14px; border:1px solid var(--cp-ink); border-radius:var(--cp-radius); background:var(--cp-surface); color:var(--cp-ink); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
       button:focus-visible { outline:3px solid var(--cp-ink); outline-offset:3px; }
     </style>
     <section aria-labelledby="trip-title"><div><p class="status"></p><h2 id="trip-title"></h2><p class="dates"></p></div><button type="button"></button></section>`;
