@@ -2,10 +2,12 @@ import { t, getLang } from '../../../utils/i18n.js';
 import { restorePlaceInput } from '../services/selected-place.mjs';
 import { plannerDraftStore, toPlannerDraft, spreadVisitDays } from '../services/planner-draft.mjs';
 
-export function addAnchor(view, data = null) {
+// autoPlace only decides a new, empty item; a restored item keeps its own flexible value.
+export function addAnchor(view, data = null, autoPlace = view.hasAttribute('handoff-flow')) {
   view.anchorCount++;
   const container = view.shadowRoot.getElementById('anchors-container');
   const id = `anchor-${Date.now()}`;
+  // Field ids add the count: a restored draft adds several items within one millisecond.
 
   const daysCount = Math.max(view.draft.date.length, 1);
 
@@ -36,12 +38,12 @@ export function addAnchor(view, data = null) {
       <p class="anchor-flexible-hint" data-i18n="anchorFlexibleHint">${t('anchorFlexibleHint')}</p>
       <div class="row-3 anchor-fields">
         <div class="form-group anchor-time-field">
-          <label data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
-          <input type="time" class="anchor-time">
+          <label for="${id}-${view.anchorCount}-time" data-i18n="anchorStartLabel">${t('anchorStartLabel')}</label>
+          <input type="time" class="anchor-time" id="${id}-${view.anchorCount}-time">
         </div>
         <div class="form-group anchor-time-field">
-          <label data-i18n="anchorEndLabel">${t('anchorEndLabel')}</label>
-          <input type="time" class="anchor-end-time">
+          <label for="${id}-${view.anchorCount}-end" data-i18n="anchorEndLabel">${t('anchorEndLabel')}</label>
+          <input type="time" class="anchor-end-time" id="${id}-${view.anchorCount}-end">
         </div>
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
@@ -68,7 +70,7 @@ export function addAnchor(view, data = null) {
   }
 
   const flexibleToggle = template.querySelector('.anchor-flexible');
-  flexibleToggle.checked = data?.flexible === true || (!data && view.hasAttribute('handoff-flow'));
+  flexibleToggle.checked = data ? data.flexible === true : autoPlace;
   const showFlexible = () => {
     template.classList.toggle('is-flexible', flexibleToggle.checked);
     template.querySelectorAll('.anchor-time, .anchor-end-time').forEach(input => {

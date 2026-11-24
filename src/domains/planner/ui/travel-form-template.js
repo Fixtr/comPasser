@@ -231,6 +231,7 @@ export function travelFormTemplate(view) {
           
           <div id="anchors-container"></div>
           
+          ${view.hasAttribute('handoff-flow') ? `<button type="button" id="add-reservation-btn" class="secondary-btn" data-i18n="flowAddReservation">${t('flowAddReservation')}</button>` : ''}
           <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="${view.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor'}">${t(view.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor')}</button>
         </div>
 

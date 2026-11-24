@@ -54,6 +54,7 @@ for (const [title, file] of [
   ['home recommendations through login and planning', 'home-recommendations-smoke.js'],
   ['saved catalogue places belong to the active traveler and become must-visit stops', 'saved-discovery-smoke.js'],
   ['planner input validation and retry', 'planner-validation-smoke.js'],
+  ['reservation and must-visit add buttons reach the final review', 'reservation-entry-smoke.js'],
   ['planner autocomplete dropdown stacking', 'planner-autocomplete-layer-smoke.js'],
   ['four-day measured route quality and flexible visits', 'itinerary-routing-quality-smoke.js'],
   ['measured transit end-time fitting', 'itinerary-end-fit-smoke.js'],
