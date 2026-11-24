@@ -15,13 +15,22 @@ const rule = (source, selector) => {
   return source.slice(at, source.indexOf('}', at));
 };
 
-test('홈의 채운 버튼은 첫 버튼(일정 만들기) 하나다', () => {
+test('홈의 채운 버튼은 하나다: 평소에는 첫 버튼(일정 만들기), 여행 당일에는 카드의 버튼', () => {
   const filled = shell.match(/[^{}]*\.ionic-home-links[^{}]*\{[^}]*background:\s*var\(--cp-ink\)[^}]*\}/g) || [];
   assert.equal(filled.length, 1);
-  assert.match(filled[0], /\.ionic-home-links button:first-child\s*\{[^}]*color:\s*var\(--cp-surface\)/);
-  assert.match(read('prototype/home-screen.jsx'), /className="ionic-home-links"><button onClick=\{\(\) => navigate\('\/recommend'\)\}>\{t\('shellRecommend'\)\}<\/button><button onClick=/);
-  // 다가오는 여행 카드의 '보기'는 테두리 버튼이다.
-  assert.doesNotMatch(read('domains/itinerary/ui/upcoming-trip.js'), /button \{[^}]*background:\s*var\(--cp-ink\)/);
+  // 바로 위 형제가 여행 당일 카드(today)일 때만 이 규칙이 빠진다. 카드가 없거나 당일이 아니면 일정 만들기가 채워진다.
+  assert.match(filled[0], /(?:^|\})\s*:not\(upcoming-trip\[today\]\) \+ \.ionic-home-links button:first-child\s*\{[^}]*color:\s*var\(--cp-surface\)/);
+  const home = read('prototype/home-screen.jsx');
+  assert.match(home, /className="ionic-home-links"><button onClick=\{\(\) => navigate\('\/recommend'\)\}>\{t\('shellRecommend'\)\}<\/button><button onClick=/);
+  // 형제 선택자가 닿으려면 카드와 두 버튼 사이에 다른 요소가 없어야 한다.
+  assert.match(home, /<upcoming-trip key=\{tripOwner\} uid=\{tripOwner\} \/>\}\s*\{\/\*[^*]*\*\/\}\s*<nav className="ionic-home-links">/);
+  // 카드의 버튼은 여행 당일(daysUntil <= 0)에만 채워지고 그 밖에는 테두리다. 카드가 비면 today 도 내려간다.
+  const card = read('domains/itinerary/ui/upcoming-trip.js');
+  const cardFilled = card.match(/[^{};\n]*\{[^}]*background:\s*var\(--cp-ink\)[^}]*\}/g) || [];
+  assert.equal(cardFilled.length, 1);
+  assert.match(cardFilled[0], /^\s*:host\(\[today\]\) button \{ background:var\(--cp-ink\); color:var\(--cp-surface\); \}$/);
+  assert.match(card, /\n      button \{[^}]*background:var\(--cp-surface\); color:var\(--cp-ink\);/);
+  assert.match(card, /this\.toggleAttribute\('today', Boolean\(this\.trip\) && this\.trip\.daysUntil <= 0\);/);
 });
 
 test('상세 폼의 생성 복구 버튼은 테두리다(주 버튼은 폼의 검토)', () => {

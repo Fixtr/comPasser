@@ -21,6 +21,8 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const [catalogue, setCatalogue] = useState(null);
   const searchId = useId();
   const results = useRef(null);
+  const searchInput = useRef(null);
+  const switchDialog = useRef(null);
   const tripOwner = authSettled && user?.uid;
   const matches = catalogue ? searchCities(query, catalogue.destinations, city => t(city.key)) : [];
   const noMatch = Boolean(catalogue && query.trim() && !matches.length);
@@ -28,15 +30,18 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
   // The city catalogue stays out of the first load; it arrives when the search is first used.
   const loadCatalogue = () => {
     if (catalogue) return;
-    Promise.all([import('../domains/planner/services/travel-destinations.mjs'), import('../domains/planner/services/course-draft.mjs')])
-      .then(([{ destinations }, { cityDestination, setDraftDestination }]) => setCatalogue({ destinations, cityDestination, setDraftDestination }))
+    Promise.all([import('../domains/planner/services/travel-destinations.mjs'), import('../domains/planner/services/course-draft.mjs'), import('../utils/confirm-dialog.js')])
+      .then(([{ destinations }, { cityDestination, setDraftDestination, droppedByDestination }, { showConfirm }]) => setCatalogue({ destinations, cityDestination, setDraftDestination, droppedByDestination, showConfirm }))
       .catch(error => { console.error('City search unavailable:', error); setCatalogue(false); });
   };
   const searchKey = event => {
     // Enter that only finishes a Korean syllable is not a choice (229: Safari reports it after composition ends).
     if (event.nativeEvent.isComposing || event.keyCode === 229 || !matches.length) return;
+    if (event.key !== 'Enter' && event.key !== 'ArrowDown') return;
+    // Also keeps this Enter from pressing the confirm dialog's focused 취소 when the pick opens it.
+    event.preventDefault();
     if (event.key === 'Enter' && matches.length === 1) setPickedCity(matches[0]);
-    else if (event.key === 'Enter' || event.key === 'ArrowDown') { event.preventDefault(); results.current?.querySelector('button')?.focus(); }
+    else results.current?.querySelector('button')?.focus();
   };
 
   // Only signed-in users have saved trips; guests never load the card or its Firestore code.
@@ -49,12 +54,36 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
     if (!pickedCountry && !pickedCity) return;
     if (!active) { setPickedCountry(null); setPickedCity(null); return; }
     if (!authSettled) return;
-    setPickedCountry(null); setPickedCity(null); setQuery('');
+    setPickedCountry(null); setPickedCity(null);
+    if (!pickedCity) {
+      setQuery('');
+      plannerDraftStore.update({ country: pickedCountry, destinationStage: 'city', step: '/destination' });
+      navigate('/destination');
+      return;
+    }
+    const draft = plannerDraftStore.read();
+    const destination = catalogue.cityDestination(pickedCity);
     // A searched city is saved the way the city step's chooseCity saves it, and opens the places step.
-    if (pickedCity) plannerDraftStore.save({ ...catalogue.setDraftDestination(plannerDraftStore.read(), catalogue.cityDestination(pickedCity)), step: '/destination' });
-    else plannerDraftStore.update({ country: pickedCountry, destinationStage: 'city', step: '/destination' });
-    navigate('/destination');
+    const choose = () => {
+      setQuery('');
+      plannerDraftStore.save({ ...catalogue.setDraftDestination(plannerDraftStore.read(), destination), step: '/destination' });
+      navigate('/destination');
+    };
+    // One city per draft: a pick for another city empties the old city's places, so it asks before it does.
+    const dropped = catalogue.droppedByDestination(draft, destination);
+    if (!dropped.length) { choose(); return; }
+    const from = catalogue.destinations.find(city => city.id === draft.destination.id);
+    switchDialog.current = new AbortController();
+    const { signal } = switchDialog.current;
+    void catalogue.showConfirm({
+      title: t('homeCitySwitchTitle'),
+      message: t('homeCitySwitchNotice').replace('{0}', from ? t(from.key) : draft.destination.name).replace('{1}', [...new Set(dropped.map(field => t(`homeCityDrop_${field}`)))].join(', ')),
+      confirmText: t('homeCitySwitchConfirm'), cancelText: t('cancelBtn'), signal,
+    }).then(approved => { if (approved) choose(); else if (!signal.aborted) searchInput.current?.focus(); });
   }, [pickedCountry, pickedCity, catalogue, active, authSettled, navigate]);
+  // Leaving home or changing account closes the question unanswered: nothing is saved later from another screen or for another draft.
+  // Its own effect: the pick effect re-runs as soon as it clears the pick, which would close the dialog at once.
+  useEffect(() => () => switchDialog.current?.abort(), [active, user?.uid]);
 
   useEffect(() => {
     if (!active) return;
@@ -115,7 +144,7 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
       {/* Below the entries: results grow downwards and never push the two buttons under the tab bar. */}
       <div className="ionic-home-search">
         <label htmlFor={searchId}>{t('homeCitySearch')}</label>
-        <input id={searchId} type="search" autoComplete="off" enterKeyHint="search" value={query} onFocus={loadCatalogue} onChange={event => { loadCatalogue(); setQuery(event.target.value); }} onKeyDown={searchKey} />
+        <input id={searchId} ref={searchInput} type="search" autoComplete="off" enterKeyHint="search" value={query} onFocus={loadCatalogue} onChange={event => { loadCatalogue(); setQuery(event.target.value); }} onKeyDown={searchKey} />
         {matches.length > 0 && <ul role="list" className="ionic-home-results" ref={results} aria-label={t('homeCitySearch')}>{matches.map(city => <li key={city.id}><button type="button" onClick={() => setPickedCity(city)}>{t(city.key)} · {t(`country${city.country}`)}</button></li>)}</ul>}
         {/* Always mounted so screen readers announce the text when it appears. */}
         <p role="status">{noMatch && t('homeCityNoMatch')}</p>
