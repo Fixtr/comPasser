@@ -15,6 +15,7 @@ import { localizeBoundaryItem } from '../src/domains/planner/services/planner-co
 import { createVisitedStops, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
 import { departureAdvice } from '../src/domains/itinerary/services/departure-advice.mjs';
 import { travelRegion, localTravelDate } from '../functions/travel-region.mjs';
+import { googleDirectionsUrl } from '../src/domains/itinerary/services/directions-target.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
 const attributePayload = '" autofocus onfocus="alert(1)';
@@ -166,8 +167,8 @@ test('길찾기 팝업에서 장소 이름으로 HTML과 속성을 주입할 수
     body: { appendChild() {} }, addEventListener() {},
   };
   const window = { innerWidth: 800, innerHeight: 600, addEventListener() {} };
-  const open = new Function('escapeHtml', 'document', 'window', 'requestAnimationFrame', `${source}\nreturn openNavPopup;`)(
-    escapeHtml, document, window, callback => callback(),
+  const open = new Function('escapeHtml', 'document', 'window', 'requestAnimationFrame', 't', 'googleDirectionsUrl', `${source}\nreturn openNavPopup;`)(
+    escapeHtml, document, window, callback => callback(), key => key, googleDirectionsUrl,
   );
   open(payload + attributePayload, 'javascript:alert(1)', null, { getElementById: () => null });
   assert.doesNotMatch(popup.innerHTML, /<img|" autofocus|href="javascript:/);

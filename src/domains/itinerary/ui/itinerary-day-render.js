@@ -151,9 +151,10 @@ function buildTimelineItem(view, ctx, scheduleItem, idx) {
     navBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const loc = navBtn.getAttribute('data-location');
+      // Same name the next-stop button uses: a missing or coordinate-only location falls back to the title.
+      const loc = typeof scheduleItem.location === 'string' && scheduleItem.location ? scheduleItem.location : scheduleItem.title;
       const gmaps = navBtn.getAttribute('data-gmaps');
-      openNavPopup(loc, gmaps, navBtn, view.shadowRoot);
+      openNavPopup(loc, gmaps, navBtn, view.shadowRoot, view.currentItinerary?.request || view.currentItinerary?.metadata?.request);
     });
   }
   return item;
@@ -269,5 +270,6 @@ export function updateNextStop(view, dayData) {
   directions.onclick = () => openNavPopup(
     typeof stop.location === 'string' && stop.location ? stop.location : stop.title,
     safeHttpUrl(stop.googleMapsUrl), directions, view.shadowRoot,
+    view.currentItinerary?.request || view.currentItinerary?.metadata?.request,
   );
 }
