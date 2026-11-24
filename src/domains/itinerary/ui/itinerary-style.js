@@ -486,6 +486,19 @@ export const itineraryStyles = `
           color: var(--cp-ink-2);
         }
 
+        .transit-map-btn {
+          align-self: flex-start;
+          min-height: 44px;
+          padding: 0 0.9rem;
+          border: 1px solid var(--cp-rule-hard);
+          background: var(--cp-surface);
+          color: var(--cp-ink);
+          font: inherit;
+          font-size: 0.8rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
         /* Legacy pill (keep for fallback) */
         .transit-pill {
           background: var(--cp-sunken);
@@ -901,12 +914,17 @@ export const itineraryStyles = `
         .departure-card span { color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
         .departure-card span:empty { display: none; }
         .departure-card strong { font-size: 1.25rem; line-height: 1.3; }
+        /* 카드 전체를 덮는 투명 버튼: 누르면 지도가 예약으로 가는 구간을 연다. 글자는 카드가 이미 보여 준다. */
+        .departure-card { position: relative; }
+        .departure-leg-btn { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+        .departure-leg-btn[hidden] { display: none; }
 
         .next-stop { display: none; }
         @media (max-width: 899px) {
           :host([mobile-summary]) .next-stop:not([hidden]) {
             /* 시트 기본 높이에서 타임라인 시작이 보이도록 버튼을 옆으로 둔다. */
             display: grid;
+            position: relative;
             grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
             gap: 0.15rem 0.75rem;
@@ -933,6 +951,9 @@ export const itineraryStyles = `
             font: inherit;
             font-weight: 700;
           }
+          /* 합쳐진 출발 안내: 글자 쪽 칸 전체를 투명 버튼이 덮는다. 격자 칸을 차지하면 글자가 아래로 밀리므로
+             띄워서 1열(길찾기 버튼 왼쪽)에만 맞춘다. */
+          .next-stop .departure-leg-btn { position: absolute; inset: 0; grid-column: 1 / 2; grid-row: auto; width: auto; min-height: 0; padding: 0; background: transparent; }
         }
 
         /* ====== 빈 상태 · 오류 상태 ======

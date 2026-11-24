@@ -6,8 +6,9 @@ import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
 import { getLang, t } from "../../../utils/i18n.js";
 import {
-  MIN_PADDING, centerOffsetFor, toPoint, isSinglePlace
+  MIN_PADDING, SHEET_FRAME_MAX_RATIO, centerOffsetFor, toPoint, isSinglePlace
 } from "../services/map-framing.mjs";
+import { buildLegList } from "../services/map-legs.mjs";
 
 /**
  * 두 장소가 가까우면 `fitBounds` 는 배율을 끝까지 올린다 — 골목 하나만 남고
@@ -58,6 +59,20 @@ function numberPill(text, fill, ink) {
   return pill;
 }
 
+/** 구간 보기에서 양 끝이 아닌 핀을 대신하는 작은 점. 색의 뜻은 핀과 같다. */
+function pinDot(fill) {
+  const dot = document.createElement('div');
+  Object.assign(dot.style, { width: '10px', height: '10px', borderRadius: '50%', background: fill, transform: 'translateY(50%)' });
+  return dot;
+}
+
+/** 추정 구간의 점선. 진하기와 크기만 바꾼다(색은 구간을 구분하는 데 쓰지 않는다). */
+const dashIcons = (SymbolPath, fillOpacity, scale) => [{
+  icon: { path: SymbolPath.CIRCLE, fillOpacity, scale },
+  offset: "0",
+  repeat: "20px"
+}];
+
 function latLngToString(latLng) {
   const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
   const lng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
@@ -83,6 +98,12 @@ export class MapView extends HTMLElement {
     this.markers = [];
     this.directionsRenderers = [];
     this.fallbackPolylines = [];
+    // 구간 보기: 핀과 선을 구간 번호로 다시 찾을 수 있게 따로 적어 둔다.
+    this.pins = [];
+    this.legs = [];
+    this.legRoutes = [];
+    this.legItems = [];
+    this.activeLeg = null;
     this._renderVersion = 0;
 
     this.loader = getMapsLoader();
@@ -112,11 +133,20 @@ export class MapView extends HTMLElement {
     window.addEventListener('render-map-route', this._renderRouteHandler);
     this._cancelRouteHandler = () => this.clearMap();
     window.addEventListener('cancel-map-route', this._cancelRouteHandler);
+    window.removeEventListener('show-map-leg', this._showLegHandler);
+    this._showLegHandler = (e) => this.showLeg(e.detail?.fromIndex);
+    window.addEventListener('show-map-leg', this._showLegHandler);
+    // 일정 화면은 언어가 바뀌어도 지도를 다시 요청하지 않는다. 넘기기 줄의 글자는 여기서 다시 읽는다.
+    window.removeEventListener('i18n-changed', this._languageHandler);
+    this._languageHandler = () => this.updateStepper();
+    window.addEventListener('i18n-changed', this._languageHandler);
   }
 
   disconnectedCallback() {
     window.removeEventListener('render-map-route', this._renderRouteHandler);
     window.removeEventListener('cancel-map-route', this._cancelRouteHandler);
+    window.removeEventListener('show-map-leg', this._showLegHandler);
+    window.removeEventListener('i18n-changed', this._languageHandler);
     this.clearMap();
   }
 
@@ -185,10 +215,61 @@ export class MapView extends HTMLElement {
           pointer-events: none;
         }
 
+        /* 구간 넘기기. 아래쪽은 일정 시트가 덮으므로 지도 위쪽, 셸의 버튼 줄 밑에 둔다
+           (버튼 줄 높이는 셸이 --map-overlay-top 으로 알려 준다). */
+        #leg-stepper {
+          position: absolute;
+          top: var(--map-overlay-top, 12px);
+          left: 12px;
+          right: 12px;
+          z-index: 10;
+          max-width: 26rem;
+          margin: 0 auto;
+          background: var(--cp-surface);
+          border: 1px solid var(--cp-rule-hard);
+          border-radius: var(--cp-radius);
+          color: var(--cp-ink);
+        }
+        #leg-stepper[hidden], #leg-stepper [hidden], #leg-description:empty { display: none; }
+        .leg-row { display: flex; align-items: center; gap: 4px; }
+        #leg-label { flex: 1; text-align: center; font-size: 1rem; white-space: nowrap; }
+        #leg-stepper button {
+          min-width: 44px;
+          min-height: 44px;
+          padding: 0 10px;
+          border: 0;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        #leg-prev, #leg-next { font-size: 1.4rem; }
+        #leg-overview { border-left: 1px solid var(--cp-rule); }
+        #leg-description {
+          margin: 0;
+          padding: 0 10px 8px;
+          color: var(--cp-ink-2);
+          font-size: 0.85rem;
+          text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
       </style>
 
       <div id="map-container"></div>
 
+      <div id="leg-stepper" role="group" hidden>
+        <div class="leg-row">
+          <button type="button" id="leg-prev">‹</button>
+          <strong id="leg-label"></strong>
+          <button type="button" id="leg-next">›</button>
+          <button type="button" id="leg-overview"></button>
+        </div>
+        <p id="leg-description" aria-live="polite"></p>
+      </div>
 
       <div class="loading-overlay hidden" id="loading-overlay" aria-hidden="true">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -198,6 +279,73 @@ export class MapView extends HTMLElement {
         <span style="margin-top: 1rem; font-weight: 500;" id="loading-text"></span>
       </div>
     `;
+    const bar = this.shadowRoot.getElementById('leg-stepper');
+    const press = (id, action) => this.shadowRoot.getElementById(id).addEventListener('click', (e) => {
+      action();
+      // 누른 버튼이 숨으면(첫·마지막 구간, 전체 보기) 초점이 사라지지 않게 남은 버튼으로 옮긴다.
+      if (e.currentTarget.hidden) bar.querySelector('button:not([hidden])')?.focus();
+    });
+    press('leg-prev', () => this.stepLeg(-1));
+    press('leg-next', () => this.stepLeg(1));
+    press('leg-overview', () => this.showOverview());
+  }
+
+  /** 넘기기 줄을 지금 상태(전체 보기 또는 고른 구간)에 맞춘다. 구간이 없으면 숨긴다. */
+  updateStepper() {
+    const el = id => this.shadowRoot.getElementById(id);
+    const bar = el('leg-stepper');
+    if (!bar) return;
+    const list = buildLegList(this.legRoutes, this.legItems, t);
+    const at = list.findIndex(leg => leg.fromIndex === this.activeLeg);
+    bar.hidden = list.length === 0;
+    bar.ariaLabel = t('mapLegGroup');
+    el('leg-label').textContent = at < 0 ? t('mapLegAll') : list[at].label;
+    el('leg-description').textContent = at < 0 ? '' : list[at].description;
+    Object.assign(el('leg-prev'), { hidden: at <= 0, ariaLabel: t('mapLegPrev') });
+    Object.assign(el('leg-next'), { hidden: at === list.length - 1, ariaLabel: t('mapLegNext') });
+    Object.assign(el('leg-overview'), { hidden: at < 0, textContent: t('mapLegOverview') });
+  }
+
+  /** 전체 보기에서 '다음'은 첫 구간이다. */
+  stepLeg(delta) {
+    const list = buildLegList(this.legRoutes, this.legItems, t);
+    const next = list[list.findIndex(leg => leg.fromIndex === this.activeLeg) + delta];
+    if (next) this.showLeg(next.fromIndex);
+  }
+
+  /**
+   * 이미 그린 선 가운데 하나를 고른다. 경로를 새로 묻지 않는다(Directions 0회).
+   * @param {number} fromIndex 구간이 시작하는 일정 자리(0부터)
+   */
+  showLeg(fromIndex) {
+    const leg = this.legs.find(entry => entry.fromIndex === fromIndex);
+    if (!leg || !this.map) return;
+    this.activeLeg = fromIndex;
+    this.paintLegs();
+    this.updateStepper();
+    this.frameToItems(leg.frame.map(latLng => ({ latLng })));
+  }
+
+  showOverview() {
+    if (this.activeLeg === null) return;
+    this.activeLeg = null;
+    this.paintLegs();
+    this.updateStepper();
+    if (this.map && this._dayFrame) this.frameToItems(...this._dayFrame);
+  }
+
+  /** 고른 구간만 진하게, 나머지는 흐리게. 노선 표지는 DirectionsRenderer 가 그리므로 고른 구간에만 붙인다. */
+  paintLegs() {
+    const active = this.legs.find(leg => leg.fromIndex === this.activeLeg);
+    this.legs.forEach(leg => {
+      leg.paint(leg === active, Boolean(active) && leg !== active);
+      leg.renderer?.setMap(leg === active ? this.map : null);
+    });
+    // 합쳐진 핀('1·6')은 번호 하나라도 구간의 끝이면 그대로 둔다.
+    this.pins.forEach(({ marker, numbers, pin, dot }) => {
+      const isEnd = !active || numbers.includes(active.fromIndex + 1) || numbers.includes(active.toIndex + 1);
+      marker.content = isEnd ? pin : dot;
+    });
   }
 
   setLoading(isLoading, text = '') {
@@ -245,6 +393,12 @@ export class MapView extends HTMLElement {
     this.directionsRenderers = [];
     this.fallbackPolylines.forEach(p => p.setMap(null));
     this.fallbackPolylines = [];
+    // 날짜를 바꾸거나 경로를 다시 그리면 전체 보기에서 시작한다.
+    this.pins = [];
+    this.legs = [];
+    this.legRoutes = [];
+    this.activeLeg = null;
+    this.updateStepper();
   }
 
   clearMap() {
@@ -302,6 +456,7 @@ export class MapView extends HTMLElement {
       // Tag every item with its timeline position first: geocoding drops
       // failures, so array order alone would desync pins from the list below.
       const scheduleItems = day.scheduleItems.map((item, index) => ({ ...item, displayIndex: index + 1 }));
+      this.legItems = scheduleItems;
       const geocodedItems = await this.geocodingService.geocodeSchedule(scheduleItems, day.date, itineraryPlan.excludedPlaceIds, itineraryPlan.budget, travelRegion(itineraryPlan.request).countryCode, itineraryPlan.request?.destination?.id);
       if (!isCurrent()) return;
 
@@ -330,6 +485,7 @@ export class MapView extends HTMLElement {
       //    예전에는 고정 일정 한 곳에 배율 14 를 박아, 나머지가 화면 밖에
       //    있어도 알 수 없었다. 한 곳뿐이면 그때 고정 일정을 가운데 둔다.
       const anchorItem = geocodedItems.find(item => item.type === 'AnchorSchedule');
+      this._dayFrame = [geocodedItems, anchorItem];
       this.frameToItems(geocodedItems, anchorItem, isCurrent);
 
       // 3. Render Markers on Map
@@ -366,12 +522,17 @@ export class MapView extends HTMLElement {
    * 재는 일은 그 DOM 을 아는 셸 화면이 하고(`ionic-screens.jsx`), 지도는 부르기만 한다.
    */
   currentPadding() {
+    let padding = DEFAULT_PADDING;
     try {
-      return this.getFrameInsets?.() || DEFAULT_PADDING;
+      padding = this.getFrameInsets?.() || DEFAULT_PADDING;
     } catch (e) {
       console.warn('[Map] 여백을 재지 못했습니다.', e);
-      return DEFAULT_PADDING;
     }
+    // 넘기기 줄도 지도를 덮는다. 다만 시트와 합쳐 지도를 전부 가리지는 않게 한다.
+    const bar = this.shadowRoot.getElementById('leg-stepper');
+    const covered = bar?.offsetHeight ? bar.offsetTop + bar.offsetHeight + MIN_PADDING : 0;
+    const top = Math.min(covered, this.clientHeight * SHEET_FRAME_MAX_RATIO - padding.bottom);
+    return top > padding.top ? { ...padding, top } : padding;
   }
 
   /** 화면 방향이 바뀌면 덮이는 자리가 달라지므로 마지막 경로를 다시 맞춘다. */
@@ -451,6 +612,7 @@ export class MapView extends HTMLElement {
       });
 
       this.markers.push(marker);
+      this.pins.push({ marker, numbers, pin: pinView, dot: pinDot(fill) });
     });
   }
 
@@ -509,18 +671,19 @@ export class MapView extends HTMLElement {
       }
 
       // Delegate to RoutingService
-      const drawDashed = () => this.fallbackPolylines.push(new Polyline({
-        path: [origin, destination],
-        strokeOpacity: 0,
-        icons: [{
-          icon: { path: SymbolPath.CIRCLE, fillOpacity: 1, scale: 3 },
-          offset: "0",
-          repeat: "20px"
-        }],
-        strokeColor: segmentColor,
-        strokeWeight: 2,
-        map: this.map
-      }));
+      const drawDashed = () => {
+        const line = new Polyline({
+          path: [origin, destination],
+          strokeOpacity: 0,
+          icons: dashIcons(SymbolPath, 1, 3),
+          strokeColor: segmentColor,
+          strokeWeight: 2,
+          map: this.map
+        });
+        this.fallbackPolylines.push(line);
+        this.legs.push({ fromIndex, toIndex, frame: [origin, destination],
+          paint: (on, dim) => line.setOptions({ icons: dashIcons(SymbolPath, dim ? 0.25 : 1, on ? 4 : 3), zIndex: on ? 1 : 0 }) });
+      };
       return this.routingService.getTransitRoute(origin, destination, departureTime, { countryCode }).then(response => {
         if (!isCurrent()) return null;
         if (response.estimated) {
@@ -532,8 +695,11 @@ export class MapView extends HTMLElement {
             durationMinutes: minutes, distance: '', mode: transit ? 'TRANSIT' : 'WALKING', estimated: true, steps: [],
             directionsUrl, warnings: [t(transit ? 'estimatedTransitNote' : 'estimatedWalkNote')] };
         }
+        // DirectionsRenderer 는 선과 함께 버스·지하철 노선 표지를 그리고, 표지만 끄는 옵션이 없다.
+        // 그래서 전체 보기의 선은 응답에 들어 있는 경로로 직접 그리고(추가 요청 없음),
+        // 렌더러는 그 구간을 골랐을 때만 지도에 붙인다(showLeg).
         const renderer = new DirectionsRenderer({
-          map: this.map,
+          map: null,
           suppressMarkers: true,
           preserveViewport: true,
           polylineOptions: {
@@ -544,6 +710,20 @@ export class MapView extends HTMLElement {
         });
         renderer.setDirections(response);
         this.directionsRenderers.push(renderer);
+        const path = response.routes[0]?.overview_path;
+        const line = new Polyline({
+          path: path?.length ? path : [origin, destination],
+          strokeColor: segmentColor,
+          strokeOpacity: 0.8,
+          strokeWeight: 4,
+          map: this.map
+        });
+        this.fallbackPolylines.push(line);
+        const bounds = response.routes[0]?.bounds;
+        this.legs.push({ fromIndex, toIndex, renderer,
+          // 길이 두 끝점 밖으로 돌아가면 그만큼 넓혀 맞춘다.
+          frame: [origin, destination, ...(bounds?.getNorthEast ? [bounds.getNorthEast(), bounds.getSouthWest()] : [])],
+          paint: (on, dim) => line.setOptions({ strokeOpacity: dim ? 0.25 : on ? 1 : 0.8, strokeWeight: on ? 6 : 4, zIndex: on ? 1 : 0 }) });
 
         const leg = response.routes[0]?.legs[0];
         let routeResult = null;
@@ -652,6 +832,11 @@ export class MapView extends HTMLElement {
     let transitRoutes = await Promise.all(routePromises);
     if (!isCurrent()) return;
     transitRoutes = transitRoutes.filter(route => route !== null);
+
+    this.legRoutes = transitRoutes;
+    this.updateStepper();
+    // 넘기기 줄이 생기면 위쪽이 덮인다. 그날 전체를 그만큼 내려 다시 맞춘다.
+    if (buildLegList(transitRoutes).length) this.reframe();
 
     // Broadcast transit details back to itinerary view using the old bus channel
     window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context, routes: transitRoutes } }));

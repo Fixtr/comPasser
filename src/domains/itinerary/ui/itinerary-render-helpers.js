@@ -9,6 +9,9 @@ export function transitDurationText(leg) {
   return (Number.isFinite(leg?.displayMinutes) && formatMinutes(leg.displayMinutes, getLang())) || leg?.duration || '';
 }
 
+// 지도는 이 이벤트를 듣고 이미 그린 구간을 연다(지도 모듈을 직접 부르지 않는다).
+export const showMapLeg = fromIndex => window.dispatchEvent(new CustomEvent('show-map-leg', { detail: { fromIndex } }));
+
 /**
  * itinerary-view.js 의 대중교통/일정 요약 렌더링 로직. nav-popup.js 와 같은
  * 패턴 — 컴포넌트 인스턴스(this) 대신 shadowRoot 를 명시적으로 받는 독립
@@ -196,8 +199,14 @@ export function renderTransitInfo(shadowRoot, transitRoutes, items = []) {
         ${(detail.estimated ? [t(detail.mode === 'TRANSIT' ? 'estimatedTransitNote' : 'estimatedWalkNote')] : Array.isArray(detail.warnings) ? detail.warnings : []).map(warning => `<div role="note">${escapeHtml(warning)}</div>`).join('')}
         ${freeTime}
         ${detail.directionsUrl ? `<div class="transit-verify">${escapeHtml(t('transitVerify') || '구글 지도에서 경로 확인')}</div>` : ''}
+        <button type="button" class="transit-map-btn">${escapeHtml(t('mapLegShow'))}</button>
       </div>
     `;
+    // 카드 전체가 구글 지도 링크라서, 이 버튼의 클릭은 카드까지 올라가지 않게 한다.
+    el.querySelector?.('.transit-map-btn')?.addEventListener('click', event => {
+      event.stopPropagation();
+      showMapLeg(detail.fromIndex);
+    });
 
     // 카드 클릭 → 구글 지도 대중교통 길찾기로 해당 구간 검증
     if (detail.directionsUrl) {

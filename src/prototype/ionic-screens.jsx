@@ -365,6 +365,13 @@ export function ResultScreen({ path, active, user, authSettled, settings }) {
   // On a phone the missing-trip card opens to full height instead of leaving an empty map above it.
   useEffect(() => { if (missing && ready && active && !desktop) void sheet.current?.setCurrentBreakpoint(1); }, [missing, ready, active, desktop]);
 
+  // '지도에서 보기' opens a leg on the map; only a full-height sheet hides the map, so bring that one down.
+  useEffect(() => {
+    const showMap = () => { if (fullSheet.current) void sheet.current?.setCurrentBreakpoint(RESULT_SHEET_DEFAULT); };
+    window.addEventListener('show-map-leg', showMap);
+    return () => window.removeEventListener('show-map-leg', showMap);
+  }, []);
+
   // The map only knows it is covered through this; on a phone the sheet and button row take most of it.
   useEffect(() => {
     const view = mapView.current;

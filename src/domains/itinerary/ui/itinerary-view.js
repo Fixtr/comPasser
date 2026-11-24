@@ -20,7 +20,7 @@ import {
   getTransitStyle,
   getTransitModeText,
   renderTransitStep,
-  renderTransitInfo
+  renderTransitInfo, showMapLeg
 } from './itinerary-render-helpers.js';
 import { showToast as showGlobalToast } from '../../../utils/toast.js';
 import { verifyRouteImprovement, startRouteImprovement, applyTransitDelaysToActiveDay } from './itinerary-transit-adjust.js';
@@ -103,6 +103,9 @@ export default class ItineraryView extends HTMLElement {
     const replanButton = this.shadowRoot.getElementById('replan-trip-btn');
     replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
+    for (const id of ['departure-leg-btn', 'next-stop-leg-btn']) {
+      this.shadowRoot.getElementById(id)?.addEventListener('click', () => showMapLeg(this._departureLeg));
+    }
     // 읽기 모드가 기본이다. 편집 버튼은 그대로 그려 두고 호스트 속성으로 CSS 가 숨긴다.
     this.shadowRoot.getElementById('edit-mode-btn')?.addEventListener('click', () => {
       // 모듈 값이 아니라 이 화면의 상태를 뒤집는다. 뒤에 쌓여 있던 화면에서도 한 번에 바뀐다.
@@ -567,8 +570,9 @@ export default class ItineraryView extends HTMLElement {
             <span id="next-stop-time"></span>
             <span id="next-stop-departure"></span>
             <button type="button" id="next-stop-directions"></button>
+            <button type="button" id="next-stop-leg-btn" class="departure-leg-btn" data-i18n-aria="mapLegShow" hidden></button>
           </section>
-          <section id="departure-card" class="departure-card" data-i18n-aria="departCardLabel" hidden><span></span><strong></strong><span></span></section>
+          <section id="departure-card" class="departure-card" data-i18n-aria="departCardLabel" hidden><span></span><strong></strong><span></span><button type="button" id="departure-leg-btn" class="departure-leg-btn" data-i18n-aria="mapLegShow" hidden></button></section>
           <span id="day-modified" data-i18n="flowChanged" hidden></span><button type="button" id="undo-deletion-btn" data-i18n="flowUndo" hidden></button>
           <button type="button" id="replan-trip-btn" class="end-time-fix-btn" data-i18n="replanBtn" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
