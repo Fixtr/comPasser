@@ -1,4 +1,5 @@
 import { tFor } from '../../../utils/i18n.js';
+import { toPlannerDraft } from './planner-draft.mjs';
 
 export const cityDestination = city => ({ id: city.id, country: city.country, name: `${tFor(city.key, 'en')}, ${tFor(`country${city.country}`, 'en')}` });
 
@@ -8,6 +9,18 @@ export function setDraftDestination(draft, destination) {
   const moved = draft.destination && draft.destination.id !== destination.id;
   return { ...draft, country: destination.country, destination, destinationStage: 'places',
     ...(moved ? { anchorSchedules: [], stays: [], dailyLocations: null, endLocation: '' } : {}) };
+}
+
+// Text anywhere inside counts; rows that hold only dates, times or day numbers (a stay added but not yet named) do not.
+const holds = value => typeof value === 'string' ? value.trim() !== '' : Boolean(value) && typeof value === 'object'
+  && Object.entries(value).some(([key, inner]) => !['checkin', 'checkout', 'time', 'endTime'].includes(key) && holds(inner));
+
+// The fields a pick would empty, read off setDraftDestination and the shape the store saves (toPlannerDraft also
+// recomputes overnightLocations from the emptied stays), so this cannot drift from what is really lost.
+export function droppedByDestination(draft, destination) {
+  const before = toPlannerDraft(draft);
+  const after = toPlannerDraft(setDraftDestination(draft, destination));
+  return Object.keys(before).filter(key => holds(before[key]) && !holds(after[key]));
 }
 
 export function addCourseToDraft(draft, course, language = 'ko') {

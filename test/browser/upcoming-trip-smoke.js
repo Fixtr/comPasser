@@ -19,7 +19,16 @@ async (page) => {
     window.navigate('/');
   });
   await page.locator('.ionic-home h1:visible').waitFor();
+  // Which of home's two candidates is filled: a filled button's background is its border colour, an outlined one's is not.
+  const filled = () => page.evaluate(() => {
+    const isFilled = button => getComputedStyle(button).backgroundColor === getComputedStyle(button).borderTopColor;
+    const create = [...document.querySelectorAll('.ionic-home-links button:first-child')].find(button => button.getClientRects().length > 0);
+    const open = [...document.querySelectorAll('upcoming-trip')].find(element => element.getClientRects().length > 0)?.shadowRoot.querySelector('button');
+    return { create: isFilled(create), card: open ? isFilled(open) : null };
+  });
+  const sameFilled = (actual, create, card) => actual.create === create && actual.card === card;
   check(await page.locator('upcoming-trip').count() === 0, 'Guests must not get the upcoming trip card');
+  check(sameFilled(await filled(), true, null), 'Without a card 일정 만들기 must be the filled button');
   results.push('PASS guest home has no upcoming trip card');
 
   await page.evaluate(() => window.__smoke.setUser({ uid: 'smokeOwner', displayName: '검증 계정', emailVerified: true, providerData: [] }));
@@ -27,6 +36,7 @@ async (page) => {
   await card.locator('.status').filter({ hasText: '다가오는 여행 · D-2' }).waitFor();
   check((await card.locator('h2').textContent()).includes('2박 3일'), 'Untitled trip must show its built title');
   check(await card.locator('.dates').textContent() === '9월 15일~9월 17일', 'Card must show the trip date range');
+  check(sameFilled(await filled(), true, false), 'Before the trip 일정 만들기 stays filled and the card button outlined');
   results.push('PASS nearest future trip with D-2, built title and date range');
   await page.setViewportSize({ width: 390, height: 844 });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Home with the card must not overflow on a phone');
@@ -56,6 +66,7 @@ async (page) => {
   check(await card.count() === 1, 'Only the shown home page may mount the card');
   // On a trip day the button names today's plan; before the trip it stays 보기 (clicked above).
   check(await card.getByRole('button', { name: /^오늘 일정 열기: 진행 중 여행$/ }).textContent() === '오늘 일정 열기', 'A trip day must label the button 오늘 일정 열기');
+  check(sameFilled(await filled(), false, true), 'On a trip day the card button is the one filled button and 일정 만들기 is outlined');
   results.push('PASS ongoing trip shows its day number, one card after / then /home');
   // Slow CI can leave both mounted home pages stacked, so their language buttons cover each other; a reload leaves one page.
   await page.reload();

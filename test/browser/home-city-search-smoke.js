@@ -89,12 +89,43 @@ async (page) => {
   await search.fill('부');
   await busan.waitFor();
   check(await draft() === before, 'Opening home and searching must not touch the saved draft');
+  // Another city would drop the Seoul visit, so the pick asks first; cancelling changes nothing and returns to the field.
   await busan.click();
+  const dialog = page.getByRole('alertdialog', { name: '도시를 바꿀까요?' });
+  check(await dialog.locator('.confirm-message').textContent() === '서울 여행에 담아 둔 내용이 지워져요: 꼭 갈 장소', 'The dialog must name the city and what the pick removes');
+  await dialog.getByRole('button', { name: '취소', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  check(new URL(page.url()).pathname === '/' && await draft() === before, 'Cancelling must stay on home with the draft untouched');
+  check(await search.inputValue() === '부' && await search.evaluate(input => input === document.activeElement), 'Cancelling must keep the query and return focus to the search field');
+  // Enter on the single match asks too, and Escape cancels the same way.
+  await search.press('Enter');
+  await dialog.waitFor();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached' });
+  check(await draft() === before && await search.evaluate(input => input === document.activeElement), 'Enter on a single match must ask before dropping the draft');
+  // Leaving home with the question open closes it unanswered, so nothing can be confirmed from another screen.
+  await busan.click();
+  await dialog.waitFor();
+  await page.goBack();
+  await dialog.waitFor({ state: 'detached' });
+  check(new URL(page.url()).pathname !== '/' && await draft() === before, 'Leaving home must close the question without saving');
+  await home();
+  await busan.click();
+  await dialog.getByRole('button', { name: '바꾸기', exact: true }).click();
   await page.waitForURL('**/destination');
   saved = JSON.parse(await draft());
   check(saved.destination?.id === 'busan' && saved.anchorSchedules.length === 0 && saved.startLocation === '서울역' && saved.date[0] === '2030-10-01',
     'A pick for another city follows the one-city draft rule: visits dropped, dates and start kept');
-  results.push('PASS a signed-in draft is unchanged until a city is picked');
+  results.push('PASS a signed-in draft is unchanged until a pick for another city is confirmed');
+  // The same city, and a draft with nothing to drop, never ask.
+  for (const [typed, name, id] of [['부', '부산', 'busan'], ['서울', '서울', 'seoul'], ['부', '부산', 'busan']]) {
+    await home();
+    await search.fill(typed);
+    await box.getByRole('button', { name: `${name} · 대한민국`, exact: true }).click();
+    await page.waitForURL('**/destination');
+    check(await dialog.count() === 0 && JSON.parse(await draft()).destination?.id === id, 'A pick that drops nothing must not ask');
+  }
+  results.push('PASS no question when the pick drops nothing');
 
   // A pick made before auth settles waits, then lands on the draft that sign-in restores instead of being overwritten by it.
   await page.evaluate(() => { sessionStorage.removeItem('currentFormData'); sessionStorage.setItem('__smoke_auth_hold', '1'); });

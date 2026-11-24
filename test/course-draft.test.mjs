@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addCourseToDraft, cityDestination, setDraftDestination } from '../src/domains/planner/services/course-draft.mjs';
+import { addCourseToDraft, cityDestination, droppedByDestination, setDraftDestination } from '../src/domains/planner/services/course-draft.mjs';
 import { curatedRoute } from '../src/domains/itinerary/services/public-route.mjs';
 import { destinationById } from '../src/domains/planner/services/travel-destinations.mjs';
 
@@ -21,6 +21,23 @@ test('a draft plans one city: another city drops the old visits and stays, the s
   assert.deepEqual(setDraftDestination(seoulDraft(), seoul), seoulDraft());
   // A draft with no city yet (new or legacy) has nothing to mix with, so it keeps its visits.
   assert.deepEqual(setDraftDestination({ anchorSchedules: [forest] }, tokyo).anchorSchedules, [forest]);
+});
+
+test('a pick for another city names what it would drop; nothing to drop means nothing to ask', () => {
+  const dated = () => ({ ...seoulDraft(), date: ['2026-10-01', '2026-10-02'] });
+  // Everything the saved draft loses, and only that: a new cleared field shows up here and needs a label (homeCityDrop_*).
+  assert.deepEqual(droppedByDestination(dated(), tokyo), ['stays', 'endLocation', 'dailyLocations', 'overnightLocations', 'anchorSchedules']);
+  assert.deepEqual(droppedByDestination({ ...dated(), stays: [], dailyLocations: null }, tokyo), ['endLocation', 'anchorSchedules']);
+  assert.deepEqual(droppedByDestination(dated(), seoul), []);
+  assert.deepEqual(droppedByDestination({ anchorSchedules: [forest] }, tokyo), []);
+  // Dates, start and preferences survive the move, and rows that hold only dates, times or day numbers are not content.
+  assert.deepEqual(droppedByDestination({ destination: seoul, country: 'KOR', date: ['2026-10-01', '2026-10-02'], startLocation: 'Seoul Station', theme: 'food',
+    anchorSchedules: [{ day: 1, name: '', location: '', time: '15:00', endTime: '16:00' }], stays: [{ location: '', checkin: '2026-10-01', checkout: '2026-10-02' }],
+    dailyLocations: [{ day: 1, startLocation: '', endLocation: '' }], endLocation: '' }, tokyo), []);
+  // A picked place is stored as an object, not a string.
+  assert.deepEqual(droppedByDestination({ destination: seoul, anchorSchedules: [], endLocation: { placeId: 'x', displayName: 'Seoul Station', formattedAddress: 'Seoul', lat: 37.55, lng: 126.97 } }, tokyo), ['endLocation']);
+  // A request saved without stays keeps its lodging in overnightLocations; saving the pick recomputes that from the emptied stays.
+  assert.deepEqual(droppedByDestination({ destination: seoul, date: ['2026-10-01', '2026-10-02', '2026-10-03'], overnightLocations: ['Hotel X', 'Hotel Y'] }, tokyo), ['overnightLocations']);
 });
 
 test('copying a course for another city replaces that city’s visits; Korean courses carry their city', () => {
