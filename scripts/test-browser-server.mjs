@@ -21,6 +21,9 @@ const server = await createServer({
   root: fileURLToPath(new URL('../', import.meta.url)),
   configFile: fileURLToPath(new URL('../vite.config.js', import.meta.url)),
   envDir: ENV_DIR,
+  // Worktrees share node_modules through a symlink, and every server start rewrites Vite's dependency cache there.
+  // A second checkout starting its server would delete the chunks this one is still serving, so keep the cache here.
+  cacheDir: fileURLToPath(new URL(`../test-results/vite-cache-${port}`, import.meta.url)),
   server: { host: '127.0.0.1', port, strictPort: true },
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await server.close(); process.exit(0); });
