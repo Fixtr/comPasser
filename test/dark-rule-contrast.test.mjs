@@ -25,3 +25,13 @@ test('다크 모드의 버튼·입력칸 테두리는 어느 배경에서도 3:1
     assert.ok(contrast(token('rule'), token(background)) >= 3, background);
   }
 });
+
+test('예약 보라는 라이트와 다크 양쪽에서 글자 4.5:1, 테두리 3:1 을 넘는다 (WCAG 1.4.3, 1.4.11)', () => {
+  const light = name => tokens.match(new RegExp(`--cp-${name}:\\s*(#[0-9a-fA-F]{6})`))[1];
+  for (const [theme, read] of [['light', light], ['dark', token]]) {
+    // 배지와 출발 카드는 surface 위, 화면 바탕은 paper, 눌린 영역은 sunken. 번호 노드는 보라 배경에 surface 글자다.
+    for (const background of ['paper', 'surface', 'sunken']) {
+      assert.ok(contrast(read('anchor'), read(background)) >= 4.5, `${theme} ${background}`);
+    }
+  }
+});

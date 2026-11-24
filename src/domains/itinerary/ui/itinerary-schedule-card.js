@@ -58,6 +58,7 @@ export function renderScheduleCard(scheduleItem, idx, editable, visited) {
     <div class="schedule-card" data-type="${escapeHtml(scheduleItem.type)}" data-index="${idx + 1}"${scheduleItem.addedByUser ? ' data-added="true"' : ''}${visited ? ' data-visited="true"' : ''}>
       <div class="schedule-title-row">
         <span class="schedule-title">${escapeHtml(scheduleItem.title)}</span>
+        ${scheduleItem.type === 'AnchorSchedule' && scheduleItem.flexible !== true ? `<span class="anchor-badge" data-i18n="anchorBadge">${t('anchorBadge')}</span>` : ''}
         ${editHtml}
       </div>
       ${visited === undefined || !isVisitableStop(scheduleItem) ? '' : `<button type="button" class="visited-btn" aria-pressed="${visited}" aria-label="${escapeHtml(t('visitedAria').replace('{0}', scheduleItem.title))}"><span aria-hidden="true">✓</span> ${escapeHtml(t('visitedBtn'))}</button>`}

@@ -14,7 +14,8 @@ export const itineraryStyles = `
         .visited-btn[aria-pressed="true"] { color: var(--cp-ok); background: var(--cp-ok-bg); border-color: var(--cp-ok); }
         .visited-btn[aria-pressed="true"] > span { visibility: visible; }
         .visited-btn:focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
-        .schedule-card[data-visited] > :not(.visited-btn) { opacity: .55; }
+        /* '확정' 배지는 흐리지 않는다(흐리면 작은 보라 글자의 대비가 모자란다). */
+        .schedule-card[data-visited] > :not(.visited-btn, .schedule-title-row), .schedule-card[data-visited] .schedule-title-row > :not(.anchor-badge) { opacity: .55; }
         .visit-hours { font-size: .85rem; line-height: 1.5; padding: 8px; border: 1px solid var(--cp-rule); }
         .visit-hours[hidden] { display: none; }
         .visit-hours[data-status="conflict"], .visit-hours[data-status="closed"] { color: var(--cp-danger); background: var(--cp-danger-bg); border-color: var(--cp-danger); }
@@ -320,6 +321,13 @@ export const itineraryStyles = `
           background: var(--cp-anchor);
           border-color: var(--cp-anchor);
           color: var(--cp-surface);
+        }
+
+        /* 색만으로는 약하다(보라와 잉크의 밝기 차 약 2:1). '확정' 글자를 함께 둔다. 탑승권의 배지와 같은 모양. */
+        .anchor-badge {
+          flex-shrink: 0; margin-right: auto; padding: 4px 7px; line-height: 1;
+          font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+          color: var(--cp-anchor); border: 1px solid var(--cp-anchor); border-radius: var(--cp-radius);
         }
 
         /* 그날의 첫 장소도 지도 핀과 같은 색을 쓴다. */
@@ -895,10 +903,13 @@ export const itineraryStyles = `
           opacity: 0.75;
         }
 
-        /* 여행 당일 카드. 상태는 글자로 알린다(색은 쓰지 않는다). */
+        /* 여행 당일 카드. 상태는 글자로 알린다. 보라는 예약이라는 뜻만 더한다(지도의 보라 핀과 같다). */
         .departure-card:not([hidden]) { display: grid; gap: 0.15rem; padding: 0.75rem; margin-bottom: 0.75rem;
           background: var(--cp-surface); border: 2px solid var(--cp-ink); color: var(--cp-ink); }
         .departure-card span { color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
+        /* next 는 예약이 아닌 다음 방문지다. 첫 줄은 예약 시각과 이름이다. */
+        .departure-card:not([data-state="next"]) { border-color: var(--cp-anchor); }
+        .departure-card:not([data-state="next"]) span:first-child { color: var(--cp-anchor); }
         .departure-card span:empty { display: none; }
         .departure-card strong { font-size: 1.25rem; line-height: 1.3; }
 
@@ -919,7 +930,9 @@ export const itineraryStyles = `
           /* 같은 다음 방문지를 두 번 보여 주지 않는다. */
           :host([mobile-summary]) .departure-card:is([data-state="next"], [data-merged]) { display: none; }
           .next-stop span:empty { display: none; }
-          #next-stop-departure { color: var(--cp-ink); }
+          /* 이 줄은 다음 목적지가 예약일 때만 채워진다. */
+          #next-stop-departure { color: var(--cp-anchor); }
+          :host([mobile-summary]) .next-stop:has(#next-stop-departure:not(:empty)) { border-color: var(--cp-anchor); }
           .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
           .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }
           .next-stop button {
@@ -932,6 +945,10 @@ export const itineraryStyles = `
             color: var(--cp-surface);
             font: inherit;
             font-weight: 700;
+          }
+          /* 채운 버튼은 화면에 하나다. 저장할 것이 있으면 저장이 주 행동이고 길찾기는 테두리로 내린다. */
+          #results:has(.save-btn:not(:disabled)) .next-stop button {
+            background: var(--cp-surface); color: var(--cp-ink); border: 2px solid var(--cp-ink);
           }
         }
 
