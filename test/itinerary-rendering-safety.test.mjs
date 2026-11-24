@@ -13,6 +13,8 @@ import { minutesOf } from '../src/domains/itinerary/services/itinerary-schedule-
 import { buildItineraryCalendar } from '../src/domains/itinerary/services/itinerary-calendar.mjs';
 import { localizeBoundaryItem } from '../src/domains/planner/services/planner-constraints.mjs';
 import { createVisitedStops, stopKeys, isVisitableStop, pickNextStop } from '../src/domains/itinerary/services/visited-stops.mjs';
+import { departureAdvice } from '../src/domains/itinerary/services/departure-advice.mjs';
+import { travelRegion, localTravelDate } from '../functions/travel-region.mjs';
 
 const payload = '<img src=x onerror="alert(1)">';
 const attributePayload = '" autofocus onfocus="alert(1)';
@@ -53,6 +55,7 @@ function viewHarness({ user = null } = {}) {
     Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, localizeBoundaryItem, refreshReplanButton() {},
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     stopNoteKeys: () => [], attachStopNoteControl() {},
+    travelRegion, localTravelDate, departureAdvice, transitDurationText: () => '',
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));

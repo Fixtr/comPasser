@@ -2,6 +2,7 @@ import { t } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { refreshHours } from './itinerary-hours.js';
 import { refreshRainBanner } from './rain-banner.js';
+import { refreshDepartureCard } from './departure-card.js';
 import { hoursPlaceId, lookupPlaceHours } from '../services/itinerary-hours.mjs';
 import { suggestRouteOrder, improveMeasuredRouteOrder } from '../services/itinerary-route-order.mjs';
 import { createFlexibleVisitChecks } from '../../planner/services/flexible-visit-checks.js';
@@ -131,4 +132,5 @@ export function applyTransitDelaysToActiveDay(view, transitRoutes) {
   view.updateNextStop({ ...dayData, scheduleItems });
   refreshHours(view);
   refreshRainBanner(view);
+  refreshDepartureCard(view);
 }

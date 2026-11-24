@@ -10,6 +10,7 @@ export const ITINERARY_VIEW_FILES = [
   'src/domains/itinerary/ui/itinerary-notices.js',
   'src/domains/itinerary/ui/itinerary-day-render.js',
   'src/domains/itinerary/ui/itinerary-transit-adjust.js',
+  'src/domains/itinerary/ui/departure-card.js',
 ];
 
 export const readItineraryViewSource = () => ITINERARY_VIEW_FILES

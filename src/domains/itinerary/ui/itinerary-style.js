@@ -882,6 +882,13 @@ export const itineraryStyles = `
           opacity: 0.75;
         }
 
+        /* 여행 당일 카드. 상태는 글자로 알린다(색은 쓰지 않는다). */
+        .departure-card:not([hidden]) { display: grid; gap: 0.15rem; padding: 0.75rem; margin-bottom: 0.75rem;
+          background: var(--cp-surface); border: 2px solid var(--cp-ink); color: var(--cp-ink); }
+        .departure-card span { color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
+        .departure-card span:empty { display: none; }
+        .departure-card strong { font-size: 1.25rem; line-height: 1.3; }
+
         .next-stop { display: none; }
         @media (max-width: 899px) {
           :host([mobile-summary]) .next-stop:not([hidden]) {
@@ -896,6 +903,8 @@ export const itineraryStyles = `
             border: 2px solid var(--cp-ink);
             color: var(--cp-ink);
           }
+          /* 같은 다음 방문지를 두 번 보여 주지 않는다. */
+          :host([mobile-summary]) .departure-card[data-state="next"] { display: none; }
           .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
           .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }
           .next-stop button {

@@ -7,6 +7,7 @@ import { isEditableItem } from '../services/itinerary-edit.mjs';
 import { refreshHours } from './itinerary-hours.js';
 import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton } from './itinerary-replan.js';
+import { refreshDepartureCard } from './departure-card.js';
 import { openVisitTimeEditor } from './visit-time-editor.js';
 import { attachStopNoteControl } from './stop-note-editor.js';
 import { stopNoteKeys } from '../services/stop-notes.mjs';
@@ -127,6 +128,7 @@ function buildTimelineItem(view, ctx, scheduleItem, idx) {
     e.currentTarget.closest('.schedule-card').toggleAttribute('data-visited', on);
     view.updateNextStop(day);
     refreshReplanButton(view);
+    refreshDepartureCard(view);
     refreshRainBanner(view);
   });
 
@@ -184,6 +186,8 @@ export function renderActiveDay(view, safePlan) {
   view.refreshTransitNotice();
   view.refreshCostSummary();
   refreshRainBanner(view);
+  refreshReplanButton(view); // the late card's hint names this button
+  refreshDepartureCard(view);
   
   // Update Tabs UI
   const tabsContainer = view.shadowRoot.getElementById('day-tabs-container');

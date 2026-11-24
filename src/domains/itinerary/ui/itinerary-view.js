@@ -12,6 +12,7 @@ import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { refreshHours } from './itinerary-hours.js';
 import { refreshRainBanner } from './rain-banner.js';
 import { refreshReplanButton, showItineraryReplan } from './itinerary-replan.js';
+import { refreshDepartureCard, tickDepartureCard } from './departure-card.js';
 import { loadScheduleHours } from '../services/itinerary-hours.mjs';
 import { suggestRouteOrder } from '../services/itinerary-route-order.mjs';
 import { describeResolvedPlace } from '../services/itinerary-resolved-place.mjs';
@@ -121,6 +122,7 @@ export default class ItineraryView extends HTMLElement {
       if (!this.isCurrentMapResult(e.detail)) return;
       const transitRoutes = Array.isArray(e.detail.routes) ? e.detail.routes : [];
       this.lastTransitRoutes = transitRoutes;
+      refreshDepartureCard(this);
       // 유효한 경로가 하나라도 오면 실패 상태를 푼다(지도가 재계산에 성공한 경우).
       if (transitRoutes.some(r => typeof r?.durationMinutes === 'number')) {
         this.transitUnavailable = false;
@@ -183,6 +185,9 @@ export default class ItineraryView extends HTMLElement {
       if (this.sharedId) this.loadItineraryById(this.sharedId, { sharedOnly: true });
     };
     window.addEventListener('focus', this._sharedRecheck);
+    this._departureTick = () => tickDepartureCard(this);
+    window.addEventListener('focus', this._departureTick);
+    window.addEventListener('visibilitychange', this._departureTick);
     window.addEventListener('offline', this._sharedRecheck);
     this._retryOnOnline = () => this.retryFailedLoad();
     window.addEventListener('online', this._retryOnOnline);
@@ -192,6 +197,9 @@ export default class ItineraryView extends HTMLElement {
     this.cancelPendingLoad();
     window.removeEventListener('i18n-changed', this._languageHandler);
     window.removeEventListener('focus', this._sharedRecheck);
+    window.removeEventListener('focus', this._departureTick);
+    window.removeEventListener('visibilitychange', this._departureTick);
+    clearTimeout(this._departureTimer);
     window.removeEventListener('offline', this._sharedRecheck);
     window.removeEventListener('online', this._retryOnOnline);
     window.removeEventListener('transit-info-ready', this._transitInfoHandler);
@@ -319,6 +327,7 @@ export default class ItineraryView extends HTMLElement {
 
   refreshAccessControls() {
     refreshReplanButton(this);
+    refreshDepartureCard(this);
     if (!this.isReadOnly) {
       this._stopSharedWatch?.();
       this._stopSharedWatch = null;
@@ -533,6 +542,7 @@ export default class ItineraryView extends HTMLElement {
             <span id="next-stop-time"></span>
             <button type="button" id="next-stop-directions"></button>
           </section>
+          <section id="departure-card" class="departure-card" data-i18n-aria="departCardLabel" hidden><span></span><strong></strong><span></span></section>
           <span id="day-modified" data-i18n="flowChanged" hidden></span><button type="button" id="undo-deletion-btn" data-i18n="flowUndo" hidden></button>
           <button type="button" id="replan-trip-btn" class="end-time-fix-btn" data-i18n="replanBtn" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
@@ -596,6 +606,8 @@ export default class ItineraryView extends HTMLElement {
     this.setLoading(false);
     const nextStop = this.shadowRoot.getElementById('next-stop');
     if (nextStop) nextStop.hidden = true;
+    const departureCard = this.shadowRoot.getElementById('departure-card');
+    if (departureCard) departureCard.hidden = true;
     const container = this.shadowRoot.getElementById('timeline-container');
     container.innerHTML = msg;
   }
