@@ -979,6 +979,8 @@ export const itineraryStyles = `
           /* inset 은 테두리 안쪽 기준이다. 1px 테두리를 넘어 위아래 8px 씩 나가야 30px 줄에서 44px 가 된다. */
           :host([mobile-summary]) #edit-mode-btn::after { content: ''; position: absolute; inset: -9px 0; }
           :host([mobile-summary]) .cost-summary { padding: 0.3rem 1rem; margin-bottom: 0.5rem; }
+          /* 하루짜리 일정은 날짜 탭 대신 제목 줄이 온다. 제목 아래 여백이 24px 라 여행 당일 상자가 길어지면 첫 방문지가 밀린다. */
+          :host([mobile-summary]) #day-title-header { margin-bottom: 0.5rem; padding-bottom: 0; }
           :host([mobile-summary]) .day-tabs-container { margin-bottom: 0.5rem; }
           /* 이동 시간을 재지 못했다는 안내가 뜨거나 상자에 출발 안내 두 줄이 더해져도 첫 방문지가 보여야 한다.
              내용은 그대로 두고 자리만 줄인다: 안내는 글자·여백을 작게, 날짜 탭은 한 줄(높이는 44px 그대로)로 둔다. */

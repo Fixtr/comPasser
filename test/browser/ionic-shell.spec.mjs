@@ -1467,7 +1467,7 @@ test('여러 날짜에 비용 요약이 있는 일정도 휴대폰 기본 시트
 });
 
 // 375x812 휴대폰에서 이틀짜리·비용 요약 있는 일정을 기본 시트 높이로 연다. 첫 날의 일정 항목은 호출부가 준다.
-async function openPhoneSummaryTrip(page, firstDayItems) {
+async function openPhoneSummaryTrip(page, firstDayItems, dayCount = 2) {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({
     contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true }"),
@@ -1477,7 +1477,7 @@ async function openPhoneSummaryTrip(page, firstDayItems) {
       export async function getGenerationCredits() { return 1; }
       export async function generateOptimizedItinerary() {
         const items = ${JSON.stringify(firstDayItems)};
-        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: items }, { day: 2, date: '2026-09-28', scheduleItems: items }] };
+        return { days: [{ day: 1, date: '2026-09-27', scheduleItems: items }, { day: 2, date: '2026-09-28', scheduleItems: items }].slice(0, ${dayCount}) };
       }
     `,
   }));
@@ -1490,7 +1490,8 @@ async function openPhoneSummaryTrip(page, firstDayItems) {
   const view = page.locator('itinerary-view');
   await expect(view.locator('#next-stop')).toBeVisible();
   await expect(view.locator('#cost-summary')).toBeVisible();
-  await expect(view.locator('.day-tab-btn')).toHaveCount(2);
+  // 하루짜리 일정은 날짜 탭 대신 제목 줄이 온다.
+  await expect(view.locator('.day-tab-btn')).toHaveCount(dayCount > 1 ? dayCount : 0);
   await expect(view.locator('#edit-mode-btn')).toBeVisible();
   return view;
 }
@@ -1544,6 +1545,31 @@ test('여행 당일 다음 목적지 상자에 출발 안내가 합쳐져도 휴
     await expect(view.locator(`#${id}`)).toBeVisible();
   }
   await expect(view.locator('#cost-summary')).toBeVisible();
+  await expectFirstStopAboveSaveBar(view);
+});
+
+test('여행 당일 출발 안내가 두 줄로 넘어가는 하루짜리 일정도 휴대폰 기본 시트에서 첫 방문지가 보인다', async ({ page }) => {
+  // 실제 일정에서 본 경우다: 앞 장소 이름과 노선 이름이 길어 상세 줄이 두 줄이 되고, 날짜 탭 대신 제목 줄이 온다.
+  await page.clock.setFixedTime(new Date('2026-09-27T03:00:00.000Z'));
+  const view = await openPhoneSummaryTrip(page, [
+    { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+    { type: 'dining', title: '서촌식당 본점', time: '11:30', endTime: '11:50', location: '서촌식당 본점', practicalInfo: { estimatedCost: '12,000원' } },
+    { type: 'AnchorSchedule', title: '경복궁 관람', time: '15:00', endTime: '16:00', location: '경복궁' },
+    { type: 'arrival', title: '서울역', time: '19:00', location: '서울역' },
+  ], 1);
+  await view.evaluate(element => window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context: element._mapRequest, routes: [
+    { fromIndex: 0, toIndex: 1, durationMinutes: 10, displayMinutes: 10, mode: 'WALKING', steps: [] },
+    { fromIndex: 1, toIndex: 2, durationMinutes: 18, displayMinutes: 18, mode: 'TRANSIT', vehicleType: 'BUS', lineName: '1711', steps: [] },
+    { fromIndex: 2, toIndex: 3, durationMinutes: 10, displayMinutes: 10, mode: 'WALKING', steps: [] },
+  ] } })));
+  await expect(view.locator('#transit-notice')).toBeHidden();
+  await expect(view.locator('#next-stop-title')).toHaveText('경복궁 관람');
+  await expect(view.locator('#next-stop-departure')).toHaveText('14:32 출발');
+  const detail = view.locator('#next-stop-departure-detail');
+  await expect(detail).toHaveText('서촌식당 본점에서 1711번 버스 18분 · 10분 전 도착');
+  // 이 테스트가 보려는 상태인지 확인한다: 상세 줄이 한 줄보다 높아야 한다.
+  expect(await detail.evaluate(line => line.getBoundingClientRect().height / parseFloat(getComputedStyle(line).fontSize))).toBeGreaterThan(2);
+  await expect(view.locator('#day-title-header')).toBeVisible();
   await expectFirstStopAboveSaveBar(view);
 });
 
