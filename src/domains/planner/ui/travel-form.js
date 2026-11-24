@@ -278,7 +278,7 @@ export default class TravelForm extends HTMLElement {
     });
   }
 
-  addAnchor(data = null) { addAnchor(this, data); }
+  addAnchor(data = null, autoPlace) { addAnchor(this, data, autoPlace); }
 
   populateForm(requestData, options) { populateForm(this, requestData, options); }
 
@@ -574,7 +574,7 @@ export default class TravelForm extends HTMLElement {
     if (this.hasAttribute('handoff-flow')) {
       this.updateTripStayStatus();
       this.shadowRoot.getElementById('trip-end-date').value = this.draft.date.at(-1) || '';
-      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.shadowRoot.querySelector('.anchor-item') ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
+      const btn = this.shadowRoot.getElementById('add-anchor-btn'); btn.dataset.i18n = this.shadowRoot.querySelector('.anchor-item.is-flexible') ? 'flowMoreAnchor' : 'flowAddAnchor'; btn.textContent = t(btn.dataset.i18n);
     }
     this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
     this.updateDailyLocationSummary();

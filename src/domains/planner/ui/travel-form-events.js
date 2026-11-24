@@ -267,10 +267,14 @@ export function bindVisitButtons(view) {
     view.shadowRoot.getElementById('selected-waypoint').hidden = true;
     view.saveDraft();
   });
-  view.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', () => {
-    view.addAnchor();
+  // autoPlace undefined keeps addAnchor's default; false opens the time inputs for a reservation.
+  const addVisit = autoPlace => () => {
+    view.addAnchor(null, autoPlace);
     view.saveDraft();
-  });
+    view.shadowRoot.querySelector('#anchors-container .anchor-item:last-child .anchor-name').focus();
+  };
+  view.shadowRoot.getElementById('add-anchor-btn').addEventListener('click', addVisit());
+  view.shadowRoot.getElementById('add-reservation-btn')?.addEventListener('click', addVisit(false));
 
   const preferenceBtn = view.shadowRoot.getElementById('reselect-preference-btn');
   view.shadowRoot.getElementById('reselect-date-btn').onclick = () => {
