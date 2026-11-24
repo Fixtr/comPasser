@@ -1,8 +1,19 @@
 import { t } from '../../../utils/i18n.js';
 import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { getCurrentUser } from '../../auth/services/firebase-auth.js';
-import { readPrivateStopNote, writePrivateStopNote } from '../services/firestore-service.js';
+import { readPrivateStopNote, readPrivateStopNotes, writePrivateStopNote } from '../services/firestore-service.js';
 import { MAX_RESERVATION_URL_LENGTH, MAX_STOP_NOTE_LENGTH, normalizeStopNote, stopNoteKeys } from '../services/stop-notes.mjs';
+
+// One read per opened trip (again after a save or a failure): read mode hides the note button, so a
+// saved note has to be readable on its card without it.
+function savedNotes(view, id, ownerId) {
+  if (view._stopNotes?.id !== id) {
+    const notes = readPrivateStopNotes(id, ownerId);
+    view._stopNotes = { id, notes };
+    notes.catch(() => { if (view._stopNotes?.notes === notes) view._stopNotes = null; });
+  }
+  return view._stopNotes.notes;
+}
 
 export function attachStopNoteControl(view, card, index, key) {
   const { id, ownerId } = view.state.current.source;
@@ -13,14 +24,35 @@ export function attachStopNoteControl(view, card, index, key) {
   button.className = 'stop-note-btn';
   button.textContent = t('stopNoteBtn');
   button.setAttribute('aria-expanded', 'false');
-  card.append(button);
+  const saved = document.createElement('p');
+  saved.className = 'stop-note-text';
+  const savedLink = document.createElement('a');
+  savedLink.className = 'stop-note-link';
+  savedLink.target = '_blank';
+  savedLink.rel = 'noopener noreferrer';
+  savedLink.textContent = t('stopNoteOpenUrl');
+  const showSaved = note => {
+    saved.textContent = note?.text || '';
+    saved.hidden = !note?.text;
+    savedLink.hidden = !note?.url;
+    if (note?.url) savedLink.href = note.url;
+  };
+  showSaved(null);
+  card.append(saved, savedLink, button);
 
-  const isCurrent = () => {
+  const sameTrip = () => {
     const source = view.state.current?.source;
     return button.isConnected && source?.kind === 'private' && source.id === id && source.ownerId === ownerId
-      && getCurrentUser()?.uid === ownerId && view.activeDayIndex === dayIndex && view._mapRequest === request
-      && stopNoteKeys(view.normalizeData(view.currentItinerary)?.days[dayIndex])[index] === key;
+      && getCurrentUser()?.uid === ownerId;
   };
+  const isCurrent = () => sameTrip() && view.activeDayIndex === dayIndex && view._mapRequest === request
+    && stopNoteKeys(view.normalizeData(view.currentItinerary)?.days[dayIndex])[index] === key;
+  // Offline or a failed read shows no note text; the editor still reports its own load failure.
+  // A read that started before a save here must not put the older text back.
+  let savedHere = false;
+  savedNotes(view, id, ownerId).then(notes => {
+    if (!savedHere && sameTrip()) showSaved(normalizeStopNote(notes[key]?.text, notes[key]?.url));
+  }, () => {});
   button.addEventListener('click', async () => {
     if (!isCurrent() || card.querySelector('.stop-note-editor')) return;
     const form = document.createElement('form');
@@ -84,6 +116,9 @@ export function attachStopNoteControl(view, card, index, key) {
       status.textContent = t('stopNoteSaving');
       try {
         await writePrivateStopNote(id, ownerId, key, note);
+        savedHere = true;
+        view._stopNotes = null;
+        if (sameTrip()) showSaved(note);
         if (currentEditor()) view.showToast(t('stopNoteSaved'));
         close();
       } catch (error) {

@@ -2337,6 +2337,8 @@ test('저장 중 연결이 끊기면 알려 주고, 다시 연결되어 끝나�
 
 test('초안을 저장해 주소가 바뀌어도 되돌리기가 남고, 빈 /view에는 초안이 없다', async ({ page }) => {
   await openUnsavedDraft(page);
+  // 읽기 모드는 되돌리기를 숨긴다. 편집을 켜면 저장한 뒤에도 같은 일정이라 켜진 채로 남는다.
+  await page.locator('itinerary-view:visible #edit-mode-btn').click();
   await page.locator('itinerary-view:visible').evaluate(view => view.state.editDayItems(0, view.state.current.plan.days[0].scheduleItems.slice(0, 1), { undo: true }));
   await page.locator('itinerary-view:visible #save-itinerary-btn').click();
   await expect(page).toHaveURL(/\/view\/saved1$/);

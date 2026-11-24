@@ -13,6 +13,10 @@ async page => {
   if (await notes.count()) throw Error('Draft shows a private note button');
   await page.locator('itinerary-view #save-itinerary-btn').click();
   await page.waitForURL('**/view/smoke1');
+  // Read mode hides the note button; the 편집 toggle shows it.
+  await notes.waitFor({ state: 'attached' });
+  if (await notes.isVisible()) throw Error('Read mode shows the note button');
+  await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.first().waitFor({ state: 'visible' });
   if (await notes.count() !== 1) throw Error('Only the visit should show a note button');
   const editor = page.locator('itinerary-view .stop-note-editor');
@@ -24,6 +28,13 @@ async page => {
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
   await page.reload();
+  // Read mode after the reload: the saved note and its link are readable on the card as text, without the button.
+  const savedText = page.locator('itinerary-view .stop-note-text');
+  await savedText.filter({ hasText: '건물 뒤편 입구', visible: true }).waitFor();
+  if (await savedText.textContent() !== note || await savedText.locator('b').count()) throw Error('Saved note is not shown as plain text');
+  if (await page.locator('itinerary-view .stop-note-link').filter({ visible: true }).getAttribute('href') !== link) throw Error('Saved booking link is not shown in read mode');
+  if (await notes.isVisible()) throw Error('Read mode shows the note button after a reload');
+  await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.click();
   await editor.getByRole('link', { name: '예약 링크 열기' }).waitFor();
   if (await editor.getByLabel('메모', { exact: true }).inputValue() !== note) throw Error('Private note lost on reload');
@@ -41,11 +52,13 @@ async page => {
   if (await notes.count()) throw Error('Shared itinerary exposes a private note button');
 
   await page.goto('/view/smoke1');
+  await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.click();
   await editor.getByLabel('메모', { exact: true }).clear();
   await editor.getByLabel('예약 링크 (선택)', { exact: true }).clear();
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
+  if (await page.locator('itinerary-view .stop-note-text, itinerary-view .stop-note-link').filter({ visible: true }).count()) throw Error('A cleared note is still shown');
   const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
   if (Object.keys(stored).length) throw Error('Clearing both fields did not delete the note');
 
@@ -64,7 +77,11 @@ async page => {
     sessionStorage.removeItem('compasser.itineraries.v1');
   }, cafeB);
   await page.goto('/view/smoke1');
+  await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.nth(1).waitFor({ state: 'visible' });
+  // The note shows on its own stop only.
+  const shownNotes = await page.locator('itinerary-view .schedule-card').evaluateAll(cards => cards.map(card => { const text = card.querySelector('.stop-note-text'); return text && !text.hidden ? text.textContent : ''; }).join('|'));
+  if (shownNotes !== '||B동 메모|') throw Error('Saved note shown on the wrong card: ' + shownNotes);
   await notes.nth(0).click();
   await editor.locator('textarea:not([disabled])').waitFor();
   if (await editor.getByLabel('메모', { exact: true }).inputValue() !== '') throw Error('Note shown on the wrong stop');
@@ -92,6 +109,7 @@ async page => {
     sessionStorage.removeItem('compasser.itineraries.v1');
   });
   await page.goto('/view/smoke1');
+  await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.first().waitFor({ state: 'visible' });
   await page.evaluate(() => document.querySelector('itinerary-view').state.resolvePlaces(0, [{ index: 1, verifiedPlace: null }]));
   if (await page.evaluate(() => document.querySelector('itinerary-view').currentItinerary.days[0].scheduleItems[1].verifiedPlace?.placeId) === 'saved-place') throw Error('Re-resolution did not change the place on screen');

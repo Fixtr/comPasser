@@ -88,6 +88,15 @@ export async function readPrivateStopNote(id, userId, key) {
     return normalizeStopNote(note?.text, note?.url) || { text: '', url: '' };
 }
 
+// Every saved note of the owner's trip in one read, for showing them on the cards.
+export async function readPrivateStopNotes(id, userId) {
+    const { db, doc, getDocFromServer } = await loadFirestore();
+    if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');
+    const trip = (await getDocFromServer(doc(db, 'itineraries', id))).data();
+    if (trip?.userId !== userId) throw new Error('Private trip required');
+    return { ...trip.stopNotes };
+}
+
 export async function writePrivateStopNote(id, userId, key, note) {
     const { db, doc, runTransaction } = await loadFirestore();
     if (!userId || getCurrentUser()?.uid !== userId) throw new Error('Account changed');

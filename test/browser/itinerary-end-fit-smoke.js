@@ -93,7 +93,8 @@ async page => {
     ]}}));
     const count = view.currentItinerary.days[0].scheduleItems.length;
     const undo = view.shadowRoot.getElementById('undo-deletion-btn');
-    const undoVisible = !undo.hidden;
+    // Read mode: the notice names this button, so it stays on screen while the undo is offered.
+    const undoVisible = !undo.hidden && !view.hasAttribute('edit-mode') && getComputedStyle(undo).display !== 'none';
     undo.click();
     return {count,rechecks:window.__fitMapRequests.length-before-1,undoVisible,
       toast:document.getElementById('app-toast-container')?.textContent || '',
