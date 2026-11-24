@@ -90,6 +90,13 @@ export function getTransitModeText(vehicleType, lineName) {
   return name || t('transitText') || '대중교통';
 }
 
+// The mode the map measured for a whole leg, in the transit rows' words ('도보', '142번 버스'); '' when unknown.
+export function legModeText(leg) {
+  if (leg?.mode === 'WALKING') return t('walkText');
+  if (leg?.mode !== 'TRANSIT') return '';
+  return leg.lineName ? getTransitModeText(leg.vehicleType, leg.lineName) : t('transitText');
+}
+
 export function renderTransitStep(step) {
   if (step.mode === 'TRANSIT') {
     const style = getTransitStyle('TRANSIT', step.vehicleType);

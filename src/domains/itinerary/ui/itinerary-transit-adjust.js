@@ -113,6 +113,9 @@ export function applyTransitDelaysToActiveDay(view, transitRoutes) {
   if (fit.adjusted) {
     view._automaticFitCount = (view._automaticFitCount || 0) + 1;
     showGlobalToast(t(removed ? 'endTimeVisitRemoved' : 'endTimeAutoFit'), { tone: 'info', duration: 5000 });
+    // That notice names the undo button, so read mode keeps it for this day while the undo is offered.
+    const undo = removed && view.shadowRoot.getElementById('undo-deletion-btn');
+    if (undo) undo.dataset.pointed = view.activeDayIndex;
     // Earlier departure can change the available bus/train: verify again,
     // with a hard retry bound rather than recursively generating requests.
     view.requestMapRoute({ automaticFit: true });

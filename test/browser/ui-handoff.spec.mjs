@@ -649,6 +649,7 @@ test('online own trip stays editable, undo is per day, and only changed day is r
  await page.setViewportSize({width:1100,height:850});await page.goto('/profile/trips');
  const profile=page.locator('profile-view[data-active]');await profile.locator('.btn-offline').click();await profile.locator('.btn-view').click();
  const view=page.locator('itinerary-view:visible');await expect(view.locator('#timeline-container')).toContainText('Museum 1');await expect(view.locator('#recalculate-times-btn')).toBeDisabled();
+ await view.locator('#edit-mode-btn').click();
  await view.evaluate(element=>{void element.handleItemEdit('remove',1);});
  await page.locator('#app-confirm-host .confirm-ok').click();await expect(view.locator('#undo-deletion-btn')).toBeVisible();await expect(view.locator('#recalculate-times-btn')).toBeEnabled();
  await view.evaluate(element=>element.selectDay(1));await expect(view.locator('#undo-deletion-btn')).toBeHidden();await expect(view.locator('#recalculate-times-btn')).toBeDisabled();

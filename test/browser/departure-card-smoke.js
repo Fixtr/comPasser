@@ -38,9 +38,28 @@ async page => {
   await legs(18);
   await expectCard('13:32 출발');
   const ok = await text();
-  if (ok !== '14:00 해변열차 탑승 13:32 출발 <b>해변</b>에서 이동 18분 · 10분 전 도착') throw Error(`Unexpected card: ${ok}`);
+  if (ok !== '14:00 해변열차 탑승 13:32 출발 <b>해변</b>에서 도보 18분 · 10분 전 도착') throw Error(`Unexpected card: ${ok}`);
   if (await page.locator('itinerary-view #departure-card b').count()) throw Error('Stop title became markup');
   if (await card.getAttribute('aria-label') !== '출발 안내') throw Error('The card has no accessible name');
+
+  // The text names the mode the map measured, as the transit rows word it; an unknown mode keeps "이동".
+  const leg = route => page.evaluate(route => {
+    const view = document.querySelector('itinerary-view');
+    window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context: view._mapRequest,
+      routes: [{ fromIndex: 1, toIndex: 2, durationMinutes: 18, displayMinutes: 18, ...route }] } }));
+  }, route);
+  for (const [route, wording] of [
+    [{ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }, '<b>해변</b>에서 142번 버스 18분 · 10분 전 도착'],
+    [{ mode: 'TRANSIT', vehicleType: 'SUBWAY', lineName: '2호선' }, '<b>해변</b>에서 2호선 18분 · 10분 전 도착'],
+    [{ mode: 'TRANSIT' }, '<b>해변</b>에서 대중교통 18분 · 10분 전 도착'],
+    [{ mode: 'WALKING', estimated: true }, '<b>해변</b>에서 도보 약 18분 (직선거리 추정) · 10분 전 도착'],
+    [{}, '<b>해변</b>에서 이동 18분 · 10분 전 도착'],
+  ]) {
+    await leg(route);
+    await expectCard(wording);
+  }
+  await legs(18);
+  await expectCard('도보 18분');
 
   // Nothing is tapped: coming back to the screen at 13:40 is enough to change the advice.
   await page.clock.setFixedTime(new Date('2026-09-13T04:40:00.000Z'));
@@ -89,7 +108,15 @@ async page => {
   const nextStop = page.locator('itinerary-view #next-stop');
   await nextStop.filter({ hasText: '13:32 출발' }).waitFor({ timeout: 5000 });
   const merged = (await nextStop.innerText()).replace(/\s+/g, ' ');
-  for (const part of ['해변열차 탑승', '14:00', '<b>해변</b>에서 이동 18분', '10분 전 도착']) if (!merged.includes(part)) throw Error(`Merged panel misses ${part}: ${merged}`);
+  for (const part of ['해변열차 탑승', '14:00', '<b>해변</b>에서 도보 18분', '10분 전 도착']) if (!merged.includes(part)) throw Error(`Merged panel misses ${part}: ${merged}`);
+  // The leave time is the panel's headline (the title's size and weight); the detail is the small line under it.
+  const lines = await nextStop.evaluate(panel => ['next-stop-title', 'next-stop-departure', 'next-stop-departure-detail', 'next-stop-time'].map(id => {
+    const line = panel.querySelector('#' + id), style = getComputedStyle(line);
+    return { text: line.textContent, size: parseFloat(style.fontSize), weight: style.fontWeight, top: line.getBoundingClientRect().top };
+  }));
+  const [title, leave, detail, time] = lines;
+  if (leave.text !== '13:32 출발' || detail.text !== '<b>해변</b>에서 도보 18분 · 10분 전 도착') throw Error('Merged lines wrong: ' + JSON.stringify(lines));
+  if (leave.size !== title.size || leave.weight !== title.weight || !(detail.size < leave.size) || detail.size !== time.size || !(detail.top > leave.top)) throw Error('Leave time is not the headline: ' + JSON.stringify(lines));
   if ((await shown()).join() !== 'false,true') throw Error(`Reservation shown twice on the phone layout: ${await shown()}`);
   // A different next stop keeps the two apart: the panel names the visit, the card the reservation.
   await page.clock.setFixedTime(new Date('2026-09-13T00:30:00.000Z'));

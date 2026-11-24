@@ -8,6 +8,9 @@ async page => {
   const order=()=>page.locator('itinerary-view .schedule-title').allTextContents();
   await page.locator('itinerary-view .schedule-title').filter({hasText:'P3'}).waitFor({state:'visible'});
   const before=await order();
+  // Read mode hides the reorder button; the 편집 toggle shows it.
+  if(await page.locator('itinerary-view #improve-route-btn').isVisible()) throw Error('Read mode shows the reorder button');
+  await page.locator('itinerary-view #edit-mode-btn').click();
   await page.locator('itinerary-view #improve-route-btn').click();
   if(!(await page.locator('#app-confirm-host .confirm-message').textContent()).includes('직선거리')) throw Error('Distance claimed as travel time');
   await page.locator('#app-confirm-host .confirm-cancel').click();

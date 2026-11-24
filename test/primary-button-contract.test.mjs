@@ -64,6 +64,16 @@ test('출발 카드의 보라는 예약일 때만이고 배경에는 쓰지 않�
   assert.match(rule(css, '.departure-card:not([data-state="next"]) span:first-child'), /color:\s*var\(--cp-anchor\)/);
   assert.match(rule(css, '#next-stop-departure'), /color:\s*var\(--cp-anchor\)/);
   assert.match(rule(css, ':host([mobile-summary]) .next-stop:has(#next-stop-departure:not(:empty))'), /border-color:\s*var\(--cp-anchor\)/);
+  // 합쳐진 패널: 출발 시각이 제목 크기의 큰 줄이고 이동·여유는 그 아래 작은 줄이다. 빈 줄은 높이를 차지하지 않는다.
+  const view = read('domains/itinerary/ui/itinerary-view.js');
+  assert.match(view, /<strong id="next-stop-departure"><\/strong>\s*<span id="next-stop-departure-detail"><\/span>/);
+  assert.match(rule(css, '.next-stop strong'), /font-size:\s*1\.25rem/);
+  assert.match(rule(css, '.departure-card strong'), /font-size:\s*1\.25rem/);
+  assert.match(rule(css, '.next-stop span'), /font-size:\s*0\.9rem/);
+  assert.match(rule(css, '#next-stop-departure-detail'), /color:\s*var\(--cp-anchor\)/);
+  assert.match(css, /\.next-stop span:empty, \.next-stop strong:empty \{ display: none; \}/);
+  const card = read('domains/itinerary/ui/departure-card.js');
+  assert.match(card, /if \(merged\) \{ nextLine\.textContent = main; if \(nextDetail\) nextDetail\.textContent = detail; \}/);
   // 보라 배경은 번호 노드 하나뿐이고 글자는 surface 다(잉크나 고정 흰색은 대비가 모자란다).
   const backgrounds = css.match(/[^{}]*\{[^}]*background:\s*var\(--cp-anchor\)[^}]*\}/g) || [];
   assert.equal(backgrounds.length, 1);

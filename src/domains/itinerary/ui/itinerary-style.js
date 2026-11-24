@@ -6,6 +6,10 @@ export const itineraryStyles = `
           min-height: 44px; padding: 8px; margin: 4px; color: var(--cp-ink);
           background: var(--cp-surface); border: 1px solid var(--cp-rule);
         }
+        /* 저장된 메모는 읽기 모드에서도 카드에 보인다. 버튼(추가·수정)만 숨긴다. */
+        .stop-note-text { margin: 4px; font-size: .9rem; line-height: 1.5; color: var(--cp-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+        .stop-note-link { display: inline-block; margin: 4px; padding: 8px 0; color: var(--cp-ink); }
+        .stop-note-text[hidden], .stop-note-link[hidden] { display: none; }
         .stop-note-editor label { display: block; }
         .stop-note-editor input, .stop-note-editor textarea { display: block; box-sizing: border-box; width: calc(100% - 8px); font: inherit; }
         .stop-note-editor p { font-size: .85rem; line-height: 1.5; }
@@ -26,7 +30,10 @@ export const itineraryStyles = `
         .place-replacement button:disabled { opacity: .5; cursor: not-allowed; }
         .schedule-card[data-visited] .indoor-alternatives-btn { display: none; }
         /* 읽기 모드가 기본이다. 편집 버튼은 지우지 않고 숨기기만 해서 기능과 이벤트 연결은 그대로다. */
-        :host(:not([edit-mode])) :is(.item-edit-actions, .visit-time-btn, .replace-place-btn, .indoor-alternatives-btn, .insert-slot) { display: none; }
+        :host(:not([edit-mode])) :is(.item-edit-actions, .visit-time-btn, .replace-place-btn, .indoor-alternatives-btn, .insert-slot, .stop-note-btn) { display: none; }
+        /* 일정표 위의 편집 버튼도 숨긴다. '남은 일정 맞추기'는 늦은 출발 안내가 가리키므로 남긴다.
+           되돌리기는 자동으로 방문을 뺀 안내가 가리킨 동안(data-pointed) 읽기 모드에서도 보인다. */
+        :host(:not([edit-mode])) :is(#recalculate-times-btn, #improve-route-btn, #undo-deletion-btn:not([data-pointed])) { display: none; }
         /* 비 알림이 가리키는 기능이라 비가 오면 읽기 모드에서도 찾을 수 있어야 한다. */
         .rain-banner ~ #timeline-container .schedule-card:not([data-visited]) .indoor-alternatives-btn { display: inline-block; }
         /* 일정표 위 버튼 줄에 함께 둔다. 따로 한 줄을 차지하면 휴대폰 시트에서 첫 방문지가 밀려 내려간다. */
@@ -947,9 +954,11 @@ export const itineraryStyles = `
           }
           /* 같은 다음 방문지를 두 번 보여 주지 않는다. */
           :host([mobile-summary]) .departure-card:is([data-state="next"], [data-merged]) { display: none; }
-          .next-stop span:empty { display: none; }
-          /* 이 줄은 다음 목적지가 예약일 때만 채워진다. */
+          /* 빈 줄은 칸도 차지하지 않는다(여행 당일이 아니면 출발 안내 두 줄이 비어 있다). */
+          .next-stop span:empty, .next-stop strong:empty { display: none; }
+          /* 이 두 줄은 다음 목적지가 예약일 때만 채워진다. 큰 줄이 출발 시각, 작은 줄이 이동·여유다. */
           #next-stop-departure { color: var(--cp-anchor); }
+          #next-stop-departure-detail { color: var(--cp-anchor); }
           :host([mobile-summary]) .next-stop:has(#next-stop-departure:not(:empty)) { border-color: var(--cp-anchor); }
           .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
           .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }

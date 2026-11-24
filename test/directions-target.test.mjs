@@ -17,8 +17,12 @@ test('a trip without request data keeps the popup', () => {
   assert.equal(googleDirectionsUrl({}, '경복궁', ''), '');
 });
 
-test('a trip outside Korea uses the saved Google Maps address', () => {
-  assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', saved), saved);
+const route = 'https://www.google.com/maps/dir/?api=1&destination=Senso-ji';
+
+test('a trip outside Korea opens a route to the saved place, never the saved place page', () => {
+  assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', saved), `${route}&destination_place_id=abc`);
+  assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', 'https://www.google.com/maps/search/?api=1&query=x&query_place_id=a%26b%20c'),
+    `${route}&destination_place_id=a%26b%20c`);
 });
 
 test('a trip outside Korea without a saved address builds one from the place name', () => {
@@ -37,9 +41,14 @@ test('a saved address on a non-Google host is ignored', () => {
   for (const bad of ['https://evil.example/x', 'https://www.google.com.evil.io/maps', 'https://notgoogle.com/maps', 'https://evilgoo.gl/x']) {
     assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', bad), built);
   }
-  for (const good of ['https://maps.google.com/?cid=123', 'https://google.com/maps/place/x', 'https://maps.app.goo.gl/abc', 'https://goo.gl/maps/abc']) {
-    assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', good), good);
+  // A place id is read only from a Google address; one without an id still opens the route by name.
+  for (const bad of ['https://evil.example/x?query_place_id=abc', 'https://www.google.com.evil.io/maps?query_place_id=abc']) {
+    assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', bad), built);
   }
+  for (const good of ['https://maps.google.com/?cid=123', 'https://google.com/maps/place/x', 'https://maps.app.goo.gl/abc', 'https://goo.gl/maps/abc']) {
+    assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', good), built);
+  }
+  assert.equal(googleDirectionsUrl(tokyo, 'Senso-ji', 'https://maps.google.com/maps/search/?api=1&query=x&query_place_id=abc'), `${built}&destination_place_id=abc`);
 });
 
 test('an unrecognised country value falls back to Korea and keeps the popup', () => {

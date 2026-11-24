@@ -113,6 +113,8 @@ export default class ItineraryView extends HTMLElement {
       editModeOn = !this.hasAttribute('edit-mode');
       if (editModeOn) trackEvent('edit_mode_toggle');
       editModeTrip = { plan: this.currentItinerary };
+      // 편집에서 새로 생긴 되돌리기는 자동 안내가 가리킨 것이 아니다.
+      delete this.shadowRoot.getElementById('undo-deletion-btn')?.dataset.pointed;
       this.refreshAccessControls();
     });
     this.shadowRoot.getElementById('recalculate-times-btn')?.addEventListener('click', () => {
@@ -368,7 +370,7 @@ export default class ItineraryView extends HTMLElement {
     const editBtn = document.getElementById('edit-itinerary-btn');
     const recalculateBtn = this.shadowRoot.getElementById('recalculate-times-btn');
     if (recalculateBtn) { recalculateBtn.hidden = !hasPlan || !this.canEdit(); recalculateBtn.disabled = this.hasAttribute('day-editing') && !this.state.current?.dirtyDays?.includes(this.activeDayIndex); }
-    const undo=this.shadowRoot.getElementById('undo-deletion-btn');if(undo)undo.hidden=!this.canEdit()||!this.state.current?.undoByDay?.[this.activeDayIndex];
+    const undo=this.shadowRoot.getElementById('undo-deletion-btn');if(undo){undo.hidden=!this.canEdit()||!this.state.current?.undoByDay?.[this.activeDayIndex];if(undo.hidden||undo.dataset.pointed!==String(this.activeDayIndex))delete undo.dataset.pointed;}
     const dirty=this.shadowRoot.getElementById('day-modified');if(dirty)dirty.hidden=!this.state.current?.dirtyDays?.includes(this.activeDayIndex);
     const improveBtn = this.shadowRoot.getElementById('improve-route-btn');
     // Offered only when the current day has a shorter order; the check is local and needs no network.
@@ -570,7 +572,8 @@ export default class ItineraryView extends HTMLElement {
             <span id="next-stop-label"></span>
             <strong id="next-stop-title"></strong>
             <span id="next-stop-time"></span>
-            <span id="next-stop-departure"></span>
+            <strong id="next-stop-departure"></strong>
+            <span id="next-stop-departure-detail"></span>
             <button type="button" id="next-stop-directions"></button>
             <button type="button" id="next-stop-leg-btn" class="departure-leg-btn" data-i18n-aria="mapLegShow" hidden></button>
           </section>

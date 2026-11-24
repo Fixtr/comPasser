@@ -56,7 +56,7 @@ function viewHarness({ user = null } = {}) {
     Capacitor: { isNativePlatform: () => false }, buildItineraryCalendar, localizeBoundaryItem, refreshReplanButton() {},
     visitedStops: createVisitedStops(), stopKeys, isVisitableStop, pickNextStop,
     stopNoteKeys: () => [], attachStopNoteControl() {},
-    travelRegion, localTravelDate, departureAdvice, transitDurationText: () => '',
+    travelRegion, localTravelDate, departureAdvice, transitDurationText: () => '', legModeText: () => '',
     console,
   };
   const View = new Function(...Object.keys(dependencies), `${source}\nreturn ItineraryView;`)(...Object.values(dependencies));

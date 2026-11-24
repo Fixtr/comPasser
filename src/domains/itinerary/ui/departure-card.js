@@ -5,7 +5,7 @@ import { localizeBoundaryItem } from '../../planner/services/planner-constraints
 import { departureAdvice } from '../services/departure-advice.mjs';
 import { minutesOf } from '../services/itinerary-schedule-adjust.mjs';
 import { visitedStops } from '../services/visited-stops.mjs';
-import { transitDurationText } from './itinerary-render-helpers.js';
+import { transitDurationText, legModeText } from './itinerary-render-helpers.js';
 import { refreshReplanButton } from './itinerary-replan.js';
 
 // The advice follows the clock: run on each minute a card is up and when the screen comes back.
@@ -20,8 +20,10 @@ export function refreshDepartureCard(view) {
   const card = view.shadowRoot.getElementById('departure-card');
   if (!card) return;
   card.hidden = true;
+  // 휴대폰 요약에 합쳐질 때: 큰 줄(출발 시각)과 그 아래 작은 줄.
   const nextLine = view.shadowRoot.getElementById('next-stop-departure');
-  if (nextLine) nextLine.textContent = '';
+  const nextDetail = view.shadowRoot.getElementById('next-stop-departure-detail');
+  [nextLine, nextDetail].forEach(line => { if (line) line.textContent = ''; });
   const legButtons = ['departure-leg-btn', 'next-stop-leg-btn'].map(id => view.shadowRoot.getElementById(id));
   legButtons.forEach(button => { if (button) button.hidden = true; });
   clearTimeout(view._departureTimer);
@@ -40,10 +42,12 @@ export function refreshDepartureCard(view) {
   const { reservation, from, route } = advice;
   const origin = from && localizeBoundaryItem(from, getLang()).title;
   const travel = transitDurationText(route);
+  // 지도가 잰 수단을 적는다("도보 18분"). 수단을 모르면 예전처럼 "이동 18분".
+  const mode = legModeText(route);
   const replan = view.shadowRoot.getElementById('replan-trip-btn');
   const [label, main, detail] = {
     ok: () => [named(reservation), fill('departLeaveAt', advice.leaveTime),
-      [travel && origin ? fill('departFrom', origin, travel) : origin || travel, fill('departEarly', advice.buffer)].filter(Boolean).join(' · ')],
+      [travel && origin ? fill(mode ? 'departFromBy' : 'departFrom', origin, mode ? `${mode} ${travel}` : travel) : origin || travel, fill('departEarly', advice.buffer)].filter(Boolean).join(' · ')],
     go: () => [named(reservation), t('departNow'), fill('departSpare', advice.spare)],
     late: () => [named(reservation), fill('departLate', reservation.time), replan && !replan.hidden ? fill('departLateHint', t('replanBtn')) : ''],
     unknown: () => [named(reservation), t('departUnknown'), ''],
@@ -59,7 +63,7 @@ export function refreshDepartureCard(view) {
   const merged = Boolean(reservation && nextLine && next && !next.hidden
     && view.shadowRoot.getElementById('next-stop-title').textContent === reservation.title
     && view.shadowRoot.getElementById('next-stop-time').textContent === (reservation.time || ''));
-  if (merged) nextLine.textContent = [main, detail].filter(Boolean).join(' · ');
+  if (merged) { nextLine.textContent = main; if (nextDetail) nextDetail.textContent = detail; }
   card.toggleAttribute('data-merged', merged);
   // 예약으로 가는 구간이 지도에 선으로 있을 때만 누를 수 있다(같은 장소 안 이동은 선이 없다).
   const legIndex = reservation ? day.scheduleItems.indexOf(reservation) - 1 : -1;

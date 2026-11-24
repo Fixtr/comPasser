@@ -26,7 +26,8 @@ async page => {
     { type: 'attraction', time: '14:00', endTime: '15:00', title: 'Tokyo Tower', location: { lat: 35.6586, lng: 139.7454 }, googleMapsUrl: 'https://evil.example/x' }]));
   await navButton('Senso-ji').click();
   const fromCard = await opened();
-  if (JSON.stringify(fromCard) !== JSON.stringify([[saved, '_blank', 'noopener,noreferrer']])) throw Error('Tokyo card did not open the saved Google Maps address: ' + JSON.stringify(fromCard));
+  // The saved address is a place page; the button opens the route to that exact place instead.
+  if (JSON.stringify(fromCard) !== JSON.stringify([['https://www.google.com/maps/dir/?api=1&destination=Senso-ji&destination_place_id=sensoji', '_blank', 'noopener,noreferrer']])) throw Error('Tokyo card did not open a route to the saved place: ' + JSON.stringify(fromCard));
   await clickNextStop();
   const fromNextStop = await opened();
   if (JSON.stringify(fromNextStop) !== JSON.stringify(fromCard)) throw Error('Next stop and card disagree: ' + JSON.stringify(fromNextStop));

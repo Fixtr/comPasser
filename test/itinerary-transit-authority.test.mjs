@@ -93,3 +93,25 @@ test('measured travel times follow the language toggle, not the language the Map
     setLang('ko');
   }
 });
+
+test('the departure text names the mode the map measured, worded as the transit rows word it', async () => {
+  const { setLang } = await import('../src/utils/i18n.js');
+  const { legModeText, getTransitModeText } = await import('../src/domains/itinerary/ui/itinerary-render-helpers.js');
+  try {
+    setLang('ko');
+    assert.equal(legModeText({ mode: 'WALKING', durationMinutes: 18 }), '도보');
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), '142번 버스');
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), getTransitModeText('BUS', '142'));
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'SUBWAY', lineName: '2호선' }), '2호선');
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: null }), '대중교통', 'no line name: never "번 버스"');
+    assert.equal(legModeText({ mode: 'TRANSIT', estimated: true, steps: [] }), '대중교통');
+    for (const unknown of [undefined, null, {}, { durationMinutes: 18 }, { mode: 'SAME_PLACE' }, { mode: 'DRIVING' }]) {
+      assert.equal(legModeText(unknown), '', 'an unknown mode names nothing');
+    }
+    setLang('en');
+    assert.equal(legModeText({ mode: 'WALKING' }), 'Walk');
+    assert.equal(legModeText({ mode: 'TRANSIT', vehicleType: 'BUS', lineName: '142' }), 'Bus 142');
+  } finally {
+    setLang('ko');
+  }
+});

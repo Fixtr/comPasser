@@ -25,6 +25,10 @@ async page => {
     }
     if (!await page.locator('itinerary-view .insert-slot-btn').count()) throw Error(`Insert slots were removed ${when}`);
     if (Boolean(await shown('.insert-slot-btn').count()) !== on) throw Error(`Insert slot visibility wrong ${when}`);
+    // The recalculation button is offered to the owner in both modes (no hidden attribute); read mode only hides it.
+    if (await page.locator('itinerary-view #recalculate-times-btn:not([hidden])').count() !== 1) throw Error(`Recalculation was removed ${when}`);
+    if (Boolean(await shown('#recalculate-times-btn').count()) !== on) throw Error(`Recalculation visibility wrong ${when}`);
+    if (await shown('#edit-mode-btn').count() !== 1) throw Error(`The edit toggle is hidden ${when}`);
   };
 
   await open({ days: [day(1, '2026-10-20', '한강 공원'), day(2, '2026-10-21', '서울숲')] }, undefined);
@@ -59,9 +63,13 @@ async page => {
   await shown('.item-edit-btn[data-edit="remove"]').click();
   await page.locator('#app-confirm-host .confirm-ok').click();
   await title('서울숲').waitFor({ state: 'detached' });
+  if (await shown('#undo-deletion-btn').count() !== 1 || await shown('#day-modified').count() !== 1) throw Error('Edit mode lost undo or the modified label');
   await toggle.focus();
   await page.keyboard.press('Space');
   if (await toggle.getAttribute('aria-pressed') !== 'false' || await shown('.insert-slot-btn').count()) throw Error('Toggle did not return to read mode');
+  // Read mode hides undo (still offered, not removed) and keeps the status label.
+  if (await page.locator('itinerary-view #undo-deletion-btn:not([hidden])').count() !== 1 || await shown('#undo-deletion-btn').count()) throw Error('Read mode must hide undo without removing it');
+  if (await shown('#day-modified').count() !== 1) throw Error('Read mode lost the modified label');
 
   // Edit mode belongs to the trip it was switched on for: another trip opens in read mode.
   await toggle.click();
