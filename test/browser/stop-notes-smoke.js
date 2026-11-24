@@ -34,12 +34,55 @@ async page => {
   if (await savedText.textContent() !== note || await savedText.locator('b').count()) throw Error('Saved note is not shown as plain text');
   if (await page.locator('itinerary-view .stop-note-link').filter({ visible: true }).getAttribute('href') !== link) throw Error('Saved booking link is not shown in read mode');
   if (await notes.isVisible()) throw Error('Read mode shows the note button after a reload');
+  // The card says in words that this is the traveler's own note, and the text is tied to that label.
+  const savedLabel = page.locator('itinerary-view .stop-note-label');
+  const savedLink = page.locator('itinerary-view .stop-note-link');
+  if (await savedLabel.filter({ visible: true }).textContent() !== '개인 메모') throw Error('Saved note has no visible private label');
+  if (await savedText.getAttribute('aria-labelledby') !== await savedLabel.getAttribute('id')) throw Error('Saved note is not tied to its label');
+  if (await savedLink.getAttribute('aria-describedby') !== await savedLabel.getAttribute('id')) throw Error('Booking link is not tied to its label');
+  if ((await savedLink.boundingBox()).height < 44) throw Error('Booking link tap area is under 44px');
+  if (await savedLink.getAttribute('rel') !== 'noopener noreferrer') throw Error('Booking link lost its rel');
+  const failed = page.locator('itinerary-view .stop-notes-status');
+  if (await failed.count()) throw Error('A successful read shows the notes status');
   await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
   await notes.click();
   await editor.getByRole('link', { name: '예약 링크 열기' }).waitFor();
+  // While the editor is open the card shows the note once: in the editor.
+  const onCard = page.locator('itinerary-view .schedule-card > :is(.stop-note-label, .stop-note-text, .stop-note-link)');
+  if (await onCard.filter({ visible: true }).count()) throw Error('The note shows twice while its editor is open');
   if (await editor.getByLabel('메모', { exact: true }).inputValue() !== note) throw Error('Private note lost on reload');
   if (await editor.getByRole('link', { name: '예약 링크 열기' }).getAttribute('href') !== link) throw Error('Booking link lost on reload');
   await editor.getByRole('button', { name: '취소', exact: true }).click();
+  if (await onCard.filter({ visible: true }).count() !== 3 || await savedText.textContent() !== note) throw Error('Closing the editor did not bring the saved note back');
+
+  // A failed read says so once for the trip; its retry button repeats the read.
+  await page.evaluate(() => {
+    window.__smoke.dbError = 'read';
+    const view = document.querySelector('itinerary-view');
+    view._stopNotes = null;
+    view.renderCurrentState();
+  });
+  const retry = failed.getByRole('button', { name: '다시 시도', exact: true });
+  await retry.waitFor();
+  if (await failed.count() !== 1 || await failed.getAttribute('role') !== 'alert') throw Error('Failed notes read is not one announced status');
+  if (await onCard.filter({ visible: true }).count()) throw Error('A failed read shows a note');
+  await retry.click();
+  await failed.getByText('저장한 개인 메모를 불러오지 못했어요.').waitFor();
+  if (await failed.count() !== 1) throw Error('A failed retry added a second status');
+  await page.evaluate(() => { window.__smoke.dbError = undefined; });
+  await retry.click();
+  await failed.waitFor({ state: 'detached' });
+  await savedText.filter({ hasText: '건물 뒤편 입구', visible: true }).waitFor();
+  // Saving shows the new value on the card once the editor closes.
+  await notes.click();
+  await editor.getByLabel('메모', { exact: true }).fill(note + '!');
+  await editor.getByRole('button', { name: '저장', exact: true }).click();
+  await editor.waitFor({ state: 'detached' });
+  if (await savedText.filter({ visible: true }).textContent() !== note + '!') throw Error('Saved value is not back on the card');
+  await notes.click();
+  await editor.getByLabel('메모', { exact: true }).fill(note);
+  await editor.getByRole('button', { name: '저장', exact: true }).click();
+  await editor.waitFor({ state: 'detached' });
 
   await page.locator('itinerary-view #share-itinerary-btn').click();
   await page.locator('#app-confirm-host .confirm-ok').click();
@@ -50,6 +93,7 @@ async page => {
   await page.goto(shared);
   await page.locator('itinerary-view .schedule-title').filter({ hasText: '식당' }).waitFor();
   if (await notes.count()) throw Error('Shared itinerary exposes a private note button');
+  if (await page.locator('itinerary-view :is(.stop-note-label, .stop-note-text, .stop-note-link, .stop-notes-status)').count()) throw Error('Shared itinerary shows private note parts');
 
   await page.goto('/view/smoke1');
   await page.locator('itinerary-view #edit-mode-btn').filter({ visible: true }).click();
@@ -58,7 +102,7 @@ async page => {
   await editor.getByLabel('예약 링크 (선택)', { exact: true }).clear();
   await editor.getByRole('button', { name: '저장', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
-  if (await page.locator('itinerary-view .stop-note-text, itinerary-view .stop-note-link').filter({ visible: true }).count()) throw Error('A cleared note is still shown');
+  if (await page.locator('itinerary-view .stop-note-text, itinerary-view .stop-note-link, itinerary-view .stop-note-label').filter({ visible: true }).count()) throw Error('A cleared note is still shown');
   const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__smoke_db')).itineraries.smoke1.stopNotes);
   if (Object.keys(stored).length) throw Error('Clearing both fields did not delete the note');
 

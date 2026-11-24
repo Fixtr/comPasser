@@ -7,9 +7,15 @@ export const itineraryStyles = `
           background: var(--cp-surface); border: 1px solid var(--cp-rule);
         }
         /* 저장된 메모는 읽기 모드에서도 카드에 보인다. 버튼(추가·수정)만 숨긴다. */
+        .stop-note-label { margin: 4px 4px 0; font-size: .8rem; font-weight: 700; line-height: 1.5; color: var(--cp-ink-2); }
         .stop-note-text { margin: 4px; font-size: .9rem; line-height: 1.5; color: var(--cp-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
-        .stop-note-link { display: inline-block; margin: 4px; padding: 8px 0; color: var(--cp-ink); }
-        .stop-note-text[hidden], .stop-note-link[hidden] { display: none; }
+        /* 누르는 높이는 44px. 위아래 여백을 없애 카드 높이는 전과 1px 차이다. */
+        .stop-note-link { display: inline-flex; align-items: center; min-height: 44px; margin: 0 4px; color: var(--cp-ink); }
+        .stop-note-label[hidden], .stop-note-text[hidden], .stop-note-link[hidden] { display: none; }
+        /* 편집 창이 열린 카드는 같은 메모를 두 번 보여 주지 않는다. 창이 어떻게 닫히든 다시 보인다. */
+        .schedule-card:has(.stop-note-editor) :is(.stop-note-label, .stop-note-text, .stop-note-link) { display: none; }
+        /* 메모를 못 읽었다는 안내. 메모 버튼이 있는 일정표(내 일정) 위에서만 보여 공유·초안·오류 화면에는 남지 않는다. */
+        .stop-notes-status:not(:has(~ #timeline-container .stop-note-btn)) { display: none; }
         .stop-note-editor label { display: block; }
         .stop-note-editor input, .stop-note-editor textarea { display: block; box-sizing: border-box; width: calc(100% - 8px); font: inherit; }
         .stop-note-editor p { font-size: .85rem; line-height: 1.5; }
@@ -82,9 +88,9 @@ export const itineraryStyles = `
           gap: 0.5rem;
         }
 
-        .rain-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; padding: 0.6rem 0.9rem;
+        .rain-banner, .stop-notes-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; padding: 0.6rem 0.9rem;
           background: var(--cp-warn-bg); border: 1px solid var(--cp-rule); border-left: 4px solid var(--cp-warn); color: var(--cp-ink); font-size: 0.9rem; }
-        .rain-banner button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
+        .rain-banner button, .stop-notes-status button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
 
         .shared-notice {
           background: var(--cp-sunken);
