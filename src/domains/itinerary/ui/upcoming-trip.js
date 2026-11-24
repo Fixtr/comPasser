@@ -65,8 +65,10 @@ class UpcomingTrip extends HTMLElement {
     root.querySelector('h2').textContent = title;
     root.querySelector('.dates').textContent = formatDateRange(normalizeData(item.itineraryPlan).days, lang === 'ko');
     const view = root.querySelector('button');
-    view.textContent = t('viewBtn');
-    view.setAttribute('aria-label', `${t('viewBtn')}: ${title}`);
+    // daysUntil counts from the destination's own date, as the trip view does; 0 or less is a trip day.
+    const open = t(daysUntil > 0 ? 'viewBtn' : 'upcomingTripToday');
+    view.textContent = open;
+    view.setAttribute('aria-label', `${open}: ${title}`);
     // Same address as the profile trip list's 보기, including the offline snapshot when there is no connection.
     view.addEventListener('click', () => window.navigate(`/view/${item.id}${navigator.onLine === false ? '?offline=1' : ''}`));
   }

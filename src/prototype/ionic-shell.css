@@ -75,9 +75,16 @@ ion-header + .shell-content .ionic-page-nav { position: static; padding-top: 6px
 .ionic-home-settings { max-width: 440px; }
 button { font: inherit; cursor: pointer; }
 .flow-page { max-width: 700px; margin: 12px auto 36px; color: var(--cp-ink); }
-.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .ionic-page-nav>a, .globe-selection button, .globe-auto, .ionic-home-links button { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: var(--cp-radius); min-height: 44px; padding: 8px 12px; }
+.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .ionic-page-nav>a, .globe-selection button, .globe-auto, .ionic-home-links button, .ionic-home-search :is(input, button) { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: var(--cp-radius); min-height: 44px; padding: 8px 12px; }
 /* One filled primary per screen: the first home entry. .flow-primary's block layout would break this grid. */
 .ionic-home-links button:first-child { background: var(--cp-ink); color: var(--cp-surface); border-color: var(--cp-ink); }
+.ionic-home-search { margin-top: 16px; text-align: left; }
+.ionic-home-search label { display: block; font-size: 14px; }
+/* 16px keeps iOS from zooming the page on focus. */
+.ionic-home-search input { box-sizing: border-box; width: 100%; margin-top: 6px; font: inherit; font-size: 16px; }
+.ionic-home-results { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ionic-home-results button { width: 100%; text-align: left; }
+.ionic-home-search p:empty { margin: 0; }
 .flow-page gmp-place-autocomplete { display: block; margin-top: 8px; }
 .flow-page label { font-size: 14px; }
 .flow-choices { display: grid; gap: 10px; }
@@ -171,6 +178,6 @@ button { font: inherit; cursor: pointer; }
 .globe-selection button::after { content: ''; position: absolute; inset: -6px 0; }
 @keyframes globe-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .flow-page * { box-sizing: border-box; }
-.flow-page :is(button,input,select), .ionic-home :is(button,a), .ionic-page-nav :is(button,a) { outline-offset: 3px; }
-.flow-page :is(button,input,select):focus-visible, .ionic-home :is(button,a):focus-visible, .ionic-page-nav :is(button,a):focus-visible { outline: 3px solid var(--cp-ink); }
+.flow-page :is(button,input,select), .ionic-home :is(button,a,input), .ionic-page-nav :is(button,a) { outline-offset: 3px; }
+.flow-page :is(button,input,select):focus-visible, .ionic-home :is(button,a,input):focus-visible, .ionic-page-nav :is(button,a):focus-visible { outline: 3px solid var(--cp-ink); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

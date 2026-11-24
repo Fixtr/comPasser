@@ -67,7 +67,8 @@ async (page) => {
         sessionStorage.setItem('__smoke_user', JSON.stringify(user));
         listeners.forEach(fn => fn(user));
       };
-      export function subscribeToAuthChanges(fn) { listeners.push(fn); queueMicrotask(() => fn(getCurrentUser())); return () => {}; }
+      // '__smoke_auth_hold' keeps auth unsettled after a reload until a scenario calls setUser.
+      export function subscribeToAuthChanges(fn) { listeners.push(fn); if (!sessionStorage.getItem('__smoke_auth_hold')) queueMicrotask(() => fn(getCurrentUser())); return () => {}; }
       export async function logout() { window.__smoke.calls.push('logout'); window.__smoke.setUser(null); }
       export const requireRecentLoginForDeletion = createAccountDeletionGuard({
         getCurrentUser,

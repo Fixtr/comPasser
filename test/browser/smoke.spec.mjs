@@ -71,6 +71,7 @@ for (const [title, file] of [
   ['shared source deletion hides content and preserves independent copies', 'shared-deletion-smoke.js'],
   ['measured transit is authoritative over AI prose and fare', 'transit-authority-smoke.js'],
   ['home upcoming trip card for signed-in users', 'upcoming-trip-smoke.js'],
+  ['home city search opens the places step and keeps the saved draft', 'home-city-search-smoke.js'],
   ['remaining itinerary replan previews and undoes changes', 'itinerary-replan-smoke.js'],
   ['trip-day departure card follows the next reservation and measured legs', 'departure-card-smoke.js'],
   ['transit cards and the departure card open their leg on the map', 'map-leg-smoke.js'],

@@ -54,12 +54,15 @@ async (page) => {
   await page.waitForURL('**/home');
   await card.locator('.status').filter({ hasText: '여행 중 · 2일차' }).waitFor();
   check(await card.count() === 1, 'Only the shown home page may mount the card');
+  // On a trip day the button names today's plan; before the trip it stays 보기 (clicked above).
+  check(await card.getByRole('button', { name: /^오늘 일정 열기: 진행 중 여행$/ }).textContent() === '오늘 일정 열기', 'A trip day must label the button 오늘 일정 열기');
   results.push('PASS ongoing trip shows its day number, one card after / then /home');
   // Slow CI can leave both mounted home pages stacked, so their language buttons cover each other; a reload leaves one page.
   await page.reload();
   await card.locator('.status').filter({ hasText: '여행 중 · 2일차' }).waitFor();
   await page.getByRole('button', { name: 'English', exact: true }).first().click();
   await card.locator('.status').filter({ hasText: 'On your trip · Day 2' }).waitFor();
+  check(await card.getByRole('button').textContent() === "Open today's plan", 'The trip-day label must follow the language');
   results.push('PASS ongoing status follows the language switch');
   return { results, errors: page.smokeErrors };
 }

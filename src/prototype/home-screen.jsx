@@ -1,7 +1,8 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { plannerDraftStore } from '../domains/planner/services/planner-draft.mjs';
+import { searchCities } from '../domains/planner/services/city-search.mjs';
 import { t } from '../utils/i18n.js';
 
 // The world map data and d3 are about 50 KB gzip; home paints its text first and the globe follows.
@@ -14,7 +15,29 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const active = pageActive;
   const [importStatus, setImportStatus] = useState('');
   const [pickedCountry, setPickedCountry] = useState(null);
+  const [pickedCity, setPickedCity] = useState(null);
+  const [query, setQuery] = useState('');
+  // null until the search is first used, false when the download failed.
+  const [catalogue, setCatalogue] = useState(null);
+  const searchId = useId();
+  const results = useRef(null);
   const tripOwner = authSettled && user?.uid;
+  const matches = catalogue ? searchCities(query, catalogue.destinations, city => t(city.key)) : [];
+  const noMatch = Boolean(catalogue && query.trim() && !matches.length);
+
+  // The city catalogue stays out of the first load; it arrives when the search is first used.
+  const loadCatalogue = () => {
+    if (catalogue) return;
+    Promise.all([import('../domains/planner/services/travel-destinations.mjs'), import('../domains/planner/services/course-draft.mjs')])
+      .then(([{ destinations }, { cityDestination, setDraftDestination }]) => setCatalogue({ destinations, cityDestination, setDraftDestination }))
+      .catch(error => { console.error('City search unavailable:', error); setCatalogue(false); });
+  };
+  const searchKey = event => {
+    // Enter that only finishes a Korean syllable is not a choice (229: Safari reports it after composition ends).
+    if (event.nativeEvent.isComposing || event.keyCode === 229 || !matches.length) return;
+    if (event.key === 'Enter' && matches.length === 1) setPickedCity(matches[0]);
+    else if (event.key === 'Enter' || event.key === 'ArrowDown') { event.preventDefault(); results.current?.querySelector('button')?.focus(); }
+  };
 
   // Only signed-in users have saved trips; guests never load the card or its Firestore code.
   useEffect(() => {
@@ -23,13 +46,15 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
 
   // The saved draft is restored when auth settles; saving a pick earlier would overwrite it.
   useEffect(() => {
-    if (!pickedCountry) return;
-    if (!active) { setPickedCountry(null); return; }
+    if (!pickedCountry && !pickedCity) return;
+    if (!active) { setPickedCountry(null); setPickedCity(null); return; }
     if (!authSettled) return;
-    setPickedCountry(null);
-    plannerDraftStore.update({ country: pickedCountry, destinationStage: 'city', step: '/destination' });
+    setPickedCountry(null); setPickedCity(null); setQuery('');
+    // A searched city is saved the way the city step's chooseCity saves it, and opens the places step.
+    if (pickedCity) plannerDraftStore.save({ ...catalogue.setDraftDestination(plannerDraftStore.read(), catalogue.cityDestination(pickedCity)), step: '/destination' });
+    else plannerDraftStore.update({ country: pickedCountry, destinationStage: 'city', step: '/destination' });
     navigate('/destination');
-  }, [pickedCountry, active, authSettled, navigate]);
+  }, [pickedCountry, pickedCity, catalogue, active, authSettled, navigate]);
 
   useEffect(() => {
     if (!active) return;
@@ -75,7 +100,7 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
 
   return <IonPage><IonContent className="ion-padding shell-content">
     {importStatus && <p role="status">{t(importStatus)}</p>}
-    {pickedCountry && <p role="status">{t('loadingModal')}</p>}
+    {(pickedCountry || pickedCity) && <p role="status">{t('loadingModal')}</p>}
     <div className="ionic-home-settings">{settings}</div>
     <div className="ionic-home">
       <div className="ionic-home-intro">
@@ -87,6 +112,15 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
       {tripOwner && active && <upcoming-trip key={tripOwner} uid={tripOwner} />}
       {/* Above the globe so the two entries stay above the tab bar on short phones. */}
       <nav className="ionic-home-links"><button onClick={() => navigate('/recommend')}>{t('shellRecommend')}</button><button onClick={() => navigate('/courses')}>{t('shellCourses')}</button></nav>
+      {/* Below the entries: results grow downwards and never push the two buttons under the tab bar. */}
+      <div className="ionic-home-search">
+        <label htmlFor={searchId}>{t('homeCitySearch')}</label>
+        <input id={searchId} type="search" autoComplete="off" enterKeyHint="search" value={query} onFocus={loadCatalogue} onChange={event => { loadCatalogue(); setQuery(event.target.value); }} onKeyDown={searchKey} />
+        {matches.length > 0 && <ul role="list" className="ionic-home-results" ref={results} aria-label={t('homeCitySearch')}>{matches.map(city => <li key={city.id}><button type="button" onClick={() => setPickedCity(city)}>{t(city.key)} · {t(`country${city.country}`)}</button></li>)}</ul>}
+        {/* Always mounted so screen readers announce the text when it appears. */}
+        <p role="status">{noMatch && t('homeCityNoMatch')}</p>
+        {(noMatch || catalogue === false) && <button type="button" onClick={() => navigate('/recommend')}>{t('homeCityBrowseAll')}</button>}
+      </div>
       <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>
     </div>
   </IonContent></IonPage>;
