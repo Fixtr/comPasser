@@ -69,7 +69,7 @@ test('위치를 확인하지 못한 중간 장소를 건너뛰는 경로를 만�
 
 // 지도 클래스의 실제 async 경로를 실행한다. Google 통신과 그리기 객체만 대체한다.
 function harness({ geocode = async items => geocoded(items), route = async () => response(), library, styles = {} } = {}) {
-  const events = [], created = { markers: [], routes: [], fallbacks: [] }, frames = [], listeners = new Map();
+  const events = [], created = { markers: [], routes: [], fallbacks: [] }, frames = [], listeners = new Map(), tracked = [];
   const libraries = {
     marker: {
       PinElement: class { constructor(options) { Object.assign(this, options); } },
@@ -95,6 +95,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
     } }),
     GeocodingService: class { geocodeSchedule(...args) { return geocode(...args); } },
     RoutingService: class { getTransitRoute(...args) { return route(...args); } },
+    trackEvent: (...args) => { tracked.push(args); },
     getLang: () => 'ko', t: key => key, buildTransitDepartureTime, routeDepartureClock, buildLegList,
     getComputedStyle: () => ({ getPropertyValue: name => styles[name] || '' }),
     document: { documentElement: {}, createElement: tag => ({ tag, style: {}, children: [], append(...nodes) { this.children.push(...nodes); } }) },
@@ -113,7 +114,7 @@ function harness({ geocode = async items => geocoded(items), route = async () =>
   map.ensureMap = async () => true;
   map.setLoading = loading => { map.loading = loading; };
   map.frameToItems = items => frames.push(items[0].title);
-  return { map, events, created, frames, listeners };
+  return { map, events, created, frames, listeners, tracked };
 }
 
 test('느린 1일차 지오코딩이 2일차 완료 뒤 도착해도 마커·장소·이동정보를 덮지 않는다', async () => {
@@ -389,6 +390,7 @@ test('넘기기: 다음을 누르면 1 → 2 에서 2 → 3 으로 바뀌고 끝
   assert.equal(nodes.focused, true, '숨은 버튼에 초점을 남기지 않는다');
   node('leg-prev').click();
   assert.equal(node('leg-label').textContent, '1 → 2');
+  assert.deepEqual(app.tracked, [['leg_focus_open', { opened_from: 'map_stepper' }]], '전체 보기에서 구간을 열 때 한 번만, 구간 정보 없이 보낸다');
 
   node('leg-overview').click();
   assert.equal(node('leg-label').textContent, 'mapLegAll');

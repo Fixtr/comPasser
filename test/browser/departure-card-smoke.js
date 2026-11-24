@@ -34,6 +34,7 @@ async page => {
 
   await page.goto(page.smokeOrigin + '/view/depart');
   await stops.filter({ hasText: '카페' }).waitFor();
+  await page.evaluate(() => { window.__events = []; window.gtag = (...args) => { window.__events.push(args); }; });
   await legs(18);
   await expectCard('13:32 출발');
   const ok = await text();
@@ -67,6 +68,9 @@ async page => {
   await stops.filter({ hasText: '해변열차 탑승' }).locator('.visited-btn').click();
   await expectCard('다음 방문');
   await expectCard('15:30 카페');
+  // 스펙 9: one event per state change with the state only, however often the card was refreshed in between.
+  const states = await page.evaluate(() => JSON.stringify(window.__events.filter(args => args[1] === 'departure_card_shown').map(args => args[2])));
+  if (states !== JSON.stringify(['ok', 'go', 'ok', 'go', 'late', 'unknown', 'next'].map(state => ({ state })))) throw Error('departure_card_shown tracking wrong: ' + states);
   const shown = () => page.evaluate(() => {
     const root = document.querySelector('itinerary-view').shadowRoot;
     return ['departure-card', 'next-stop'].map(id => getComputedStyle(root.getElementById(id)).display !== 'none');

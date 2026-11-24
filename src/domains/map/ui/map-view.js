@@ -5,6 +5,7 @@ import { GeocodingService } from "../services/geocoding-service.js";
 import { RoutingService } from "../services/routing-service.js";
 import { buildTransitDepartureTime } from "../services/transit-time.mjs";
 import { getLang, t } from "../../../utils/i18n.js";
+import { trackEvent } from "../../../utils/analytics.js";
 import {
   MIN_PADDING, SHEET_FRAME_MAX_RATIO, centerOffsetFor, toPoint, isSinglePlace
 } from "../services/map-framing.mjs";
@@ -310,7 +311,10 @@ export class MapView extends HTMLElement {
   stepLeg(delta) {
     const list = buildLegList(this.legRoutes, this.legItems, t);
     const next = list[list.findIndex(leg => leg.fromIndex === this.activeLeg) + delta];
-    if (next) this.showLeg(next.fromIndex);
+    if (!next) return;
+    // Opening a leg from the whole-day view counts; stepping on to the next one does not.
+    if (this.activeLeg === null) trackEvent('leg_focus_open', { opened_from: 'map_stepper' });
+    this.showLeg(next.fromIndex);
   }
 
   /**

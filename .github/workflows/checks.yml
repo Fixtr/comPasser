@@ -111,6 +111,12 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          # BEFORE registering this repository variable: in GA4 Admin > Data streams > (web stream) > Enhanced measurement,
+          # turn OFF "Page changes based on browser history events" and "Outbound clicks" (form interactions and site search too).
+          # Code cannot switch them off, and they send the real address (/view/<id>, /share/<id>, query strings) and the
+          # Naver/Kakao link_url with the place name, past the masking in src/utils/analytics.js (스펙 9).
+          # After the first deploy check DebugView: /share/<id> -> /view/<id> and a Naver map link click must show no id and no place name.
+          VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
         run: npm run build:release
       - name: Deploy verified bundle to Cloudflare Pages
         env:

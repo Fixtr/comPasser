@@ -30,6 +30,7 @@ async page => {
   await open({ days: [day(1, '2026-10-20', '한강 공원'), day(2, '2026-10-21', '서울숲')] }, undefined);
   await title('한강 공원').waitFor();
   await toggle.waitFor();
+  await page.evaluate(() => { window.__events = []; window.gtag = (...args) => { window.__events.push(args); }; });
   await expectEdit(false, 'on open');
   // Read mode keeps the title, address, stay and directions.
   const meta = await shown('.schedule-meta').nth(1).innerText();
@@ -65,6 +66,9 @@ async page => {
   // Edit mode belongs to the trip it was switched on for: another trip opens in read mode.
   await toggle.click();
   if (await toggle.getAttribute('aria-pressed') !== 'true') throw Error('Toggle did not switch on again');
+  // 스펙 9: switching on is tracked (twice here), switching off is not, and nothing about the trip is sent.
+  const tracked = await page.evaluate(() => JSON.stringify(window.__events));
+  if (tracked !== JSON.stringify([['event', 'edit_mode_toggle', {}], ['event', 'edit_mode_toggle', {}]])) throw Error('edit_mode_toggle tracking wrong: ' + tracked);
 
   // Rain: the banner's feature stays reachable in read mode, the other five stay hidden.
   const rain = Array.from({ length: 12 }, (_, i) => ({ hour: 12 + i, rainPercent: [14, 15, 16].includes(12 + i) ? 80 : 10 }));
