@@ -9,7 +9,8 @@ if (process.argv.includes('--build')) {
     VITE_FIREBASE_API_KEY: 'browser-fixture-api-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-hackerton-deletion.localhost',
     VITE_FIREBASE_PROJECT_ID: 'demo-hackerton-deletion', VITE_FIREBASE_APP_ID: 'browser-fixture-app',
   });
-  await build({ root: fileURLToPath(new URL('../', import.meta.url)), envDir: false, build: { outDir: 'test-results/pwa-build' } });
+  // Vite 5 reads a false env directory as "use the project root", so .env was still loaded; envFile: false is what skips it.
+  await build({ root: fileURLToPath(new URL('../', import.meta.url)), envFile: false, build: { outDir: 'test-results/pwa-build' } });
   process.exit(0);
 }
 const portFlag = process.argv.indexOf('--port');
@@ -17,7 +18,7 @@ const port = portFlag > 0 ? Number(process.argv[portFlag + 1]) : process.argv.in
 const server = await createServer({
   root: fileURLToPath(new URL('../', import.meta.url)),
   configFile: fileURLToPath(new URL('../vite.config.js', import.meta.url)),
-  envDir: false,
+  envFile: false,
   server: { host: '127.0.0.1', port, strictPort: true },
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await server.close(); process.exit(0); });
