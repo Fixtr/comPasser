@@ -24,6 +24,19 @@ export const itineraryStyles = `
         .place-replacement button, .replace-place-btn, .indoor-alternatives-btn { min-height: 44px; padding: 8px 12px; margin: 4px 8px 4px 0; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
         .place-replacement button:disabled { opacity: .5; cursor: not-allowed; }
         .schedule-card[data-visited] .indoor-alternatives-btn { display: none; }
+        /* 읽기 모드가 기본이다. 편집 버튼은 지우지 않고 숨기기만 해서 기능과 이벤트 연결은 그대로다. */
+        :host(:not([edit-mode])) :is(.item-edit-actions, .visit-time-btn, .replace-place-btn, .indoor-alternatives-btn, .insert-slot) { display: none; }
+        /* 비 알림이 가리키는 기능이라 비가 오면 읽기 모드에서도 찾을 수 있어야 한다. */
+        .rain-banner ~ #timeline-container .schedule-card:not([data-visited]) .indoor-alternatives-btn { display: inline-block; }
+        /* 일정표 위 버튼 줄에 함께 둔다. 따로 한 줄을 차지하면 휴대폰 시트에서 첫 방문지가 밀려 내려간다. */
+        #edit-mode-btn { min-height: 44px; }
+        #edit-mode-btn[hidden], #edit-mode-btn[aria-pressed="false"] > span:first-child { display: none; }
+        #edit-mode-btn[aria-pressed="true"] { background: var(--cp-sunken); border-color: var(--cp-ink); }
+        #edit-mode-btn:focus-visible, .schedule-details > summary:focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
+        .schedule-details > summary { min-height: 44px; display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.85rem; color: var(--cp-ink-2); }
+        .schedule-details > summary::before { content: '▸'; }
+        .schedule-details[open] > summary::before { content: '▾'; }
+        .schedule-details > summary::-webkit-details-marker { display: none; }
         :host {
           display: block;
           /* 카드가 흰색이므로 호스트는 한 톤 낮은 지면을 깐다.
@@ -904,12 +917,14 @@ export const itineraryStyles = `
             color: var(--cp-ink);
           }
           /* 같은 다음 방문지를 두 번 보여 주지 않는다. */
-          :host([mobile-summary]) .departure-card[data-state="next"] { display: none; }
+          :host([mobile-summary]) .departure-card:is([data-state="next"], [data-merged]) { display: none; }
+          .next-stop span:empty { display: none; }
+          #next-stop-departure { color: var(--cp-ink); }
           .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
           .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }
           .next-stop button {
             grid-column: 2;
-            grid-row: 1 / span 3;
+            grid-row: 1 / span 4;
             min-height: 48px;
             padding: 0 1rem;
             border: 0;

@@ -14,6 +14,8 @@ async page => {
       { type: 'arrival', title: '도착', time: '18:00' },
     ] }] });
   });
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await page.locator('itinerary-view #edit-mode-btn').click();
   const trigger = page.locator('itinerary-view .indoor-alternatives-btn');
   const panel = page.locator('itinerary-view .indoor-alternatives');
   const apply = panel.getByRole('button', { name: '장소 바꾸기 · 실내 박물관', exact: true });

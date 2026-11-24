@@ -117,3 +117,38 @@ test('영어로 적힌 곳의 한글 이름은 주소가 없어도 보여준다'
   assert.equal(result.mismatch, false);
   assert.equal(result.detail, '광장시장');
 });
+
+test('카드 주소 줄과 같은 주소만 찾았으면 줄을 띄우지 않는다', () => {
+  assert.equal(describeResolvedPlace({ written: '서울 종로구 사직로 161', name: '', address: '서울 종로구 사직로 161' }).visible, false);
+  // 찾은 이름이 카드 제목과 같으면 그 이름도 새 정보가 아니다.
+  assert.equal(describeResolvedPlace({
+    written: '서울 종로구 사직로 161', title: '경복궁', name: '경복궁', address: '서울 종로구 사직로 161',
+  }).visible, false);
+});
+
+test('주소가 같아도 찾은 이름이 제목과 다르면 둘 다 보여준다', () => {
+  const result = describeResolvedPlace({
+    written: '서울 종로구 사직로 161', title: '경복궁', name: '법무법인 존재', address: '서울 종로구 사직로 161',
+  });
+  assert.equal(result.visible, true);
+  assert.equal(result.detail, '법무법인 존재 · 서울 종로구 사직로 161');
+  // 제목이 영어이고 찾은 이름이 한글이면 그 이름은 새 정보다.
+  assert.equal(describeResolvedPlace({
+    written: '161 Sajik-ro', title: 'Gyeongbokgung Palace', name: '경복궁', address: '161 Sajik-ro',
+  }).visible, true);
+});
+
+test('주소가 같아도 찾은 이름이 제목보다 구체적이면 둘 다 보여준다', () => {
+  const cafe = describeResolvedPlace({
+    written: '서울 성동구 뚝섬로 273', title: '카페', name: '카페 온화 성수점', address: '서울 성동구 뚝섬로 273',
+  });
+  assert.equal(cafe.visible, true);
+  assert.equal(cafe.detail, '카페 온화 성수점 · 서울 성동구 뚝섬로 273');
+  assert.equal(describeResolvedPlace({
+    written: '서울 성동구 뚝섬로 273', title: '점심', name: '점심시간 국수집', address: '서울 성동구 뚝섬로 273',
+  }).visible, true);
+  // 제목이 찾은 이름을 품고 있으면 새 정보가 아니다.
+  assert.equal(describeResolvedPlace({
+    written: '서울 종로구 사직로 161', title: '서울 경복궁 관람', name: '경복궁', address: '서울 종로구 사직로 161',
+  }).visible, false);
+});

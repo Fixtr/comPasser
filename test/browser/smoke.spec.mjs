@@ -73,6 +73,7 @@ for (const [title, file] of [
   ['home upcoming trip card for signed-in users', 'upcoming-trip-smoke.js'],
   ['remaining itinerary replan previews and undoes changes', 'itinerary-replan-smoke.js'],
   ['trip-day departure card follows the next reservation and measured legs', 'departure-card-smoke.js'],
+  ['cards open in read mode and one toggle reveals the edit buttons', 'read-mode-smoke.js'],
   ['visited marks are device-local and skip the next stop', 'visited-stops-smoke.js'],
   ['trip-day rain banner opens indoor alternatives for the affected outdoor stop', 'rain-banner-smoke.js'],
 ]) test(title, async ({ page }, testInfo) => { await scenario(file, page, testInfo); });

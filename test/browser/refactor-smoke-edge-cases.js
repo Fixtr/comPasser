@@ -22,6 +22,8 @@ async (page) => {
   await shown('#shared-notice').waitFor({state:'visible'});
   await shown('#save-itinerary-btn').click();
   await page.waitForURL('**/view/smoke1');
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await shown('#edit-mode-btn').click();
   await shown('.item-edit-btn').first().waitFor({state:'visible'});
   check(await page.evaluate(() => {
     const db=JSON.parse(sessionStorage.getItem('__smoke_db'));

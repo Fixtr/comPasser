@@ -58,9 +58,10 @@ export function isResolvedNameMatching(written, found) {
 
 /**
  * 한 항목의 "지도에서 찾은 곳" 줄을 어떻게 그릴지 반환한다.
+ * title 은 카드 제목이다. 주소가 카드의 주소 줄과 같을 때 찾은 이름이 새 정보인지 가린다.
  * @returns {{visible: boolean, mismatch: boolean, detail: string}}
  */
-export function describeResolvedPlace({ written, name, address } = {}) {
+export function describeResolvedPlace({ written, name, address, title } = {}) {
   const found = String(name || '').trim();
   const where = String(address || '').trim();
   const matching = isResolvedNameMatching(written, found);
@@ -71,6 +72,12 @@ export function describeResolvedPlace({ written, name, address } = {}) {
   // 표기 체계가 다르면 찾은 이름 자체가 새 정보다. 영어로 일정을 본 사람에게
   // 한글 상호는 택시 기사에게 보여줄 수 있는 실질적인 값이므로 숨기지 않는다.
   if (matching && !where && comparable) return { visible: false, mismatch: false, detail: '' };
+  // 카드의 주소 줄과 같은 주소이고 찾은 이름도 제목에 이미 있으면 같은 내용을 두 번 보이지 않는다.
+  // 한 방향만 본다: 찾은 이름이 제목보다 구체적이면("카페" → "카페 온화 성수점") 그 이름은 새 정보다.
+  const titled = normalizePlaceName(title).includes(normalizePlaceName(found));
+  if (where && normalizePlaceName(where) === normalizePlaceName(written) && (!found || titled)) {
+    return { visible: false, mismatch: false, detail: '' };
+  }
 
   const detail = found && where ? `${found} · ${where}` : (found || where);
   return { visible: true, mismatch: !matching, detail };

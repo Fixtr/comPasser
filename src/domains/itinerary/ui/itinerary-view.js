@@ -32,6 +32,11 @@ import { refreshEndTimeWarning, updateAnchorWarning, refreshCostSummary, refresh
 
 // Firestore finishes a queued write once the connection returns, so failing it here and retrying would write twice.
 const STALLED_WRITE_MS = 15000;
+// 화면에 하나뿐인 '편집' 토글. Ionic 은 일정 주소마다 새 itinerary-view 를 세우므로(저장하면 /view → /view/:id)
+// 요소가 아니라 모듈에 둬야 저장 직후에도 켜진 채로 남는다. 새로 고치면 읽기 모드로 돌아간다.
+let editModeOn = false;
+// 편집을 켠 일정(계획 객체와 저장 id). 다른 일정이 열리면 읽기 모드로 돌아간다.
+let editModeTrip = null;
 const noticeStalledWrite = write => async (...args) => {
   const path = window.location.pathname;
   const userId = getCurrentUser()?.uid;
@@ -98,6 +103,13 @@ export default class ItineraryView extends HTMLElement {
     const replanButton = this.shadowRoot.getElementById('replan-trip-btn');
     replanButton?.addEventListener('click', () => showItineraryReplan(this, replanButton));
     this.shadowRoot.getElementById('improve-route-btn')?.addEventListener('click', () => this.improveRouteOrder());
+    // 읽기 모드가 기본이다. 편집 버튼은 그대로 그려 두고 호스트 속성으로 CSS 가 숨긴다.
+    this.shadowRoot.getElementById('edit-mode-btn')?.addEventListener('click', () => {
+      // 모듈 값이 아니라 이 화면의 상태를 뒤집는다. 뒤에 쌓여 있던 화면에서도 한 번에 바뀐다.
+      editModeOn = !this.hasAttribute('edit-mode');
+      editModeTrip = { plan: this.currentItinerary };
+      this.refreshAccessControls();
+    });
     this.shadowRoot.getElementById('recalculate-times-btn')?.addEventListener('click', () => {
       if (this.canEdit()) { this._explicitRecalculation=true; this.requestMapRoute({ scheduleEdited: true }); }
     });
@@ -355,6 +367,18 @@ export default class ItineraryView extends HTMLElement {
     const dirty=this.shadowRoot.getElementById('day-modified');if(dirty)dirty.hidden=!this.state.current?.dirtyDays?.includes(this.activeDayIndex);
     const improveBtn = this.shadowRoot.getElementById('improve-route-btn');
     // Offered only when the current day has a shorter order; the check is local and needs no network.
+    if (editModeOn && entry) {
+      // 저장하면 초안이 같은 계획 객체로 개인 일정이 되고, /view/:id 의 새 화면은 그 id 로 알아본다.
+      const id = entry.source.kind === 'private' ? entry.source.id : null;
+      if (entry.plan === editModeTrip?.plan || (id && id === editModeTrip?.id)) editModeTrip = { plan: entry.plan, id };
+      else editModeOn = false;
+    }
+    const editMode = this.shadowRoot.getElementById('edit-mode-btn');
+    if (editMode) {
+      editMode.hidden = !hasPlan || !this.canEdit();
+      editMode.setAttribute('aria-pressed', String(editModeOn));
+    }
+    this.toggleAttribute?.('edit-mode', editModeOn);
     if (improveBtn) improveBtn.hidden = !hasPlan || !this.canEdit() ||
       !suggestRouteOrder(this.normalizeData(this.currentItinerary)?.days?.[this.activeDayIndex]?.scheduleItems, this.lastResolvedPlaces).changed;
     if (editBtn) {
@@ -471,6 +495,7 @@ export default class ItineraryView extends HTMLElement {
 
       const { visible, mismatch, detail } = describeResolvedPlace({
         written: item.location,
+        title: item.title,
         name,
         address,
       });
@@ -540,6 +565,7 @@ export default class ItineraryView extends HTMLElement {
             <span id="next-stop-label"></span>
             <strong id="next-stop-title"></strong>
             <span id="next-stop-time"></span>
+            <span id="next-stop-departure"></span>
             <button type="button" id="next-stop-directions"></button>
           </section>
           <section id="departure-card" class="departure-card" data-i18n-aria="departCardLabel" hidden><span></span><strong></strong><span></span></section>
@@ -547,6 +573,7 @@ export default class ItineraryView extends HTMLElement {
           <button type="button" id="replan-trip-btn" class="end-time-fix-btn" data-i18n="replanBtn" hidden></button>
           <button id="recalculate-times-btn" class="end-time-fix-btn" data-i18n="recalculateTimesBtn" hidden>${t('recalculateTimesBtn')}</button>
           <button id="improve-route-btn" class="end-time-fix-btn" data-i18n="routeOrderBtn" hidden>${t('routeOrderBtn')}</button>
+          <button type="button" id="edit-mode-btn" class="end-time-fix-btn" aria-pressed="false" hidden><span aria-hidden="true">✓ </span><span data-i18n="editModeBtn">${t('editModeBtn')}</span></button>
           <div id="cost-summary" class="cost-summary" style="display: none;"></div>
           <h1 id="day-title-header" style="padding-top: 0.5rem; margin-top: 0; display: none;"></h1>
           <div id="day-tabs-container" class="day-tabs-container" style="display: none;">

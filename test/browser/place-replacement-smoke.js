@@ -5,6 +5,8 @@ async page => {
       {type:'leisure',title:'휴식 및 주변 경관 감상',time:'14:55',endTime:'15:25',placeIntent:{purpose:'휴식'},placeStatus:'unresolved'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
   });
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await page.locator('itinerary-view #edit-mode-btn').click();
   await page.locator('itinerary-view .replace-place-btn').click();
   await page.locator('itinerary-view .place-replacement gmp-place-autocomplete input').waitFor({state:'visible'});
   await page.evaluate(async()=>{

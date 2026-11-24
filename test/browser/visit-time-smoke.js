@@ -7,6 +7,8 @@ async page=>{
       {type:'AnchorSchedule',time:'12:54',endTime:'14:55',title:'고정 일정'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
   });
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await page.locator('itinerary-view #edit-mode-btn').click();
   await page.locator('itinerary-view .visit-time-btn').first().click();
   await page.locator('itinerary-view .visit-time-editor').getByRole('button',{name:'취소',exact:true}).click();
   if(await page.locator('itinerary-view .visit-time-editor').count()) throw Error('Cancel did not close');

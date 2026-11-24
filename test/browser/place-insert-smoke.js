@@ -5,6 +5,8 @@ async page => {
       {type:'leisure',title:'경복궁',time:'10:00',endTime:'11:00'},
       {type:'arrival',time:'18:00',title:'도착'}]}]});
   });
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await page.locator('itinerary-view #edit-mode-btn').click();
   const slot=page.locator('itinerary-view .insert-slot').filter({has:page.locator('.insert-slot-btn')}).nth(1);
   await slot.locator('.insert-slot-btn').click();
   const search=page.locator('itinerary-view .insert-slot .place-replacement gmp-place-autocomplete input');

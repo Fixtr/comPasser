@@ -98,6 +98,9 @@ export function renderScheduleCard(scheduleItem, idx, editable, visited) {
       ${(function() {
         const info = scheduleItem.practicalInfo;
         if (!info) return '';
+        // 읽기 화면에서는 접어 둔다. 내용은 그대로이고 펼치면 전과 같다.
+        const details = html => `<details class="schedule-details">
+          <summary data-i18n="scheduleDetails">${escapeHtml(t('scheduleDetails'))}</summary>${html}</details>`;
 
         // Structured Object Format (Phase 4)
         if (typeof info === 'object' && !Array.isArray(info)) {
@@ -176,21 +179,21 @@ export function renderScheduleCard(scheduleItem, idx, editable, visited) {
 
           if (!lines && !tipHtml && !recsHtml) return '';
 
-          return `
+          return details(`
             <div class="quick-info-box structured">
               <div class="info-group">${lines}${tipHtml}${recsHtml}
               </div>
             </div>
-          `;
+          `);
         }
 
         // Legacy String Format (Phase 3 Fallback)
-        return `
+        return details(`
           <div class="quick-info-box">
             <span class="quick-info-icon">${icons.tip}</span>
             <div class="quick-info-text">${escapeHtml(info)}</div>
           </div>
-        `;
+        `);
       })()}
       ${linksHtml}
     </div>

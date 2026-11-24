@@ -47,6 +47,8 @@ async page => {
   if(await page.locator('itinerary-view #recalculate-times-btn').isVisible()) throw Error('Shared snapshot exposes recalculation');
   await page.goto(page.smokeOrigin+'/view/smoke1');
   // The Ionic result view runs with day-editing: recalculation is offered only once an explicit edit marks the day modified.
+  // Cards open in read mode; the edit buttons show once the screen's 편집 toggle is on.
+  await page.locator('itinerary-view #edit-mode-btn').click();
   await page.locator('itinerary-view').getByRole('button',{name:'미확인 방문 앞으로 옮기기'}).click();
   if(await page.evaluate(()=>document.querySelector('itinerary-view')._allowTimeAdjustment)) throw Error('An explicit edit unlocked automatic fitting');
   await page.locator('itinerary-view #recalculate-times-btn').click();
