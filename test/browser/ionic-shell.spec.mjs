@@ -1417,6 +1417,55 @@ test('후기 지출은 국내 코스만 원으로 표시하고 해외 코스는 
   await expect(tokyo.locator('label', { has: page.locator('input[name=spentWon]') })).toHaveText('실제 지출 (선택)');
 });
 
+test('여러 날짜에 비용 요약이 있는 일정도 휴대폰 기본 시트에서 첫 방문지가 보인다', async ({ page }) => {
+  // 날짜 탭, 비용 요약, 다음 목적지 상자, 버튼 줄이 모두 쌓이는 경우다. 하루짜리 일정만 보면 이 높이를 놓친다.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({
+    contentType: 'text/javascript', body: authModule.replace('let currentUser = null', "let currentUser = { uid: 'test-user', providerData: [], emailVerified: true }"),
+  }));
+  await page.route('**/src/domains/planner/services/gemini-optimizer.js', route => route.fulfill({
+    contentType: 'text/javascript', body: `
+      export async function getGenerationCredits() { return 1; }
+      export async function generateOptimizedItinerary() {
+        const day = (n, date) => ({ day: n, date, scheduleItems: [
+          { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+          { type: 'attraction', title: '경복궁', time: '10:00', endTime: '11:00', location: '경복궁', practicalInfo: { estimatedCost: '3,000원' } },
+          { type: 'arrival', title: '서울역', time: '18:00', location: '서울역' },
+        ] });
+        return { days: [day(1, '2026-09-27'), day(2, '2026-09-28')] };
+      }
+    `,
+  }));
+  await page.goto('/plan');
+  await page.locator('travel-form:visible').first().evaluate(element => {
+    element.dispatchEvent(new CustomEvent('generate-itinerary', { detail: {}, bubbles: true, composed: true }));
+  });
+  await expect(page).toHaveURL(/\/view$/);
+  await expect(page.locator('ion-modal.ionic-result-sheet')).toBeVisible();
+  const view = page.locator('itinerary-view');
+  await expect(view.locator('#next-stop')).toBeVisible();
+  await expect(view.locator('#cost-summary')).toBeVisible();
+  await expect(view.locator('.day-tab-btn')).toHaveCount(2);
+  await expect(view.locator('#edit-mode-btn')).toBeVisible();
+  // 지도가 구간을 잰 평소 상태로 맞춘다. 재지 못했다는 안내가 떠 있으면 그 높이만큼 더 밀린다.
+  await view.evaluate(element => window.dispatchEvent(new CustomEvent('transit-info-ready', { detail: { context: element._mapRequest,
+    routes: [0, 1].map(fromIndex => ({ fromIndex, toIndex: fromIndex + 1, durationMinutes: 10, displayMinutes: 10, mode: 'WALKING', steps: [] })) } })));
+  await expect(view.locator('#transit-notice')).toBeHidden();
+  await expect(view.locator('#timeline-container .transit-seg-card').first()).toBeVisible();
+  const firstStop = await view.locator('#timeline-container .schedule-card').first().boundingBox();
+  const saveBar = await view.locator('#actions-primary').boundingBox();
+  expect(firstStop.y + 40).toBeLessThanOrEqual(saveBar.y);
+  // '편집'은 줄 높이만 낮췄다. 누르는 영역은 44px 그대로여야 한다.
+  const tap = await view.locator('#edit-mode-btn').evaluate(button => {
+    const box = button.getBoundingClientRect();
+    const root = button.getRootNode();
+    const hit = dy => root.elementFromPoint(box.left + box.width / 2, box.top + dy) === button;
+    const half = (44 - box.height) / 2;
+    return { height: box.height, above: hit(-half + 1), below: hit(box.height + half - 1) };
+  });
+  expect(tap.above && tap.below, JSON.stringify(tap)).toBe(true);
+});
+
 test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/src/domains/auth/services/firebase-auth.js', route => route.fulfill({

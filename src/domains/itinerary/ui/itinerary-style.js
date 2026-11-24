@@ -952,8 +952,8 @@ export const itineraryStyles = `
             grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
             gap: 0.15rem 0.75rem;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
             background: var(--cp-surface);
             border: 2px solid var(--cp-ink);
             color: var(--cp-ink);
@@ -968,6 +968,16 @@ export const itineraryStyles = `
           :host([mobile-summary]) .next-stop:has(#next-stop-departure:not(:empty)) { border-color: var(--cp-anchor); }
           .next-stop span { grid-column: 1; color: var(--cp-ink-2); font-size: 0.9rem; font-weight: 600; }
           .next-stop strong { grid-column: 1; font-size: 1.25rem; line-height: 1.3; }
+          /* 시각은 표시 줄 오른쪽에 둬서 한 줄을 줄인다. */
+          #next-stop-label { grid-row: 1; }
+          #next-stop-time { grid-row: 1; justify-self: end; }
+          /* 여러 날짜 일정은 상자·버튼 줄·비용·날짜 탭이 쌓여 첫 방문지가 시트 기본 높이 밖으로 밀린다.
+             휴대폰 요약에서는 그 사이 여백을 줄이고, '편집'은 줄 높이만 낮추되 누르는 영역은 44px로 둔다. */
+          :host([mobile-summary]) #edit-mode-btn { min-height: 0; position: relative; }
+          /* inset 은 테두리 안쪽 기준이다. 1px 테두리를 넘어 위아래 8px 씩 나가야 30px 줄에서 44px 가 된다. */
+          :host([mobile-summary]) #edit-mode-btn::after { content: ''; position: absolute; inset: -9px 0; }
+          :host([mobile-summary]) .cost-summary { padding: 0.5rem 1rem; margin-bottom: 0.5rem; }
+          :host([mobile-summary]) .day-tabs-container { margin-bottom: 0.5rem; }
           .next-stop button {
             grid-column: 2;
             grid-row: 1 / span 4;
