@@ -71,7 +71,10 @@ async (page) => {
   await page.waitForURL('**/destination');
   saved = JSON.parse(await draft());
   check(saved.destination?.id === 'newyork' && saved.destination.name === 'New York, United States', 'Enter on a single match must save that city');
-  await page.getByRole('button', { name: '한국어', exact: true }).last().click();
+  // Other screens stay mounted but hidden in the stack, so pick the language button of the screen that shows this heading.
+  const placesHeading = page.getByRole('heading', { name: 'Must-visit places', exact: true }).locator('visible=true');
+  await placesHeading.waitFor();
+  await page.locator('.ion-page').filter({ has: placesHeading }).last().getByRole('button', { name: '한국어', exact: true }).click();
   results.push('PASS English names match from any word; Enter chooses a single match');
 
   // A signed-in traveler's draft survives opening home and typing; only a pick changes it.
