@@ -1504,7 +1504,8 @@ test('지구본의 작은 여행지는 44px 이상 탭 영역의 표시로 고�
   await expect(page.locator('.globe-auto')).toHaveAttribute('aria-label', '자동 회전 시작');
   for (const code of ['SGP', 'KOR', 'TWN']) await expect(globe.locator(`.globe-marker[data-country=${code}]`)).toHaveCount(1);
   const marker = globe.locator('.globe-marker[data-country=SGP]');
-  await marker.scrollIntoViewIfNeeded();
+  // Centre it: at the bottom edge the tab bar covers the lower half of its 44px tap area.
+  await marker.evaluate(element => element.scrollIntoView({ block: 'center' }));
   const box = await marker.boundingBox();
   const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
   // Singapore is not in the 110m map at all, so this ring is its only spot on the globe; 22 px each way is 44 px.

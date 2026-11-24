@@ -59,7 +59,7 @@ async (page) => {
   // Keyboard: Enter with one match chooses it; with several, Enter or ArrowDown moves to the first result.
   await home();
   await search.fill('');
-  await page.getByRole('button', { name: 'English', exact: true }).first().click();
+  await page.getByRole('button', { name: 'English', exact: true }).locator('visible=true').first().click();
   const english = page.getByRole('searchbox', { name: 'Search supported cities' }).locator('visible=true');
   await english.fill('s');
   await box.getByRole('listitem').nth(1).waitFor();
@@ -71,7 +71,7 @@ async (page) => {
   await page.waitForURL('**/destination');
   saved = JSON.parse(await draft());
   check(saved.destination?.id === 'newyork' && saved.destination.name === 'New York, United States', 'Enter on a single match must save that city');
-  await page.getByRole('button', { name: '한국어', exact: true }).first().click();
+  await page.getByRole('button', { name: '한국어', exact: true }).last().click();
   results.push('PASS English names match from any word; Enter chooses a single match');
 
   // A signed-in traveler's draft survives opening home and typing; only a pick changes it.
