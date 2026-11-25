@@ -3,6 +3,7 @@ import { escapeHtml } from '../../../utils/html-safety.mjs';
 import { trackEvent } from '../../../utils/analytics.js';
 import { minutesOf as clock, routeDepartureClock } from '../services/itinerary-schedule-adjust.mjs';
 import { formatMinutes } from '../services/boarding-pass.mjs';
+import { VEHICLE_WORDS } from '../../map/services/map-legs.mjs';
 
 // Google's duration text keeps the language the Maps API loaded with; minutes follow the current toggle.
 export function transitDurationText(leg) {
@@ -89,15 +90,6 @@ export function getTransitModeText(vehicleType, lineName) {
   }
   return name || t('transitText') || '대중교통';
 }
-
-// Google's transit vehicle types by the word a leg without a line name shows; any other type stays '대중교통'.
-const VEHICLE_WORDS = {
-  BUS: 'vehicleBus', INTERCITY_BUS: 'vehicleBus', TROLLEYBUS: 'vehicleBus',
-  SUBWAY: 'vehicleSubway', METRO_RAIL: 'vehicleSubway', HEAVY_RAIL: 'vehicleSubway', COMMUTER_TRAIN: 'vehicleSubway',
-  TRAIN: 'vehicleTrain', RAIL: 'vehicleTrain', HIGH_SPEED_TRAIN: 'vehicleTrain', LONG_DISTANCE_TRAIN: 'vehicleTrain',
-  TRAM: 'vehicleTram', MONORAIL: 'vehicleMonorail', FERRY: 'vehicleFerry',
-  CABLE_CAR: 'vehicleCableCar', GONDOLA_LIFT: 'vehicleCableCar', FUNICULAR: 'vehicleCableCar',
-};
 
 // The mode the map measured for a whole leg, in the transit rows' words ('도보', '142번 버스', '버스' without a line name); '' when unknown.
 export function legModeText(leg) {

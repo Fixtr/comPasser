@@ -11,6 +11,15 @@ const LINE_FORMATS = {
   TRAIN: 'trainFormat', HIGH_SPEED_TRAIN: 'trainFormat',
 };
 
+// Google's transit vehicle types by the word a leg without a line name shows; any other type stays '대중교통'.
+export const VEHICLE_WORDS = {
+  BUS: 'vehicleBus', INTERCITY_BUS: 'vehicleBus', TROLLEYBUS: 'vehicleBus',
+  SUBWAY: 'vehicleSubway', METRO_RAIL: 'vehicleSubway', HEAVY_RAIL: 'vehicleSubway', COMMUTER_TRAIN: 'vehicleSubway',
+  TRAIN: 'vehicleTrain', RAIL: 'vehicleTrain', HIGH_SPEED_TRAIN: 'vehicleTrain', LONG_DISTANCE_TRAIN: 'vehicleTrain',
+  TRAM: 'vehicleTram', MONORAIL: 'vehicleMonorail', FERRY: 'vehicleFerry',
+  CABLE_CAR: 'vehicleCableCar', GONDOLA_LIFT: 'vehicleCableCar', FUNICULAR: 'vehicleCableCar',
+};
+
 function durationText(minutes, t) {
   if (!Number.isFinite(minutes) || minutes <= 0) return '';
   const hours = Math.floor(minutes / 60);
@@ -26,9 +35,10 @@ function travelText(route, t) {
   const duration = durationText(route.displayMinutes ?? route.durationMinutes, t);
   // 시간을 재지 못한 구간(점선)에는 수단도 적지 않는다. 걸어간다는 근거가 없다.
   if (!duration) return '';
-  const format = LINE_FORMATS[String(route.vehicleType || '').toUpperCase()];
+  const vehicle = String(route.vehicleType || '').toUpperCase();
+  const format = LINE_FORMATS[vehicle];
   const mode = route.mode !== 'TRANSIT' ? t('walkText')
-    : (format && route.lineName ? t(format).replace('{0}', route.lineName) : route.lineName || t('transitText'));
+    : (format && route.lineName ? t(format).replace('{0}', route.lineName) : route.lineName || t(VEHICLE_WORDS[vehicle] || 'transitText'));
   return `${mode} ${duration}`;
 }
 

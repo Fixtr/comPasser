@@ -1548,6 +1548,24 @@ test('여행 당일 다음 목적지 상자에 출발 안내가 합쳐져도 휴
   await expectFirstStopAboveSaveBar(view);
 });
 
+for (const dayCount of [2, 1]) test(`여행 당일에 지도가 이동 시간을 재지 못해 안내 두 가지가 함께 떠도 휴대폰 기본 시트에서 첫 방문지가 보인다 (${dayCount}일 일정)`, async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-27T03:00:00.000Z'));
+  const view = await openPhoneSummaryTrip(page, [
+    { type: 'departure', title: '광화문', time: '09:00', location: '광화문' },
+    { type: 'attraction', title: '경복궁', time: '10:00', endTime: '11:00', location: '경복궁', practicalInfo: { estimatedCost: '3,000원' } },
+    { type: 'AnchorSchedule', title: '공연', time: '14:00', endTime: '15:00', location: '세종문화회관' },
+    { type: 'arrival', title: '서울역', time: '18:00', location: '서울역' },
+  ], dayCount);
+  await view.evaluate(element => window.dispatchEvent(new CustomEvent('transit-unavailable', { detail: { context: element._mapRequest } })));
+  // 두 안내 모두 줄이지 않고 그대로 읽힌다.
+  await expect(view.locator('#transit-notice')).toBeVisible();
+  expect(await view.locator('#transit-notice').evaluate(box => box.scrollHeight <= box.clientHeight + 1)).toBe(true);
+  await expect(view.locator('#next-stop-title')).toHaveText('공연');
+  await expect(view.locator('#next-stop-departure')).toBeVisible();
+  await expect(view.locator('#cost-summary')).toBeVisible();
+  await expectFirstStopAboveSaveBar(view);
+});
+
 test('여행 당일 출발 안내가 두 줄로 넘어가는 하루짜리 일정도 휴대폰 기본 시트에서 첫 방문지가 보인다', async ({ page }) => {
   // 실제 일정에서 본 경우다: 앞 장소 이름과 노선 이름이 길어 상세 줄이 두 줄이 되고, 날짜 탭 대신 제목 줄이 온다.
   await page.clock.setFixedTime(new Date('2026-09-27T03:00:00.000Z'));
