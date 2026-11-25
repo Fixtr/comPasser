@@ -33,7 +33,7 @@
 <body>
 <main>
   <h1>ComPasser 개인정보처리방침</h1>
-  <p class="meta">시행일: 2026년 11월 11일 · 이전 버전 시행일: 2026년 11월 7일<br>
+  <p class="meta">시행일: 2026년 11월 25일 · 이전 버전 시행일: 2026년 11월 11일<br>
     <a href="#en" lang="en">English translation below</a> (the Korean text is authoritative)</p>
 
   <p>ComPasser(이하 “서비스”)는 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 등 관련 법령을 준수합니다.
@@ -46,12 +46,12 @@
       <tr><td>계정 정보 (이메일 가입)</td><td>이메일 주소, 비밀번호(서비스는 원문을 보관하지 않으며 Firebase Authentication이 암호화된 형태로 보관), 이메일 인증 여부</td><td>이메일로 회원가입할 때. 인증 메일과 비밀번호 재설정 메일이 이 이메일 주소로 발송됩니다.</td></tr>
       <tr><td>계정 정보 (소셜 로그인)</td><td>이메일 주소, 이름(닉네임), 프로필 사진, 소셜 로그인 제공자의 고유 식별자</td><td>Google·카카오·네이버 계정으로 로그인할 때 해당 제공자로부터 받습니다(앱에서는 Google만 제공).</td></tr>
       <tr><td>선택 프로필</td><td>생년월일</td><td>이용자가 프로필 화면에서 직접 입력할 때에 한함 (입력하지 않아도 서비스 이용 가능)</td></tr>
-      <tr><td>여행 일정</td><td>여행 날짜·시간, 출발/도착 장소, 숙소, 고정 일정·꼭 갈 장소, 여행 테마·예산, 생성·저장된 여행 일정</td><td>일정을 만들거나 저장할 때</td></tr>
+      <tr><td>여행 일정</td><td>여행 날짜·시간, 출발/도착 장소, 숙소, 고정 일정·꼭 갈 장소, 여행 테마·예산, 생성·저장된 여행 일정, 방문지에 이용자가 적은 개인 메모와 예약 링크</td><td>일정을 만들거나 저장할 때</td></tr>
       <tr><td>공개 코스 (선택)</td><td>코스 제목(영문 포함), 소개 글, 방문 장소·체류 시간, 방문 정보와 출처, 공개 작성자 이름·채널명, 원본 게시물 링크</td><td>저장한 일정을 이용자가 직접 공개할 때</td></tr>
       <tr><td>여행자 후기 (선택)</td><td>방문 날짜, 후기 글, 걸은 거리, 쓴 금액, 머문 시간</td><td>공개 코스에 이용자가 후기를 쓸 때</td></tr>
       <tr><td>서비스 이용 정보</td><td>일정 생성 이용권 잔액·사용 기록, 저장한 추천 장소, 탈퇴 처리 상태</td><td>서비스 이용 중</td></tr>
       <tr><td>요청 제한 정보</td><td>로그인한 경우 계정 고유 식별자의 해시값, 로그인하지 않은 경우 IP 주소의 해시값, 그날의 요청 횟수와 마지막 요청 시각, 날씨 확인은 그 시간의 요청 횟수 (계정 식별자와 IP 주소 원문은 저장하지 않음)</td><td>AI 장소 추천을 요청할 때 (로그인하지 않은 경우 포함), 로그인한 상태로 오늘·내일 일정의 비 예보를 확인할 때</td></tr>
-      <tr><td>이용 기록</td><td>화면 조회 경로, 기능 사용 이벤트(누른 장소 이름·장소 ID·코스 ID 포함), 기기·브라우저 유형, 대략적 지역 정보, 쿠키</td><td>서비스 이용 중 자동 수집 (Google Analytics)</td></tr>
+      <tr><td>이용 기록</td><td>화면 조회 경로(일정·공유 주소의 식별자는 가려서 보냄)와 화면 제목, 들어오기 직전 사이트의 주소(도메인), 기능 사용 이벤트(홈에서 고른 추천 장소의 ID, 고른 도시, 연 지도 서비스의 종류 등. 장소 이름과 일정·코스 ID는 보내지 않음), 기기·브라우저 유형, 대략적 지역 정보, 쿠키</td><td>웹 브라우저로 이용할 때 자동 수집 (Google Analytics). Android·iOS 앱에서는 수집하지 않습니다.</td></tr>
     </tbody>
   </table>
   <p>서비스는 기기의 정밀 위치 권한, 연락처, 사진, 마이크를 요청하지 않으며 수집하지 않습니다.
@@ -86,15 +86,16 @@
     <li>탈퇴 처리 기록(계정 고유 식별자, 카카오·네이버 로그인은 해당 서비스의 회원 번호 포함, 처리 상태, 접수 번호, 가입·탈퇴 처리 시각)은 이미 발급된 로그인 정보가 다시 쓰이지 않도록 탈퇴 후에도 보관합니다. 이 기록에는 여행 일정이나 이메일 등 연락처가 들어 있지 않습니다.</li>
     <li>요청 제한을 위한 해시값(로그인한 경우 계정 고유 식별자, 그렇지 않은 경우 IP 주소), 요청 횟수와 마지막 요청 시각은 별도의 삭제 주기 없이 보관될 수 있으며, 회원 탈퇴 후에도 남을 수 있습니다. 계정 식별자와 IP 주소 원문은 저장하지 않습니다.</li>
     <li>폐지된 휴대전화 본인인증 기능에서 과거에 수집한 휴대전화번호와 인증 상태는 더 이상 이용하거나 다시 수집하지 않으며, 회원 탈퇴 시 함께 삭제됩니다.</li>
+    <li>신고 기록(신고 당시 글의 사본과 작성자의 계정 고유 식별자)은 별도의 삭제 주기 없이 보관될 수 있으며, 글을 지우거나 회원 탈퇴한 뒤에도 남을 수 있습니다. 삭제를 원하면 아래 연락처로 요청해 주시기 바랍니다.</li>
     <li>이용 기록은 Google Analytics 정책에 따라 보관됩니다.</li>
     <li>관계 법령이 별도의 보존 기간을 정한 경우 해당 기간 동안 보관 후 파기합니다.</li>
   </ul>
 
   <h2>5. 이용자 기기에 저장되는 정보</h2>
   <ul>
-    <li>작성 중인 여행 계획, 오프라인에서 보려고 저장한 일정 사본, 화면 테마·언어 설정, 탈퇴 접수 번호가 브라우저 저장소(localStorage·sessionStorage)에, 로그인 상태와 앱이 불러온 일정·프로필 사본이 브라우저의 오프라인 캐시(IndexedDB)에 저장됩니다. 로그아웃하면 작성 중인 계획과 오프라인 사본은 지워지지만, 오프라인 캐시의 사본은 남을 수 있으며 브라우저의 사이트 데이터 삭제로 지울 수 있습니다. 여러 사람이 쓰는 기기에서는 사이트 데이터를 삭제해 주세요.</li>
+    <li>작성 중인 여행 계획, 오프라인에서 보려고 저장한 일정 사본, 화면 테마·언어 설정, 방문 완료 표시(계정 고유 식별자와 함께 저장), 탈퇴 접수 번호가 브라우저 저장소(localStorage·sessionStorage)에, 로그인 상태와 앱이 불러온 일정·프로필 사본이 브라우저의 오프라인 캐시(IndexedDB)에 저장됩니다. 로그아웃하면 작성 중인 계획과 오프라인 사본은 지워지지만, 오프라인 캐시의 사본은 남을 수 있으며 브라우저의 사이트 데이터 삭제로 지울 수 있습니다. 여러 사람이 쓰는 기기에서는 사이트 데이터를 삭제해 주세요.</li>
     <li>오프라인에서도 앱이 열리도록 앱 화면 파일을 기기에 저장(서비스 워커 캐시)하며, 여기에는 개인정보가 들어 있지 않습니다.</li>
-    <li>Google Analytics는 쿠키를 사용합니다. 브라우저 설정에서 쿠키를 차단하거나 삭제할 수 있습니다.</li>
+    <li>웹 브라우저에서 Google Analytics는 쿠키를 사용합니다(앱에서는 사용하지 않습니다). 브라우저 설정에서 쿠키를 차단하거나 삭제할 수 있습니다.</li>
   </ul>
 
   <h2>6. 개인정보의 처리 위탁 및 국외 이전</h2>
@@ -105,14 +106,17 @@
       <tr><td>Google LLC (Firebase Authentication, Cloud Firestore, Cloud Functions)</td><td>회원 인증·인증 메일 발송, 데이터 저장, 서버 기능 실행(서버 기록에 계정 고유 식별자가 남을 수 있음)</td><td>미국</td></tr>
       <tr><td>Google LLC (Gemini API, Google 검색 기반 응답)</td><td>입력한 여행 조건을 바탕으로 한 일정 생성과 장소 추천</td><td>미국</td></tr>
       <tr><td>Google LLC (Google Maps Platform, Places, Routes, Weather)</td><td>지도 표시, 장소 검색, 경로·이동시간 계산, 날씨 확인</td><td>미국</td></tr>
-      <tr><td>Google LLC (Google Analytics)</td><td>이용 통계 분석</td><td>미국</td></tr>
+      <tr><td>Google LLC (Google Analytics)</td><td>이용 통계 분석(웹 브라우저로 이용할 때에 한함)</td><td>미국</td></tr>
       <tr><td>Cloudflare, Inc. (Cloudflare Pages)</td><td>웹사이트 호스팅과 영문 루트 페이지 제공(접속 기록·IP 처리)</td><td>미국 등 Cloudflare 데이터센터 소재국</td></tr>
       <tr><td>카카오, 네이버</td><td>소셜 로그인 인증, 카카오톡 공유</td><td>대한민국</td></tr>
     </tbody>
   </table>
   <p>일정 생성과 장소 추천 요청 시 이용자가 입력한 여행 조건(날짜·도시·장소·테마·예산 등)이 Gemini API로 전달됩니다.
-     이때 이름·이메일·전화번호 등 계정 식별 정보는 함께 전송되지 않습니다. 검색하거나 지도에서 연 장소 이름은 Google 지도와,
-     길찾기를 고른 경우 네이버 지도·카카오맵으로 전달됩니다.</p>
+     이때 이름·이메일·전화번호 등 계정 식별 정보는 함께 전송되지 않습니다. 검색하거나 지도에서 연 장소 이름은 Google 지도로 전달됩니다.
+     길찾기를 누르면 목적지 이름이 국내 여행은 고른 지도(네이버 지도·카카오맵)로, 해외 여행은 Google 지도로 전달됩니다.
+     이동 구간의 Google 지도 경로 확인이나 공개 코스 페이지의 지도·길찾기 링크를 누르면 여행지와 관계없이 앞뒤 방문지의 이름이나 좌표가 Google 지도로 전달됩니다(공개 코스 페이지의 국내 코스는 네이버 지도 링크도 함께 제공).
+     숙소 찾기 링크를 누르면 지역 칸의 내용(고른 숙소의 주소가 미리 채워질 수 있음)·숙박 날짜·인원이 Booking.com으로 전달됩니다.
+     프로필 사진이 없는 계정은 프로필 화면의 기본 이미지를 ui-avatars.com에서 받아 오며, 이때 표시 이름(없으면 “User”)이 그 서비스로 전달됩니다.</p>
 
   <h2>7. 이용자의 권리와 행사 방법</h2>
   <ul>
@@ -149,7 +153,7 @@
 
   <section class="translation" id="en" lang="en">
     <h1>ComPasser Privacy Policy (English translation)</h1>
-    <p class="meta">Effective: November 11, 2026 · Previous version effective: November 7, 2026<br>
+    <p class="meta">Effective: November 25, 2026 · Previous version effective: November 11, 2026<br>
       This is a translation. If it differs from the Korean text above, the Korean text prevails.</p>
 
     <p>ComPasser (the “Service”) handles your personal information with care and follows the Korean Personal Information Protection Act and related laws.
@@ -162,12 +166,12 @@
         <tr><td>Account (email sign-up)</td><td>Email address, password (we never keep it in plain text; Firebase Authentication stores it in protected form), email verification status</td><td>When you sign up with email. Verification and password reset emails are sent to this address.</td></tr>
         <tr><td>Account (social login)</td><td>Email address, name (nickname), profile photo, the provider's unique identifier</td><td>When you log in with Google, Kakao or Naver, received from that provider (the app offers Google only)</td></tr>
         <tr><td>Optional profile</td><td>Date of birth</td><td>Only if you enter it on the profile screen (not required to use the Service)</td></tr>
-        <tr><td>Trips</td><td>Travel dates and times, start and end places, accommodation, fixed appointments and must-visit places, theme and budget, generated and saved itineraries</td><td>When you create or save a trip</td></tr>
+        <tr><td>Trips</td><td>Travel dates and times, start and end places, accommodation, fixed appointments and must-visit places, theme and budget, generated and saved itineraries, private notes and booking links you add to a stop</td><td>When you create or save a trip</td></tr>
         <tr><td>Public routes (optional)</td><td>Route title (including an English title), description, stops and visit times, visitor information and its source, public author name or channel, link to the original post</td><td>When you choose to publish a saved trip</td></tr>
         <tr><td>Traveler reviews (optional)</td><td>Visit date, review text, walking distance, money spent, time spent</td><td>When you write a review of a public route</td></tr>
         <tr><td>Service records</td><td>Itinerary generation credit balance and use, saved recommended places, account deletion status</td><td>While you use the Service</td></tr>
         <tr><td>Rate limiting</td><td>A hash of your account's unique identifier when you are logged in, or of your IP address when you are not, that day's request count and the time of the last request, or for weather checks that hour's request count (neither the identifier nor the IP address itself is stored)</td><td>When you request AI place recommendations (also when logged out), and when a logged-in trip view checks rain for today or tomorrow</td></tr>
-        <tr><td>Usage data</td><td>Pages viewed, feature events (including place names, place IDs and route IDs you tapped), device and browser type, approximate region, cookies</td><td>Collected automatically while you use the Service (Google Analytics)</td></tr>
+        <tr><td>Usage data</td><td>Pages viewed (identifiers in trip and share addresses are masked) and their titles, the domain of the site you came from, feature events (such as the IDs of recommended places you pick on the home screen, the city you pick and which map service you open; place names and trip or route IDs are not sent), device and browser type, approximate region, cookies</td><td>Collected automatically when you use the Service in a web browser (Google Analytics). The Android and iOS apps do not collect it.</td></tr>
       </tbody>
     </table>
     <p>The Service does not request or collect precise device location, contacts, photos or the microphone.
@@ -202,15 +206,16 @@
       <li>A deletion record (your account's unique identifier, which for Kakao and Naver logins includes that service's member number, its status, receipt number, and account creation and deletion times) is kept after account deletion so that old login tokens cannot be reused. It contains no trips and no email or other contact details.</li>
       <li>Rate-limit hashes (of your account identifier when logged in, otherwise of your IP address), request counts and last request times may be kept without a fixed deletion schedule, including after you delete your account. Neither the identifier nor the IP address itself is stored.</li>
       <li>Phone numbers and verification status collected by a discontinued phone verification feature are no longer used or collected again, and are deleted with your account.</li>
+      <li>Reports (the copy of the post and its author's account identifier as they were at the time) may be kept without a fixed deletion schedule, including after the post is deleted or its author deletes their account. Email us below to have them deleted.</li>
       <li>Usage data is kept according to Google Analytics' policies.</li>
       <li>Where a law requires a longer retention period, we keep the data for that period and then delete it.</li>
     </ul>
 
     <h2>5. Information stored on your device</h2>
     <ul>
-      <li>Your trip in progress, trip copies you saved for offline viewing, theme and language settings and a deletion receipt number are stored in your browser's storage (localStorage and sessionStorage); your login session and copies of the trips and profile the app loaded are stored in the browser's offline cache (IndexedDB). Logging out clears your trip in progress and the offline copies, but copies in the offline cache may remain until you clear the site's data in your browser. On a shared device, please clear the site data.</li>
+      <li>Your trip in progress, trip copies you saved for offline viewing, theme and language settings, the stops you marked as visited (stored with your account identifier) and a deletion receipt number are stored in your browser's storage (localStorage and sessionStorage); your login session and copies of the trips and profile the app loaded are stored in the browser's offline cache (IndexedDB). Logging out clears your trip in progress and the offline copies, but copies in the offline cache may remain until you clear the site's data in your browser. On a shared device, please clear the site data.</li>
       <li>So that the app opens offline, its screen files are stored on your device (a service worker cache). They contain no personal information.</li>
-      <li>Google Analytics uses cookies. You can block or delete cookies in your browser settings.</li>
+      <li>In a web browser, Google Analytics uses cookies (the apps do not). You can block or delete cookies in your browser settings.</li>
     </ul>
 
     <h2>6. Processors and transfers abroad</h2>
@@ -221,14 +226,17 @@
         <tr><td>Google LLC (Firebase Authentication, Cloud Firestore, Cloud Functions)</td><td>Authentication and its emails, data storage, server functions (server logs may contain your account identifier)</td><td>United States</td></tr>
         <tr><td>Google LLC (Gemini API, answers grounded in Google Search)</td><td>Generating itineraries and recommending places from your trip details</td><td>United States</td></tr>
         <tr><td>Google LLC (Google Maps Platform, Places, Routes, Weather)</td><td>Maps, place search, routes and travel times, weather</td><td>United States</td></tr>
-        <tr><td>Google LLC (Google Analytics)</td><td>Usage analytics</td><td>United States</td></tr>
+        <tr><td>Google LLC (Google Analytics)</td><td>Usage analytics (web browser use only)</td><td>United States</td></tr>
         <tr><td>Cloudflare, Inc. (Cloudflare Pages)</td><td>Hosting the website and the English route pages (access logs and IP addresses)</td><td>United States and other countries with Cloudflare data centers</td></tr>
         <tr><td>Kakao, Naver</td><td>Social login, KakaoTalk sharing</td><td>Republic of Korea</td></tr>
       </tbody>
     </table>
     <p>When you generate an itinerary or ask for place recommendations, the trip details you entered (dates, city, places, theme, budget and so on) are sent to the Gemini API.
-       Your name, email, phone number and other account identifiers are not sent with them. Place names you search or open on the map go to Google Maps,
-       and, if you choose directions there, to Naver Map or KakaoMap.</p>
+       Your name, email, phone number and other account identifiers are not sent with them. Place names you search or open on the map go to Google Maps.
+       When you tap directions, the destination name goes to the map you pick (Naver Map or KakaoMap) for trips in Korea, and to Google Maps for trips abroad.
+       When you tap a travel leg's Google Maps route link, or a map or directions link on a public route page, the names or coordinates of the stops before and after go to Google Maps wherever the trip is (public route pages for Korea also offer a Naver Map link).
+       When you tap the find-a-stay link, what is in the area field (it may be prefilled with the address of the stay you picked), your stay dates and number of guests go to Booking.com.
+       If your account has no profile photo, the profile screen loads a default image from ui-avatars.com, and your display name (or “User” if you have none) is sent to that service.</p>
 
     <h2>7. Your rights</h2>
     <ul>
