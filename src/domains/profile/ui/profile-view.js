@@ -1,7 +1,7 @@
 import { getCurrentUser, logout, requireRecentLoginForDeletion } from '../../auth/services/firebase-auth.js';
 import { accountDeletionClient } from '../services/account-deletion-api.js';
 import { loadFirestore } from '../../../lib/firestore-lazy.mjs';
-import { createEmptyProfile, createProfileService } from '../services/profile-service.mjs';
+import { createEmptyProfile, createProfileService, defaultAvatarUrl } from '../services/profile-service.mjs';
 import { profileMarkup } from './profile-template.js';
 import { fetchItineraries, renderItineraries, startRename, viewTrip, handleDeleteItinerary } from './profile-trips.js';
 import { openDuplicate, closeDuplicate, confirmDuplicate, setupDuplicateListeners } from './profile-trip-duplicate.js';
@@ -179,11 +179,9 @@ class ProfileView extends HTMLElement {
         if (method) method.textContent = user.providerData?.map(provider => provider.providerId === 'password' ? t('labelEmail') : provider.providerId === 'google.com' ? 'Google' : provider.providerId).join(' / ') || (user.email ? t('labelEmail') : '—');
         const headerNameEl = this.shadowRoot.getElementById('header-name');
 
-        const initial = encodeURIComponent(user.displayName || 'User');
         // 기본 아바타도 무채색으로. 보라(7c3aed)는 지도에서 "고정 일정"을
         // 뜻하는 색이라, 사진 없는 사용자마다 그 색이 화면에 하나씩 늘었다.
-        const defaultAvatar = `https://ui-avatars.com/api/?name=${initial}&background=EBEBE7&color=141414`;
-        const avatarUrl = user.photoURL || defaultAvatar;
+        const avatarUrl = user.photoURL || defaultAvatarUrl(user.displayName);
 
         if (photoHeroEl) photoHeroEl.src = avatarUrl;
         if (photoSmallEl) photoSmallEl.src = avatarUrl;

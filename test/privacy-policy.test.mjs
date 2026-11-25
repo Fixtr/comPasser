@@ -33,7 +33,7 @@ test('the privacy policy matches what the web analytics, stop notes and outbound
   // Checked against the code on 2026-11-25: analytics is web only (src/utils/analytics.js) and sends no place names or trip ids.
   for (const text of [
     'Android·iOS 앱에서는 수집하지 않습니다', '장소 이름과 일정·코스 ID는 보내지 않음', '개인 메모와 예약 링크', '방문 완료 표시',
-    '신고 기록(신고 당시 글의 사본', 'Booking.com', 'ui-avatars.com', '해외 여행은 Google 지도로',
+    '신고 기록(신고 당시 글의 사본', 'Booking.com', '해외 여행은 Google 지도로',
     'The Android and iOS apps do not collect it', 'place names and trip or route IDs are not sent', 'private notes and booking links',
     'stops you marked as visited', 'to Google Maps for trips abroad',
   ]) {

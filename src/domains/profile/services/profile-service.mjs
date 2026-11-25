@@ -73,3 +73,12 @@ export function createProfileService({
         },
     };
 }
+
+// Drawn in the app so the display name never leaves for an outside avatar service.
+export function defaultAvatarUrl(name) {
+  const letter = ([...String(name ?? '').trim()][0] || 'U').toUpperCase()
+    .replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  return 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#EBEBE7"/>'
+    + `<text x="32" y="33" font-family="sans-serif" font-size="28" fill="#141414" text-anchor="middle" dominant-baseline="middle">${letter}</text></svg>`);
+}
