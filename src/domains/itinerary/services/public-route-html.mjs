@@ -11,10 +11,7 @@ const routeTitle = course => [course.titleEn, course.title].find(title => /\p{L}
   || course.stops.map(stop => stop.englishName || stop.name).join(' → ');
 
 const styles = `
-  :root{color-scheme:light;--ink:#17201c;--paper:#f4f4f1;--card:#fff;--rule:#c8ccc5;--muted:#515b54;--focus:#145ca3}*{box-sizing:border-box}
-  /* Follow the system, or the theme stored by the app (route-page.js sets data-theme), like the app does. */
-  @media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--ink:#EDEDE9;--paper:#121211;--card:#1c1c1a;--rule:#3a3a37;--muted:#C2C2BD;--focus:#6aa6ec}}
-  :root[data-theme=dark]{color-scheme:dark;--ink:#EDEDE9;--paper:#121211;--card:#1c1c1a;--rule:#3a3a37;--muted:#C2C2BD;--focus:#6aa6ec}
+  :root{color-scheme:only light;--ink:#17201c;--paper:#f4f4f1;--card:#fff;--rule:#c8ccc5;--muted:#515b54;--focus:#145ca3}*{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.65 system-ui,sans-serif}
   main,header,footer{max-width:850px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;gap:20px}
   h1{font-size:clamp(2rem,6vw,3.2rem);line-height:1.12}h2{font-size:1.35rem}a{color:inherit}
@@ -28,12 +25,12 @@ const styles = `
   .card{position:relative}.card h3 a::after{content:"";position:absolute;inset:0}
   header a,.links a,article>a{display:inline-flex;align-items:center;min-height:44px}
   #plan-route[aria-disabled]{pointer-events:none;opacity:.6}
-  @media print{:root,:root[data-theme]{color-scheme:light;--ink:#17201c;--card:#fff;--rule:#c8ccc5;--muted:#515b54}header,.actions,.links,.start,footer,button,#route-status{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
+  @media print{header,.actions,.links,.start,footer,button,#route-status{display:none}body{background:white}main{padding:0}article{break-inside:avoid}.share{border:0}}
 `;
 
-// shortcut: bump ?v= when route-page.js or route-theme.js changes with the HTML; an old service worker
-// serves these from its cache by full URL, so a stale script would miss new buttons until it updates.
-const ROUTE_SCRIPTS = { theme: '/route-theme.js?v=1', page: '/route-page.js?v=4' };
+// shortcut: bump ?v= when route-page.js changes with the HTML; an old service worker
+// serves it from its cache by full URL, so a stale script would miss new buttons until it updates.
+const ROUTE_SCRIPTS = { page: '/route-page.js?v=4' };
 // shortcut: #plan-route starts aria-disabled (pointer-events: none; Enter still follows it) until route-page.js
 // attaches its handler, so a start typed early is never skipped. If that script fails to load the link stays dimmed;
 // a GET form carrying the start would remove that limit if it ever shows up.
@@ -44,7 +41,7 @@ function shell(title, description, canonical, body, { noindex = false, script = 
     <link rel="canonical" href="${e(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${e(title)}">
     <meta property="og:description" content="${e(description)}"><meta property="og:url" content="${e(canonical)}">
     ${noindex ? '<meta name="robots" content="noindex">' : ''}<link rel="icon" href="/favicon.svg">
-    <script src="${ROUTE_SCRIPTS.theme}"></script><style>${styles}</style></head>
+    <style>${styles}</style></head>
     <body><header><a href="/en/routes">ComPasser · Travel routes</a><a href="/home?lang=en">Build your trip</a></header>
     <main>${body}</main><footer>Choose your own dates, accommodation and fixed appointments when you build a trip.</footer>${script}</body></html>`;
 }

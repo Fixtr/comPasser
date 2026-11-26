@@ -3,83 +3,80 @@ async page => {
   const results = [];
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 800 });
-    for (const dark of [false, true]) {
-      const checks = await page.evaluate(async dark => {
-        const { travelFormStyles } = await import('/src/domains/planner/ui/travel-form-style.js');
-        document.body.classList.toggle('dark', dark);
-        const closedRoots = window.__autocompleteLayerRoots ??= new WeakMap();
-        // This variant exercises focus propagation through a CLOSED shadow root.
-        if (!customElements.get('gmp-basic-place-autocomplete')) {
-          customElements.define('gmp-basic-place-autocomplete', class extends HTMLElement {
-            constructor() { super(); closedRoots.set(this, this.attachShadow({ mode: 'closed' })); }
-          });
-        }
-        const outcomes = [];
-        for (const tag of ['gmp-place-autocomplete', 'gmp-basic-place-autocomplete']) {
-          const fixture = document.createElement('div');
-          fixture.style.cssText = 'position:fixed;inset:0;z-index:9999;background:white;';
-          const root = fixture.attachShadow({ mode: 'open' });
-          root.innerHTML = `<style>${travelFormStyles}</style><div class="form-section">
-            <div class="form-group"><label>출발</label><${tag}></${tag}></div>
-            <div class="form-group"><label>도착</label><${tag}></${tag}></div>
-            <button id="outside">다음</button></div>`;
-          document.body.append(fixture);
-          try {
-            const [first, second] = root.querySelectorAll(tag);
-            let picked = false;
-            const interiors = [first, second].map(host => {
-              const inner = host.shadowRoot || closedRoots.get(host);
-              inner.innerHTML = `<style>
-                input { box-sizing:border-box;width:100%;height:48px; }
-                .suggestions { display:none;position:absolute;top:100%;left:0;right:0;height:180px;background:white;z-index:1000; }
-                :host(:focus-within) .suggestions { display:block; }
-                button { display:block;width:100%;height:100%; }
-              </style><input aria-label="장소"><div class="suggestions"><button>서울역 검색 결과</button></div>`;
-              inner.querySelector('button').addEventListener('click', () => { picked = true; });
-              return inner;
-            });
-            interiors[0].querySelector('input').focus();
-            const rect = second.getBoundingClientRect();
-            const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
-            const hit = root.elementFromPoint(x, y);
-            const above = hit === first;
-            const focusedZ = Number(getComputedStyle(first).zIndex);
-            const idleZ = Number(getComputedStyle(second).zIndex);
-            interiors[0].querySelector('button').focus();
-            const resultsKeepFocus = first.matches(':focus-within') && root.elementFromPoint(x, y) === first;
-            if (above) interiors[0].elementFromPoint(x, y).click();
-            interiors[1].querySelector('input').focus();
-            const transferred = Number(getComputedStyle(second).zIndex) > Number(getComputedStyle(first).zIndex);
-            root.querySelector('#outside').focus();
-            const restored = getComputedStyle(first).zIndex === getComputedStyle(second).zIndex;
-            outcomes.push({ tag, above, higher: focusedZ > idleZ, resultsKeepFocus, picked, transferred, restored });
-          } finally { fixture.remove(); }
-        }
-        return outcomes;
-      }, dark);
-      for (const check of checks) {
-        for (const key of ['above', 'higher', 'resultsKeepFocus', 'picked', 'transferred', 'restored']) {
-          if (!check[key]) throw new Error(`${width}px dark=${dark} ${check.tag}: ${key} failed`);
-        }
+    const checks = await page.evaluate(async () => {
+      const { travelFormStyles } = await import('/src/domains/planner/ui/travel-form-style.js');
+      const closedRoots = window.__autocompleteLayerRoots ??= new WeakMap();
+      // This variant exercises focus propagation through a CLOSED shadow root.
+      if (!customElements.get('gmp-basic-place-autocomplete')) {
+        customElements.define('gmp-basic-place-autocomplete', class extends HTMLElement {
+          constructor() { super(); closedRoots.set(this, this.attachShadow({ mode: 'closed' })); }
+        });
       }
-      // The same check on the real Ionic /plan page: an open start-location dropdown covers what lies below it.
-      const real = await page.evaluate(() => {
-        const form = document.querySelector('travel-form'), root = form.shadowRoot;
-        const host = root.getElementById('start-location'), inner = host.shadowRoot;
-        const panel = document.createElement('div');
-        panel.innerHTML = `<style>.smoke-suggestions { display:none;position:absolute;top:100%;left:0;right:0;height:180px;background:white;z-index:1000; }
-          :host(:focus-within) .smoke-suggestions { display:block; }</style><div class="smoke-suggestions"></div>`;
-        inner.append(panel);
+      const outcomes = [];
+      for (const tag of ['gmp-place-autocomplete', 'gmp-basic-place-autocomplete']) {
+        const fixture = document.createElement('div');
+        fixture.style.cssText = 'position:fixed;inset:0;z-index:9999;background:white;';
+        const root = fixture.attachShadow({ mode: 'open' });
+        root.innerHTML = `<style>${travelFormStyles}</style><div class="form-section">
+          <div class="form-group"><label>출발</label><${tag}></${tag}></div>
+          <div class="form-group"><label>도착</label><${tag}></${tag}></div>
+          <button id="outside">다음</button></div>`;
+        document.body.append(fixture);
         try {
-          host.scrollIntoView({ block: 'start' });
-          inner.querySelector('input').focus();
-          const rect = host.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.bottom + 90;
-          return { inView: y < innerHeight, above: root.elementFromPoint(x, y) === host, onPage: document.elementFromPoint(x, y) === form };
-        } finally { panel.remove(); inner.querySelector('input').blur(); }
-      });
-      for (const key of ['inView', 'above', 'onPage']) if (!real[key]) throw new Error(`${width}px dark=${dark} real /plan: ${key} failed`);
-      results.push(`PASS ${width}px ${dark ? 'dark' : 'light'}: dropdown hit testing, selection, focus transfer and reset`);
+          const [first, second] = root.querySelectorAll(tag);
+          let picked = false;
+          const interiors = [first, second].map(host => {
+            const inner = host.shadowRoot || closedRoots.get(host);
+            inner.innerHTML = `<style>
+              input { box-sizing:border-box;width:100%;height:48px; }
+              .suggestions { display:none;position:absolute;top:100%;left:0;right:0;height:180px;background:white;z-index:1000; }
+              :host(:focus-within) .suggestions { display:block; }
+              button { display:block;width:100%;height:100%; }
+            </style><input aria-label="장소"><div class="suggestions"><button>서울역 검색 결과</button></div>`;
+            inner.querySelector('button').addEventListener('click', () => { picked = true; });
+            return inner;
+          });
+          interiors[0].querySelector('input').focus();
+          const rect = second.getBoundingClientRect();
+          const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+          const hit = root.elementFromPoint(x, y);
+          const above = hit === first;
+          const focusedZ = Number(getComputedStyle(first).zIndex);
+          const idleZ = Number(getComputedStyle(second).zIndex);
+          interiors[0].querySelector('button').focus();
+          const resultsKeepFocus = first.matches(':focus-within') && root.elementFromPoint(x, y) === first;
+          if (above) interiors[0].elementFromPoint(x, y).click();
+          interiors[1].querySelector('input').focus();
+          const transferred = Number(getComputedStyle(second).zIndex) > Number(getComputedStyle(first).zIndex);
+          root.querySelector('#outside').focus();
+          const restored = getComputedStyle(first).zIndex === getComputedStyle(second).zIndex;
+          outcomes.push({ tag, above, higher: focusedZ > idleZ, resultsKeepFocus, picked, transferred, restored });
+        } finally { fixture.remove(); }
+      }
+      return outcomes;
+    });
+    for (const check of checks) {
+      for (const key of ['above', 'higher', 'resultsKeepFocus', 'picked', 'transferred', 'restored']) {
+        if (!check[key]) throw new Error(`${width}px ${check.tag}: ${key} failed`);
+      }
     }
+    // The same check on the real Ionic /plan page: an open start-location dropdown covers what lies below it.
+    const real = await page.evaluate(() => {
+      const form = document.querySelector('travel-form'), root = form.shadowRoot;
+      const host = root.getElementById('start-location'), inner = host.shadowRoot;
+      const panel = document.createElement('div');
+      panel.innerHTML = `<style>.smoke-suggestions { display:none;position:absolute;top:100%;left:0;right:0;height:180px;background:white;z-index:1000; }
+        :host(:focus-within) .smoke-suggestions { display:block; }</style><div class="smoke-suggestions"></div>`;
+      inner.append(panel);
+      try {
+        host.scrollIntoView({ block: 'start' });
+        inner.querySelector('input').focus();
+        const rect = host.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.bottom + 90;
+        return { inView: y < innerHeight, above: root.elementFromPoint(x, y) === host, onPage: document.elementFromPoint(x, y) === form };
+      } finally { panel.remove(); inner.querySelector('input').blur(); }
+    });
+    for (const key of ['inView', 'above', 'onPage']) if (!real[key]) throw new Error(`${width}px real /plan: ${key} failed`);
+    results.push(`PASS ${width}px: dropdown hit testing, selection, focus transfer and reset`);
   }
   return { results, errors: page.smokeErrors };
 }

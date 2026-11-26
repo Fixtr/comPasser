@@ -11,21 +11,17 @@ async (page) => {
       { type: 'arrival', title: '호텔', location: '호텔', time: '18:00' },
     ] }] });
   });
-  // The Ionic shell's own settings group; its theme button is the one without a lang attribute.
-  const themeToggle = page.locator('.ionic-settings:visible > button:not([lang])');
-  await page.waitForFunction(() => document.documentElement.getAttribute('data-route-theme') === 'dark' && document.body.classList.contains('dark'));
   await page.evaluate(() => {
-    window.__exportTheme = { mutations: [] };
-    const state = window.__exportTheme;
+    window.__exportPage = { mutations: [] };
+    const state = window.__exportPage;
     state.snapshot = () => ({
-      theme: document.documentElement.getAttribute('data-theme'),
-      route: document.documentElement.getAttribute('data-route-theme'),
-      dark: document.body.classList.contains('dark'),
+      root: document.documentElement.className,
+      body: document.body.className,
       paper: getComputedStyle(document.documentElement).getPropertyValue('--cp-paper').trim(),
       metas: [...document.querySelectorAll('meta[name="theme-color"]')].map(meta => meta.content),
     });
     state.observer = new MutationObserver(records => state.mutations.push(...records.map(record => record.attributeName)));
-    state.observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-route-theme'] });
+    state.observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     state.observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: payload => new Promise((resolve, reject) => {
@@ -34,17 +30,17 @@ async (page) => {
     }) });
   });
   await page.locator('itinerary-view #download-image-btn').waitFor({ state: 'visible' });
-  const theme = () => page.evaluate(() => window.__exportTheme.snapshot());
+  const live = () => page.evaluate(() => window.__exportPage.snapshot());
   const clean = () => page.evaluate(() => !document.querySelector('body > div[aria-hidden="true"] .bp') && !document.querySelector('.html2canvas-container'));
-  const before = await theme();
-  check(before.route === 'dark' && before.dark, 'Begin on the dark result route; rerun setup for an isolated test');
+  const before = await live();
+  check(before.paper === '#FFFFFF', 'The result route must be light');
   await page.locator('itinerary-view #download-image-btn').click();
-  await page.waitForFunction(() => !!window.__exportTheme.finish);
-  check(JSON.stringify(await theme()) === JSON.stringify(before), 'Real capture must not change the current route/theme/meta colors');
-  check((await page.evaluate(() => window.__exportTheme.mutations)).length === 0, 'Even temporary live theme changes are forbidden');
+  await page.waitForFunction(() => !!window.__exportPage.finish);
+  check(JSON.stringify(await live()) === JSON.stringify(before), 'Real capture must not change the live page classes, paper or meta colors');
+  check((await page.evaluate(() => window.__exportPage.mutations)).length === 0, 'Even temporary live class changes are forbidden');
   check(await clean(), 'Temporary capture DOM must be removed before the share sheet finishes');
   const pixels = await page.evaluate(async () => {
-    const bitmap = await createImageBitmap(window.__exportTheme.file);
+    const bitmap = await createImageBitmap(window.__exportPage.file);
     const canvas = document.createElement('canvas');
     canvas.width = bitmap.width; canvas.height = bitmap.height;
     const ctx = canvas.getContext('2d'); ctx.drawImage(bitmap, 0, 0);
@@ -57,38 +53,28 @@ async (page) => {
   });
   check(pixels.width === 1440 && pixels.height > 500, 'PNG dimensions must preserve the 720px ticket at 2x');
   check(JSON.stringify(pixels.background) === '[255,255,255,255]' && pixels.ink > 1000, 'PNG must retain a light opaque paper and visible dark content');
-  results.push({ check: 'real PNG/light palette/no live-theme mutation/early cleanup', pixels });
+  results.push({ check: 'real PNG/light paper/no live-page mutation/early cleanup', pixels });
 
   await page.evaluate(() => window.navigate('/profile/personal'));
   await page.locator('profile-view:visible').waitFor({ state: 'visible' });
-  const profileTheme = await theme();
-  await page.evaluate(() => window.__exportTheme.finish(true));
+  const profileState = await live();
+  await page.evaluate(() => window.__exportPage.finish(true));
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.querySelector('#download-image-btn').disabled);
-  check(JSON.stringify(await theme()) === JSON.stringify(profileTheme), 'Cancelled share must not restore /view dark theme over profile');
-  results.push({ check: 'navigation while sharing/cancel/profile theme preserved' });
+  check(JSON.stringify(await live()) === JSON.stringify(profileState), 'Cancelled share must not restore the /view page state over profile');
+  results.push({ check: 'navigation while sharing/cancel/profile state preserved' });
 
-  await page.evaluate(() => { window.__exportTheme.finish = null; window.navigate('/view'); });
-  await page.locator('itinerary-view #download-image-btn').click();
-  await page.waitForFunction(() => !!window.__exportTheme.finish);
-  await themeToggle.click();
-  const chosenTheme = await theme();
-  await page.evaluate(() => window.__exportTheme.finish(false));
-  await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.querySelector('#download-image-btn').disabled);
-  check(JSON.stringify(await theme()) === JSON.stringify(chosenTheme), 'Share success must not undo the user theme choice');
-  check(await clean(), 'Share success must not leak capture DOM');
-  results.push({ check: 'theme toggle while sharing/success/user choice preserved' });
-
-  await page.evaluate(() => { window.__exportTheme.observer.disconnect(); Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }); });
+  await page.evaluate(() => window.navigate('/view'));
+  await page.evaluate(() => { window.__exportPage.observer.disconnect(); Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }); });
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileBefore = await theme();
+  const mobileBefore = await live();
   const downloading = page.waitForEvent('download');
   await page.locator('itinerary-view #download-image-btn').click();
   const download = await downloading;
-  if (page.exportThemeOutputDir) await download.saveAs(page.exportThemeOutputDir + '/ticket.png');
+  if (page.smokeOutputDir) await download.saveAs(page.smokeOutputDir + '/ticket.png');
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.querySelector('#download-image-btn').disabled);
-  check(JSON.stringify(await theme()) === JSON.stringify(mobileBefore), 'Mobile download must leave the current theme unchanged');
+  check(JSON.stringify(await live()) === JSON.stringify(mobileBefore), 'Mobile download must leave the live page unchanged');
   check(await clean(), 'Mobile capture must not leak temporary DOM');
-  results.push({ check: 'mobile-width download/theme/cleanup', filename: download.suggestedFilename() });
+  results.push({ check: 'mobile-width download/cleanup', filename: download.suggestedFilename() });
   check(page.smokeErrors.length === 0, 'Unexpected page errors: ' + page.smokeErrors.join(','));
   return { results, errors: page.smokeErrors };
 }

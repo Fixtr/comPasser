@@ -35,7 +35,7 @@ const NAVIGATION_TIMEOUT_MS = 3000;
 // Route pages are never cached (an unpublished route must not come back from a cache), so offline they get this.
 const ROUTE_OFFLINE_HTML = '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
   + '<title>You are offline | ComPasser</title><style>body{margin:0;padding:24px;font:17px/1.65 system-ui,sans-serif;background:#f4f4f1;color:#17201c}'
-  + '@media (prefers-color-scheme:dark){body{background:#121211;color:#EDEDE9}}main{max-width:850px;margin:auto}</style></head>'
+  + 'main{max-width:850px;margin:auto}</style></head>'
   + '<body><main><h1>You are offline</h1><p>Route pages need a connection, so they always show whether the route is still public.</p>'
   + '<p>Reconnect and reload this page. To keep a route for the street, print it or save it as a PDF while you are online.</p></main></body></html>';
 

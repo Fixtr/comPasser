@@ -17,8 +17,8 @@ name the app's planner imports.
 Every stop links to a Google Maps search (Korean stops also to Naver Map), and
 every stop after the first to Google Maps transit directions from the previous
 stop; there is no embedded map or measured travel time. A "Start planning" link
-under the title jumps to the planning section. Pages follow the system dark
-mode, or the theme stored by the app (`route-page.js` sets `data-theme`). The QR
+under the title jumps to the planning section. Pages are light only: they ignore
+the system dark mode and read no stored theme. The QR
 downloads as PNG (drawn from the SVG in the browser) or SVG.
 `/en` redirects to `/en/routes`; any other `/en/...` that is not a route gets an
 English not-found page from the worker (`_routes.json` sends all of `/en/*` to it).

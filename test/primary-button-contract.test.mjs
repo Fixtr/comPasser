@@ -55,8 +55,8 @@ test("일정 카드의 '확정' 배지는 보라 글자·테두리에 글자를 
   const anchor = { title: 'A', time: '10:00', endTime: '11:00', location: 'x', type: 'AnchorSchedule' };
   assert.match(renderScheduleCard(anchor, 0, false), /anchor-badge/);
   assert.doesNotMatch(renderScheduleCard({ ...anchor, flexible: true }, 0, false), /anchor-badge/);
-  // 방문 완료로 흐려질 때 배지는 빼 둔다(.55 로 흐리면 4.5:1 아래로 떨어진다).
-  assert.match(css, /\.schedule-card\[data-visited\] \.schedule-title-row > :not\(\.anchor-badge\) \{ opacity: \.55; \}/);
+  // 방문 완료로 흐려질 때 배지는 빼 둔다(본문과 같이 흐리면 보라가 옅어진다).
+  assert.match(css, /\.schedule-card\[data-visited\] \.schedule-title-row > :not\(\.anchor-badge\) \{ opacity: \.75; \}/);
 });
 
 test('출발 카드의 보라는 예약일 때만이고 배경에는 쓰지 않는다', () => {

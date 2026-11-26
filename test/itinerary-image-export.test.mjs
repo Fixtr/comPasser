@@ -54,19 +54,13 @@ function harness(options = {}) {
   const body = element('body');
   const root = element('html');
   body.classList.add('unrelated-class');
-  if (options.dark ?? true) body.classList.add('dark');
-  if (options.theme !== null) root.setAttribute('data-theme', options.theme ?? 'dark');
-  if (options.routeTheme !== null) root.setAttribute('data-route-theme', options.routeTheme ?? 'dark');
+  root.setAttribute('lang', 'ko');
   const existingContent = element('main');
   body.append(existingContent);
   const calls = { render: [], capture: [], share: [], canShare: [], clicks: [], urls: [], revoked: [], loads: 0 };
   const blob = new Blob(['image bytes'], { type: 'image/png' });
-  const themes = () => ({
-    classes: [...body.classes].sort(),
-    theme: root.getAttribute('data-theme'),
-    routeTheme: root.getAttribute('data-route-theme'),
-  });
-  const originalTheme = themes();
+  const pageState = () => ({ classes: [...body.classes].sort(), attributes: [...root.attributes].sort() });
+  const originalState = pageState();
   const document = {
     body, documentElement: root,
     createElement(tagName) {
@@ -111,14 +105,7 @@ function harness(options = {}) {
       await options.waitAt?.('load');
       if (options.loadError) throw options.loadError;
       return async (ticket, captureOptions) => {
-        // The capture engine passes a different document to onclone.
-        const clonedRoot = element('html');
-        const clonedBody = element('body');
-        for (const [name, value] of root.attributes) clonedRoot.setAttribute(name, value);
-        for (const name of body.classes) clonedBody.classList.add(name);
-        captureOptions.onclone?.({ documentElement: clonedRoot, body: clonedBody });
-        calls.capture.push({ ticket, options: captureOptions, theme: themes(), mounted: body.contains(ticket),
-          cloneTheme: { dark: clonedBody.classList.contains('dark'), theme: clonedRoot.getAttribute('data-theme'), routeTheme: clonedRoot.getAttribute('data-route-theme') } });
+        calls.capture.push({ ticket, options: captureOptions, state: pageState(), mounted: body.contains(ticket) });
         await options.waitAt?.('capture');
         if (options.captureError) throw options.captureError;
         return {
@@ -134,9 +121,9 @@ function harness(options = {}) {
     },
   });
   return {
-    exportImage, calls, blob, browser, themes, originalTheme,
-    assertClean(expectedTheme = originalTheme) {
-      assert.deepEqual(themes(), expectedTheme, '현재 화면의 테마와 무관한 클래스를 변경하지 않는다');
+    exportImage, calls, blob, browser, pageState, originalState,
+    assertClean(expectedState = originalState) {
+      assert.deepEqual(pageState(), expectedState, '실제 화면의 클래스와 속성을 변경하지 않는다');
       assert.deepEqual(body.children, [existingContent], '앱 내용은 남기고 캡처용 임시 화면만 제거한다');
       assert.equal(calls.revoked.length, calls.urls.length, '만든 이미지 URL은 모두 해제한다');
     },
@@ -158,7 +145,7 @@ test('빈 일정이나 선택한 날에 방문지가 없으면 캡처와 공유�
 });
 
 test('지도가 계산한 이동 합계를 티켓에 그대로 넘기고, 추정이 섞이면 약/~ 로 적는다', async () => {
-  const h = harness({ theme: null, routeTheme: 'custom-route' });
+  const h = harness();
   const input = plan();
   for (const day of input.days) for (const item of day.scheduleItems) item.transitInfo = '';
   await h.exportImage({ plan: input, dayIndex: 1, language: 'ko', transit: { minutes: 65, estimated: false } });
@@ -169,7 +156,7 @@ test('지도가 계산한 이동 합계를 티켓에 그대로 넘기고, 추정
 });
 
 test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변경하지 않는다', async () => {
-  const h = harness({ theme: null, routeTheme: 'custom-route' });
+  const h = harness();
   const input = plan();
   const before = structuredClone(input);
   const labels = { fixedLabel: 'FIXED', fromLabel: 'FROM', toLabel: 'TO', transitLabel: 'Transit', costLabel: 'Cost' };
@@ -187,9 +174,9 @@ test('선택한 날짜와 번역으로 티켓을 만들고 입력 일정은 변�
   assert.deepEqual(input, before);
   assert.deepEqual(h.calls.clicks, [{ href: 'blob:ticket', download: 'compasser-CP-260909-2.png' }]);
   assert.equal(h.calls.capture[0].mounted, true);
-  assert.deepEqual(h.calls.capture[0].theme, h.originalTheme);
-  assert.deepEqual(h.calls.capture[0].cloneTheme, { dark: false, theme: 'light', routeTheme: null });
-  assert.equal(h.calls.capture[0].options.backgroundColor, null, '배경은 복제 티켓의 라이트 토큰으로 그린다');
+  assert.deepEqual(h.calls.capture[0].state, h.originalState);
+  assert.equal(h.calls.capture[0].options.onclone, undefined, '라이트 전용이라 복제 문서의 팔레트를 고쳐 쓰지 않는다');
+  assert.equal(h.calls.capture[0].options.backgroundColor, null, '배경은 티켓의 --cp-surface 토큰이 그린다');
   assert.equal(h.calls.capture[0].options.scale, 2);
   h.assertClean();
 });
@@ -236,23 +223,16 @@ test('공유 권한 오류는 캡처 오류로 취급하지 않고 다운로드�
   h.assertClean();
 });
 
-test('캡처 실패를 호출자에게 전달하며 원본 테마 값은 건드리지 않는다', async () => {
+test('캡처 실패를 호출자에게 전달하며 실제 화면은 건드리지 않는다', async () => {
   const error = new Error('capture failed');
-  for (const theme of [
-    { dark: true, theme: null, routeTheme: null },
-    { dark: false, theme: 'dark', routeTheme: 'dark' },
-    { dark: false, theme: '', routeTheme: '' },
-    { dark: false, theme: 'light', routeTheme: null },
-  ]) {
-    const h = harness({ ...theme, captureError: error });
-    await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
-    assert.equal(h.calls.share.length, 0);
-    assert.equal(h.calls.clicks.length, 0);
-    h.assertClean();
-  }
+  const h = harness({ captureError: error });
+  await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
+  assert.equal(h.calls.share.length, 0);
+  assert.equal(h.calls.clicks.length, 0);
+  h.assertClean();
 });
 
-test('캡처 엔진을 불러오지 못해도 임시 화면을 제거하고 테마는 유지한다', async () => {
+test('캡처 엔진을 불러오지 못해도 임시 화면을 제거하고 실제 화면은 그대로 둔다', async () => {
   const error = new Error('engine load failed');
   const h = harness({ loadError: error });
   await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
@@ -277,7 +257,7 @@ test('PNG 인코딩 예외도 호출자에게 전달하고 캡처 자원을 정�
   h.assertClean();
 });
 
-test('다운로드 클릭이 실패해도 이미지 URL을 해제하고 테마를 유지한다', async () => {
+test('다운로드 클릭이 실패해도 이미지 URL을 해제하고 실제 화면은 그대로 둔다', async () => {
   const error = new Error('download failed');
   const h = harness({ clickError: error });
   await assert.rejects(h.exportImage({ plan: plan() }), thrown => thrown === error);
@@ -294,7 +274,7 @@ function deferred() {
 
 for (const phase of ['load', 'capture', 'encode', 'share']) {
   for (const fails of [false, true]) {
-    test(`${phase} 대기 중 화면·테마 변경을 ${fails ? '실패/취소' : '완료'} 후에도 유지한다`, async () => {
+    test(`${phase} 대기 중 화면 변경을 ${fails ? '실패/취소' : '완료'} 후에도 유지한다`, async () => {
       const entered = deferred();
       const finish = deferred();
       const error = new Error('delayed failure');
@@ -308,25 +288,25 @@ for (const phase of ['load', 'capture', 'encode', 'share']) {
       const exporting = h.exportImage({ plan: plan() });
       const settled = exporting.then(result => ({ result }), caught => ({ error: caught }));
       await entered.promise;
-      assert.deepEqual(h.themes(), h.originalTheme, '캡처/공유 대기 중에도 실제 화면을 밝게 바꾸지 않는다');
+      assert.deepEqual(h.pageState(), h.originalState, '캡처/공유 대기 중에도 실제 화면을 바꾸지 않는다');
       if (phase === 'share' || phase === 'encode') {
         assert.equal(h.browser.document.body.children.length, 1, '캡처가 끝나면 공유 전에 임시 티켓을 제거한다');
       }
       const { body, documentElement: root } = h.browser.document;
-      body.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
-      root.removeAttribute('data-route-theme');
-      const currentTheme = h.themes();
+      // 대기 중에 사용자가 언어를 바꾸고 다른 화면으로 옮겨 갔다.
+      body.classList.add('moved-on');
+      root.setAttribute('lang', 'en');
+      const currentState = h.pageState();
       finish.resolve();
       const outcome = await settled;
       if (fails && phase !== 'share') assert.ok(outcome.error);
       else assert.equal(outcome.result, fails ? 'cancelled' : 'shared');
-      h.assertClean(currentTheme);
+      h.assertClean(currentState);
     });
   }
 }
 
-test('동시 내보내기를 역순으로 끝내도 서로의 자원이나 최신 테마를 복원하지 않는다', async () => {
+test('동시 내보내기를 역순으로 끝내도 서로의 자원이나 최신 화면 상태를 되돌리지 않는다', async () => {
   const gates = [deferred(), deferred()];
   const bothSharing = deferred();
   let sharing = 0;
@@ -340,12 +320,12 @@ test('동시 내보내기를 역순으로 끝내도 서로의 자원이나 최�
   const second = h.exportImage({ plan: plan(), dayIndex: 1 });
   await bothSharing.promise;
   h.assertClean();
-  h.browser.document.documentElement.removeAttribute('data-route-theme');
-  const currentTheme = h.themes();
+  h.browser.document.documentElement.setAttribute('lang', 'en');
+  const currentState = h.pageState();
   gates[1].resolve();
   assert.equal(await second, 'shared');
-  h.assertClean(currentTheme);
+  h.assertClean(currentState);
   gates[0].resolve();
   assert.equal(await first, 'shared');
-  h.assertClean(currentTheme);
+  h.assertClean(currentState);
 });

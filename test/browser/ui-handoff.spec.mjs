@@ -606,8 +606,8 @@ test('recommend waits for country and city, scopes Korean landmarks, and reuses 
 test('320px wizard restores destination, shifts stays, preserves overrides, reviews first and generates once',async({page},testInfo)=>{
  await page.setViewportSize({width:320,height:760});await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto('/');
- const themeButton=page.getByRole('button',{name:'다크 모드',exact:true});await expect(themeButton).toBeVisible();
- const themeBox=await themeButton.boundingBox();expect(themeBox.height).toBe(32);expect(themeBox.x).toBeGreaterThan(200);
+ const languageButton=page.getByRole('button',{name:'English',exact:true});await expect(languageButton).toBeVisible();
+ const languageBox=await languageButton.boundingBox();expect(languageBox.height).toBe(32);expect(languageBox.x).toBeGreaterThan(200);
  const createBox=await page.getByRole('button',{name:'일정 만들기',exact:true}).boundingBox();const tabBox=await page.locator('ion-tab-bar').boundingBox();expect(createBox.y+createBox.height).toBeLessThanOrEqual(tabBox.y);
  await page.screenshot({path:testInfo.outputPath('home-ko-light-320.png'),fullPage:true});
  await page.goto('/destination');
@@ -699,13 +699,13 @@ test('switching language on a result re-renders the timeline without a new map r
  expect(await page.evaluate(()=>window.mapDays.length)).toBe(0);
 });
 
-test('profile trips keep profile navigation; language is inside security; home is usable in English dark at 320px',async({page},testInfo)=>{
+test('profile trips keep profile navigation; language is inside security; home is usable in English at 320px',async({page},testInfo)=>{
  await page.setViewportSize({width:320,height:760});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/profile/personal');
  const profile=page.locator('profile-view[data-active]');await profile.locator('.nav-item[data-tab=trips]').click();await expect(page).toHaveURL(/profile\/personal\?tab=trips$/);await expect(page.locator('ion-tab-button[tab=profile]')).toHaveClass(/tab-selected/);await expect(profile.locator('.sidebar')).toBeVisible();
  await page.locator('profile-view[data-active]').locator('.nav-item[data-tab=security]').click();await expect(page).toHaveURL(/profile\/security$/);await page.locator('profile-view #security.active #profile-language:visible').selectOption('en');
- await page.goto('/home');await expect(page.getByRole('button',{name:'Dark mode',exact:true})).toBeVisible();await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+ await page.goto('/home');await expect(page.getByRole('button',{name:'한국어',exact:true})).toBeVisible();
  await expect(page.locator('html')).toHaveAttribute('lang','en');await expect(page.locator('.globe-stage svg')).toHaveAttribute('width','320');
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);await page.screenshot({path:testInfo.outputPath('home-en-dark-320.png'),fullPage:true});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);await page.screenshot({path:testInfo.outputPath('home-en-320.png'),fullPage:true});
 });
 
 test('typed but unselected departure or arrival blocks generation until a search result is chosen',async({page})=>{

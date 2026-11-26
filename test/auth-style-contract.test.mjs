@@ -39,20 +39,13 @@ test('색은 전부 토큰에서 온다', () => {
   assertNoHardcodedColors(css, LABEL);
 });
 
-test('브랜드 버튼은 브랜드 토큰을 읽고, 그 토큰은 테마를 따라 바뀌지 않는다', () => {
+test('브랜드 버튼은 브랜드 토큰을 읽는다', () => {
   for (const name of ['--cp-kakao', '--cp-naver', '--cp-google-surface']) {
     assert.ok(tokens.includes(name), `${name} 토큰이 없다`);
   }
   assert.match(css, /\.kakao-btn[\s\S]{0,200}--cp-kakao/, '카카오 버튼이 브랜드 토큰을 써야 한다');
   assert.match(css, /\.naver-btn[\s\S]{0,200}--cp-naver/, '네이버 버튼이 브랜드 토큰을 써야 한다');
   assert.match(css, /\.google-btn[\s\S]{0,240}--cp-google/, '구글 버튼이 브랜드 토큰을 써야 한다');
-
-  // 카카오 노랑이 다크 모드에서 회색이 되면 그것대로 가이드 위반이다.
-  const darkBlock = /body\.dark\s*\{([\s\S]*?)\n\}/.exec(tokens);
-  assert.ok(darkBlock, 'body.dark 블록을 찾지 못했다');
-  for (const name of ['--cp-kakao', '--cp-naver', '--cp-google-surface']) {
-    assert.doesNotMatch(darkBlock[1], new RegExp(`${name}\\s*:`), `${name} 가 다크에서 뒤집히고 있다`);
-  }
 });
 
 test('호스트가 여백만큼 화면 밖으로 나가지 않는다', () => assertHostBoxSizing(css, LABEL));

@@ -84,8 +84,7 @@ test('모든 화면에 뜨는 토스트·확인창은 프레임 규칙을 따른
     const bad = radii.filter(v => !/^0(px)?$/.test(v) && !v.includes('--cp-pill') && !v.includes('--cp-radius'));
     assert.deepEqual(bad, [], `${name} 의 라운드: ${[...new Set(bad)].join(', ')}`);
 
-    // 확인창의 가림막이 rgba(15,23,42,.55) 로 박혀 있었다. 다크 모드에서
-    // 같은 값이면 뒤가 덜 가려진다. --cp-scrim 토큰을 쓴다.
+    // 확인창의 가림막이 rgba(15,23,42,.55) 로 박혀 있었다. --cp-scrim 토큰을 쓴다.
     assertNoRgbaColors(src, name);
   }
 });

@@ -169,8 +169,6 @@ const dictionary = {
         closeDiscovery: "닫기",
 
         heroTitle: "ComPasser",
-        darkMode: "다크 모드",
-        lightMode: "라이트 모드",
         languageToggle: "English",
         myItineraries: "내 여행 일정 보기",
         logout: "로그아웃",
@@ -1354,8 +1352,6 @@ const dictionary = {
         closeDiscovery: "Close",
 
         heroTitle: "ComPasser",
-        darkMode: "Dark mode",
-        lightMode: "Light mode",
         languageToggle: "한국어",
         myItineraries: "My Itineraries",
         logout: "Logout",

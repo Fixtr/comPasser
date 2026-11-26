@@ -115,8 +115,7 @@ function fillDates(view, requestData) {
               : (getLang() === 'ko' ? `${nights}박 ${reqDays}일` : `${nights}N ${reqDays}D`);
             el.type = 'text';
             el.value = `${val[0]} ~ ${val[val.length - 1]} (${durationText})`;
-            // 회색·not-allowed 는 CSS 의 input[readonly] 가 맡는다.
-            // 인라인으로 칠하면 다크 모드에서 흰 글씨 위에 밝은 회색이 남는다.
+            // 회색·not-allowed 는 CSS 의 input[readonly] 가 토큰으로 맡는다. 인라인으로 칠하지 않는다.
             el.readOnly = true;
           } else {
             el.type = 'date';

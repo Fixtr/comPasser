@@ -231,8 +231,8 @@ test('전역 취소 이벤트와 컴포넌트 해제도 대기 중인 경로를 
   }
 });
 
-test('map pins keep their light colours in dark mode, because Google map tiles stay light', async () => {
-  // Dark mode swaps the theme tokens on :root; the pin tokens stay put.
+test('map pins read the pin tokens, not the timeline colour tokens', async () => {
+  // The timeline tokens get other values here so a pin that read them would show.
   const styles = { '--cp-anchor': '#a78bfa', '--cp-start': '#34d399', '--cp-stop': '#60a5fa', '--cp-surface': '#1A1A19',
     '--cp-pin-anchor': '#5820b0', '--cp-pin-start': '#10b981', '--cp-pin-stop': '#3b82f6', '--cp-pin-glyph': '#FFFFFF' };
   const app = harness({ styles });

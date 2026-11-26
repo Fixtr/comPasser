@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * 설치형(PWA)에서 안드로이드 상태 표시줄과 작업 전환기 색, 그리고 스플래시
@@ -17,10 +19,8 @@ const html = readFileSync(new URL('../ionic-shell.html', import.meta.url), 'utf8
 const css = readFileSync(new URL('../src/prototype/ionic-shell.css', import.meta.url), 'utf8');
 const shell = readFileSync(new URL('../src/prototype/ionic-shell.jsx', import.meta.url), 'utf8');
 
-/** tokens.css 의 :root 블록에서 값을 읽는다(body.dark 쪽과 섞이지 않게). */
 function token(name) {
-  const root = tokens.slice(tokens.indexOf(':root'), tokens.indexOf('body.dark'));
-  const m = new RegExp(`--cp-${name}\\s*:\\s*([^;]+);`).exec(root);
+  const m = new RegExp(`--cp-${name}\\s*:\\s*([^;]+);`).exec(tokens);
   assert.ok(m, `--cp-${name} 토큰을 찾지 못했다`);
   return m[1].trim().toLowerCase();
 }
@@ -34,24 +34,32 @@ test('스플래시 배경이 앱 지면색과 같다', () => {
   assert.equal(manifest.background_color.toLowerCase(), token('paper'));
 });
 
-test('meta theme-color 가 라이트/다크 각각 지면색과 같다', () => {
-  // Ionic 셸은 meta 하나를 두고, 첫 페인트 전 head 스크립트와 테마 토글이
-  // 그 content 를 라이트/다크 지면색으로 바꿔 쓴다. 세 자리 모두 토큰과 같아야 한다.
+test('meta theme-color 는 지면색 하나로 고정이다', () => {
   const metas = [...html.matchAll(/<meta\s+name="theme-color"[^>]*>/g)].map(m => m[0]);
-  assert.equal(metas.length, 1, 'theme-color 선언이 하나여야 스크립트가 고치는 값과 갈라지지 않는다');
-  const lightPaper = token('paper');
-  const darkRoot = tokens.slice(tokens.indexOf('body.dark'));
-  const darkPaper = /--cp-paper\s*:\s*([^;]+);/.exec(darkRoot)[1].trim().toLowerCase();
-  assert.equal(/content="([^"]+)"/.exec(metas[0])[1].trim().toLowerCase(), lightPaper);
+  assert.equal(metas.length, 1);
+  assert.equal(/content="([^"]+)"/.exec(metas[0])[1].trim().toLowerCase(), token('paper'));
+  // 라이트 전용이라 스크립트가 이 값을 바꿔 쓸 일이 없다.
+  assert.doesNotMatch(html.replace(metas[0], '') + shell, /theme-color/);
+});
 
-  const head = html.slice(0, html.indexOf('</head>'));
-  const boot = /theme-color"\]'\)\.content\s*=\s*theme === 'dark' \? '([^']+)' : '([^']+)'/.exec(head);
-  assert.ok(boot, 'head 스크립트가 첫 페인트 전에 theme-color 를 테마에 맞추지 않는다');
-  assert.deepEqual([boot[1].toLowerCase(), boot[2].toLowerCase()], [darkPaper, lightPaper]);
+test('OS 다크와 브라우저 자동 다크를 따르지 않는다고 선언한다', () => {
+  assert.match(html, /<meta name="color-scheme" content="only light"/);
+  assert.match(tokens, /:root\s*\{[^}]*color-scheme:\s*only light;/);
+  // 예전에 저장된 'theme' 값은 읽지 않고 지운다.
+  assert.match(html, /localStorage\.removeItem\('theme'\)/);
+  assert.doesNotMatch(html + shell, /localStorage\.(?:get|set)Item\('theme'/);
+});
 
-  const toggle = /theme-color"\]'\)\?\.setAttribute\('content', theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(shell);
-  assert.ok(toggle, '테마를 바꿀 때 theme-color 를 따라 바꾸지 않는다');
-  assert.deepEqual([toggle[1].toLowerCase(), toggle[2].toLowerCase()], [darkPaper, lightPaper]);
+const sources = dir => readdirSync(new URL(dir, import.meta.url), { recursive: true, withFileTypes: true })
+  .filter(entry => entry.isFile() && /\.(?:m?js|jsx|css|html)$/.test(entry.name) && entry.name !== 'compasser-preview.html')
+  .map(entry => join(entry.parentPath, entry.name));
+
+test('다크 모드가 소스에 다시 들어오지 않는다', () => {
+  const files = [...sources('../src/'), ...sources('../public/'), fileURLToPath(new URL('../ionic-shell.html', import.meta.url))];
+  assert.ok(files.length > 50, '검사할 소스를 찾지 못했다');
+  const banned = /prefers-color-scheme|data-theme|data-route-theme|\.dark\b|color-scheme:[^;]*dark|light-dark\(|ion-palette-dark|high-contrast-dark/;
+  const hits = files.filter(file => banned.test(readFileSync(file, 'utf8')));
+  assert.deepEqual(hits, []);
 });
 
 /**
@@ -70,44 +78,7 @@ test('핀치 줌을 막지 않는다', () => {
   assert.match(content, /viewport-fit=cover/, '노치 대응은 유지해야 한다');
 });
 
-test('첫 페인트 전에 테마가 정해진다', () => {
-  // 셸 스크립트는 모듈이라 문서 파싱이 끝난 뒤 실행된다. 거기서 테마를 정하면
-  // 시스템이 다크인 폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다.
-  const head = html.slice(0, html.indexOf('</head>'));
-  assert.match(head, /data-theme/, 'head 안에서 테마를 정하는 코드가 없다');
-  assert.match(head, /prefers-color-scheme/, '시스템 설정을 읽지 않는다');
-  assert.match(head, /localStorage/, '사용자가 고른 값을 먼저 봐야 한다');
-});
-
-test('다크 팔레트는 data-theme 로도 걸린다', () => {
-  // 첫 페인트 전에는 body 가 아직 없다. 그래서 html 요소에 표시한다.
-  assert.match(tokens, /\[data-theme="dark"\]/, 'data-theme="dark" 규칙이 없다');
-  // 같은 값을 두 곳에 적으면 갈라진다. 한 규칙이 두 셀렉터를 함께 받아야 한다.
-  const darkRule = /(:root\[data-theme="dark"\][^{]*|body\.dark[^{]*)\{/.exec(tokens);
-  assert.ok(darkRule, '다크 팔레트 규칙을 찾지 못했다');
-  assert.match(darkRule[0], /data-theme="dark"[\s\S]*body\.dark|body\.dark[\s\S]*data-theme="dark"/,
-    '다크 값이 한 규칙에 모여 있어야 한다');
-});
-
-test('시스템 테마가 바뀌면 따라간다 — 사용자가 고른 적 없을 때만', () => {
-  assert.match(shell, /matchMedia\(\s*['"]\(prefers-color-scheme: dark\)['"]\s*\)/,
-    '시스템 테마 변경을 듣지 않는다');
-  assert.match(shell, /addEventListener\(\s*['"]change['"]/, 'change 이벤트를 듣지 않는다');
-  // 고른 적이 있으면 그 선택이 이긴다.
-  assert.match(shell, /localStorage\.getItem\(\s*['"]theme['"]\s*\)/, '저장된 선택을 확인하지 않는다');
-});
-
 test('노치 아래로 내용이 숨지 않는다', () => {
   // viewport-fit=cover 를 쓰면 상태 표시줄 아래까지 내용이 들어간다.
   assert.match(css, /env\(safe-area-inset-top\)/, '위쪽 안전 영역을 비켜 주지 않는다');
-});
-
-// 캡처의 라이트 팔레트와 원래 테마 복원은 itinerary-image-export.test.mjs에서 검증한다.
-
-test('테마 버튼 라벨이 언어를 바꿔도 상태를 지킨다', () => {
-  // 라벨 키가 고정돼 있으면, 다크 모드에서 언어를 바꾸는 순간 "다크 모드"로
-  // 되돌아간다(누르면 라이트로 가는데도). 셸은 그릴 때마다 테마로 키를 고른다.
-  assert.match(shell, /\{t\(theme === 'dark' \? 'lightMode' : 'darkMode'\)\}/,
-    '테마에 따라 i18n 키를 바꾸지 않는다');
-  assert.match(shell, /addEventListener\('i18n-changed'/, '언어가 바뀌어도 다시 그리지 않는다');
 });

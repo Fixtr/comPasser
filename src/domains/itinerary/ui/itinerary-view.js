@@ -560,8 +560,7 @@ export default class ItineraryView extends HTMLElement {
       <p id="results-loading" class="state-block" role="status" data-i18n="resultLoading" hidden>${t('resultLoading')}</p>
 
       <div id="results" style="display: none;">
-        <!-- 배경은 호스트(:host)가 준다. 여기에 흰색을 박아 두면 다크 모드에서
-             흰 띠가 생긴다. 캡처용 배경은 share 경로가 따로 지정한다. -->
+        <!-- 배경은 호스트(:host)가 준다. 여기서 따로 칠하지 않는다. 캡처용 배경은 share 경로가 따로 지정한다. -->
         <div id="results-content">
           <p id="shared-notice" class="shared-notice" role="note" data-i18n="sharedReadOnlyNotice" hidden></p>
           <div id="transit-notice" class="transit-notice" role="status" aria-live="polite" style="display: none;"></div>

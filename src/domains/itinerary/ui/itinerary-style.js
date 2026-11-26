@@ -27,13 +27,12 @@ export const itineraryStyles = `
         .visited-btn[aria-pressed="true"] > span { visibility: visible; }
         .visited-btn:focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
         /* '확정' 배지는 흐리지 않는다(흐리면 작은 보라 글자의 대비가 모자란다). */
-        .schedule-card[data-visited] > :not(.visited-btn, .schedule-title-row), .schedule-card[data-visited] .schedule-title-row > :not(.anchor-badge) { opacity: .55; }
+        .schedule-card[data-visited] > :not(.visited-btn, .schedule-title-row), .schedule-card[data-visited] .schedule-title-row > :not(.anchor-badge) { opacity: .75; }
         .visit-hours { font-size: .85rem; line-height: 1.5; padding: 8px; border: 1px solid var(--cp-rule); }
         .visit-hours[hidden] { display: none; }
         .visit-hours[data-status="conflict"], .visit-hours[data-status="closed"] { color: var(--cp-danger); background: var(--cp-danger-bg); border-color: var(--cp-danger); }
         .place-replacement { position: relative; padding: 12px 0; overflow: visible; }
-        .place-replacement gmp-place-autocomplete { display: block; width: 100%; min-height: 48px; color-scheme: light; position: relative; z-index: 20; }
-        :host-context(body.dark) .place-replacement gmp-place-autocomplete { color-scheme: dark; }
+        .place-replacement gmp-place-autocomplete { display: block; width: 100%; min-height: 48px; color-scheme: only light; position: relative; z-index: 20; }
         .place-replacement button, .replace-place-btn, .indoor-alternatives-btn { min-height: 44px; padding: 8px 12px; margin: 4px 8px 4px 0; border: 1px solid var(--cp-rule); background: var(--cp-surface); color: var(--cp-ink); cursor: pointer; }
         .place-replacement button:disabled { opacity: .5; cursor: not-allowed; }
         .schedule-card[data-visited] .indoor-alternatives-btn { display: none; }
@@ -145,12 +144,10 @@ export const itineraryStyles = `
           font-size: 0.8rem;
           font-weight: 600;
           cursor: pointer;
-          opacity: 0.5;
-          transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+          transition: border-color 0.15s, color 0.15s;
         }
         .insert-slot:hover .insert-slot-btn,
         .insert-slot-btn:focus-visible {
-          opacity: 1;
           border-color: var(--cp-ink);
           color: var(--cp-ink);
         }
@@ -345,11 +342,11 @@ export const itineraryStyles = `
           color: var(--cp-anchor); border: 1px solid var(--cp-anchor); border-radius: var(--cp-radius);
         }
 
-        /* 그날의 첫 장소도 지도 핀과 같은 색을 쓴다. */
+        /* 그날의 첫 장소도 지도 핀과 같은 색을 쓴다. 밝은 초록 위 흰 글자는 2.5:1 이라 글자와 테두리는 잉크다. */
         .timeline-item:first-child .schedule-card::before {
           background: var(--cp-start);
-          border-color: var(--cp-start);
-          color: var(--cp-surface);
+          border-color: var(--cp-ink);
+          color: var(--cp-ink);
         }
 
         /* ====== Transit Info (Upgraded) ====== */
@@ -406,7 +403,6 @@ export const itineraryStyles = `
         .transit-distance {
           font-size: 0.8rem;
           color: var(--cp-ink-2);
-          opacity: 0.7;
         }
 
         .transit-extended-info {
@@ -477,8 +473,7 @@ export const itineraryStyles = `
           padding: 0.35rem 0.55rem;
           border-radius: 0;
           border: 1px solid var(--cp-rule);
-          /* 예전에는 rgba(255,255,255,0.75) 였다. 다크 모드에서
-             밝은 글씨가 거의 흰 상자에 얹혀 읽히지 않았다. */
+          /* 반투명 흰색 대신 토큰을 쓴다. */
           background: var(--cp-surface);
         }
 

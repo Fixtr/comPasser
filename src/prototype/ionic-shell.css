@@ -1,5 +1,4 @@
-:root { --ion-font-family: var(--cp-font); --ion-color-primary: #153e36; --ion-color-primary-contrast: #fff; --ion-background-color: var(--cp-paper); --ion-text-color: var(--cp-ink); }
-:root[data-theme="dark"], :root[data-route-theme="dark"] { --ion-color-primary: #a8d9c9; --ion-color-primary-contrast: #121211; }
+:root { --ion-font-family: var(--cp-font); --ion-background-color: var(--cp-paper); --ion-text-color: var(--cp-ink); }
 .shell-content { --background: var(--cp-paper); --padding-top: 56px; }
 .shell-content h1 { margin: 18px 0 10px; font-size: 2rem; line-height: 1.2; }
 .shell-content p { max-width: 34rem; font-size: 1rem; line-height: 1.55; color: var(--cp-ink-2); }
@@ -152,8 +151,7 @@ button { font: inherit; cursor: pointer; }
 .ai-place-sources { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
 .ai-place-sources a { color: var(--cp-ink-2); }
 .ai-place-card .ai-place-attribution { font: 400 12px Roboto,sans-serif; margin: 6px 0 12px; letter-spacing: normal; white-space: nowrap; color: #5e5e5e; }
-:root[data-theme="dark"] .ai-place-card .ai-place-attribution, :root[data-route-theme="dark"] .ai-place-card .ai-place-attribution { color: #fff; }
-.ai-search-suggestions { border: 0; width: 100%; height: 110px; background: #fff; color-scheme: light; }
+.ai-search-suggestions { border: 0; width: 100%; height: 110px; background: #fff; color-scheme: only light; }
 .catalogue-places > summary { min-height: 44px; padding: 12px 0; font-size: 15px; font-weight: 600; cursor: pointer; }
 .catalogue-saved-filter { margin-bottom: 8px; }
 .catalogue-saved-filter[aria-pressed=true] { background: var(--cp-ink); color: var(--cp-surface); }
@@ -165,7 +163,6 @@ button { font: inherit; cursor: pointer; }
 .globe-stage svg { touch-action: pan-y; max-width: 100%; height: auto; }
 .globe-ocean { fill: var(--cp-sunken); stroke: var(--cp-rule); }
 .globe-stage path { fill: var(--cp-surface); stroke: var(--cp-rule); stroke-width: .5; cursor: pointer; transition: fill 200ms ease-out; }
-:root[data-theme="dark"] .globe-stage path, :root[data-theme="dark"] .globe-ocean, :root[data-route-theme="dark"] .globe-stage path, :root[data-route-theme="dark"] .globe-ocean { stroke: var(--cp-muted); }
 .globe-stage path.globe-selected { fill: var(--cp-anchor); }
 .globe-marker-area { fill: transparent; cursor: pointer; }
 .globe-marker { fill: var(--cp-ink); cursor: pointer; }

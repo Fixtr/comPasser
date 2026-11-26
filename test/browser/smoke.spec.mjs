@@ -20,7 +20,6 @@ async function scenario(name, page, testInfo) {
 test.beforeEach(async ({ page, context, baseURL }, testInfo) => {
   page.smokeOrigin = baseURL;
   page.smokeOutputDir = testInfo.outputPath('captures');
-  page.exportThemeOutputDir = page.smokeOutputDir;
   page.exportI18nOutputDir = page.smokeOutputDir;
   await mkdir(page.smokeOutputDir, { recursive: true });
   // Stable fixture dates without pausing loading/animation/debounce timers.
@@ -43,7 +42,7 @@ test('generation → save/share/export → profile → account lifecycle', async
 for (const [title, file] of [
   ['account deletion guard and recovery', 'account-deletion-smoke.js'],
   ['password reset request and new password from the email link', 'password-reset-smoke.js'],
-  ['image export theme isolation', 'image-export-theme-smoke.js'],
+  ['image export leaves the live page untouched', 'image-export-isolation-smoke.js'],
   ['image export translations', 'image-export-i18n-smoke.js'],
   ['planner draft restoration', 'planner-draft-smoke.js'],
   ['lodging search dates and hotel application', 'lodging-search-smoke.js'],

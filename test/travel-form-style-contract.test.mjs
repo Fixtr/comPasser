@@ -31,9 +31,9 @@ test('터치 기기에서 입력과 버튼이 44px 이상이다', () => {
   assertTouchTargets(css, LABEL, ['input', '.primary-btn', '.reset-btn', '.remove-btn', '.link-btn']);
 });
 
-test('다크 모드에서 시간·날짜 입력의 기본 아이콘이 보인다', () => {
+test('시간·날짜 입력의 기본 아이콘은 라이트로 고정된다', () => {
   // 이 화면은 앱에서 네이티브 입력(time/date/select)이 가장 많은 곳이라
-  // color-scheme 을 안 뒤집으면 여기서 제일 먼저 티가 난다.
+  // OS 다크를 따라가면 여기서 제일 먼저 티가 난다.
   assertNativeControlScheme(tokens);
 });
 
@@ -71,7 +71,7 @@ test('스크롤할 때 입력창이 상단 메뉴 위로 올라오지 않는다'
 });
 
 test('결과 시트는 끝까지 올려도 상태 표시줄 아래에서 멈춘다', () => {
-  // 100% 면 손잡이와 언어·테마 버튼이 상태 표시줄과 겹치고 손잡이를 누를 수 없다.
+  // 100% 면 손잡이와 언어 버튼이 상태 표시줄과 겹치고 손잡이를 누를 수 없다.
   const shell = readFileSync(new URL('../src/prototype/ionic-shell.css', import.meta.url), 'utf8');
   assert.match(shell, /\.ionic-result-sheet \{[^}]*--height: calc\(100% - env\(safe-area-inset-top, 0px\)\)/);
 });

@@ -168,7 +168,7 @@ test('the route directory groups routes by city with jump links, distinct titles
   assert.ok(html.indexOf('id="city-seoul"') < html.indexOf('id="city-tokyo"') && html.indexOf('id="city-tokyo"') < html.indexOf('id="travelers"'));
 });
 
-test('route pages link every stop to maps and directions, jump to planning from the top, and follow dark mode', () => {
+test('route pages link every stop to maps and directions, jump to planning from the top, and stay light', () => {
   const seoul = renderPublicRoute(curatedRoute('curated-seoul'), origin);
   const stops = curatedRoute('curated-seoul').stops;
   assert.equal(seoul.match(/>Open in Google Maps</g).length, 2);
@@ -181,10 +181,8 @@ test('route pages link every stop to maps and directions, jump to planning from 
   // Planning is reachable without scrolling two screens: a top link to the planning section.
   assert.ok(seoul.indexOf('href="#plan"') < seoul.indexOf('<article>'));
   assert.match(seoul, /<section class="start" id="plan">/);
-  assert.match(seoul, /prefers-color-scheme:dark/); assert.match(seoul, /:root\[data-theme=dark\]/);
-  // Print forces the light palette over both dark rules; the stored theme applies before first paint.
-  assert.match(seoul, /@media print\{:root,:root\[data-theme\]\{color-scheme:light;/);
-  assert.ok(seoul.indexOf('<script src="/route-theme.js') < seoul.indexOf('<style>'));
+  assert.match(seoul, /:root\{color-scheme:only light;/);
+  assert.doesNotMatch(seoul, /prefers-color-scheme|data-theme|route-theme\.js|color-scheme:dark/);
   assert.match(seoul, /outline:3px solid var\(--focus\)/);
   assert.match(seoul, /id="download-qr"[^>]+data-qr="\/en\/routes\/curated-seoul\/qr\.svg"/);
   assert.match(seoul, /class="action" href="\/en\/routes\/curated-seoul\/qr\.svg\?download=1">Download QR \(SVG\)/);

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   IonApp, IonBackButton, IonButtons, IonContent, IonHeader, IonIcon,
@@ -16,7 +16,6 @@ import { offlineTrips } from '../domains/itinerary/services/offline-trips.mjs';
 import { visitedStops } from '../domains/itinerary/services/visited-stops.mjs';
 import { showErrorToast } from '../utils/toast.js';
 import { trackPageView } from '../utils/analytics.js';
-import { applyRouteTheme, isDarkRoute, releaseRouteTheme, ROUTE_THEME_ATTR } from '../utils/route-theme.js';
 import { installPageTransitions } from './screen-transition.js';
 import { usePlanExitGuard } from './plan-exit-guard.js';
 import { getLang, setLang, t } from '../utils/i18n.js';
@@ -28,7 +27,6 @@ import '@ionic/react/css/structure.css';
 import '@ionic/react/css/typography.css';
 import '@ionic/react/css/padding.css';
 import '@ionic/react/css/palettes/high-contrast.always.css';
-import '@ionic/react/css/palettes/high-contrast-dark.class.css';
 import '../styles/tokens.css';
 import './ionic-shell.css';
 
@@ -46,17 +44,6 @@ const DestinationScreen = lazyScreen(() => import('./destination-screen.jsx'), '
 const [AuthScreen, PreferenceScreen, PlanScreen, ResultScreen, ProfileScreen, AccountDeletionScreen, RecommendScreen, CoursesScreen] =
   ['AuthScreen', 'PreferenceScreen', 'PlanScreen', 'ResultScreen', 'ProfileScreen', 'AccountDeletionScreen', 'RecommendScreen', 'CoursesScreen'].map(name => lazyScreen(screens, name));
 
-// The palette class, body class and status bar follow what is shown: the user's theme, or dark while a result route forces it.
-function paintTheme(theme) {
-  const root = document.documentElement;
-  const forced = root.hasAttribute(ROUTE_THEME_ATTR);
-  const dark = forced || theme === 'dark';
-  root.classList.toggle('ion-palette-dark', dark);
-  document.body.classList.toggle('dark', dark);
-  // While a route forces dark, route-theme owns the status bar colour and restores it when the force ends.
-  if (!forced) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121211' : '#FFFFFF');
-}
-
 const pages = [
   ['/destination', 'flowDestination'], ['/', 'heroTitle'], ['/home', 'heroTitle'], ['/index.html', 'heroTitle'], ['/recommend', 'shellRecommend'], ['/courses', 'shellCourses'],
   ['/login', 'authEmailLoginBtn'], ['/join', 'joinTitle'],
@@ -70,12 +57,11 @@ const pages = [
 // An email sign-up stays signed out until verified, so it neither claims nor clears the guest's planner draft.
 const unverifiedEmail = user => !!user?.providerData?.some(provider => provider.providerId === 'password') && !user.emailVerified;
 
-function SettingsControls({ theme, onThemeChange, lang }) {
+function SettingsControls({ lang }) {
   const nextLang = lang === 'ko' ? 'en' : 'ko';
   return <div className="ionic-settings" role="group" aria-label={lang === 'ko' ? '화면 설정' : 'Display settings'}>
     {/* Guests have no profile, so the language switch sits here; it names the language it switches to. */}
     <button type="button" lang={nextLang} onClick={() => setLang(nextLang)}>{t('languageToggle')}</button>
-    <button type="button" onClick={onThemeChange} aria-label={t(theme === 'dark' ? 'lightMode' : 'darkMode')}>{t(theme === 'dark' ? 'lightMode' : 'darkMode')}</button>
   </div>;
 }
 
@@ -124,15 +110,11 @@ function ShellPage({ titleKey, routePath, user, authSettled, settings }) {
   </IonPage>;
 }
 
-function ShellRoutes({ user, authSettled, theme, routeThemeReleased, lang, onThemeChange }) {
+function ShellRoutes({ user, authSettled, lang }) {
   useEffect(installPageTransitions, []);
   const location = useLocation();
   const navigate = useNavigate();
   usePlanExitGuard(location, user);
-  // Layout effect: the forced palette lands before the new route paints, so /view never flashes light.
-  useLayoutEffect(() => { applyRouteTheme(location.pathname); paintTheme(theme); }, [location.pathname, theme, routeThemeReleased]);
-  // The toggle names the theme it switches to, so it follows what is shown, not the stored choice.
-  const shownTheme = !routeThemeReleased && isDarkRoute(location.pathname) ? 'dark' : theme;
   useEffect(() => {
     const route = pages.find(([path]) => matchPath(path, location.pathname));
     // A trip address whose ID no document can have shows the not-found page, so the tab says so too.
@@ -161,7 +143,7 @@ function ShellRoutes({ user, authSettled, theme, routeThemeReleased, lang, onThe
   const selectedTab = activeTabId(location.pathname + location.search);
   const icons = [homeOutline, listOutline, personOutline];
   const labels = [t('tabHome'), t('tabTrips'), t('tabProfile')];
-  const settings = <SettingsControls theme={shownTheme} onThemeChange={() => onThemeChange(shownTheme)} lang={lang}  />;
+  const settings = <SettingsControls lang={lang} />;
   return <IonTabs>
     <IonRouterOutlet animated={false}>
       {pages.map(([path, titleKey]) => <Route key={path} path={path} element={<ShellPage titleKey={titleKey} routePath={path} user={user} authSettled={authSettled} settings={settings} />} />)}
@@ -184,12 +166,6 @@ function Shell() {
     if (requested === 'en' || requested === 'ko') setLang(requested);
     return getLang();
   });
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
-  const [routeThemeReleased, setRouteThemeReleased] = useState(false);
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    paintTheme(theme);
-  }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
     const update = () => setLanguage(getLang());
@@ -201,23 +177,6 @@ function Shell() {
     window.addEventListener('planner-storage-error', error);
     return () => window.removeEventListener('planner-storage-error', error);
   }, []);
-  useEffect(() => {
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
-    const followSystem = event => {
-      try { if (localStorage.getItem('theme')) return; } catch { /* Keep the current session usable. */ }
-      setTheme(event.matches ? 'dark' : 'light');
-    };
-    systemDark.addEventListener('change', followSystem);
-    return () => systemDark.removeEventListener('change', followSystem);
-  }, []);
-  const onThemeChange = shown => {
-    const next = shown === 'dark' ? 'light' : 'dark';
-    // Without the release, pressing the toggle on a forced-dark route would leave the screen unchanged.
-    releaseRouteTheme();
-    setRouteThemeReleased(true);
-    setTheme(next);
-    try { localStorage.setItem('theme', next); } catch { /* Keep the current session usable. */ }
-  };
   useEffect(() => {
     let stopped = false, unsubscribe;
     authService().then(({ missingFirebaseConfig, subscribeToAuthChanges }) => {
@@ -239,7 +198,7 @@ function Shell() {
     if (unverifiedEmail(auth.user)) void authService().then(({ logout }) => logout({ keepLocalData: true }));
   }, [auth.user]);
   if (auth.failed) return <div className="boot" role="alert"><strong>ComPasser</strong><p>{t('discoveryScreenFailed')}</p><button onClick={() => window.location.reload()}>{t('discoveryScreenReload')}</button></div>;
-  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} theme={theme} routeThemeReleased={routeThemeReleased} lang={lang} onThemeChange={onThemeChange}  /></IonReactRouter></IonApp>;
+  return <IonApp><IonReactRouter><ShellRoutes user={auth.user} authSettled={auth.settled} lang={lang} /></IonReactRouter></IonApp>;
 }
 
 createRoot(document.getElementById('ionic-shell')).render(<Shell />);

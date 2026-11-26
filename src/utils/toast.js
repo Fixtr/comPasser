@@ -37,7 +37,7 @@ function ensureStyle() {
     #${CONTAINER_ID} {
       position: fixed;
       left: 50%;
-      /* Below the top row of Back, language and theme buttons. */
+      /* Below the top row of Back and language buttons. */
       top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3.5rem);
       transform: translateX(-50%);
       display: flex;

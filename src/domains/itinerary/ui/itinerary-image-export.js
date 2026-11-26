@@ -3,7 +3,6 @@ import { buildItineraryTitle } from '../services/itinerary-title.mjs';
 import { normalizeData } from '../services/itinerary-normalize.mjs';
 import { boardingPassStyles, renderBoardingPass } from './boarding-pass-view.js';
 import { loadHtml2Canvas } from '../../../utils/external-scripts.js';
-import { ROUTE_THEME_ATTR } from '../../../utils/route-theme.js';
 
 /**
  * 일정 사본을 티켓 이미지로 내보낸다. 화면의 상태·버튼·알림은 알지 않는다.
@@ -57,15 +56,8 @@ export function createItineraryImageExporter({
       // 캡처 엔진은 여전히 버튼을 누른 뒤에만 동적으로 읽는다.
       const html2canvas = await loadCanvas();
       canvas = await html2canvas(ticket, {
+        // 배경은 티켓의 --cp-surface 토큰이 그린다.
         scale: 2, useCORS: true, backgroundColor: null, logging: false,
-        // 복제 문서만 밝게 한다. 실제 화면의 경로·사용자 테마는 읽거나
-        // 복원하지 않아, 처리 중 이동/테마 변경/동시 캡처와 경합하지 않는다.
-        // 배경도 복제 티켓의 --cp-surface 토큰이 그린다.
-        onclone(clonedDocument) {
-          clonedDocument.body.classList.remove('dark');
-          clonedDocument.documentElement.setAttribute('data-theme', 'light');
-          clonedDocument.documentElement.removeAttribute(ROUTE_THEME_ATTR);
-        },
       });
     } finally {
       // 공유창이 닫힐 때까지 임시 티켓을 붙들지 않는다.

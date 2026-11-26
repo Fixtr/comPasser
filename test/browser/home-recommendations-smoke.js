@@ -59,13 +59,10 @@ async (page) => {
   await page.getByRole('button', { name: '뒤로', exact: true }).click();
   await page.locator('[data-recommend-city=seoul]').click();
   await row('서울숲').waitFor();
-  await button('다크 모드').click();
-  check(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'Dark mode must apply');
-  await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-ko-dark.png`, fullPage: true });
+  await page.screenshot({ path: `${page.smokeOutputDir}/home-recommendations-ko.png`, fullPage: true });
   const overflow = await page.evaluate(() => [...document.querySelectorAll('.flow-place-row, .flow-place-row button')]
     .filter(node => node.checkVisibility()).some(node => { const rect = node.getBoundingClientRect(); return rect.left < 0 || rect.right > innerWidth; }));
   check(!overflow, 'Cards must fit the mobile viewport');
-  await button('라이트 모드').click();
 
   // Keyboard selection of the first place, then two more by pointer.
   await row('서울숲').locator('[data-place-pick]').focus();

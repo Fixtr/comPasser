@@ -22,12 +22,6 @@
   a { color:var(--navy); }
   .translation { margin-top:72px; padding-top:32px; border-top:2px solid var(--line); }
   footer { margin-top:56px; padding-top:24px; border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
-  @media (prefers-color-scheme: dark) {
-    :root { --ink:#e5e7eb; --muted:#9ca3af; --line:#374151; }
-    body { background:#0f172a; }
-    th { background:#1f2937; }
-    a { color:#93c5fd; }
-  }
 </style>
 </head>
 <body>
@@ -93,7 +87,7 @@
 
   <h2>5. 이용자 기기에 저장되는 정보</h2>
   <ul>
-    <li>작성 중인 여행 계획, 오프라인에서 보려고 저장한 일정 사본, 화면 테마·언어 설정, 방문 완료 표시(계정 고유 식별자와 함께 저장), 탈퇴 접수 번호가 브라우저 저장소(localStorage·sessionStorage)에, 로그인 상태와 앱이 불러온 일정·프로필 사본이 브라우저의 오프라인 캐시(IndexedDB)에 저장됩니다. 로그아웃하면 작성 중인 계획과 오프라인 사본은 지워지지만, 오프라인 캐시의 사본은 남을 수 있으며 브라우저의 사이트 데이터 삭제로 지울 수 있습니다. 여러 사람이 쓰는 기기에서는 사이트 데이터를 삭제해 주세요.</li>
+    <li>작성 중인 여행 계획, 오프라인에서 보려고 저장한 일정 사본, 언어 설정, 방문 완료 표시(계정 고유 식별자와 함께 저장), 탈퇴 접수 번호가 브라우저 저장소(localStorage·sessionStorage)에, 로그인 상태와 앱이 불러온 일정·프로필 사본이 브라우저의 오프라인 캐시(IndexedDB)에 저장됩니다. 로그아웃하면 작성 중인 계획과 오프라인 사본은 지워지지만, 오프라인 캐시의 사본은 남을 수 있으며 브라우저의 사이트 데이터 삭제로 지울 수 있습니다. 여러 사람이 쓰는 기기에서는 사이트 데이터를 삭제해 주세요.</li>
     <li>오프라인에서도 앱이 열리도록 앱 화면 파일을 기기에 저장(서비스 워커 캐시)하며, 여기에는 개인정보가 들어 있지 않습니다.</li>
     <li>웹 브라우저에서 Google Analytics는 쿠키를 사용합니다(앱에서는 사용하지 않습니다). 브라우저 설정에서 쿠키를 차단하거나 삭제할 수 있습니다.</li>
   </ul>
@@ -212,7 +206,7 @@
 
     <h2>5. Information stored on your device</h2>
     <ul>
-      <li>Your trip in progress, trip copies you saved for offline viewing, theme and language settings, the stops you marked as visited (stored with your account identifier) and a deletion receipt number are stored in your browser's storage (localStorage and sessionStorage); your login session and copies of the trips and profile the app loaded are stored in the browser's offline cache (IndexedDB). Logging out clears your trip in progress and the offline copies, but copies in the offline cache may remain until you clear the site's data in your browser. On a shared device, please clear the site data.</li>
+      <li>Your trip in progress, trip copies you saved for offline viewing, language settings, the stops you marked as visited (stored with your account identifier) and a deletion receipt number are stored in your browser's storage (localStorage and sessionStorage); your login session and copies of the trips and profile the app loaded are stored in the browser's offline cache (IndexedDB). Logging out clears your trip in progress and the offline copies, but copies in the offline cache may remain until you clear the site's data in your browser. On a shared device, please clear the site data.</li>
       <li>So that the app opens offline, its screen files are stored on your device (a service worker cache). They contain no personal information.</li>
       <li>In a web browser, Google Analytics uses cookies (the apps do not). You can block or delete cookies in your browser settings.</li>
     </ul>

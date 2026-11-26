@@ -35,8 +35,7 @@ test('옛 토큰을 더 이상 읽지 않는다', () => assertNoLegacyTokens(css
 
 /**
  * rgba 검사가 이 화면에만 빠져 있었다. 그 틈으로 두 가지가 새어 들어왔다 —
- * 이동 구간 상자의 `rgba(255,255,255,0.75)`(다크 모드에서 밝은 글씨가
- * 밝은 상자에 얹혀 사라진다)와 저장 버튼의 text-shadow.
+ * 이동 구간 상자의 `rgba(255,255,255,0.75)` 와 저장 버튼의 text-shadow.
  */
 test('반투명 색도 토큰에서 온다', () => assertNoRgbaColors(css, LABEL));
 
@@ -56,7 +55,7 @@ test('터치 기기에서는 탭 대상을 44px 이상으로 넓힌다', () => {
 });
 
 test('hover 가 없는 기기에서는 숨은 버튼이 드러난다', () => {
-  // "여기에 장소 추가" 는 opacity 0.5 로 두고 hover 때만 드러난다.
+  // "여기에 장소 추가" 는 예전에 흐리게 두었다. 지금은 늘 또렷하고, 터치 규칙은 그대로 남아 있다.
   // 터치에는 hover 가 없으므로 폰에서는 영영 반투명한 채로 남는다.
   const noHover = css.match(/@media\s*\([^)]*hover:\s*none[^)]*\)\s*\{[\s\S]*?\n        \}/);
   assert.ok(noHover, '(hover: none) 블록이 있어야 한다');

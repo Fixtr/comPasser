@@ -206,16 +206,15 @@ export const travelFormStyles = `
         }
 
         /* Google Maps Autocomplete 웹 컴포넌트.
-           색은 전부 앱 토큰에서 내려보낸다 — OS 다크모드가 아니라 앱 테마를
-           따라가게 하려는 것이 원래 의도였다. color-scheme 만 상속되지 않아
-           :host-context 로 따로 맞춘다(미지원 브라우저는 라이트로 남는다). */
+           색은 전부 앱 토큰에서 내려보낸다. color-scheme 은 상속되지 않아
+           여기서 따로 못박는다 — 안 그러면 위젯만 OS 다크모드를 따라간다. */
         gmp-place-autocomplete,
         gmp-basic-place-autocomplete {
           display: block;
           width: 100%;
           box-sizing: border-box;
           overflow: visible; /* 드롭다운 잘림 방지 */
-          color-scheme: light;
+          color-scheme: only light;
 
           --gmpx-color-surface: var(--cp-surface);
           --gmpx-color-on-surface: var(--cp-ink);
@@ -232,11 +231,6 @@ export const travelFormStyles = `
           transition: border-color 0.12s linear;
           position: relative;
           z-index: 10;
-        }
-
-        :host-context(body.dark) gmp-place-autocomplete,
-        :host-context(body.dark) gmp-basic-place-autocomplete {
-          color-scheme: dark;
         }
 
         /* 앵커 박스 안에서는 배경에 묻히도록 */

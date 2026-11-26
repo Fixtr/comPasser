@@ -78,8 +78,7 @@ export function assertNoHardcodedColors(css, label) {
 
 /**
  * 이름 있는 색(white/black/red …)도 토큰이 아니다.
- * `color: white` 는 라이트 모드에서만 맞고 다크 모드에서 흰 글씨에 흰 배경을
- * 만든다. hex 만 막으면 이쪽으로 새어 나간다.
+ * hex 만 막으면 이쪽으로 새어 나간다.
  */
 const NAMED_COLORS = ['white', 'black', 'red', 'blue', 'green', 'gray', 'grey', 'silver', 'yellow', 'orange', 'purple'];
 
@@ -175,20 +174,16 @@ export function assertTouchTargets(css, label, selectors) {
 
 /**
  * 브라우저가 직접 그리는 위젯(시간·날짜 입력의 아이콘, select 화살표,
- * 스크롤바)은 우리 토큰을 보지 않는다. color-scheme 을 테마와 함께 뒤집지
- * 않으면 다크 모드에서 어두운 아이콘이 어두운 배경에 찍혀 사라진다.
+ * 스크롤바)은 우리 토큰을 보지 않는다. color-scheme 을 라이트로 못박지
+ * 않으면 OS 다크에서 밝은 아이콘이 흰 배경에 찍혀 사라진다.
  */
 export function assertNativeControlScheme(tokensCss) {
   assert.match(
     tokensCss,
-    /:root\s*\{[^}]*color-scheme\s*:\s*light/,
-    '기본(:root) 에 color-scheme: light 가 없다'
+    /:root\s*\{[^}]*color-scheme\s*:\s*only light/,
+    '기본(:root) 에 color-scheme: only light 가 없다'
   );
-  assert.match(
-    tokensCss,
-    /body\.dark\s*\{[^}]*color-scheme\s*:\s*dark/,
-    'body.dark 에 color-scheme: dark 가 없다'
-  );
+  assert.doesNotMatch(tokensCss, /color-scheme\s*:\s*dark/);
 }
 
 /**

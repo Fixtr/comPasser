@@ -35,10 +35,7 @@ const DEFAULT_PADDING = { top: MIN_PADDING, right: MIN_PADDING, bottom: MIN_PADD
  * 토큰 값을 실제 색 문자열로 읽는다. PinElement 와 Polyline 은 CSS 변수를
  * 받지 못해 값이 필요하다.
  *
- * 구글 지도 타일은 우리 테마를 따르지 않고 항상 밝으므로, 지도에 그리는
- * 색은 다크 모드에서 바뀌지 않는 `--cp-route`·`--cp-pin-*` 만 읽는다.
- * 예전에는 `:root` 에서 읽으면 라이트 값이 나온다고 믿고 테마 토큰을 썼지만,
- * 다크 선택자가 `:root[data-theme="dark"]` 로 바뀌면서 그 전제가 깨졌다.
+ * 지도에 그리는 색은 지도 전용 토큰 `--cp-route`·`--cp-pin-*` 만 읽는다.
  */
 function tokenColor(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -196,7 +193,7 @@ export class MapView extends HTMLElement {
           background: var(--cp-sunken);
         }
 
-        /* 지도 위를 덮는 막. 흰색을 박아 두면 다크 모드에서 흰 판이 뜬다.
+        /* 지도 위를 덮는 막. 색은 토큰에서 온다.
            backdrop-filter 는 저사양 안드로이드에서 비싸 쓰지 않는다. */
         .loading-overlay {
           position: absolute;

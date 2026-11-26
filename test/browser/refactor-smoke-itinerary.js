@@ -38,7 +38,6 @@ async (page) => {
   check(await page.evaluate(() => window.__smoke.kakao[0].content.link.webUrl.endsWith('/share/smoke2')), 'Kakao payload must contain newly shared URL');
   page.smokeResults.push('PASS Kakao SDK loading/payload wiring (delivery SDK is fake)');
 
-  page.smokeThemeBefore = await page.evaluate(() => ({dark:document.body.classList.contains('dark'),theme:document.documentElement.getAttribute('data-theme'),route:document.documentElement.getAttribute('data-route-theme')}));
   // Select unsupported-Web-Share fallback explicitly: do not open an OS share sheet.
   await page.evaluate(() => Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>false}));
   const downloading = page.waitForEvent('download');
@@ -47,10 +46,8 @@ async (page) => {
   check((await download.failure())===null, 'PNG download must complete');
   if (page.smokeOutputDir) await download.saveAs(page.smokeOutputDir + '/ticket.png');
   await page.waitForFunction(() => !document.querySelector('itinerary-view').shadowRoot.getElementById('download-image-btn').disabled);
-  const after = await page.evaluate(() => ({dark:document.body.classList.contains('dark'),theme:document.documentElement.getAttribute('data-theme'),route:document.documentElement.getAttribute('data-route-theme')}));
-  check(JSON.stringify(after)===JSON.stringify(page.smokeThemeBefore), 'Export must restore all theme attributes');
   check(await page.locator('body > div[aria-hidden="true"]').count()===0, 'Export stage must be removed');
-  page.smokeResults.push('PASS real html2canvas/PNG download/theme preservation/temporary DOM cleanup');
+  page.smokeResults.push('PASS real html2canvas/PNG download/temporary DOM cleanup');
 
   let cancelledDownload = false;
   const unexpectedDownload = () => {cancelledDownload=true;};

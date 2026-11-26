@@ -284,7 +284,7 @@ test('영문 코스에서 QR·주소를 확인하고 숙소 출발지와 필수 
   expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentFormData')).startLocation)).toBe(draft.startLocation);
 });
 
-test('영문 루트 페이지는 PNG QR을 내려받고, 다크 모드를 따르고, /en 오타 주소를 영어로 안내한다', async ({ page }) => {
+test('영문 루트 페이지는 PNG QR을 내려받고, OS 다크와 옛 테마 값에도 밝고, /en 오타 주소를 영어로 안내한다', async ({ page }) => {
   await page.goto('/en/routes/curated-seoul');
   await page.getByRole('link', { name: 'Start planning' }).click();
   await expect(page).toHaveURL(/#plan$/);
@@ -296,12 +296,12 @@ test('영문 루트 페이지는 PNG QR을 내려받고, 다크 모드를 따르
   const bytes = await (await import('node:fs/promises')).readFile(await file.path());
   expect([...bytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
   const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  // Neither the system setting nor a theme stored by an older app version darkens the page.
   await page.emulateMedia({ colorScheme: 'dark' });
-  expect(await background()).toBe('rgb(18, 18, 17)');
-  // The theme chosen in the app wins over the system setting, as in the app.
-  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.evaluate(() => localStorage.setItem('theme', 'dark'));
   await page.reload();
   expect(await background()).toBe('rgb(244, 244, 241)');
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.*/);
   await page.goto('/en');
   await expect(page).toHaveURL(/\/en\/routes$/);
   const typo = await page.goto('/en/rout');
@@ -568,10 +568,9 @@ test('알 수 없는 주소는 로그인 대신 찾을 수 없음 화면을 보�
   await page.goto('/unknown-page');
   await expect(page).toHaveURL(/\/unknown-page$/);
   await expect(page.getByText('주소를 확인해 주세요.')).toBeVisible();
-  // The page is not a dead end: it leads home and keeps the language and theme switches.
+  // The page is not a dead end: it leads home and keeps the language switch.
   const notFound = page.locator('.ion-page:visible');
   await expect(notFound.getByRole('button', { name: 'English' })).toBeVisible();
-  await expect(notFound.getByRole('button', { name: /다크 모드|라이트 모드/ })).toBeVisible();
   await notFound.getByRole('link', { name: '홈으로' }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: '페이지를 찾을 수 없습니다' })).toHaveCount(0);
@@ -849,51 +848,47 @@ test('화면 밖으로 스크롤해도 뒤로 버튼이 닿고 내용을 가리�
   await page.setViewportSize({ width: 390, height: 667 });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, left: 0, bottom: 0, right: 0 } });
-  for (const [theme, attribute] of [['다크 모드', 'dark'], ['라이트 모드', 'light']]) {
-    await page.goto('/');
-    await page.getByRole('button', { name: theme }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', attribute);
-    for (const route of ['/recommend', '/courses', '/destination', '/plan', '/profile/trips']) {
-      await page.evaluate(path => window.navigate(path), route);
-      const pageRoot = page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)').last();
-      const nav = pageRoot.locator('.ionic-page-nav');
-      await expect(nav).toBeVisible();
-      const state = await nav.evaluate(async element => {
-        const content = element.closest('ion-content');
-        content.insertAdjacentHTML('beforeend', '<div data-spacer style="height:3000px"></div><button data-target>x</button><div data-spacer style="height:3000px"></div>');
-        const scroller = await content.getScrollElement();
-        scroller.scrollTop = 1500;
-        await new Promise(requestAnimationFrame);
-        const control = element.querySelector('button, a');
-        const box = control.getBoundingClientRect();
-        const bar = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-        const result = {
-          scrolled: scroller.scrollTop > 0,
-          controlTop: box.top,
-          barTop: bar.top,
-          hit: control === hit || control.contains(hit),
-          height: box.height,
-          background: getComputedStyle(element).backgroundColor,
-          overflow: scroller.scrollWidth <= scroller.clientWidth,
-        };
-        const target = content.querySelector('[data-target]');
-        target.scrollIntoView();
-        await new Promise(requestAnimationFrame);
-        result.targetGap = target.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
-        content.querySelectorAll('[data-spacer], [data-target]').forEach(node => node.remove());
-        scroller.scrollTop = 0;
-        return result;
-      });
-      expect(state.scrolled, route).toBe(true);
-      expect(state.barTop, route).toBeLessThanOrEqual(0);
-      expect(state.controlTop, route).toBeGreaterThanOrEqual(47);
-      expect(state.hit, route).toBe(true);
-      expect(state.height, route).toBeGreaterThanOrEqual(44);
-      expect(state.background, route).toMatch(/^rgb\(/);
-      expect(state.overflow, route).toBe(true);
-      expect(state.targetGap, route).toBeGreaterThanOrEqual(0);
-    }
+  await page.goto('/');
+  for (const route of ['/recommend', '/courses', '/destination', '/plan', '/profile/trips']) {
+    await page.evaluate(path => window.navigate(path), route);
+    const pageRoot = page.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)').last();
+    const nav = pageRoot.locator('.ionic-page-nav');
+    await expect(nav).toBeVisible();
+    const state = await nav.evaluate(async element => {
+      const content = element.closest('ion-content');
+      content.insertAdjacentHTML('beforeend', '<div data-spacer style="height:3000px"></div><button data-target>x</button><div data-spacer style="height:3000px"></div>');
+      const scroller = await content.getScrollElement();
+      scroller.scrollTop = 1500;
+      await new Promise(requestAnimationFrame);
+      const control = element.querySelector('button, a');
+      const box = control.getBoundingClientRect();
+      const bar = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      const result = {
+        scrolled: scroller.scrollTop > 0,
+        controlTop: box.top,
+        barTop: bar.top,
+        hit: control === hit || control.contains(hit),
+        height: box.height,
+        background: getComputedStyle(element).backgroundColor,
+        overflow: scroller.scrollWidth <= scroller.clientWidth,
+      };
+      const target = content.querySelector('[data-target]');
+      target.scrollIntoView();
+      await new Promise(requestAnimationFrame);
+      result.targetGap = target.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
+      content.querySelectorAll('[data-spacer], [data-target]').forEach(node => node.remove());
+      scroller.scrollTop = 0;
+      return result;
+    });
+    expect(state.scrolled, route).toBe(true);
+    expect(state.barTop, route).toBeLessThanOrEqual(0);
+    expect(state.controlTop, route).toBeGreaterThanOrEqual(47);
+    expect(state.hit, route).toBe(true);
+    expect(state.height, route).toBeGreaterThanOrEqual(44);
+    expect(state.background, route).toMatch(/^rgb\(/);
+    expect(state.overflow, route).toBe(true);
+    expect(state.targetGap, route).toBeGreaterThanOrEqual(0);
   }
   await page.goto('/nowhere');
   const notFound = page.locator('.ionic-page-nav:visible');
@@ -901,24 +896,19 @@ test('화면 밖으로 스크롤해도 뒤로 버튼이 닿고 내용을 가리�
   await expect(notFound).toHaveCSS('position', 'static');
 });
 
-test('언어와 화면 모드가 모든 Ionic 화면에서 유지된다', async ({ page }) => {
+test('언어가 모든 Ionic 화면에서 유지된다', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async()=> (await import('/src/utils/i18n.js')).setLang('en'));
   await expect(page.getByRole('heading', { name: 'AI plans your trip, day by day' })).toBeVisible();
-  await page.getByRole('button', { name: 'Dark mode' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('body')).toHaveClass(/dark/);
-  await expect(page.locator('.ionic-settings button').first()).toHaveCSS('background-color', 'rgb(26, 26, 25)');
+  await expect(page.locator('.ionic-settings button').first()).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.getByRole('heading', { name: 'AI plans your trip, day by day' })).toBeVisible();
   await page.goto('/login');
   await expect(page.locator('login-view h1').last()).toHaveText('Log in');
   await page.goto('/share/abc123');
   await expect(page.locator('.ionic-desktop-schedule .ionic-settings')).toBeVisible();
-  await page.locator('.ionic-desktop-schedule').getByRole('button', { name: 'Light mode' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('.ionic-desktop-schedule .ionic-settings').getByRole('button', { name: '한국어' })).toBeVisible();
 });
 
 test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=ko 주소로 한국어를 연다', async ({ page }) => {
@@ -929,7 +919,7 @@ test('손님도 화면 설정의 언어 버튼으로 언어를 바꾸고 ?lang=k
   await page.getByRole('button', { name: '한국어', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
   await expect(page.getByRole('heading', { name: '날짜별 여행 일정, AI가 짜 드려요' })).toBeVisible();
-  expect((await page.getByRole('button', { name: '다크 모드', exact: true }).boundingBox()).x).toBeGreaterThan(200);
+  expect((await page.getByRole('button', { name: 'English', exact: true }).boundingBox()).x).toBeGreaterThan(200);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/login');
   await expect(page.locator('login-view h1').last()).toHaveText('로그인');
@@ -2064,11 +2054,9 @@ test('좁은 휴대폰에서 시트 손잡이의 터치 영역이 언어 버튼�
   await page.goto('/share/abc123');
   const sheet = page.locator('ion-modal.ionic-result-sheet');
   await expect(sheet.getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
-  for (const button of [sheet.getByRole('button', { name: 'English' }), sheet.getByRole('button', { name: /다크 모드|라이트 모드/ })]) {
-    const box = await button.boundingBox();
-    const hit = await sheet.evaluate((modal, point) => modal.shadowRoot.elementFromPoint(point.x, point.y)?.className || '', { x: box.x + 2, y: box.y + 2 });
-    expect(hit).not.toContain('modal-handle');
-  }
+  const box = await sheet.getByRole('button', { name: 'English' }).boundingBox();
+  const hit = await sheet.evaluate((modal, point) => modal.shadowRoot.elementFromPoint(point.x, point.y)?.className || '', { x: box.x + 2, y: box.y + 2 });
+  expect(hit).not.toContain('modal-handle');
 });
 
 test('찾을 수 없음 화면의 위쪽 뒤로 버튼도 휴대폰에서 44px 이상이다', async ({ page }) => {
@@ -2448,11 +2436,11 @@ test('다시 시도 중 사용자가 옮겨 간 곳의 초점을 뺏지 않는�
   await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
   await page.evaluate(() => { window.holdLoad = new Promise(done => { window.releaseLoad = done; }); });
   await view.getByRole('button', { name: '다시 시도' }).click();
-  const theme = page.getByRole('button', { name: /다크 모드|라이트 모드/ }).first();
-  await theme.focus();
+  const language = page.getByRole('button', { name: 'English' }).first();
+  await language.focus();
   await page.evaluate(() => window.releaseLoad());
   await expect(view.getByRole('button', { name: '다시 시도' })).toBeVisible();
-  await expect(theme).toBeFocused();
+  await expect(language).toBeFocused();
 });
 
 test('다시 시도한 일정이 없으면 복구로 치지 않고 초점을 잃지 않는다', async ({ page }) => {
@@ -2561,29 +2549,42 @@ test('복사가 실패하고 새로고침해도 다시 공유하면 같은 링�
   expect(await page.evaluate(() => window.shares)).toBeUndefined();
 });
 
-test('결과 화면만 어둡고, 그 화면에서 누른 테마 토글이 강제를 푼다', async ({ page }) => {
+test('OS 다크와 저장된 옛 테마 값에도 홈·결과·공유 화면이 밝고 테마 버튼이 없다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  // A returning visitor who chose dark in an older version; the flag keeps the reload from re-seeding it.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('theme', 'dark');
+  });
+  const expectLight = async () => {
+    await expect(page.locator('.ionic-settings:visible button[lang]').first()).toBeVisible();
+    await expect(page.locator('.ionic-settings button:not([lang])')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /다크 모드|라이트 모드|Dark mode|Light mode/ })).toHaveCount(0);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#FFFFFF');
+    expect(await page.evaluate(() => ({
+      theme: document.documentElement.getAttribute('data-theme'),
+      routeTheme: document.documentElement.getAttribute('data-route-theme'),
+      palette: document.documentElement.classList.contains('ion-palette-dark'),
+      dark: document.body.classList.contains('dark'),
+      scheme: getComputedStyle(document.documentElement).colorScheme,
+      body: getComputedStyle(document.body).backgroundColor,
+      surface: getComputedStyle(document.body).getPropertyValue('--cp-surface').trim(),
+      paper: getComputedStyle(document.documentElement).getPropertyValue('--cp-paper').trim(),
+      stored: localStorage.getItem('theme'),
+    }))).toEqual({ theme: null, routeTheme: null, palette: false, dark: false, scheme: 'light only',
+      body: 'rgb(255, 255, 255)', surface: '#FFFFFF', paper: '#FFFFFF', stored: null });
+  };
+  await page.goto('/');
+  await page.locator('.ionic-home h1:visible').waitFor();
+  await expectLight();
   await openUnsavedDraft(page);
-  const root = page.locator('html');
-  const statusBar = page.locator('meta[name="theme-color"]');
-  // At phone width the result settings live in the sheet; going back re-presents it while the previous page leaves.
-  const sheet = page.locator('ion-modal.ionic-result-sheet');
-  const toggle = sheet.locator('.ionic-settings button:not([lang])');
-  await expect(root).toHaveAttribute('data-route-theme', 'dark');
-  await expect(statusBar).toHaveAttribute('content', '#121211');
-  await expect(toggle).toHaveText('라이트 모드');
-  await page.evaluate(() => window.navigate('/profile/trips'));
-  await expect(root).not.toHaveAttribute('data-route-theme', /./);
-  await expect(statusBar).toHaveAttribute('content', '#FFFFFF');
-  await page.goBack();
-  await expect(root).toHaveAttribute('data-route-theme', 'dark');
-  await expect(sheet).toBeVisible();
-  await expect(toggle).toHaveText('라이트 모드');
-  await toggle.click();
-  await expect(root).not.toHaveAttribute('data-route-theme', /./);
-  await expect(root).toHaveAttribute('data-theme', 'light');
-  await expect(statusBar).toHaveAttribute('content', '#FFFFFF');
-  await expect(toggle).toHaveText('다크 모드');
+  await expectLight();
+  await page.route('**/src/domains/itinerary/services/firestore-service.js', route => route.fulfill({ contentType: 'text/javascript', body: missingItineraryStore }));
+  await page.goto('/share/abc123');
+  await expect(page.locator('ion-modal.ionic-result-sheet').getByRole('button', { name: '새 일정 만들기' })).toBeVisible();
+  await expectLight();
 });
 
 test('/ 다음 /home 으로 가면 숨은 / 페이지는 코스를 다시 가져오지 않는다', async ({ page }) => {

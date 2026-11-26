@@ -16,9 +16,9 @@
  */
 :root {
   /* 브라우저가 직접 그리는 부분 — 시간/날짜 입력의 시계 아이콘, select 화살표,
-     스크롤바 — 은 토큰이 아니라 color-scheme 을 본다. 이걸 안 켜 두면
-     다크 모드에서 시계 아이콘이 어두운 배경 위에 어두운 색으로 찍혀 사라진다. */
-  color-scheme: light;
+     스크롤바 — 은 토큰이 아니라 color-scheme 을 본다. 앱은 라이트 전용이다.
+     `only` 가 없으면 OS 다크나 브라우저 자동 다크가 이 부분만 어둡게 뒤집는다. */
+  color-scheme: only light;
 
   /* ---- 지면 ---- */
   --cp-paper:      #FFFFFF;  /* 화면 바탕 */
@@ -49,9 +49,7 @@
 
   /* ---- 브랜드색은 예외 ----
      각 사의 로그인 버튼은 그쪽 가이드가 색을 못박고 있어서, 무채색으로
-     바꾸면 심사에서 막힌다. 그래서 여기만 색을 남기되 이름을 준다.
-     아래 값들은 body.dark 에서 **바뀌지 않는다** — 다크 모드라고 카카오
-     노랑을 회색으로 칠하는 것 역시 가이드 위반이다. */
+     바꾸면 심사에서 막힌다. 그래서 여기만 색을 남기되 이름을 준다. */
   --cp-kakao:      #FEE500;
   --cp-kakao-ink:  #000000;
   --cp-naver:      #03C75A;
@@ -61,10 +59,8 @@
   --cp-google-rule:    #DADCE0;
 
   /* ---- 지도 위에 그리는 선과 핀 ----
-     구글 지도 타일은 우리 테마를 따르지 않고 항상 밝다. 그래서 이 값은
-     body.dark 에서 **바뀌지 않는다** — 다크 모드라고 밝게 바꾸면 밝은
-     지도 위에서 경로가 사라지고, 핀은 옅은 파스텔에 검은 숫자가 된다.
-     핀 색은 --cp-anchor/start/stop 의 라이트 값과 같다. */
+     밝은 구글 지도 타일 위에 놓이는 값이다.
+     핀 색은 --cp-anchor/start/stop 과 같다. */
   --cp-route:      #3F3F3B;
   --cp-pin-anchor: #5820b0;
   --cp-pin-start:  #10b981;
@@ -101,41 +97,4 @@
                    'Segoe UI', 'Malgun Gothic', Roboto, 'Noto Sans KR',
                    system-ui, sans-serif;
   --cp-mono:       ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-}
-
-/* 다크 팔레트는 두 곳에서 걸린다 —
- *  ① `html[data-theme="dark"]`: 첫 페인트 전에 head 스크립트가 붙인다.
- *     그때는 body 가 아직 없으므로 html 요소여야 한다.
- *  ② `body.dark`: 예전부터 쓰던 런타임 표시. 토글 코드와 Google Places
- *     위젯의 :host-context 가 아직 이것을 본다.
- *  ③ `html[data-route-theme="dark"]`: 결과·지도 화면(`/view`)만 어둡게
- *     하는 표시. 그 화면은 이동 중에 보고, 늘 어두운 편인 구글 지도 타일과
- *     함께 본다 — 밝은 배경 위에 얹히면 지도와 일정이 두 물건으로 보인다.
- *     자세한 규칙은 utils/route-theme.js.
- *
- * 값은 한 규칙에 모아 둔다. 세 곳에 나눠 적으면 한쪽만 고쳐지는 날이 온다.
- * color-scheme 도 여기 함께 둔다 — 브라우저가 직접 그리는 입력 아이콘과
- * 스크롤바는 토큰이 아니라 이 값을 본다. */
-:root[data-theme="dark"],
-:root[data-route-theme="dark"],
-body.dark {
-  color-scheme: dark;
-  --cp-scrim:      rgba(0, 0, 0, 0.65);
-  --cp-paper:      #121211;
-  --cp-surface:    #1A1A19;
-  --cp-sunken:     #232322;
-  --cp-ink:        #EDEDE9;
-  --cp-ink-2:      #C2C2BD;
-  --cp-muted:      #8E8E88;
-  --cp-rule:       #767671;
-  --cp-rule-hard:  #EDEDE9;
-  --cp-anchor:     #a78bfa;
-  --cp-start:      #34d399;
-  --cp-stop:       #60a5fa;
-  --cp-warn:       #F0A94A;
-  --cp-warn-bg:    #2A2318;
-  --cp-danger:     #F2857D;
-  --cp-danger-bg:  #2B1A19;
-  --cp-ok:         #6EE7A8;
-  --cp-ok-bg:      #16251C;
 }
