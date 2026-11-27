@@ -61,7 +61,7 @@
 
 ## Home upcoming trip
 
-- `ui/upcoming-trip.js` (`<upcoming-trip uid>`) is mounted by the home screen only for a settled signed-in user while that home page's own route (`/` or `/home`; Ionic keeps both mounted) shows, so each return re-reads the list. `services/upcoming-trip.mjs` picks the trip whose last day is today (each trip's destination-local date, as the trip view's next stop reads it) or later with the earliest first day; trips without a valid first/last date are skipped. Offline it reads `offlineTrips.list(uid)`. Any failure renders nothing.
+- `ui/upcoming-trip.js` (`<upcoming-trip uid>`) is mounted by the home screen only for a settled signed-in user while that home page's own route (`/` or `/home`; Ionic keeps both mounted) shows, so each return re-reads the list. `services/upcoming-trip.mjs` picks the trip whose last day is today (each trip's destination-local date, as the trip view's next stop reads it) or later with the earliest first day; trips without a valid first/last date are skipped. Offline it reads `offlineTrips.list(uid)`. Any failure renders nothing. `tripGlance` (same module) gives the card its place count (day boundaries excluded), fixed-reservation count (`AnchorSchedule`, not `flexible`, the boarding pass rule) and the earliest reservation from today's trip day on. The element sets a `trip` attribute while it shows a trip; home's stylesheet then outlines `일정 만들기` so the card's always-filled button is the one primary (`test/primary-button-contract.test.mjs`).
 
 ## Image Export
 
