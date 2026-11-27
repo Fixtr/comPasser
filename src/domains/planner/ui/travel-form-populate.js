@@ -1,5 +1,7 @@
 import { t, getLang } from '../../../utils/i18n.js';
 import { restorePlaceInput } from '../services/selected-place.mjs';
+import { destinationById } from '../services/travel-destinations.mjs';
+import { placeSearchArea } from './place-more-search.js';
 import { plannerDraftStore, toPlannerDraft, spreadVisitDays } from '../services/planner-draft.mjs';
 
 // autoPlace only decides a new, empty item; a restored item keeps its own flexible value.
@@ -48,9 +50,13 @@ export function addAnchor(view, data = null, autoPlace = view.hasAttribute('hand
         <div class="form-group">
           <label data-i18n="anchorLocationLabel">${t('anchorLocationLabel')}</label>
           <gmp-place-autocomplete class="anchor-location" data-i18n-placeholder="anchorLocationPlaceholder" placeholder="${t('anchorLocationPlaceholder')}"></gmp-place-autocomplete>
+          <place-more-search></place-more-search>
         </div>
       </div>
     `;
+
+  const more = template.querySelector('place-more-search');
+  for (const [name, value] of Object.entries(placeSearchArea(destinationById(view.draft.destination?.id) || view.draft.destination))) more.setAttribute(name, value);
 
   // Setup remove logic
   template.querySelector('.remove-btn').addEventListener('click', () => {

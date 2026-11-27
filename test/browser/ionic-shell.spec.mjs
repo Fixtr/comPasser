@@ -715,6 +715,47 @@ test('장소 단계는 담은 장소와 다음 버튼이 어디서나 닿고, �
   }
 });
 
+test('자동완성에 없는 이름은 더 찾기로 도시 문장 검색 결과에서 골라 담고, 검색창은 OS 다크에도 밝다', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
+  // Google styles its widget host light dark; the stub does the same so the app's rule is what keeps it light.
+  await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule
+    .replace(`innerHTML = '<input aria-label="Test place">'`, `innerHTML = '<style>:host{color-scheme:light dark}</style><input aria-label="Test place">'`)
+    .replace('static async searchByText(request) {', `static async searchByText(request) { if (request.maxResultCount) { window.moreSearch = request; return { places: request.textQuery.startsWith('없는곳') ? [] : [{ id: 'blue-mipo', displayName: '해운대블루라인파크 미포정거장', formattedAddress: '부산광역시 해운대구 달맞이길62번길 13', location: { lat: 35.1588, lng: 129.1705 }, addressComponents: [{ types: ['country'], shortText: 'KR' }] }] }; }`) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/destination');
+  await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.clear());
+  await page.reload();
+  await page.locator('[data-destination-country=KOR]').click();
+  await page.getByRole('button', { name: '부산', exact: true }).click();
+  await expect.poll(() => page.locator('gmp-place-autocomplete').evaluate(element => getComputedStyle(element).colorScheme)).toBe('light only');
+
+  const more = page.getByRole('button', { name: '찾는 곳이 없나요? 더 찾기', exact: true });
+  await more.click();
+  await expect(page.locator('place-more-search [role=status]')).toHaveText('장소 이름을 입력해 주세요.');
+  expect(await page.evaluate(() => window.moreSearch)).toBeUndefined();
+
+  await page.locator('gmp-place-autocomplete input').fill('없는곳');
+  await more.click();
+  await expect(page.locator('place-more-search [role=status]')).toHaveText('찾지 못했어요. 다른 이름으로 검색해 보세요.');
+
+  await page.locator('gmp-place-autocomplete input').fill('해변열차');
+  await expect(page.locator('place-more-search [role=status]')).toHaveText('');
+  await more.click();
+  expect(await page.evaluate(() => window.moreSearch)).toMatchObject({ textQuery: '해변열차 Busan', region: 'kr', language: 'ko' });
+  const result = page.getByRole('button', { name: /해운대블루라인파크 미포정거장/ });
+  expect((await result.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  // Keyboard focus on a result must clear the sticky chips + Next bar, like the page's own controls.
+  expect(await result.evaluate(button => getComputedStyle(button).scrollMarginBottom)).toBe(await page.locator('.flow-primary').evaluate(button => getComputedStyle(button).scrollMarginBottom));
+  expect(await result.evaluate(button => parseFloat(getComputedStyle(button).scrollMarginBottom))).toBeGreaterThanOrEqual(180);
+  await result.click();
+  await expect(page.locator('place-more-search [role=status]')).toHaveText('고른 장소: 해운대블루라인파크 미포정거장');
+  await expect(more).toBeFocused();
+  await expect(page.locator('gmp-place-autocomplete input')).toHaveValue('해운대블루라인파크 미포정거장');
+  await page.getByRole('button', { name: '꼭 갈 장소로 담기', exact: true }).click();
+  await expect(page.locator('.flow-place-chip')).toContainText('해운대블루라인파크 미포정거장');
+  await expect(page.locator('.flow-page [role=alert]')).toHaveCount(0);
+});
+
 test('장소 단계 하단 바는 안전 영역을 피하고, 목록이 아래로 펼쳐지는 폭에서 검색 중에는 풀리며, 포커스를 가리지 않고 칩 포커스 링이 잘리지 않는다', async ({ page }) => {
   await page.route('**/src/domains/map/services/google-maps-loader.js', route => route.fulfill({ contentType: 'text/javascript', body: mapsModule }));
   await page.setViewportSize({ width: 390, height: 844 });

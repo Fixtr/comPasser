@@ -111,6 +111,26 @@ export class GeocodingService {
     }
 
     /**
+     * '더 찾기' 목록. 자동완성은 등록된 이름만 맞춰 보지만(예: '해변열차'로는 해운대블루라인파크가 안 나온다)
+     * 문장 검색은 뜻으로 찾는다. 도시 이름을 붙여 그 도시 결과가 앞에 오게 한다.
+     * region 은 순위만 바꾸므로, 옆 자동완성처럼 여행 국가 밖 결과는 버린다.
+     */
+    async searchPlaces(query, area = '') {
+        await this.init();
+        const { places = [] } = await this.Place.searchByText({
+            textQuery: area ? `${query} ${area}` : query,
+            language: this.resolveLanguage(),
+            region: this.countryCode.toLowerCase(),
+            maxResultCount: 5,
+            fields: ['id', 'displayName', 'formattedAddress', 'location', 'addressComponents']
+        });
+        return places.flatMap(place => {
+            const selected = place.addressComponents?.some(part => part.types.includes('country') && part.shortText === this.countryCode) && normalizeSelectedPlace(place);
+            return selected ? [selected] : [];
+        });
+    }
+
+    /**
      * 좌표만 필요한 호출부를 위한 얇은 래퍼.
      * @returns {Promise<google.maps.LatLng|null>}
      */

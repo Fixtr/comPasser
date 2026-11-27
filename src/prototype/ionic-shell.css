@@ -84,7 +84,8 @@ button { font: inherit; cursor: pointer; }
 .ionic-home-results { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
 .ionic-home-results button { width: 100%; text-align: left; }
 .ionic-home-search p:empty { margin: 0; }
-.flow-page gmp-place-autocomplete { display: block; margin-top: 8px; }
+/* Google sets light dark on the widget itself; the app is light-only. */
+.flow-page gmp-place-autocomplete { display: block; margin-top: 8px; color-scheme: only light; }
 .flow-page label { font-size: 14px; }
 .flow-choices { display: grid; gap: 10px; }
 .flow-choices button { text-align: left; }

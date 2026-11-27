@@ -7,6 +7,7 @@ import { destinations, destinationById } from '../domains/planner/services/trave
 import { bindPlaceSelection, normalizeSelectedPlace } from '../domains/planner/services/selected-place.mjs';
 import { resolveDestinationPlace, destinationPlaceError } from '../domains/planner/services/destination-place.js';
 import { getAutocompleteValue } from '../domains/planner/ui/travel-form-data.js';
+import { placeSearchArea } from '../domains/planner/ui/place-more-search.js';
 import { getMapsLoader } from '../domains/map/services/google-maps-loader.js';
 import { cityDestination, setDraftDestination } from '../domains/planner/services/course-draft.mjs';
 import { t, tFor, getLang } from '../utils/i18n.js';
@@ -115,6 +116,7 @@ export function DestinationScreen({ settings, browseCity, onBack, embedded = fal
         <p>{t(city.key)} · {t(`country${country}`)}</p>
         <label htmlFor="destination-search">{t('flowSearch')}</label>
         <gmp-place-autocomplete id="destination-search" ref={search} />
+        <place-more-search {...placeSearchArea(city)} />
         <p>{t('flowSearchHelp')}</p>
         <button onClick={async () => {
           await search.current?.placeSelectionPending;

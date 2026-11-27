@@ -54,6 +54,13 @@ async page => {
   await booked.locator('.anchor-name').fill('저녁 예약');
   await booked.locator('.anchor-time').fill('12:00');
   await booked.locator('.anchor-end-time').fill('13:00');
+  // A name autocomplete misses: 더 찾기 lists text-search results and picks one into this reservation.
+  await page.evaluate(() => { window.__namedPlacesFixtures = { 해변열차: { id: 'blue-mipo', displayName: '해운대블루라인파크 미포정거장', formattedAddress: '부산광역시 해운대구', location: { lat: 35.15, lng: 129.17 }, addressComponents: [{ types: ['country'], shortText: 'KR' }] } }; });
+  await booked.locator('.anchor-location input').fill('해변열차');
+  await booked.getByRole('button', { name: '찾는 곳이 없나요? 더 찾기', exact: true }).click();
+  await booked.getByRole('button', { name: /해운대블루라인파크 미포정거장/ }).click();
+  check(await booked.locator('.anchor-location').evaluate(el => el.selectedPlace?.placeId) === 'blue-mipo', 'Search more must select the picked place into the reservation');
+  await page.evaluate(() => { delete window.__namedPlacesFixtures; });
   await pick(booked.locator('.anchor-location'), place('restaurant', '식당'));
   results.push('PASS reservation button opens enabled start/end time inputs');
 
