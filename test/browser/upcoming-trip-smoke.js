@@ -61,7 +61,7 @@ async (page) => {
 
   await page.getByRole('button', { name: 'English', exact: true }).first().click();
   await card.locator('.status').filter({ hasText: 'Upcoming trip · D-2' }).waitFor();
-  check(await card.locator('.dates').textContent() === '09/15–09/17 · 5 places · 1 booked', 'Date range and counts must follow the language');
+  check(await card.locator('.dates').textContent() === '09/15–09/17 · Places 5 · Booked 1', 'Date range and counts must follow the language');
   await page.getByRole('button', { name: '한국어', exact: true }).first().click();
   await card.locator('.status').filter({ hasText: '다가오는 여행' }).waitFor();
   results.push('PASS card text follows the language switch');

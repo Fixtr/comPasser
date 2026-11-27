@@ -1826,7 +1826,7 @@ const dictionary = {
         upcomingTripToday: "Open today's plan",
         upcomingTripOpen: "Open trip",
         homeGlobeToggle: "Pick a country on the globe",
-        upcomingTripCounts: "{0} places · {1} booked",
+        upcomingTripCounts: "Places {0} · Booked {1}",
         upcomingTripFirst: "First booking {0}",
         deleteBtn: "Delete",
         itineraryNameAria: "Itinerary name",

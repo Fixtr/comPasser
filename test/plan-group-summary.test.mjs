@@ -17,13 +17,14 @@ test('a filled one-day draft reads as one short line per group', () => {
       { day: 1, name: '해변열차', time: '11:00', endTime: '12:00' },
       { day: 1, name: '감천문화마을', flexible: true },
       { day: 1, name: '태종대', flexible: true },
+      { day: 1, name: '', time: '15:00', endTime: '16:00' },
     ],
   })), {
     time: '09:00 – 20:00',
     endpoints: '부산역 → 해운대',
     stays: '',
     flights: '',
-    places: ['1일차 · 11:00 – 12:00 · 해변열차', '방문 시간 자동 배치 2곳'],
+    places: ['1일차 · 11:00 – 12:00 · 해변열차', '1일차 · 15:00 – 16:00 · 장소 미정', '방문 시간 자동 배치 2곳'],
   });
 });
 

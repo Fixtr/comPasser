@@ -22,7 +22,7 @@ export function planGroupSummaries(draft) {
       .map(kind => `${t(`${kind}Flight`)} ${time(draft.flights[kind].time)}`).join(' · '),
     places: [
       ...anchors.filter(anchor => !anchor.flexible)
-        .map(anchor => `${t('day_n').replace('{0}', anchor.day)} · ${time(anchor.time)} – ${time(anchor.endTime)} · ${anchor.name}`),
+        .map(anchor => `${t('day_n').replace('{0}', anchor.day)} · ${time(anchor.time)} – ${time(anchor.endTime)} · ${anchor.name || t('locationUnset')}`),
       ...(automatic ? [t('planGroupAuto').replace('{0}', automatic)] : []),
     ],
   };

@@ -28,14 +28,17 @@ export function travelFormTemplate(view) {
         :host([handoff-flow]) input, :host([handoff-flow]) select { min-height: 44px; font-size: 16px; border-radius: 6px; }
         :is(button,input,select,summary):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: 3px; }
         /* Each group folds to one line; open, the fields speak for themselves and the line hides. No overflow clip: place lists drop below their field. */
-        .plan-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: 0.75rem; cursor: pointer; list-style: none; }
+        .plan-group > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; margin-bottom: 0.75rem; cursor: pointer; list-style: none; }
         .plan-group > summary::-webkit-details-marker { display: none; }
-        .plan-group > summary::after { content: '›'; flex-shrink: 0; font-size: 1.25rem; color: var(--cp-muted); transform: rotate(90deg); }
+        .plan-group > summary::after { content: '›'; grid-column: 2; grid-row: 1; font-size: 1.25rem; color: var(--cp-muted); transform: rotate(90deg); }
         .plan-group[open] > summary::after { transform: rotate(-90deg); }
-        .plan-group > summary h2 { flex: 1; margin: 0; }
-        .plan-group-label { font-weight: 700; color: var(--cp-ink); }
-        .plan-group-value { flex: 1; min-width: 0; text-align: right; color: var(--cp-ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+        /* The value sits on its own line under the title, so long English or several places never squeeze beside it. */
+        .plan-group-label, .plan-group > summary h2 { grid-column: 1; grid-row: 1; margin: 0; padding: 0; border: 0; font-size: 1rem; font-weight: 700; color: var(--cp-ink); }
+        .plan-group-value { grid-column: 1 / -1; grid-row: 2; margin-top: 4px; color: var(--cp-ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+        .plan-group-value:empty { display: none; }
         .plan-group[open] .plan-group-value { display: none; }
+        /* The stays group's summary already names it. */
+        .plan-group #trip-stays > h3 { display: none; }
 
       </style>
 
