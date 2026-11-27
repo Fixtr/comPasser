@@ -22,6 +22,7 @@ import { farFromCityKm } from '../../../../functions/airport-buffer.mjs';
 import { RECOMMENDATION_CITIES } from '../../../../functions/recommendation-cities.mjs';
 import { ANCHOR_FIELD_SELECTOR, bindSubmit, fieldLabelOf, invalidFieldMessage } from './travel-form-submit.js';
 import { bindStaySearch, bindDiscovery, bindVisitButtons, bindFlights, bindValidation, bindDayToggles, bindReset } from './travel-form-events.js';
+import { planGroupSummaries } from '../services/plan-group-summary.mjs';
 
 export default class TravelForm extends HTMLElement {
   constructor() {
@@ -195,6 +196,7 @@ export default class TravelForm extends HTMLElement {
 
   updateTexts() {
     applyTranslations(this.shadowRoot);
+    this.renderGroupSummaries();
     this.syncFarLocations();
     if (this.hasAttribute('handoff-flow')) {
       const city = destinationById(this.draft.destination?.id);
@@ -578,6 +580,7 @@ export default class TravelForm extends HTMLElement {
     }
     this.shadowRoot.getElementById('overnight-notice').hidden = !this.draft.overnightLocations.some(location => !getLocationName(location));
     this.updateDailyLocationSummary();
+    this.renderGroupSummaries();
     this.renderPreferenceBadges();
   }
 
@@ -621,6 +624,16 @@ export default class TravelForm extends HTMLElement {
    * 막혔다는 사실을 눈에 보이게 한다: 말로 한 번(토스트), 자리로 한 번(스크롤·초점),
    * 그리고 그 칸에 표시를 남긴다(aria-invalid — 보조기기도 읽는다).
    */
+  // The one-line value each folded group shows (plan-group-summary.mjs), from the saved draft.
+  renderGroupSummaries() {
+    if (!this.draft) return;
+    const summary = planGroupSummaries(this.draft);
+    this.shadowRoot.querySelectorAll('details.plan-group').forEach(group => {
+      const value = summary[group.dataset.group];
+      group.querySelector('.plan-group-value').textContent = Array.isArray(value) ? value.join('\n') : value;
+    });
+  }
+
   _revealInvalidField(control, message) {
     // The review lists the issue inline, so a toast there would only repeat it and outlive the fix.
     if (this.reviewing) {
@@ -630,6 +643,7 @@ export default class TravelForm extends HTMLElement {
     }
     if (message) showErrorToast(message);
     if (!control) return;
+    control.closest('details.plan-group')?.setAttribute('open', '');
     // 표시는 늘 한 칸에만. 앞서 걸렸던 칸을 그대로 두면 "지금 막고 있는 것"이
     // 둘로 보인다 — 값이 코드로 바뀌어 input 이 안 뜬 경우에도 남는다.
     this.shadowRoot.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));

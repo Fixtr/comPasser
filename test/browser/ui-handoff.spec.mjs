@@ -1476,6 +1476,45 @@ test('the review says when one place on one day will be a single visit, but not 
  await expect(note(form)).toHaveText('같은 날 같은 장소가 두 번 들어 있어요. 서로 다른 시간을 정한 약속이 아니면 일정에는 한 번만 들어가요.');
 });
 
+test('plan details groups fold behind a one-line summary that follows the draft, and an invalid field opens its group',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const form=await openExitTestForm(page,{flights:{arrival:{airport:place,time:'08:10',kind:'international'},departure:null}});
+ const group=name=>form.locator(`details.plan-group[data-group=${name}]`);
+ for (const name of ['time','endpoints','stays','flights','places']) await expect(group(name)).toHaveAttribute('open','');
+ // An open group shows its fields, so its summary line is hidden; closing it shows the line instead.
+ await expect(group('time').locator('.plan-group-value')).toBeHidden();
+ await group('time').locator('summary').click();
+ await expect(group('time')).not.toHaveAttribute('open','');
+ await expect(form.locator('#start-time')).toBeHidden();
+ await expect(group('time').locator('.plan-group-value')).toHaveText('09:00 – 18:00');
+ await group('places').locator('summary').click();
+ await expect(group('places').locator('.plan-group-value')).toHaveText('1일차 · 12:00 – 13:00 · Booked visit');
+ await expect(group('places').getByRole('heading',{name:/^꼭 갈 장소/})).toBeVisible();
+ await group('flights').locator('summary').click();
+ await expect(group('flights').locator('.plan-group-value')).toHaveText('도착편 08:10');
+ // The summary follows edits and the language.
+ await group('time').locator('summary').click();
+ await form.locator('#end-time').fill('20:00');await form.locator('#end-time').dispatchEvent('change');
+ await group('time').locator('summary').click();
+ await expect(group('time').locator('.plan-group-value')).toHaveText('09:00 – 20:00');
+ await page.locator('.ion-page:visible').getByRole('button',{name:'English',exact:true}).click();
+ await expect(group('flights').locator('.plan-group-value')).toHaveText('Arriving flight 08:10');
+ await expect(group('time').locator('summary .plan-group-label')).toHaveText('Time');
+ await page.locator('.ion-page:visible').getByRole('button',{name:'한국어',exact:true}).click();
+ // A required field left empty in a closed group: the review's fix button opens the group and focuses the field.
+ await group('time').locator('summary').click();
+ await form.locator('#start-time').fill('');await form.locator('#start-time').dispatchEvent('change');
+ await group('time').locator('summary').click();
+ await expect(group('time')).not.toHaveAttribute('open','');
+ await form.locator('button[type=submit].primary-btn').click();
+ const review=form.locator('#review-panel');await expect(review).toBeVisible();
+ await review.locator('#review-issues button').first().click();
+ await expect(group('time')).toHaveAttribute('open','');
+ await expect(form.locator('#start-time')).toBeVisible();
+ await expect(form.locator('#start-time')).toHaveAttribute('aria-invalid','true');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
 test('the planner counts 4/7 to 7/7 with a matching bar and speaks one term for must-visit places, without developer words',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto('/destination');

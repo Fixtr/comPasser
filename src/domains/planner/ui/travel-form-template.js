@@ -26,7 +26,16 @@ export function travelFormTemplate(view) {
         /* With wider fonts the start label wrapped beside "Where should I go?" and sat higher than the end label; let the button wrap instead. */
         :host([handoff-flow]) .location-heading label { flex-shrink: 0; }
         :host([handoff-flow]) input, :host([handoff-flow]) select { min-height: 44px; font-size: 16px; border-radius: 6px; }
-        :is(button,input,select):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: 3px; }
+        :is(button,input,select,summary):focus-visible { outline: 3px solid var(--cp-ink); outline-offset: 3px; }
+        /* Each group folds to one line; open, the fields speak for themselves and the line hides. No overflow clip: place lists drop below their field. */
+        .plan-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: 0.75rem; cursor: pointer; list-style: none; }
+        .plan-group > summary::-webkit-details-marker { display: none; }
+        .plan-group > summary::after { content: '›'; flex-shrink: 0; font-size: 1.25rem; color: var(--cp-muted); transform: rotate(90deg); }
+        .plan-group[open] > summary::after { transform: rotate(-90deg); }
+        .plan-group > summary h2 { flex: 1; margin: 0; }
+        .plan-group-label { font-weight: 700; color: var(--cp-ink); }
+        .plan-group-value { flex: 1; min-width: 0; text-align: right; color: var(--cp-ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+        .plan-group[open] .plan-group-value { display: none; }
 
       </style>
 
@@ -99,6 +108,7 @@ export function travelFormTemplate(view) {
             </div>
             <input id="trip-destination" readonly aria-readonly="true">
           </div>
+          <details class="plan-group" data-group="time" open><summary><span class="plan-group-label" data-i18n="planGroupTime">${t('planGroupTime')}</span><span class="plan-group-value"></span></summary>
           <div class="time-settings">
           <div id="daily-times-wrapper" style="display: none;">
             <label class="toggle-container">
@@ -125,7 +135,9 @@ export function travelFormTemplate(view) {
           
           <div id="daily-times-accordion" style="display: none;"></div>
           </div>
+          </details>
           
+          <details class="plan-group" data-group="endpoints" open><summary><span class="plan-group-label" data-i18n="reviewEndpoints">${t('reviewEndpoints')}</span><span class="plan-group-value"></span></summary>
           <div class="row-2">
             <div class="form-group">
               <div class="location-heading">
@@ -144,7 +156,9 @@ export function travelFormTemplate(view) {
               <p id="end-location-lock" class="subtitle" data-i18n="flightLocksEnd" hidden></p>
             </div>
           </div>
+          </details>
           <div id="overnight-wrapper" hidden>
+            <details class="plan-group" data-group="stays" open><summary><span class="plan-group-label" data-i18n="flowStays">${t('flowStays')}</span><span class="plan-group-value"></span></summary>
             <p class="subtitle" data-i18n="overnightLocationHelp">Choose where each night ends and the next day begins.</p>
             <label class="overnight-option">
               <input type="checkbox" id="same-overnight-toggle" aria-controls="overnight-locations">
@@ -162,6 +176,7 @@ export function travelFormTemplate(view) {
               <div id="daily-locations"></div>
               <p id="daily-locations-notice" class="subtitle" role="status" hidden></p>
             </div>
+            </details>
           </div>
           <p id="selected-waypoint" class="subtitle" hidden><strong data-i18n="discoverWaypointLabel">방문할 곳</strong>: <span id="selected-waypoint-name"></span>
             <button type="button" id="remove-waypoint" class="link-btn" data-i18n="discoverWaypointRemove">제외</button>
@@ -169,7 +184,7 @@ export function travelFormTemplate(view) {
         </div>
 
         <div class="form-section" id="flights-section">
-          <h2><span data-i18n="flightsTitle">${t('flightsTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2>
+          <details class="plan-group" data-group="flights" open><summary><h2><span data-i18n="flightsTitle">${t('flightsTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2><span class="plan-group-value"></span></summary>
           <p class="subtitle" data-i18n="flightsSubtitle"></p>
           <div class="flight-entry" id="arrival-flight" hidden>
             <div class="location-heading">
@@ -223,16 +238,18 @@ export function travelFormTemplate(view) {
             <button type="button" id="add-arrival-flight" class="secondary-btn" data-i18n="addArrivalFlight">+ Arriving flight</button>
             <button type="button" id="add-departure-flight" class="secondary-btn" data-i18n="addDepartureFlight">+ Departing flight</button>
           </div>
+          </details>
         </div>
 
         <div class="form-section">
-          <h2><span data-i18n="anchorTitle">${t('anchorTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2>
+          <details class="plan-group" data-group="places" open><summary><h2><span data-i18n="anchorTitle">${t('anchorTitle')}</span> <span class="optional-note">(<span data-i18n="flowOptional">${t('flowOptional')}</span>)</span></h2><span class="plan-group-value"></span></summary>
           <p class="subtitle" data-i18n="anchorSubtitle">Fixed schedule items to build around (e.g., Concert at 7PM, Dinner reservation)</p>
           
           <div id="anchors-container"></div>
           
           ${view.hasAttribute('handoff-flow') ? `<button type="button" id="add-reservation-btn" class="secondary-btn" data-i18n="flowAddReservation">${t('flowAddReservation')}</button>` : ''}
           <button type="button" id="add-anchor-btn" class="secondary-btn" data-i18n="${view.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor'}">${t(view.hasAttribute('handoff-flow') ? 'flowAddAnchor' : 'addAnchor')}</button>
+          </details>
         </div>
 
         
