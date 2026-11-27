@@ -22,8 +22,11 @@ async (page) => {
   // Which of home's two candidates is filled: a filled button's background is its border colour, an outlined one's is not.
   const filled = () => page.evaluate(() => {
     const isFilled = button => getComputedStyle(button).backgroundColor === getComputedStyle(button).borderTopColor;
-    const create = [...document.querySelectorAll('.ionic-home-links button:first-child')].find(button => button.getClientRects().length > 0);
-    const open = [...document.querySelectorAll('upcoming-trip')].find(element => element.getClientRects().length > 0)?.shadowRoot.querySelector('button');
+    const card = [...document.querySelectorAll('upcoming-trip')].find(element => element.getClientRects().length > 0);
+    // Read 일정 만들기 from the card's own page: during a route change the leaving home page is still drawn.
+    const create = card?.parentElement.querySelector('.ionic-home-links button:first-child')
+      ?? [...document.querySelectorAll('.ionic-home-links button:first-child')].find(button => button.getClientRects().length > 0);
+    const open = card?.shadowRoot.querySelector('button');
     return { create: isFilled(create), card: open ? isFilled(open) : null };
   });
   const sameFilled = (actual, create, card) => actual.create === create && actual.card === card;
