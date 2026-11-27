@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { upcomingTrip } from '../src/domains/itinerary/services/upcoming-trip.mjs';
+import { upcomingTrip, tripGlance } from '../src/domains/itinerary/services/upcoming-trip.mjs';
 
 const trip = (id, ...dates) => ({ id, itineraryPlan: { days: dates.map((date, index) => ({ day: index + 1, date })) } });
 // Noon in Seoul, the default trip time zone, on that date.
@@ -54,4 +54,34 @@ test("today is the trip's own local date", () => {
   assert.deepEqual(upcomingTrip([newYork], now), { item: newYork, daysUntil: 0, dayNumber: 1 });
   const seoul = { id: 'seoul', itineraryPlan: { metadata: { request: { destination: { id: 'seoul', country: 'KOR' } } }, days: [{ day: 1, date: '2026-09-14' }] } };
   assert.deepEqual(upcomingTrip([seoul], now), { item: seoul, daysUntil: 0, dayNumber: 1 });
+});
+
+const stop = (type, time, title, extra = {}) => ({ type, time, title, ...extra });
+const planOf = (...days) => ({ days: days.map((scheduleItems, index) => ({ day: index + 1, date: `2026-11-${28 + index}`, scheduleItems })) });
+
+test('the glance counts visited places and fixed reservations, not the day boundaries', () => {
+  const plan = planOf([
+    stop('departure', '09:00', '부산역'),
+    stop('Place', '09:30', '카페'),
+    stop('AnchorSchedule', '11:00', '해변열차'),
+    stop('AnchorSchedule', '12:00', '꼭 갈 식당', { flexible: true }),
+    stop('arrival', '20:00', '부산역'),
+  ], [
+    stop('AnchorSchedule', '14:00', '요트 투어'),
+  ]);
+  assert.deepEqual(tripGlance(plan), { stops: 4, reservations: 2, first: { dayIndex: 0, time: '11:00', name: '해변열차' } });
+});
+
+test('the first reservation is the earliest one from the given day on', () => {
+  const plan = planOf(
+    [stop('AnchorSchedule', '11:00', '첫날 예약')],
+    [stop('AnchorSchedule', '18:00', '저녁'), stop('AnchorSchedule', '09:30', '아침 투어', { title: '', location: '아침 투어 장소' })],
+  );
+  assert.deepEqual(tripGlance(plan, 1).first, { dayIndex: 1, time: '09:30', name: '아침 투어 장소' });
+});
+
+test('a trip without reservations or days has an empty glance', () => {
+  assert.deepEqual(tripGlance(planOf([stop('Place', '10:00', '공원')])), { stops: 1, reservations: 0, first: null });
+  assert.deepEqual(tripGlance(null), { stops: 0, reservations: 0, first: null });
+  assert.deepEqual(tripGlance({ days: [{ day: 1 }] }), { stops: 0, reservations: 0, first: null });
 });
