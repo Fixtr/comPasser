@@ -973,7 +973,11 @@ export const itineraryStyles = `
           :host([mobile-summary]) #edit-mode-btn { min-height: 0; position: relative; }
           /* inset 은 테두리 안쪽 기준이다. 1px 테두리를 넘어 위아래 8px 씩 나가야 30px 줄에서 44px 가 된다. */
           :host([mobile-summary]) #edit-mode-btn::after { content: ''; position: absolute; inset: -9px 0; }
-          :host([mobile-summary]) .cost-summary { padding: 0.3rem 1rem; margin-bottom: 0.5rem; }
+          /* 휴대폰의 비용은 상자 없이 작은 한 줄이다. 날짜 옆에 붙이면 375px 에서 제목이 두 줄로 꺾여 따로 둔다. */
+          :host([mobile-summary]) .cost-summary { padding: 0; margin-bottom: 0.35rem; background: transparent; border: 0; font-size: 0.82rem; line-height: 1.3; }
+          /* 저장한 뒤의 '저장됨' 줄은 할 일이 없는데 시트 아래 한 줄을 차지한다. 휴대폰에서만 물리고, 마지막 버튼이 홈 표시줄을 피하게 한다. */
+          :host([mobile-summary]) #results[data-saved] > #actions-primary { display: none; }
+          :host([mobile-summary]) #results[data-saved] .itinerary-actions { padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px)); }
           /* 하루짜리 일정은 날짜 탭 대신 제목 줄이 온다. 제목 아래 여백이 24px 라 여행 당일 상자가 길어지면 첫 방문지가 밀린다. */
           :host([mobile-summary]) #day-title-header { margin-bottom: 0.5rem; padding-bottom: 0; }
           :host([mobile-summary]) .day-tabs-container { margin-bottom: 0.5rem; padding-bottom: 0; }

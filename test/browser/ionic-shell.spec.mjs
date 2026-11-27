@@ -1505,6 +1505,13 @@ test('지도가 이동 시간을 재지 못했다는 안내가 떠 있어도 휴
   await expect(view.locator('#transit-notice')).toHaveText('실제 대중교통 소요시간을 확인하지 못했습니다. 아래 시각은 AI 추정치이며 실제와 다를 수 있습니다.');
   expect(await view.locator('#transit-notice').evaluate(box => box.scrollHeight <= box.clientHeight + 1 && box.scrollWidth <= box.clientWidth + 1)).toBe(true);
   await expect(view.locator('#cost-summary')).toBeVisible();
+  // 휴대폰의 비용은 상자 없이 작은 한 줄이다. 문구는 줄이지 않는다.
+  const cost = await view.locator('#cost-summary').evaluate(box => ({
+    text: box.textContent.trim(), height: box.getBoundingClientRect().height, border: getComputedStyle(box).borderTopWidth,
+    fits: box.scrollWidth <= box.clientWidth + 1,
+  }));
+  expect(cost).toEqual({ text: '1인 예상 비용 ₩3,000', height: expect.any(Number), border: '0px', fits: true });
+  expect(cost.height).toBeLessThanOrEqual(22);
   // 날짜 탭은 한 줄이 됐을 뿐 날짜는 그대로 있고, 누르는 높이도 44px 이다.
   const tab = await view.locator('.day-tab-btn').first().evaluate(button => {
     const day = button.querySelector('strong').getBoundingClientRect();
@@ -2495,6 +2502,47 @@ test('저장 중 연결이 끊기면 알려 주고, 다시 연결되어 끝나�
   await expect(page).toHaveURL(/\/view\/saved1$/);
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await expect(page.getByText('연결이 불안정해요', { exact: false })).toHaveCount(0);
+});
+
+test('휴대폰에서는 저장한 뒤 저장 줄이 물러나고, 고치면 다시 나온다. 넓은 화면에서는 그대로 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await openUnsavedDraft(page);
+  // 저장하면 주소가 바뀌며 새 화면이 뒤에 붙는다. 앞 화면이 잠깐 함께 남으므로 늘 맨 뒤 화면을 본다.
+  const view = page.locator('itinerary-view:visible').last();
+  const bar = view.locator('#actions-primary');
+  const save = view.locator('#save-itinerary-btn');
+  // 저장 전에는 주 버튼이 엄지 자리에 있다.
+  await expect(bar).toBeVisible();
+  await expect(save).toHaveText('이 일정 저장하기');
+  await save.click();
+  await expect(page).toHaveURL(/\/view\/saved1$/);
+  // 저장한 뒤에는 할 일이 없는 줄이 자리를 차지하지 않는다. 버튼은 남아 상태를 말한다.
+  // 줄이 hidden 속성으로 가려진 것이 아니라, 일정이 그려진 뒤 저장 상태 때문에 숨었는지를 본다.
+  const hiddenBecauseSaved = async () => {
+    await expect(save).toHaveText('저장됨');
+    await expect(save).toBeDisabled();
+    await expect(view.locator('#timeline-container .schedule-card').first()).toBeVisible();
+    await expect(view.locator('#results')).toHaveAttribute('data-saved', '');
+    await expect(bar).not.toHaveAttribute('hidden');
+    await expect(bar).toBeHidden();
+  };
+  await hiddenBecauseSaved();
+  // 마지막 조작 버튼이 홈 표시줄 자리를 피한다(테스트 화면은 안전 영역이 0 이라 0.6rem 만 남는다).
+  expect(await view.locator('.itinerary-actions').evaluate(box => getComputedStyle(box).paddingBottom)).toBe('9.6px');
+  // 넓은 화면은 바뀌지 않는다: 저장된 상태에서도 줄이 보인다.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(bar).toBeVisible();
+  await expect(save).toHaveText('저장됨');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await hiddenBecauseSaved();
+  // 고치면 저장할 것이 생겼으므로 다시 나온다. 편집 코드가 하듯 상태를 바꾸고 조작 버튼을 갱신한다.
+  await view.evaluate(element => {
+    element.state.editDayItems(0, element.state.current.plan.days[0].scheduleItems.slice(0, 1), { undo: true });
+    element.refreshAccessControls();
+  });
+  await expect(bar).toBeVisible();
+  await expect(save).toHaveText('변경 사항 저장');
+  await expect(save).toBeEnabled();
 });
 
 test('초안을 저장해 주소가 바뀌어도 되돌리기가 남고, 빈 /view에는 초안이 없다', async ({ page }) => {

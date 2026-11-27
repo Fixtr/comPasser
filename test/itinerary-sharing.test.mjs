@@ -24,6 +24,7 @@ function fakeElement() {
     style: {}, dataset: {}, disabled: false, hidden: false,
     innerHTML: '', textContent: '', listeners: {}, classList: { toggle() {} },
     getAttribute(name) { return name === 'data-i18n' ? this.dataset.i18n : null; },
+    attributes: new Set(), toggleAttribute(name, on) { this.attributes[on ? 'add' : 'delete'](name); },
     children: [], appendChild(child) { this.children.push(child); },
     addEventListener(type, handler) { this.listeners[type] = handler; },
   };

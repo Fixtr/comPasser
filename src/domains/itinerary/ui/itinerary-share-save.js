@@ -56,7 +56,10 @@ async function saveCurrent(view, { onSavedId }) {
     return { status: 'failed' };
   } finally {
     view._saving = false;
+    const hadFocus = view.shadowRoot.activeElement === saveBtn;
     view.refreshAccessControls();
+    // 휴대폰에서는 저장한 뒤 저장 줄이 숨는다. 초점이 사라진 버튼에 남지 않게 다음 조작으로 옮긴다.
+    if (hadFocus && saveBtn.offsetParent === null) view.shadowRoot.getElementById('share-itinerary-btn')?.focus?.();
   }
 }
 

@@ -24,6 +24,7 @@ function element() {
   return {
     style: {}, dataset: {}, children: [], innerHTML: '', textContent: '',
     classList: { toggle() {} },
+    toggleAttribute() {},
     appendChild(child) { this.children.push(child); },
     querySelectorAll() { return []; }, querySelector() { return null; },
     addEventListener() {}, setAttribute() {},

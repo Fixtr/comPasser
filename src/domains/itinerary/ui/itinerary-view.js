@@ -361,6 +361,8 @@ export default class ItineraryView extends HTMLElement {
       saveBtn.dataset.i18n = saveKey;
       saveBtn.textContent = t(saveKey);
       saveBtn.disabled = saveKey === 'savedStateBtn';
+      // 휴대폰에서는 저장할 것이 없는 줄을 CSS 가 숨긴다. 저장 중의 disabled 와 구분하려고 따로 표시한다.
+      this.shadowRoot.getElementById('results')?.toggleAttribute('data-saved', saveKey === 'savedStateBtn');
     }
     const notice = this.shadowRoot.getElementById('shared-notice');
     if (notice) {
