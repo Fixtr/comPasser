@@ -48,6 +48,9 @@ async function chooseCourseCity(page, city = 'seoul', country = 'KOR') {
   await page.locator(`button[data-course-city=${city}]`).click();
 }
 
+// The globe sits behind a button on home; only the shown home page's button counts (Ionic keeps '/' and '/home' mounted).
+const openGlobe = page => page.locator('.ionic-home-globe:visible').click();
+
 test('코스는 나라와 도시를 고른 뒤 해당 도시만 표시하고 이전 단계로 돌아갈 수 있다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 760 });
   await page.route('**/src/domains/itinerary/services/public-course-service.js', route => route.fulfill({ contentType: 'text/javascript', body: `
@@ -425,7 +428,7 @@ test('홈 밖 화면의 코드가 늦게 오면 불러오는 중을 보이고, �
   const held = new Promise(resolve => { release = resolve; });
   await page.route('**/src/prototype/ionic-screens.jsx', async route => { await held; await route.continue(); });
   await page.goto('/home');
-  await expect(page.locator('.travel-globe svg path')).toHaveCount(177);
+  await expect(page.locator('.ionic-home-links button:visible')).toHaveCount(2);
   await page.getByRole('button', { name: '코스 둘러보기' }).focus();
   await page.keyboard.press('Enter');
   // Ionic hides the old page after 300 ms of waiting; the loader under it must then show, not a blank outlet.
@@ -1677,6 +1680,24 @@ test('일정 생성 결과가 Ionic 지도·시트 화면으로 이어진다', a
   await page.screenshot({ path: testInfo.outputPath('result-desktop.png'), fullPage: true });
 });
 
+test('홈의 지구본은 버튼을 누르기 전에는 그리지도 받지도 않고, 버튼으로 열고 닫는다', async ({ page }) => {
+  const globeRequests = [];
+  page.on('request', request => { if (/travel-globe|world-110m|d3-geo/.test(request.url())) globeRequests.push(request.url()); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  const toggle = page.locator('.ionic-home-globe:visible');
+  await expect(toggle).toHaveText('지구본으로 나라 고르기');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.travel-globe')).toHaveCount(0);
+  expect(globeRequests).toEqual([]);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.travel-globe svg path')).toHaveCount(177);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.travel-globe')).toHaveCount(0);
+});
+
 test('작은 폰에서도 홈의 두 진입 버튼이 탭 바 위에 보이고, 지구본 자동 회전은 처음 만지면 멈춘다', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 });
   await page.goto('/home');
@@ -1686,6 +1707,7 @@ test('작은 폰에서도 홈의 두 진입 버튼이 탭 바 위에 보이고, 
   for (const box of await buttons.evaluateAll(items => items.map(item => item.getBoundingClientRect().toJSON()))) {
     expect(box.bottom).toBeLessThanOrEqual(tabBar.y);
   }
+  await openGlobe(page);
   const globe = page.locator('.globe-stage svg');
   await expect(globe).toBeVisible();
   // Vertical swipes over the globe scroll the page; horizontal drags still turn it.
@@ -1710,6 +1732,7 @@ test('작은 폰에서도 홈의 두 진입 버튼이 탭 바 위에 보이고, 
 test('지구본의 작은 여행지는 44px 이상 탭 영역의 표시로 고를 수 있고, 뒷면에서는 숨는다', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/home');
+  await openGlobe(page);
   const globe = page.locator('.globe-stage svg');
   await expect(globe.locator('path')).toHaveCount(177);
   await page.locator('.ionic-home h1').click();
@@ -1734,6 +1757,7 @@ test('지구본의 작은 여행지는 44px 이상 탭 영역의 표시로 고�
   await page.goto('/recommend');
   await expect(page.getByRole('button', { name: '싱가포르' })).toBeVisible();
   await page.goto('/home');
+  await openGlobe(page);
   await expect(globe.locator('.globe-marker[data-country=SGP]')).toHaveCount(1);
   await globe.focus();
   for (let turn = 0; turn < 15; turn += 1) await page.keyboard.press('ArrowRight');
@@ -1744,6 +1768,7 @@ test('지구본 표시의 탭 영역은 이웃 나라를 가리지 않고 바다
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
+  await openGlobe(page);
   const globe = page.locator('.globe-stage svg');
   await expect(globe.locator('path')).toHaveCount(177);
   await globe.scrollIntoViewIfNeeded();
@@ -1771,6 +1796,7 @@ test('지구본 표시의 탭 영역은 이웃 나라를 가리지 않고 바다
 test('홈은 일정 만들기와 코스 둘러보기 두 진입 버튼을 제공하고 새 일정 바로가기는 없다', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/home');
+  await openGlobe(page);
   const preview = page.locator('.travel-globe');
   await expect(preview).toBeVisible();
   await expect(preview.locator('svg path')).toHaveCount(177);
@@ -2273,6 +2299,7 @@ test('a city picked on the globe before sign-in restores keeps the signed-in dra
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
+  await openGlobe(page);
   await page.locator('svg .globe-marker[data-country=KOR]').click();
   await page.locator('.globe-selection button').click();
   await expect(page.getByRole('status').filter({ hasText: '불러오는' })).toBeVisible();

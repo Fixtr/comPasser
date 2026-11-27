@@ -78,7 +78,7 @@ ComPasser는 복잡하고 피곤한 여행 동선 설계와 시간 계산을 AI 
 ### 4.4. 화면 구성과 라우팅 (Ionic React Router)
 - Ionic React 셸(`src/prototype/ionic-shell.jsx`)의 라우터가 화면 이동을 맡는다. 경로는 `/`·`/home`, `/destination`, `/recommend`, `/courses`, `/login`, `/join`, `/verify`, `/preference/1`, `/preference/2`, `/plan`, `/view`, `/view/:id`, `/share/:id`, `/profile`(`/trips`, `/personal`, `/security`), `/account-deletion-status`다. `/preference`는 `/preference/1`로 보내고, 표에 없는 주소나 형식이 틀린 일정 주소는 `찾을 수 없음` 화면을 보여준다. 하단 탭(홈 `/home`, 내 일정 `/profile/trips`, 프로필 `/profile/personal`)은 홈과 프로필 화면에서만 보인다.
 - **일정 작성 흐름**: 나라 → 도시 → 꼭 갈 장소(`/destination`) → 날짜(`/preference/1`) → 테마·예산(`/preference/2`) → 상세 설정(`/plan`) → 생성 전 최종 확인.
-  - 홈의 `일정 만들기`는 `/recommend`에서, 지구본에서 나라를 고르면 `/destination`에서 시작한다.
+  - 홈의 `일정 만들기`는 `/recommend`에서, 지구본(홈의 `지구본으로 나라 고르기` 버튼으로 펼침)에서 나라를 고르면 `/destination`에서 시작한다.
   - **홈 도시 검색**: 홈의 `지원 도시 검색`에서 도시를 고르면 나라·도시 단계를 건너뛰고 `/destination`의 장소 단계에서 시작한다. 검색은 도시 이름의 단어 첫머리를 맞추며 한글은 조합 중인 글자도 찾는다(붓 → 부산). 일치하는 도시가 없으면 `전체 지원 도시 보기`로 `/recommend`를 연다.
   - **도시 변경 확인**: 초안에는 도시가 하나만 들어간다. 홈 검색에서 다른 도시를 고르면 이전 도시에 담아 둔 내용(꼭 갈 장소, 숙소, 날짜별 출발·마무리 장소, 최종 도착지)이 지워지므로, 지워질 내용이 있을 때는 `도시를 바꿀까요?` 창에서 `바꾸기`를 눌러야 바뀐다. 취소하면 초안은 그대로다.
   - **주소에 남는 선택**: `/recommend`와 `/courses`는 고른 나라와 도시를 주소(`?country=…&city=…`)에 둔다. 뒤로 가기는 한 단계씩 올라가고 새로고침해도 선택이 유지된다. `/recommend`에서 둘러보는 도시는 장소를 담거나 다음 단계로 넘어갈 때에만 초안에 저장한다.

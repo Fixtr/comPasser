@@ -17,6 +17,8 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
   const [pickedCountry, setPickedCountry] = useState(null);
   const [pickedCity, setPickedCity] = useState(null);
   const [query, setQuery] = useState('');
+  // Closed at first: the globe took half a phone screen, and its chunk and animation wait until asked for.
+  const [globeOpen, setGlobeOpen] = useState(false);
   // null until the search is first used, false when the download failed.
   const [catalogue, setCatalogue] = useState(null);
   const searchId = useId();
@@ -153,7 +155,8 @@ export function HomeScreen({ pageActive, user, authSettled, settings }) {
         <p role="status">{noMatch && t('homeCityNoMatch')}</p>
         {(noMatch || catalogue === false) && <button type="button" onClick={() => navigate('/recommend')}>{t('homeCityBrowseAll')}</button>}
       </div>
-      <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>
+      <button type="button" className="ionic-home-globe" aria-expanded={globeOpen} onClick={() => setGlobeOpen(open => !open)}>{t('homeGlobeToggle')}</button>
+      {globeOpen && <Suspense fallback={<section className="travel-globe"><div className="globe-stage" /><h2>{t('flowDiscoverTitle')}</h2><p>{t('flowDiscoverDescription')}</p></section>}><TravelGlobe active={active} onChooseCity={setPickedCountry} /></Suspense>}
     </div>
   </IonContent></IonPage>;
 }

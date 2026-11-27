@@ -122,6 +122,7 @@
 
 ## Globe zoom gestures
 
+- Home globe stays closed behind a full-width `지구본으로 나라 고르기` / `Pick a country on the globe` button (`.ionic-home-globe`, `aria-expanded`) under the city search; its lazy chunk loads and its animation runs only once opened, and closing unmounts it. Each home page (`/`, `/home`) keeps its own open state, not saved.
 - Home globe renders at 320px, shrinking to available width on narrow screens, while keeping its 260-unit SVG viewBox. Zoom changes the existing D3 projection/ocean radius; clamp scale to 0.65–4 times its initial size. Wheel up zooms in and wheel down zooms out; only wheel events over the globe prevent page scrolling. Normalize pixel/line/page wheel deltas.
 - The globe uses `touch-action: pan-y`: a vertical finger swipe scrolls the page and horizontal drags rotate (mouse and keys still rotate vertically). The automatic turn is a 10 s intro that also ends at the first pointer or key press anywhere; rotation the user switches back on keeps going. Reduced motion starts paused.
 - Track captured pointers: one finger rotates, two fingers zoom by their distance ratio. Pinch/cancellation must not select a country or retain stale gesture state. Keep tap selection and rotation after gestures. Plus/minus keys offer keyboard zoom. Reduced-motion still suppresses automatic/inertial animation.

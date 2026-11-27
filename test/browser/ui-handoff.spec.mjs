@@ -517,7 +517,7 @@ test('all added countries offer places and curated courses, and US selections ke
 });
 
 test('globe wheel and native two-finger pinch zoom without scrolling, rotating or selecting a country',async({page,context})=>{
- await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/home');
+ await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/home');await page.locator('.ionic-home-globe:visible').click();
  const globe=page.locator('.globe-stage svg'),ocean=globe.locator('.globe-ocean');await expect(ocean).toHaveAttribute('r','128');
  // Reduced motion never turns the globe, so its control starts paused (and has no aria-pressed).
  const toggle=page.locator('.globe-stage .globe-auto');await expect(toggle).toHaveAttribute('aria-label','자동 회전 시작');await expect(toggle).not.toHaveAttribute('aria-pressed',/./);
@@ -704,7 +704,7 @@ test('profile trips keep profile navigation; language is inside security; home i
  const profile=page.locator('profile-view[data-active]');await profile.locator('.nav-item[data-tab=trips]').click();await expect(page).toHaveURL(/profile\/personal\?tab=trips$/);await expect(page.locator('ion-tab-button[tab=profile]')).toHaveClass(/tab-selected/);await expect(profile.locator('.sidebar')).toBeVisible();
  await page.locator('profile-view[data-active]').locator('.nav-item[data-tab=security]').click();await expect(page).toHaveURL(/profile\/security$/);await page.locator('profile-view #security.active #profile-language:visible').selectOption('en');
  await page.goto('/home');await expect(page.getByRole('button',{name:'한국어',exact:true})).toBeVisible();
- await expect(page.locator('html')).toHaveAttribute('lang','en');await expect(page.locator('.globe-stage svg')).toHaveAttribute('width','320');
+ await expect(page.locator('html')).toHaveAttribute('lang','en');await page.locator('.ionic-home-globe:visible').click();await expect(page.locator('.globe-stage svg')).toHaveAttribute('width','320');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=320)).toBe(true);await page.screenshot({path:testInfo.outputPath('home-en-320.png'),fullPage:true});
 });
 
@@ -868,6 +868,7 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('/home');
   await page.evaluate(async () => (await import('/src/domains/planner/services/planner-draft.mjs')).plannerDraftStore.update({step:'/preference/2',country:'FRA',date:['2030-10-17']}));
+  await page.locator('.ionic-home-globe:visible').click();
   await page.locator('svg .globe-marker[data-country=KOR]').click();
   await expect(page.locator('.globe-selection')).toContainText('대한민국');
   await page.locator('.globe-selection button').click();

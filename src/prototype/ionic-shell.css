@@ -74,7 +74,7 @@ ion-header + .shell-content .ionic-page-nav { position: static; padding-top: 6px
 .ionic-home-settings { max-width: 440px; }
 button { font: inherit; cursor: pointer; }
 .flow-page { max-width: 700px; margin: 12px auto 36px; color: var(--cp-ink); }
-.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .ionic-page-nav>a, .globe-selection button, .globe-auto, .ionic-home-links button, .ionic-home-search :is(input, button) { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: var(--cp-radius); min-height: 44px; padding: 8px 12px; }
+.flow-page input, .flow-page button, .flow-page select, .ionic-page-nav>button, .ionic-page-nav>a, .globe-selection button, .globe-auto, .ionic-home-links button, .ionic-home-globe, .ionic-home-search :is(input, button) { background: var(--cp-surface); color: var(--cp-ink); border: 1px solid var(--cp-rule); border-radius: var(--cp-radius); min-height: 44px; padding: 8px 12px; }
 /* One filled primary per screen: the first home entry, unless the card right above it shows a saved trip (its button is filled then). .flow-primary's block layout would break this grid. */
 :not(upcoming-trip[trip]) + .ionic-home-links button:first-child { background: var(--cp-ink); color: var(--cp-surface); border-color: var(--cp-ink); }
 .ionic-home-search { margin-top: 16px; text-align: left; }
@@ -84,6 +84,7 @@ button { font: inherit; cursor: pointer; }
 .ionic-home-results { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
 .ionic-home-results button { width: 100%; text-align: left; }
 .ionic-home-search p:empty { margin: 0; }
+.ionic-home-globe { display: block; width: 100%; margin-top: 12px; }
 /* Google sets light dark on the widget itself; the app is light-only. */
 .flow-page gmp-place-autocomplete { display: block; margin-top: 8px; color-scheme: only light; }
 .flow-page label { font-size: 14px; }
